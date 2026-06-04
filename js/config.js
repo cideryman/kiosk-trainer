@@ -1,5 +1,5 @@
 // Google Apps Script API 설정
-const API_URL = "https://script.google.com/a/macros/yjrehab.or.kr/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ9_UPux8bq0xROvNK9E1NCBam0Qe/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ9_UPux8bq0xROvNK9E1NCBam0Qe/exec";
 
 // 로컬 테스트 및 API 오류 대응을 위한 Mock 데이터
 const MOCK_DATA = {
