@@ -90,7 +90,11 @@ async function fetchAPI(action, options = {}) {
   } catch (error) {
     console.warn(`[API Warning] 실제 API 호출 실패 혹은 CORS 발생. Mock 데이터를 사용합니다. Action: ${action}`, error);
     // 에러 발생 시 사용자 경험 중단을 막기 위해 Mock 데이터로 폴백 제공
-    return getMockFallback(action, options);
+    return {
+  success: false,
+  message: '구글시트 연결에 실패했습니다.',
+  error: String(error)
+    };
   }
 }
 
