@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>간식 키오스크 - 이름을 골라요</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="kiosk-container" id="app-container">
+    <!-- 헤더 -->
+    <header class="kiosk-header">
+      <div class="kiosk-header-top">
+        <h1 class="kiosk-title">🍪 주간보호센터 간식가게</h1>
+      </div>
+    </header>
+
+    <!-- 바디 (스크롤 가능 영역) -->
+    <main class="kiosk-body" id="main-content">
+      <div class="guide-text">
+        내 <span>이름(별명)</span>을 찾아서 눌러주세요!
+      </div>
+      
+      <!-- 이용자 목록 그리드 -->
+      <div class="grid-container" id="user-grid">
+        <!-- JS로 동적 생성 -->
+      </div>
+    </main>
+
+    <!-- 로딩 오버레이 -->
+    <div class="overlay" id="loading-overlay">
+      <div class="spinner"></div>
+      <div class="overlay-text" id="loading-text">이름 목록을 불러오는 중입니다...</div>
+    </div>
+
+    <!-- 에러 모달/오버레이 (초기엔 숨김) -->
+    <div class="overlay" id="error-overlay" style="display: none;">
+      <div class="error-box" id="error-message">목록을 불러오지 못했습니다.</div>
+      <button class="btn btn-primary" id="btn-retry" style="margin-top: 20px; width: 80%;">다시 불러오기</button>
+    </div>
+  </div>
+
+  <!-- 스크립트 참조 -->
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    // 이용자 목록 로드 함수
+    async function loadUsers() {
+      const loadingOverlay = document.getElementById('loading-overlay');
+      const errorOverlay = document.getElementById('error-overlay');
+      const userGrid = document.getElementById('user-grid');
+
+      // UI 초기화
+      loadingOverlay.style.display = 'flex';
+      errorOverlay.style.display = 'none';
+      userGrid.innerHTML = '';
+
+      try {
+        const response = await fetchAPI('getUsers');
+        
+        if (response && response.success && Array.isArray(response.users)) {
+          renderUsers(response.users);
+          loadingOverlay.style.display = 'none';
+        } else {
+          throw new Error('API 응답 형식이 유효하지 않습니다.');
+        }
+      } catch (error) {
+        console.error('사용자 목록 불러오기 실패:', error);
+        document.getElementById('error-message').textContent = '인터넷 연결이 불안정하거나\n목록을 가져올 수 없습니다.';
+        loadingOverlay.style.display = 'none';
+        errorOverlay.style.display = 'flex';
+      }
+    }
+
+    // 이용자 목록 렌더링
+    function renderUsers(users) {
+      const userGrid = document.getElementById('user-grid');
+      
+      if (users.length === 0) {
+        userGrid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">등록된 이용자가 없습니다.</div>';
+        return;
+      }
+
+      users.forEach(user => {
+        const card = document.createElement('div');
+        card.className = 'user-card clickable-card';
+        card.setAttribute('role', 'button');
+        card.setAttribute('aria-label', `${user.nickname} 선택`);
+        
+        // 내부에 이름과 크레딧 표기
+        card.innerHTML = `
+          <div class="user-card-name">${user.nickname}</div>
+          <div class="user-card-credit">${AppState.formatPoint(user.credit)}</div>
+        `;
+        
+        // 카드 클릭 이벤트
+        card.addEventListener('click', () => {
+          AppState.setSelectedUser(user);
+          
+          // 피드백 효과 후 이동
+          AppState.vibrate(60);
+          card.style.transform = 'scale(0.92)';
+          card.style.borderColor = 'var(--secondary-color)';
+          
+          setTimeout(() => {
+            window.location.href = 'menu.html';
+          }, 150);
+        });
+
+        userGrid.appendChild(card);
+      });
+    }
+
+    // 초기 실행
+    window.addEventListener('DOMContentLoaded', () => {
+      // 혹시 남아있을 기존 장바구니/선택유저 데이터 초기화
+      AppState.resetAll();
+      
+      loadUsers();
+
+      // 다시 시도 버튼 바인딩
+      document.getElementById('btn-retry').addEventListener('click', () => {
+        loadUsers();
+      });
+    });
+  </script>
+</body>
+</html>

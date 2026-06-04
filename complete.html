@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>간식 키오스크 - 주문 완료</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="kiosk-container" id="app-container">
+    <!-- 헤더 -->
+    <header class="kiosk-header">
+      <div class="kiosk-header-top" style="justify-content: center;">
+        <h1 class="kiosk-title" style="font-size: 28px; text-align: center;">🎉 주문 완료!</h1>
+      </div>
+    </header>
+
+    <!-- 바디 -->
+    <main class="kiosk-body" id="main-content" style="justify-content: center; gap: 30px;">
+      <!-- 체크 이모지 & 축하 메시지 -->
+      <div class="success-check-wrapper">
+        <div class="success-emoji">🍩</div>
+        <div class="success-message" id="complete-title">주문 성공!</div>
+      </div>
+
+      <!-- 영수증 요약 박스 -->
+      <div class="bill-box" style="border-style: solid; border-color: var(--secondary-color); background-color: #F4FBF9;">
+        <div class="bill-row">
+          <span>이름</span>
+          <span class="bill-val" id="summary-name" style="font-size: 26px; color: var(--text-main);">-</span>
+        </div>
+        <div class="bill-row">
+          <span>사용한 크레딧</span>
+          <span class="bill-val highlight" id="summary-used" style="color: var(--primary-color); font-size: 26px;">0 크레딧</span>
+        </div>
+        <div class="bill-row total" style="border-top-color: #C2EAE2;">
+          <span>남은 크레딧</span>
+          <span class="bill-val success-highlight" id="summary-remain">0 크레딧</span>
+        </div>
+      </div>
+
+      <!-- 안내 타이머 -->
+      <div class="timer-text" id="countdown-text">
+        <span id="timer-sec" style="color: var(--danger-color); font-size: 22px; font-weight: 800;">5</span>초 후에 첫 화면으로 돌아갑니다.
+      </div>
+    </main>
+
+    <!-- 푸터 버튼 -->
+    <footer class="kiosk-footer">
+      <button class="btn btn-secondary" id="btn-home">처음으로 돌아가기</button>
+    </footer>
+  </div>
+
+  <!-- 스크립트 참조 -->
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    let countdownInterval = null;
+    let secondsLeft = 5;
+
+    // 데이터 바인딩
+    function showSummary() {
+      const summaryData = JSON.parse(localStorage.getItem('lastOrderSummary'));
+      
+      if (!summaryData) {
+        // 비정상 접근 시 메인으로
+        goHome();
+        return;
+      }
+
+      // 화면 출력
+      document.getElementById('complete-title').innerHTML = `<span>${summaryData.nickname}</span> 님<br>주문이 잘 접수되었어요!`;
+      document.getElementById('summary-name').textContent = `${summaryData.nickname} 님`;
+      document.getElementById('summary-used').textContent = AppState.formatPoint(summaryData.usedPoints);
+      document.getElementById('summary-remain').textContent = AppState.formatPoint(summaryData.remainPoints);
+
+      // 모바일 진동 축하 피드백
+      AppState.vibrate([100, 50, 100, 50, 200]);
+    }
+
+    // 메인으로 복귀 처리
+    function goHome() {
+      // 타이머 해제
+      clearInterval(countdownInterval);
+      
+      // 세션 정리 (마지막 주문 정보 및 유저 초기화)
+      localStorage.removeItem('lastOrderSummary');
+      AppState.resetAll();
+      
+      // 메인으로 이동
+      window.location.href = 'index.html';
+    }
+
+    // 자동 카운트다운 타이머
+    function startTimer() {
+      const timerSecEl = document.getElementById('timer-sec');
+      
+      countdownInterval = setInterval(() => {
+        secondsLeft--;
+        if (timerSecEl) {
+          timerSecEl.textContent = secondsLeft;
+        }
+
+        if (secondsLeft <= 0) {
+          goHome();
+        }
+      }, 1000);
+    }
+
+    // 바인딩
+    window.addEventListener('DOMContentLoaded', () => {
+      showSummary();
+      startTimer();
+
+      // 홈으로 버튼 클릭 시 즉시 복귀
+      document.getElementById('btn-home').addEventListener('click', () => {
+        goHome();
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+// 공통 앱 상태 관리 및 유틸리티
+const AppState = {
+  // 이용자 관련 스토리지 헬퍼
+  getSelectedUser() {
+    try {
+      return JSON.parse(localStorage.getItem('selectedUser')) || null;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  setSelectedUser(user) {
+    localStorage.setItem('selectedUser', JSON.stringify(user));
+  },
+
+  clearSelectedUser() {
+    localStorage.removeItem('selectedUser');
+  },
+
+  // 장바구니 관련 스토리지 헬퍼
+  getCart() {
+    try {
+      return JSON.parse(localStorage.getItem('cart')) || [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  setCart(cart) {
+    localStorage.setItem('cart', JSON.stringify(cart));
+  },
+
+  clearCart() {
+    localStorage.removeItem('cart');
+  },
+
+  // 주문 성공 후 스토리지 정리
+  clearOrderState() {
+    this.clearCart();
+    // selectedUser는 주문 완료 화면에서 필요할 수 있으므로, 완전 초기화 시점에 삭제
+  },
+
+  // 모든 세션 초기화
+  resetAll() {
+    this.clearSelectedUser();
+    this.clearCart();
+  },
+
+  // 발달장애인을 위한 촉각 피드백 (진동)
+  vibrate(ms = 50) {
+    if ('vibrate' in navigator) {
+      navigator.vibrate(ms);
+    }
+  },
+
+  // 금액/포인트 표시 포맷터
+  formatPoint(point) {
+    return `${point} 크레딧`;
+  }
+};
+
+// 모바일 브라우저의 100vh 스크롤 이슈 방지용 --vh 커스텀 프로퍼티 정의
+function updateViewportHeight() {
+  let vh = window.innerHeight * 0.01;
+  document.documentElement.style.setProperty('--vh', `${vh}px`);
+}
+
+window.addEventListener('resize', updateViewportHeight);
+window.addEventListener('DOMContentLoaded', () => {
+  updateViewportHeight();
+  
+  // 모든 버튼 클릭 시 진동 피드백 바인딩 (이용자 편의성)
+  document.body.addEventListener('click', (e) => {
+    if (e.target.closest('button') || e.target.closest('.clickable-card')) {
+      AppState.vibrate(40);
+    }
+  });
+});

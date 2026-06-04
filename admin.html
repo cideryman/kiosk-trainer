@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>간식 키오스크 - 관리자 페이지</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* 관리자 대시보드용 보완 스타일 (PC 넓은 화면 대응) */
+    @media (min-width: 768px) {
+      .kiosk-container {
+        max-width: 960px;
+        height: auto;
+        min-height: 90vh;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-lg);
+      }
+      body {
+        background-color: #E2E8F0;
+        padding: 40px 0;
+      }
+      .admin-layout {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+      }
+      .admin-main {
+        grid-column: 1;
+      }
+      .admin-side {
+        grid-column: 2;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="kiosk-container" style="height: auto; min-height: 100vh;">
+    <!-- 관리자 헤더 -->
+    <header class="kiosk-header admin-header">
+      <div class="kiosk-header-top">
+        <h1 style="font-size: 26px;">📊 오늘 주문 현황 (관리자)</h1>
+        <button class="btn btn-primary" id="btn-manual-refresh" style="min-height: 48px; font-size: 16px; width: auto; padding: 0 16px; margin: 0;">
+          🔄 지금 새로고침
+        </button>
+      </div>
+      <!-- 자동 새로고침 바 -->
+      <div class="refresh-indicator">
+        <span id="refresh-text">자동 새로고침 대기 중 (30초)</span>
+        <div style="flex: 1; margin-left: 12px;">
+          <div class="refresh-bar-container">
+            <div class="refresh-bar" id="timer-bar"></div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- 바디 -->
+    <main class="kiosk-body">
+      <!-- 상단 요약 카드 (총 매출 크레딧, 총 주문 건수) -->
+      <div class="summary-grid" style="margin-bottom: 10px;">
+        <div class="summary-card" style="border-left: 5px solid var(--primary-color);">
+          <div class="summary-card-title">오늘 누적 사용 크레딧</div>
+          <div class="summary-card-value" id="stat-total-points">0 크레딧</div>
+        </div>
+        <div class="summary-card" style="border-left: 5px solid var(--secondary-color);">
+          <div class="summary-card-title">오늘 총 주문 건수</div>
+          <div class="summary-card-value" id="stat-total-orders">0건</div>
+        </div>
+      </div>
+
+      <!-- 양단 레이아웃 (PC에서는 2열, 모바일은 1열 종종배치) -->
+      <div class="admin-layout">
+        <!-- 메인: 주문 상세 내역 -->
+        <div class="admin-main">
+          <div class="admin-section-title">주문 내역 목록</div>
+          <div class="table-responsive">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>주문 시간</th>
+                  <th>이용자</th>
+                  <th>간식명</th>
+                  <th style="text-align: center;">수량</th>
+                  <th style="text-align: right;">사용포인트</th>
+                </tr>
+              </thead>
+              <tbody id="order-table-body">
+                <!-- JS 동적 생성 -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 사이드: 집계 정보 -->
+        <div class="admin-side">
+          <!-- 1. 간식별 집계 -->
+          <div>
+            <div class="admin-section-title">간식별 집계 (인기순)</div>
+            <div class="stat-list" id="snack-stats">
+              <!-- JS 동적 생성 -->
+            </div>
+          </div>
+
+          <!-- 2. 이용자별 집계 -->
+          <div style="margin-top: 10px;">
+            <div class="admin-section-title">이용자별 주문 건수</div>
+            <div class="stat-list" id="user-stats">
+              <!-- JS 동적 생성 -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 관리자 푸터 (키오스크 홈으로 바로가는 편리 버튼) -->
+    <footer class="kiosk-footer">
+      <button class="btn btn-gray" id="btn-goto-kiosk" style="min-height: 56px; font-size: 20px;">
+        🛒 키오스크 화면으로 가기
+      </button>
+    </footer>
+  </div>
+
+  <!-- 스크립트 참조 -->
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    let refreshTimer = null;
+    let refreshSeconds = 30;
+    const MAX_REFRESH_TIME = 30;
+
+    // ISO 시간 -> HH:MM:SS 한글 포맷 변환
+    function formatTime(isoString) {
+      if (!isoString) return "-";
+      try {
+        const date = new Date(isoString);
+        if (isNaN(date.getTime())) return isoString;
+        
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${hours}:${minutes}:${seconds}`;
+      } catch (e) {
+        return isoString;
+      }
+    }
+
+    // 주문 데이터 및 집계 로드
+    async function loadAdminData() {
+      // 새로고침 관련 상태 초기화
+      resetRefreshTimer();
+
+      const tbody = document.getElementById('order-table-body');
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px; font-weight: 700;">주문을 불러오는 중...</td></tr>';
+
+      try {
+        const response = await fetchAPI('getOrdersToday');
+        
+        if (response && response.success && Array.isArray(response.orders)) {
+          renderData(response.orders);
+        } else {
+          throw new Error('API 응답 결과가 올바르지 않습니다.');
+        }
+      } catch (error) {
+        console.error('관리자 데이터 조회 실패:', error);
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 30px; color: var(--danger-color); font-weight: 700;">
+          데이터를 불러오지 못했습니다.<br>(${error.message || '인터넷 연결 끊김'})
+        </td></tr>`;
+      }
+    }
+
+    // 데이터 렌더링 및 집계 계산
+    function renderData(orders) {
+      const tbody = document.getElementById('order-table-body');
+      tbody.innerHTML = '';
+
+      if (orders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">오늘 접수된 주문이 없습니다.</td></tr>';
+        document.getElementById('stat-total-points').textContent = '0 크레딧';
+        document.getElementById('stat-total-orders').textContent = '0건';
+        document.getElementById('snack-stats').innerHTML = '<div class="empty-state">집계할 주문이 없습니다.</div>';
+        document.getElementById('user-stats').innerHTML = '<div class="empty-state">집계할 주문이 없습니다.</div>';
+        return;
+      }
+
+      // 1. 주문 목록 그리기 및 매출 합산 계산
+      let totalPoints = 0;
+      const snackAggregates = {}; // { snackName: totalQuantity }
+      const userAggregates = {}; // { nickname: orderCount }
+
+      // 주문 시간 역순(최신 주문이 위에)으로 정렬하여 표시
+      const sortedOrders = [...orders].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      sortedOrders.forEach(order => {
+        const pointVal = order.point || 0;
+        const qtyVal = order.quantity || 0;
+        
+        totalPoints += pointVal;
+
+        // 테이블 행 추가
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${formatTime(order.timestamp)}</strong></td>
+          <td>${order.nickname}</td>
+          <td>${order.snackName}</td>
+          <td style="text-align: center; font-weight: 800;">${qtyVal}개</td>
+          <td style="text-align: right; font-weight: 800; color: var(--primary-color);">${AppState.formatPoint(pointVal)}</td>
+        `;
+        tbody.appendChild(tr);
+
+        // 간식별 집계 합산
+        if (order.snackName) {
+          snackAggregates[order.snackName] = (snackAggregates[order.snackName] || 0) + qtyVal;
+        }
+
+        // 이용자별 집계 합산 (주문 건수 세기)
+        if (order.nickname) {
+          userAggregates[order.nickname] = (userAggregates[order.nickname] || 0) + 1;
+        }
+      });
+
+      // 2. 상단 전체 요약 반영
+      document.getElementById('stat-total-points').textContent = AppState.formatPoint(totalPoints);
+      document.getElementById('stat-total-orders').textContent = `${orders.length}건`;
+
+      // 3. 간식 집계 렌더링
+      const snackStatsEl = document.getElementById('snack-stats');
+      snackStatsEl.innerHTML = '';
+      
+      // 개수 많은 순으로 정렬
+      const sortedSnacks = Object.entries(snackAggregates).sort((a, b) => b[1] - a[1]);
+      sortedSnacks.forEach(([name, count]) => {
+        const item = document.createElement('div');
+        item.className = 'stat-item';
+        item.innerHTML = `
+          <span class="stat-item-name">${name}</span>
+          <span class="stat-item-val">${count}개</span>
+        `;
+        snackStatsEl.appendChild(item);
+      });
+
+      // 4. 이용자 집계 렌더링
+      const userStatsEl = document.getElementById('user-stats');
+      userStatsEl.innerHTML = '';
+      
+      // 건수 많은 순으로 정렬
+      const sortedUsers = Object.entries(userAggregates).sort((a, b) => b[1] - a[1]);
+      sortedUsers.forEach(([name, count]) => {
+        const item = document.createElement('div');
+        item.className = 'stat-item';
+        item.innerHTML = `
+          <span class="stat-item-name">${name} 님</span>
+          <span class="stat-item-val" style="color: var(--secondary-hover);">${count}건</span>
+        `;
+        userStatsEl.appendChild(item);
+      });
+    }
+
+    // 타이머 처리 (30초 -> 0초)
+    function startRefreshTimer() {
+      const timerBar = document.getElementById('timer-bar');
+      const refreshText = document.getElementById('refresh-text');
+      
+      refreshTimer = setInterval(() => {
+        refreshSeconds--;
+        
+        // 텍스트 및 프로그레스바 갱신
+        refreshText.textContent = `자동 새로고침 대기 중 (${refreshSeconds}초)`;
+        const percentage = ((MAX_REFRESH_TIME - refreshSeconds) / MAX_REFRESH_TIME) * 100;
+        timerBar.style.width = `${percentage}%`;
+
+        if (refreshSeconds <= 0) {
+          loadAdminData();
+        }
+      }, 1000);
+    }
+
+    function resetRefreshTimer() {
+      clearInterval(refreshTimer);
+      refreshSeconds = MAX_REFRESH_TIME;
+      
+      const timerBar = document.getElementById('timer-bar');
+      const refreshText = document.getElementById('refresh-text');
+      if (timerBar) timerBar.style.width = '0%';
+      if (refreshText) refreshText.textContent = `자동 새로고침 대기 중 (${MAX_REFRESH_TIME}초)`;
+      
+      startRefreshTimer();
+    }
+
+    // 초기 이벤트 설정
+    window.addEventListener('DOMContentLoaded', () => {
+      loadAdminData();
+
+      // 수동 새로고침 버튼
+      document.getElementById('btn-manual-refresh').addEventListener('click', () => {
+        loadAdminData();
+        AppState.vibrate(50);
+      });
+
+      // 키오스크 모드로 돌아가기
+      document.getElementById('btn-goto-kiosk').addEventListener('click', () => {
+        clearInterval(refreshTimer);
+        window.location.href = 'index.html';
+      });
+    });
+  </script>
+</body>
+</html>
