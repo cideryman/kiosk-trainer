@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>간식 키오스크 - 간식 고르기</title>
   <link rel="stylesheet" href="css/style.css">
+  <!-- PWA 설정 -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#FF9F1C">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="간식 키오스크">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
 </head>
 <body>
   <div class="kiosk-container" id="app-container">
@@ -30,6 +37,11 @@
       <!-- 크레딧 경고 노티 (숨김이 기본) -->
       <div class="error-box" id="credit-warning" style="display: none; margin-bottom: 10px; font-size: 20px;">
         ⚠️ 크레딧이 부족해서 더 담을 수 없어요!
+      </div>
+
+      <!-- 재고 경고 노티 (숨김이 기본) -->
+      <div class="error-box" id="stock-warning" style="display: none; margin-bottom: 10px; font-size: 20px;">
+        ⚠️ 재고가 부족해서 더 담을 수 없어요!
       </div>
 
       <!-- 간식 목록 그리드 -->
@@ -144,8 +156,10 @@
         const cartItem = cart.find(item => item.snackId === snack.snackId);
         const quantity = cartItem ? cartItem.quantity : 0;
 
+        const isSoldOut = snack.stock === 0;
+
         const card = document.createElement('div');
-        card.className = `snack-card ${quantity > 0 ? 'has-items' : ''}`;
+        card.className = `snack-card ${quantity > 0 ? 'has-items' : ''} ${isSoldOut ? 'sold-out' : ''}`;
         card.id = `snack-card-${snack.snackId}`;
 
         // 이미지 구성 (없으면 이모지)
@@ -157,6 +171,10 @@
         // 이미지 Fallback으로 항상 대형 이모지 컨테이너 대기
         const emojiHTML = `<div class="snack-img-placeholder" style="${snack.imageUrl ? 'display:none;' : 'display:flex;'}">${getSnackEmoji(snack.name)}</div>`;
 
+        // 남은 재고 텍스트 설정
+        const stockText = isSoldOut ? '품절' : `남은 수량 ${snack.stock}개`;
+        const stockColor = isSoldOut ? 'var(--danger-color)' : 'var(--text-muted)';
+
         card.innerHTML = `
           <div class="snack-img-container">
             ${imgHTML}
@@ -165,11 +183,14 @@
           <div class="snack-info">
             <div class="snack-name">${snack.name}</div>
             <div class="snack-point">${AppState.formatPoint(snack.point)}</div>
+            <div class="snack-stock" id="stock-${snack.snackId}" style="font-size: 16px; font-weight: 700; color: ${stockColor}; margin-top: 2px;">
+              ${stockText}
+            </div>
             
             <div class="counter-group">
               <button class="btn-counter btn-counter-minus" id="btn-minus-${snack.snackId}" aria-label="감소">-</button>
               <div class="counter-value" id="val-${snack.snackId}">${quantity}</div>
-              <button class="btn-counter btn-counter-plus" id="btn-plus-${snack.snackId}" aria-label="증가">+</button>
+              <button class="btn-counter btn-counter-plus" id="btn-plus-${snack.snackId}" aria-label="증가" ${isSoldOut ? 'disabled' : ''}>+</button>
             </div>
           </div>
         `;
@@ -202,6 +223,15 @@
       const targetQty = currentQty + change;
 
       if (targetQty < 0) return; // 0 미만으로 감소 불가
+
+      // 재고 한도 검증
+      if (change > 0 && targetQty > snack.stock) {
+        showStockWarning();
+        AppState.vibrate([100, 50, 100]); // 경고성 더블 진동
+        return;
+      } else {
+        hideStockWarning();
+      }
 
       // 총 포인트 합산 계산 (이 연산이 추가되었을 때 한계치 체크)
       const currentTotalPoints = cart.reduce((sum, item) => sum + (item.point * item.quantity), 0);
@@ -272,6 +302,7 @@
     function showCreditWarning() {
       const warningEl = document.getElementById('credit-warning');
       warningEl.style.display = 'block';
+      hideStockWarning(); // 재고 경고는 숨김
       
       // 3초 후 자동 사라짐
       clearTimeout(window.warningTimeout);
@@ -282,7 +313,24 @@
 
     function hideCreditWarning() {
       const warningEl = document.getElementById('credit-warning');
-      warningEl.style.display = 'none';
+      if (warningEl) warningEl.style.display = 'none';
+    }
+
+    function showStockWarning() {
+      const warningEl = document.getElementById('stock-warning');
+      warningEl.style.display = 'block';
+      hideCreditWarning(); // 크레딧 경고는 숨김
+      
+      // 3초 후 자동 사라짐
+      clearTimeout(window.stockWarningTimeout);
+      window.stockWarningTimeout = setTimeout(() => {
+        hideStockWarning();
+      }, 3000);
+    }
+
+    function hideStockWarning() {
+      const warningEl = document.getElementById('stock-warning');
+      if (warningEl) warningEl.style.display = 'none';
     }
 
     // 초기 바인딩

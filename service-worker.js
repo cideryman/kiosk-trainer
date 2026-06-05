@@ -1,0 +1,91 @@
+const CACHE_NAME = 'kiosk-cache-v1';
+const urlsToCache = [
+  'index.html',
+  'menu.html',
+  'confirm.html',
+  'complete.html',
+  'admin.html',
+  'css/style.css',
+  'js/app.js',
+  'js/config.js',
+  'manifest.json',
+  'icons/icon-192.png',
+  'icons/icon-512.png'
+];
+
+// 서비스 워커 설치 및 캐싱
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        console.log('[Service Worker] 정적 파일 캐싱 진행');
+        return cache.addAll(urlsToCache);
+      })
+      .then(() => self.skipWaiting())
+  );
+});
+
+// 서비스 워커 활성화 및 구버전 캐시 정리
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('[Service Worker] 이전 캐시 삭제:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
+});
+
+// 요청 가로채기 및 캐싱 전략 적용
+self.addEventListener('fetch', (event) => {
+  const requestUrl = new URL(event.request.url);
+
+  // 구글 Apps Script API 요청은 캐시하지 않고 항상 네트워크를 통하게 처리 (Network Only / Network First)
+  if (requestUrl.href.includes('script.google.com') || requestUrl.searchParams.has('action')) {
+    event.respondWith(
+      fetch(event.request)
+        .catch((error) => {
+          console.warn('[Service Worker] API 요청 실패 (네트워크 연결 끊김):', error);
+          // 실패 시 적절히 json 에러 상태를 리턴하도록 처리하여 클라이언트에서 에러 핸들러가 돌도록 함
+          return new Response(JSON.stringify({
+            success: false,
+            message: '네트워크 연결이 끊겨 신선한 데이터를 가져올 수 없습니다.',
+            error: String(error)
+          }), {
+            headers: { 'Content-Type': 'application/json' }
+          });
+        })
+    );
+    return;
+  }
+
+  // 정적 리소스는 캐시 우선(Cache-First) 전략 적용 후 캐시가 없으면 네트워크에서 로드
+  event.respondWith(
+    caches.match(event.request)
+      .then((response) => {
+        if (response) {
+          return response; // 캐시된 데이터 반환
+        }
+
+        return fetch(event.request).then((fetchResponse) => {
+          // 유효하지 않은 응답은 그냥 그대로 반환
+          if (!fetchResponse || fetchResponse.status !== 200 || fetchResponse.type !== 'basic') {
+            return fetchResponse;
+          }
+
+          // 새로 받은 정적 파일을 캐시에 추가
+          const responseToCache = fetchResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+
+          return fetchResponse;
+        });
+      })
+  );
+});

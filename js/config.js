@@ -1,28 +1,33 @@
 // Google Apps Script API 설정
 const API_URL = "https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ9_UPux8bq0xROvNK9E1NCBam0Qe/exec";
 
+// 로컬 테스트용 Mock 데이터 강제 사용 여부
+// - false: 실제 API 호출 (실패 시 Mock으로 자동 폴백하지 않고 실제 에러 메시지 노출)
+// - true: 항상 로컬 Mock 데이터를 사용하여 동작 테스트 및 검증 진행
+const USE_MOCK = false;
+
 // 로컬 테스트 및 API 오류 대응을 위한 Mock 데이터
 const MOCK_DATA = {
   getUsers: {
     success: true,
     users: [
-      { userId: "user001", nickname: "이니", credit: 10 },
-      { userId: "user002", nickname: "준이", credit: 15 },
-      { userId: "user003", nickname: "민이", credit: 8 },
-      { userId: "user004", nickname: "후니", credit: 20 },
-      { userId: "user005", nickname: "수지", credit: 12 },
-      { userId: "user006", nickname: "영이", credit: 5 }
+      { userId: "user001", nickname: "이니", credit: 10, useYn: "Y", imageUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" },
+      { userId: "user002", nickname: "준이", credit: 15, useYn: "Y", imageUrl: "" },
+      { userId: "user003", nickname: "민이", credit: 8, useYn: "Y", imageUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80" },
+      { userId: "user004", nickname: "후니", credit: 20, useYn: "Y", imageUrl: "" },
+      { userId: "user005", nickname: "수지", credit: 12, useYn: "Y", imageUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80" },
+      { userId: "user006", nickname: "영이", credit: 5, useYn: "Y", imageUrl: "" }
     ]
   },
   getSnacks: {
     success: true,
     snacks: [
-      { snackId: 1, name: "초코칩 쿠키", point: 1, imageUrl: "" },
-      { snackId: 2, name: "감자칩", point: 2, imageUrl: "" },
-      { snackId: 3, name: "사이다", point: 1, imageUrl: "" },
-      { snackId: 4, name: "오렌지주스", point: 3, imageUrl: "" },
-      { snackId: 5, name: "초코우유", point: 2, imageUrl: "" },
-      { snackId: 6, name: "하리보 젤리", point: 1, imageUrl: "" }
+      { snackId: 1, name: "초코칩 쿠키", point: 1, imageUrl: "", saleYn: "Y", stock: 5 },
+      { snackId: 2, name: "감자칩", point: 2, imageUrl: "", saleYn: "Y", stock: 3 },
+      { snackId: 3, name: "사이다", point: 1, imageUrl: "", saleYn: "Y", stock: 0 }, // 품절 테스트용
+      { snackId: 4, name: "오렌지주스", point: 3, imageUrl: "", saleYn: "Y", stock: 10 },
+      { snackId: 5, name: "초코우유", point: 2, imageUrl: "", saleYn: "Y", stock: 1 }, // 1개 남은 것 테스트용
+      { snackId: 6, name: "하리보 젤리", point: 1, imageUrl: "", saleYn: "Y", stock: 8 }
     ]
   },
   placeOrder: {
@@ -46,6 +51,11 @@ const MOCK_DATA = {
  * @returns {Promise<Object>} API 응답 데이터
  */
 async function fetchAPI(action, options = {}) {
+  if (typeof USE_MOCK !== 'undefined' && USE_MOCK) {
+    console.log(`[API Mock] USE_MOCK이 활성화되어 있어 Mock 데이터를 사용합니다. Action: ${action}`);
+    return getMockFallback(action, options);
+  }
+
   const method = options.method || 'GET';
   let url = `${API_URL}?action=${action}`;
 

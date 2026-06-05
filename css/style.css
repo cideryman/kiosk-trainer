@@ -253,7 +253,40 @@ body {
   align-items: center;
   gap: 12px;
   box-shadow: var(--shadow-sm);
-  min-height: 140px;
+  min-height: 210px;
+}
+
+/* 이용자 아바타 스타일 */
+.user-avatar-container {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 3px solid var(--border-color);
+  background-color: #E9ECEF;
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+.user-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-size: 38px;
+  font-weight: 800;
+  user-select: none;
 }
 
 .user-card:hover {
@@ -298,6 +331,27 @@ body {
 .snack-card.has-items {
   border-color: var(--primary-color);
   background-color: #FFFDF9;
+}
+
+.snack-card.sold-out {
+  opacity: 0.6;
+}
+
+.snack-card.sold-out .snack-img-container::after {
+  content: '품절';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.45);
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: 2px;
 }
 
 .snack-img-container {
@@ -366,6 +420,14 @@ body {
   justify-content: center;
   cursor: pointer;
   transition: all 0.1s ease;
+}
+
+.btn-counter:disabled {
+  background-color: #DEE2E6 !important;
+  color: #ADB5BD !important;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .btn-counter-minus {

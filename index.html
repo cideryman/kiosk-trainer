@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>간식 키오스크 - 이름을 골라요</title>
   <link rel="stylesheet" href="css/style.css">
+  <!-- PWA 설정 -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#FF9F1C">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="간식 키오스크">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
 </head>
 <body>
   <div class="kiosk-container" id="app-container">
@@ -87,8 +94,30 @@
         card.setAttribute('role', 'button');
         card.setAttribute('aria-label', `${user.nickname} 선택`);
         
-        // 내부에 이름과 크레딧 표기
+        // 파스텔 색상 목록 (가독성 좋고 부드러운)
+        const colors = ['#FF9F1C', '#2EC4B6', '#118AB2', '#FF5A5F', '#8338EC', '#3A86C8'];
+        const colorIndex = Math.abs(user.userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % colors.length;
+        const fallbackBgColor = colors[colorIndex];
+
+        let avatarHTML = '';
+        if (user.imageUrl && user.imageUrl.trim() !== '') {
+          avatarHTML = `
+            <div class="user-avatar-container">
+              <img src="${user.imageUrl}" alt="${user.nickname} 사진" class="user-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+              <div class="user-avatar-fallback" style="background-color: ${fallbackBgColor}; display: none;">${user.nickname.charAt(0)}</div>
+            </div>
+          `;
+        } else {
+          avatarHTML = `
+            <div class="user-avatar-container">
+              <div class="user-avatar-fallback" style="background-color: ${fallbackBgColor};">${user.nickname.charAt(0)}</div>
+            </div>
+          `;
+        }
+
+        // 내부에 아바타, 이름, 크레딧 표기
         card.innerHTML = `
+          ${avatarHTML}
           <div class="user-card-name">${user.nickname}</div>
           <div class="user-card-credit">${AppState.formatPoint(user.credit)}</div>
         `;

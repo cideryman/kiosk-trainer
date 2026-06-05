@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>간식 키오스크 - 관리자 페이지</title>
   <link rel="stylesheet" href="css/style.css">
+  <!-- PWA 설정 -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#FF9F1C">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="간식 키오스크">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <style>
     /* 관리자 대시보드용 보완 스타일 (PC 넓은 화면 대응) */
     @media (min-width: 768px) {
@@ -111,6 +118,14 @@
               <!-- JS 동적 생성 -->
             </div>
           </div>
+
+          <!-- 3. 현재 간식 재고 현황 -->
+          <div style="margin-top: 20px;">
+            <div class="admin-section-title">현재 간식 재고 현황</div>
+            <div class="stat-list" id="snack-stock-list">
+              <!-- JS 동적 생성 -->
+            </div>
+          </div>
         </div>
       </div>
     </main>
@@ -153,22 +168,68 @@
       resetRefreshTimer();
 
       const tbody = document.getElementById('order-table-body');
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px; font-weight: 700;">주문을 불러오는 중...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px; font-weight: 700;">데이터를 불러오는 중...</td></tr>';
+
+      const stockListEl = document.getElementById('snack-stock-list');
+      if (stockListEl) {
+        stockListEl.innerHTML = '<div style="padding: 10px; text-align: center; font-weight: 700;">불러오는 중...</div>';
+      }
 
       try {
-        const response = await fetchAPI('getOrdersToday');
+        const [ordersRes, snacksRes] = await Promise.all([
+          fetchAPI('getOrdersToday'),
+          fetchAPI('getSnacks')
+        ]);
         
-        if (response && response.success && Array.isArray(response.orders)) {
-          renderData(response.orders);
+        if (ordersRes && ordersRes.success && Array.isArray(ordersRes.orders)) {
+          renderData(ordersRes.orders);
         } else {
-          throw new Error('API 응답 결과가 올바르지 않습니다.');
+          throw new Error('주문 API 응답 결과가 올바르지 않습니다.');
+        }
+
+        if (snacksRes && snacksRes.success && Array.isArray(snacksRes.snacks)) {
+          renderSnacksStock(snacksRes.snacks);
+        } else {
+          throw new Error('간식 API 응답 결과가 올바르지 않습니다.');
         }
       } catch (error) {
         console.error('관리자 데이터 조회 실패:', error);
         tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 30px; color: var(--danger-color); font-weight: 700;">
           데이터를 불러오지 못했습니다.<br>(${error.message || '인터넷 연결 끊김'})
         </td></tr>`;
+        if (stockListEl) {
+          stockListEl.innerHTML = `<div style="padding: 10px; text-align: center; color: var(--danger-color); font-weight: 700;">불러오기 실패</div>`;
+        }
       }
+    }
+
+    // 현재 간식 재고 목록 렌더링
+    function renderSnacksStock(snacks) {
+      const stockListEl = document.getElementById('snack-stock-list');
+      if (!stockListEl) return;
+      
+      stockListEl.innerHTML = '';
+      
+      if (snacks.length === 0) {
+        stockListEl.innerHTML = '<div class="empty-state">등록된 간식이 없습니다.</div>';
+        return;
+      }
+      
+      snacks.forEach(snack => {
+        const item = document.createElement('div');
+        item.className = 'stat-item';
+        
+        const isSoldOut = snack.stock === 0;
+        const stockText = isSoldOut ? '품절' : `${snack.stock}개 남음`;
+        const valColor = isSoldOut ? 'var(--danger-color)' : 'var(--secondary-hover)';
+        const fontWeight = isSoldOut ? '800' : '700';
+
+        item.innerHTML = `
+          <span class="stat-item-name">${snack.name}</span>
+          <span class="stat-item-val" style="color: ${valColor}; font-weight: ${fontWeight};">${stockText}</span>
+        `;
+        stockListEl.appendChild(item);
+      });
     }
 
     // 데이터 렌더링 및 집계 계산

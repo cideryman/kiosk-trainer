@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>간식 키오스크 - 주문 확인</title>
   <link rel="stylesheet" href="css/style.css">
+  <!-- PWA 설정 -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#FF9F1C">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="간식 키오스크">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
 </head>
 <body>
   <div class="kiosk-container" id="app-container">
@@ -190,8 +197,23 @@
         btnSubmit.disabled = false;
         btnPrev.disabled = false;
 
-        errorBox.textContent = `⚠️ 주문 요청에 실패했습니다. (${error.message || '인터넷 연결 끊김'})`;
+        let displayMessage = '인터넷 연결이 불안정합니다. 잠시 후 다시 시도해 주세요.';
+        const errStr = String(error.message || '');
+        
+        if (errStr.includes('재고')) {
+          displayMessage = '간식의 남은 수량이 부족해서 주문할 수 없어요!';
+        } else if (errStr.includes('크레딧') || errStr.includes('포인트') || errStr.includes('잔액')) {
+          displayMessage = '크레딧(돈)이 부족해서 주문할 수 없어요!';
+        } else if (errStr) {
+          displayMessage = errStr;
+        }
+
+        // 화면 메시지 박스 표시
+        errorBox.textContent = `⚠️ 주문 실패: ${displayMessage}`;
         errorBox.style.display = 'block';
+        
+        // 시각적으로 한 번 더 인지할 수 있도록 alert 표시
+        alert(`주문 실패\n\n${displayMessage}`);
         
         AppState.vibrate([100, 100, 100]); // 에러 진동 피드백
       }
