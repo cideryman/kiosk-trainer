@@ -85,6 +85,71 @@ const AppState = {
     }
 
     return text;
+  },
+
+  // 이름에 따른 기본 이모지 매핑 함수 (발달장애인을 위한 시각 보완)
+  getSnackEmoji(name) {
+    const lowerName = String(name || '').toLowerCase();
+    if (lowerName.includes('쿠키') || lowerName.includes('초코') || lowerName.includes('칩')) return '🍪';
+    if (lowerName.includes('감자') || lowerName.includes('칩') || lowerName.includes('과자') || lowerName.includes('포테이토')) return '🥔';
+    if (lowerName.includes('사이다') || lowerName.includes('콜라') || lowerName.includes('탄산') || lowerName.includes('소다')) return '🥤';
+    if (lowerName.includes('주스') || lowerName.includes('쥬스') || lowerName.includes('즙') || lowerName.includes('에이드')) return '🧃';
+    if (lowerName.includes('우유') || lowerName.includes('라떼')) return '🥛';
+    if (lowerName.includes('젤리') || lowerName.includes('하리보') || lowerName.includes('마이구미')) return '🍬';
+    if (lowerName.includes('빵') || lowerName.includes('케이크') || lowerName.includes('도넛')) return '🍞';
+    if (lowerName.includes('사탕') || lowerName.includes('롤리팝')) return '🍭';
+    if (lowerName.includes('초콜릿') || lowerName.includes('가나')) return '🍫';
+    return '🍿'; // 디폴트
+  },
+
+  // 효과음 재생 (Web Audio API 동적 합성)
+  playClickSound() {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      // 맑고 부드러운 '뾱' 소리 (주파수가 빠르게 상승 후 하강)
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.05);
+      oscillator.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.12);
+
+      gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.12);
+    } catch (e) {
+      console.warn("효과음 재생 실패:", e);
+    }
+  },
+
+  // TTS 상태 및 음성 합성 헬퍼
+  isTtsEnabled() {
+    return localStorage.getItem('ttsEnabled') === 'true';
+  },
+
+  setTtsEnabled(enabled) {
+    localStorage.setItem('ttsEnabled', enabled ? 'true' : 'false');
+  },
+
+  speak(text) {
+    if (!this.isTtsEnabled()) return;
+    try {
+      // 진행 중인 음성 취소
+      window.speechSynthesis.cancel();
+      
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'ko-KR';
+      utterance.rate = 1.1; // 살짝 빠른 한국어 템포가 더 자연스러움
+      window.speechSynthesis.speak(utterance);
+    } catch (e) {
+      console.warn("TTS 재생 실패:", e);
+    }
   }
 };
 
@@ -100,8 +165,13 @@ window.addEventListener('DOMContentLoaded', () => {
   updateViewportHeight();
 
   document.body.addEventListener('click', (e) => {
-    if (e.target.closest('button') || e.target.closest('.clickable-card')) {
+    if (e.target.closest('button') || 
+        e.target.closest('.clickable-card') || 
+        e.target.closest('.user-card') || 
+        e.target.closest('.snack-card') || 
+        e.target.closest('.snack-img-container')) {
       AppState.vibrate(40);
+      AppState.playClickSound();
     }
   });
 });

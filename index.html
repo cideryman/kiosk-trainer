@@ -19,6 +19,13 @@
     <header class="kiosk-header">
       <div class="kiosk-header-top">
         <h1 class="kiosk-title">🍪 주간보호센터 간식가게</h1>
+        <div class="tts-toggle-container">
+          <label class="tts-switch">
+            <input type="checkbox" id="tts-toggle">
+            <span class="tts-slider"></span>
+          </label>
+          <span class="tts-label">음성 안내</span>
+        </div>
       </div>
     </header>
 
@@ -127,14 +134,15 @@
         card.addEventListener('click', () => {
           AppState.setSelectedUser(user);
           
-          // 피드백 효과 후 이동
+          // 피드백 효과 및 음성 안내 후 이동
           AppState.vibrate(60);
+          AppState.speak(`${user.nickname} 님을 선택했습니다.`);
           card.style.transform = 'scale(0.92)';
           card.style.borderColor = 'var(--secondary-color)';
           
           setTimeout(() => {
             window.location.href = 'menu.html';
-          }, 150);
+          }, 600); // 음성이 시작될 수 있는 시간적 여유 부여
         });
 
         userGrid.appendChild(card);
@@ -147,6 +155,21 @@
       AppState.resetAll();
       
       loadUsers();
+
+      // TTS 토글 연동 및 초기설정
+      const ttsToggle = document.getElementById('tts-toggle');
+      if (ttsToggle) {
+        ttsToggle.checked = AppState.isTtsEnabled();
+        ttsToggle.addEventListener('change', (e) => {
+          AppState.setTtsEnabled(e.target.checked);
+          AppState.vibrate(40);
+          if (e.target.checked) {
+            AppState.speak("음성 안내를 켭니다.");
+          } else {
+            window.speechSynthesis.cancel();
+          }
+        });
+      }
 
       // 다시 시도 버튼 바인딩
       document.getElementById('btn-retry').addEventListener('click', () => {

@@ -129,10 +129,24 @@
       cart.forEach(item => {
         const itemEl = document.createElement('div');
         itemEl.className = 'order-item';
+
+        const itemImgUrl = AppState.convertDriveImageUrl(item.imageUrl);
+        let imgHTML = '';
+        if (itemImgUrl && itemImgUrl.trim() !== '') {
+          imgHTML = `<img src="${itemImgUrl}" alt="${item.name}" class="order-item-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`;
+        }
+        const emojiHTML = `<div class="order-item-emoji-fallback" style="${itemImgUrl ? 'display:none;' : 'display:flex;'}">${AppState.getSnackEmoji(item.name)}</div>`;
+
         itemEl.innerHTML = `
-          <div class="order-item-info">
-            <div class="order-item-name">${item.name}</div>
-            <div class="order-item-qty">${item.quantity}개</div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <div class="order-item-img-container">
+              ${imgHTML}
+              ${emojiHTML}
+            </div>
+            <div class="order-item-info">
+              <div class="order-item-name">${item.name}</div>
+              <div class="order-item-qty">${item.quantity}개</div>
+            </div>
           </div>
           <div class="order-item-point">${AppState.formatPoint(item.point * item.quantity)}</div>
         `;
