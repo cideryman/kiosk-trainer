@@ -37,9 +37,9 @@ const MOCK_DATA = {
   getOrdersToday: {
     success: true,
     orders: [
-      { timestamp: new Date(Date.now() - 3600000 * 2).toISOString(), nickname: "이니", snackName: "초코칩 쿠키", quantity: 2, point: 2 },
-      { timestamp: new Date(Date.now() - 3600000).toISOString(), nickname: "준이", snackName: "사이다", quantity: 1, point: 1 },
-      { timestamp: new Date().toISOString(), nickname: "민이", snackName: "감자칩", quantity: 1, point: 2 }
+      { timestamp: new Date(Date.now() - 3600000 * 2).toISOString(), orderNo: "ORD-1111111111111", nickname: "이니", snackName: "초코칩 쿠키", quantity: 2, point: 2, servedYn: "N" },
+      { timestamp: new Date(Date.now() - 3600000).toISOString(), orderNo: "ORD-2222222222222", nickname: "준이", snackName: "사이다", quantity: 1, point: 1, servedYn: "Y" },
+      { timestamp: new Date().toISOString(), orderNo: "ORD-3333333333333", nickname: "민이", snackName: "감자칩", quantity: 1, point: 2, servedYn: "N" }
     ]
   }
 };
@@ -185,14 +185,18 @@ function getMockFallback(action, options) {
     // 간식 이름 매핑
     const snacks = MOCK_DATA.getSnacks.snacks;
     
+    const timestampStr = new Date().toISOString();
+    const generatedOrderNo = `ORD-${Date.now()}`;
     const newOrders = items.map(item => {
       const snack = snacks.find(s => s.snackId === item.snackId) || { name: `간식 ${item.snackId}`, point: 1 };
       return {
-        timestamp: new Date().toISOString(),
+        timestamp: timestampStr,
+        orderNo: generatedOrderNo,
         nickname: user.nickname,
         snackName: snack.name,
         quantity: item.quantity,
-        point: snack.point * item.quantity
+        point: snack.point * item.quantity,
+        servedYn: 'N'
       };
     });
 
@@ -208,6 +212,35 @@ function getMockFallback(action, options) {
     }
 
     res = JSON.parse(JSON.stringify(MOCK_DATA.placeOrder));
+  } else if (action === 'updateOrderServed') {
+    const orderId = options.body?.orderId;
+    const servedYn = options.body?.servedYn || 'N';
+    
+    // 1) mockOrders에서 업데이트
+    const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
+    let updated = false;
+    const updatedLocalOrders = localOrders.map(o => {
+      if (o.orderNo === orderId) {
+        updated = true;
+        return { ...o, servedYn: servedYn };
+      }
+      return o;
+    });
+    if (updated) {
+      localStorage.setItem('mockOrders', JSON.stringify(updatedLocalOrders));
+    }
+    
+    // 2) MOCK_DATA.getOrdersToday.orders에서도 임시로 업데이트
+    const mockOrder = MOCK_DATA.getOrdersToday.orders.find(o => o.orderNo === orderId);
+    if (mockOrder) {
+      mockOrder.servedYn = servedYn;
+      updated = true;
+    }
+    
+    res = {
+      success: true,
+      message: `주문번호 ${orderId}의 제공 상태를 '${servedYn}'으로 업데이트했습니다.`
+    };
   } else {
     res = { success: false, error: "액션을 찾을 수 없습니다." };
   }
