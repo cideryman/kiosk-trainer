@@ -42,6 +42,98 @@
       }
     }
 
+    /* 탭 메뉴 스타일 */
+    .admin-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      border-bottom: 3.5px solid var(--border-color);
+      padding-bottom: 0px;
+    }
+    
+    .admin-tab-btn {
+      background: none;
+      border: none;
+      padding: 12px 20px;
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      transition: all 0.2s ease;
+      position: relative;
+      bottom: -3.5px;
+    }
+    
+    .admin-tab-btn:hover {
+      color: var(--text-main);
+      background-color: #F1F5F9;
+    }
+    
+    .admin-tab-btn.active {
+      color: var(--primary-color);
+      background-color: white;
+      border: 3.5px solid var(--border-color);
+      border-bottom-color: white;
+    }
+    
+    .admin-tab-content {
+      display: none;
+    }
+    
+    .admin-tab-content.active {
+      display: block;
+    }
+
+    /* 관리자 조절 버튼 및 입력창 스타일 */
+    .credit-adjust-btn {
+      padding: 6px 12px;
+      font-size: 16px;
+      font-weight: 800;
+      border: 2px solid var(--border-color);
+      background-color: #F8F9FA;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+    }
+    .credit-adjust-btn:active {
+      transform: scale(0.95);
+      background-color: #CBD5E1;
+    }
+    .credit-adjust-btn.plus {
+      background-color: #E6FFFA;
+      border-color: #81E6D9;
+      color: #234E52;
+    }
+    .credit-adjust-btn.minus {
+      background-color: #FFF5F5;
+      border-color: #FEB2B2;
+      color: #742A2A;
+    }
+    .admin-inline-input {
+      width: 60px;
+      padding: 6px;
+      font-size: 16px;
+      font-weight: 700;
+      text-align: center;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-sm);
+    }
+    .btn-small-action {
+      padding: 6px 12px;
+      font-size: 14px;
+      font-weight: 800;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+    .btn-small-action:active {
+      transform: scale(0.95);
+      background-color: var(--primary-hover);
+    }
+
     /* 미제공 간식 총합 보드 */
     .admin-summary-board {
       background-color: #FFFDF9;
@@ -258,70 +350,151 @@
         </div>
       </div>
 
-      <!-- 양단 레이아웃 (PC에서는 2열, 모바일은 1열 종종배치) -->
-      <div class="admin-layout">
-        <!-- 메인: 주문 상세 및 대시보드 제어 -->
-        <div class="admin-main">
-          
-          <!-- 미제공 간식 총량 집계 보드 -->
-          <div class="admin-summary-board" id="admin-summary-board" style="display: none; margin-bottom: 20px;">
-            <!-- JS 동적 생성 -->
-          </div>
+      <!-- 탭 메뉴 -->
+      <div class="admin-tabs">
+        <button class="admin-tab-btn active" id="btn-tab-orders" onclick="switchTab('tab-orders')">📋 주문 처리 현황</button>
+        <button class="admin-tab-btn" id="btn-tab-users" onclick="switchTab('tab-users')">🪙 이용자 크레딧 관리</button>
+        <button class="admin-tab-btn" id="btn-tab-snacks" onclick="switchTab('tab-snacks')">🍪 간식 및 재고 관리</button>
+      </div>
 
-          <!-- 대기 중인 주문 카드 목록 -->
-          <div style="margin-bottom: 25px;">
-            <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">⏳ 간식 챙겨주기 (제공 대기)</div>
-            <div id="pending-orders-group" class="pending-group-container">
+      <!-- Tab 1: 주문 처리 현황 -->
+      <div id="tab-orders" class="admin-tab-content active">
+        <!-- 양단 레이아웃 (PC에서는 2열, 모바일은 1열 종종배치) -->
+        <div class="admin-layout">
+          <!-- 메인: 주문 상세 및 대시보드 제어 -->
+          <div class="admin-main">
+            <!-- 미제공 간식 총량 집계 보드 -->
+            <div class="admin-summary-board" id="admin-summary-board" style="display: none; margin-bottom: 20px;">
               <!-- JS 동적 생성 -->
+            </div>
+
+            <!-- 대기 중인 주문 카드 목록 -->
+            <div style="margin-bottom: 25px;">
+              <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">⏳ 간식 챙겨주기 (제공 대기)</div>
+              <div id="pending-orders-group" class="pending-group-container">
+                <!-- JS 동적 생성 -->
+              </div>
+            </div>
+
+            <!-- 제공 완료 목록 -->
+            <div>
+              <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color);">✅ 제공 완료 목록 (오늘)</div>
+              <div class="table-responsive">
+                <table class="admin-table">
+                  <thead>
+                    <tr>
+                      <th>주문 시간</th>
+                      <th>이용자</th>
+                      <th>간식명</th>
+                      <th style="text-align: center;">수량</th>
+                      <th style="text-align: right;">사용포인트</th>
+                      <th style="text-align: center;">작업</th>
+                    </tr>
+                  </thead>
+                  <tbody id="order-table-body">
+                    <!-- JS 동적 생성 -->
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
-          <!-- 제공 완료 목록 -->
-          <div>
-            <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color);">✅ 제공 완료 목록 (오늘)</div>
+          <!-- 사이드: 집계 정보 -->
+          <div class="admin-side">
+            <!-- 1. 간식별 집계 -->
+            <div>
+              <div class="admin-section-title">간식별 집계 (인기순)</div>
+              <div class="stat-list" id="snack-stats">
+                <!-- JS 동적 생성 -->
+              </div>
+            </div>
+
+            <!-- 2. 이용자별 집계 -->
+            <div style="margin-top: 10px;">
+              <div class="admin-section-title">이용자별 주문 건수</div>
+              <div class="stat-list" id="user-stats">
+                <!-- JS 동적 생성 -->
+              </div>
+            </div>
+
+            <!-- 3. 현재 간식 재고 현황 -->
+            <div style="margin-top: 20px;">
+              <div class="admin-section-title">현재 간식 재고 현황</div>
+              <div class="stat-list" id="snack-stock-list">
+                <!-- JS 동적 생성 -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: 이용자 크레딧 관리 -->
+      <div id="tab-users" class="admin-tab-content">
+        <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">🪙 이용자 크레딧 관리</div>
+        <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+          <input type="text" id="search-user-input" placeholder="🔍 이용자 별명을 입력해 찾으세요..." class="search-input" style="flex: 1; padding: 12px; font-size: 18px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); font-weight: 700;">
+        </div>
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>이용자</th>
+                <th>보유 크레딧</th>
+                <th style="text-align: center;">빠른 조정</th>
+                <th style="text-align: center;">직접 수정</th>
+              </tr>
+            </thead>
+            <tbody id="user-management-body">
+              <!-- JS 동적 생성 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 3: 간식 및 재고 관리 -->
+      <div id="tab-snacks" class="admin-tab-content">
+        <div class="admin-layout">
+          <!-- 왼쪽: 간식 목록 및 재고 수정 -->
+          <div class="admin-main">
+            <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color);">🍪 간식 목록 및 재고 관리</div>
             <div class="table-responsive">
               <table class="admin-table">
                 <thead>
                   <tr>
-                    <th>주문 시간</th>
-                    <th>이용자</th>
                     <th>간식명</th>
-                    <th style="text-align: center;">수량</th>
-                    <th style="text-align: right;">사용포인트</th>
-                    <th style="text-align: center;">작업</th>
+                    <th>가격</th>
+                    <th style="text-align: center;">현재 재고</th>
+                    <th style="text-align: center;">재고 조정</th>
                   </tr>
                 </thead>
-                <tbody id="order-table-body">
+                <tbody id="snack-management-body">
                   <!-- JS 동적 생성 -->
                 </tbody>
               </table>
             </div>
           </div>
-        </div>
-
-        <!-- 사이드: 집계 정보 -->
-        <div class="admin-side">
-          <!-- 1. 간식별 집계 -->
-          <div>
-            <div class="admin-section-title">간식별 집계 (인기순)</div>
-            <div class="stat-list" id="snack-stats">
-              <!-- JS 동적 생성 -->
-            </div>
-          </div>
-
-          <!-- 2. 이용자별 집계 -->
-          <div style="margin-top: 10px;">
-            <div class="admin-section-title">이용자별 주문 건수</div>
-            <div class="stat-list" id="user-stats">
-              <!-- JS 동적 생성 -->
-            </div>
-          </div>
-
-          <!-- 3. 현재 간식 재고 현황 -->
-          <div style="margin-top: 20px;">
-            <div class="admin-section-title">현재 간식 재고 현황</div>
-            <div class="stat-list" id="snack-stock-list">
-              <!-- JS 동적 생성 -->
+          
+          <!-- 오른쪽: 신규 간식 등록 -->
+          <div class="admin-side">
+            <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">➕ 신규 간식 추가</div>
+            <div class="user-order-card" style="gap: 16px;">
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">간식 이름</label>
+                <input type="text" id="new-snack-name" placeholder="예: 초코쿠키" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">가격 (크레딧)</label>
+                <input type="number" id="new-snack-point" min="1" value="1" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">이미지 주소 (구글 드라이브 또는 공백)</label>
+                <input type="text" id="new-snack-image" placeholder="공유용 이미지 링크 (선택)" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">초기 입고 재고량</label>
+                <input type="number" id="new-snack-stock" min="0" value="10" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
+              </div>
+              <button class="btn btn-secondary" onclick="addNewSnackAction()" style="margin-top: 10px; width: 100%;">등록하기</button>
             </div>
           </div>
         </div>
@@ -345,6 +518,71 @@
     const MAX_REFRESH_TIME = 30;
     let currentOrders = [];
     let userImageMap = {};
+    let previousPendingOrders = [];
+    let currentUsers = [];
+    let currentSnacks = [];
+    let userSearchQuery = "";
+
+    // 탭 전환 기능
+    function switchTab(tabId) {
+      const contents = document.querySelectorAll('.admin-tab-content');
+      contents.forEach(c => c.classList.remove('active'));
+      
+      const buttons = document.querySelectorAll('.admin-tab-btn');
+      buttons.forEach(b => b.classList.remove('active'));
+      
+      const targetTab = document.getElementById(tabId);
+      if (targetTab) {
+        targetTab.classList.add('active');
+      }
+      
+      const targetBtn = document.getElementById(`btn-${tabId}`);
+      if (targetBtn) {
+        targetBtn.classList.add('active');
+      }
+      
+      AppState.vibrate(40);
+      AppState.playClickSound();
+    }
+
+    // 신규 주문 발생 시 띵동 알림음 재생 (Web Audio API 주파수 합성)
+    function playNewOrderSound() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // 첫 번째 음 (딩 - High A)
+        const osc1 = audioCtx.createOscillator();
+        const gain1 = audioCtx.createGain();
+        osc1.connect(gain1);
+        gain1.connect(audioCtx.destination);
+        
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+        gain1.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain1.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + 0.05);
+        gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+        
+        osc1.start(audioCtx.currentTime);
+        osc1.stop(audioCtx.currentTime + 0.6);
+        
+        // 두 번째 음 (동 - Low E)
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(659, audioCtx.currentTime + 0.22); // E5
+        gain2.gain.setValueAtTime(0, audioCtx.currentTime + 0.22);
+        gain2.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + 0.27);
+        gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.9);
+        
+        osc2.start(audioCtx.currentTime + 0.22);
+        osc2.stop(audioCtx.currentTime + 0.9);
+      } catch (e) {
+        console.warn("알림음 재생 실패:", e);
+      }
+    }
 
     // ISO 시간 -> HH:MM:SS 한글 포맷 변환
     function formatTime(isoString) {
@@ -390,9 +628,11 @@
         // 1. 유저 이미지 매핑 데이터 생성
         userImageMap = {};
         if (usersRes && usersRes.success && Array.isArray(usersRes.users)) {
+          currentUsers = usersRes.users;
           usersRes.users.forEach(u => {
             userImageMap[u.nickname] = u.imageUrl || '';
           });
+          renderUsersManagement(currentUsers);
         }
 
         // 2. 주문 내역 데이터 처리
@@ -405,7 +645,9 @@
 
         // 3. 간식 재고 데이터 처리
         if (snacksRes && snacksRes.success && Array.isArray(snacksRes.snacks)) {
-          renderSnacksStock(snacksRes.snacks);
+          currentSnacks = snacksRes.snacks;
+          renderSnacksStock(currentSnacks);
+          renderSnacksManagement(currentSnacks);
         } else {
           throw new Error('간식 API 응답 결과가 올바르지 않습니다.');
         }
@@ -491,6 +733,231 @@
       }
     }
 
+    // --- 이용자 크레딧 관리 구현 ---
+    function renderUsersManagement(users) {
+      const tbody = document.getElementById('user-management-body');
+      if (!tbody) return;
+      
+      tbody.innerHTML = '';
+      
+      const filteredUsers = users.filter(u => {
+        if (!userSearchQuery) return true;
+        return u.nickname.toLowerCase().includes(userSearchQuery.toLowerCase());
+      });
+      
+      if (filteredUsers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">해당하는 이용자가 없습니다.</td></tr>';
+        return;
+      }
+      
+      filteredUsers.forEach(user => {
+        const tr = document.createElement('tr');
+        
+        const colors = ['#FF9F1C', '#2EC4B6', '#118AB2', '#FF5A5F', '#8338EC', '#3A86C8'];
+        const colorIndex = Math.abs(user.nickname.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % colors.length;
+        const avatarBgColor = colors[colorIndex];
+        
+        const rawImgUrl = user.imageUrl || '';
+        const imgUrl = rawImgUrl ? AppState.convertDriveImageUrl(rawImgUrl) : '';
+        const avatarHtml = imgUrl 
+          ? `<img src="${imgUrl}" class="admin-avatar" style="width: 36px; height: 36px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="admin-avatar-initial" style="background-color: ${avatarBgColor}; display: none; width: 36px; height: 36px; font-size: 16px;">${user.nickname.charAt(0)}</div>`
+          : `<div class="admin-avatar-initial" style="background-color: ${avatarBgColor}; width: 36px; height: 36px; font-size: 16px;">${user.nickname.charAt(0)}</div>`;
+
+        tr.innerHTML = `
+          <td>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              ${avatarHtml}
+              <strong>${user.nickname} 님</strong>
+            </div>
+          </td>
+          <td style="font-weight: 800; font-size: 18px; color: var(--primary-color);">${user.credit} 크레딧</td>
+          <td style="text-align: center;">
+            <div style="display: flex; justify-center: center; gap: 6px; justify-content: center;">
+              <button class="credit-adjust-btn minus" onclick="quickAdjustCredit('${user.userId}', -5)">-5</button>
+              <button class="credit-adjust-btn minus" onclick="quickAdjustCredit('${user.userId}', -1)">-1</button>
+              <button class="credit-adjust-btn plus" onclick="quickAdjustCredit('${user.userId}', 1)">+1</button>
+              <button class="credit-adjust-btn plus" onclick="quickAdjustCredit('${user.userId}', 5)">+5</button>
+            </div>
+          </td>
+          <td style="text-align: center;">
+            <div style="display: flex; justify-content: center; align-items: center; gap: 8px;">
+              <input type="number" id="input-credit-${user.userId}" class="admin-inline-input" value="${user.credit}">
+              <button class="btn-small-action" onclick="manualAdjustCredit('${user.userId}')">변경</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function quickAdjustCredit(userId, change) {
+      const user = currentUsers.find(u => u.userId === userId);
+      if (!user) return;
+      const newCredit = Math.max(0, Number(user.credit) + change);
+      await updateUserCreditAction(userId, newCredit);
+    }
+
+    async function manualAdjustCredit(userId) {
+      const input = document.getElementById(`input-credit-${userId}`);
+      if (!input) return;
+      const newCredit = Math.max(0, Number(input.value || 0));
+      await updateUserCreditAction(userId, newCredit);
+    }
+
+    async function updateUserCreditAction(userId, credit) {
+      try {
+        const res = await fetchAPI('updateUserCredit', {
+          method: 'POST',
+          body: { userId, credit }
+        });
+        if (res && res.success) {
+          AppState.vibrate(50);
+          AppState.playClickSound();
+          await loadAdminData();
+        } else {
+          alert("크레딧 반영에 실패했습니다: " + (res?.message || "오류"));
+        }
+      } catch (error) {
+        console.error("크레딧 업데이트 에러:", error);
+        alert("크레딧 반영 중 통신 에러가 발생했습니다.");
+      }
+    }
+
+    // --- 간식 목록 및 재고 관리 구현 ---
+    function renderSnacksManagement(snacks) {
+      const tbody = document.getElementById('snack-management-body');
+      if (!tbody) return;
+      
+      tbody.innerHTML = '';
+      
+      if (snacks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">등록된 간식이 없습니다.</td></tr>';
+        return;
+      }
+      
+      snacks.forEach(snack => {
+        const tr = document.createElement('tr');
+        
+        const isSoldOut = snack.stock === 0;
+        const rawImgUrl = snack.imageUrl || '';
+        const imgUrl = rawImgUrl ? AppState.convertDriveImageUrl(rawImgUrl) : '';
+        const snackEmoji = AppState.getSnackEmoji(snack.name);
+        
+        const imgHTML = imgUrl
+          ? `<img src="${imgUrl}" class="admin-avatar" style="width: 36px; height: 36px; border-radius: 6px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`
+          : ``;
+        const emojiHTML = `<div class="admin-avatar-initial" style="background-color: #F1F5F9; border: 1.5px solid var(--border-color); color: var(--text-main); width: 36px; height: 36px; font-size: 18px; border-radius: 6px; display: flex; justify-content: center; align-items: center; ${imgUrl ? 'display:none;' : ''}">${snackEmoji}</div>`;
+
+        tr.innerHTML = `
+          <td>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="position: relative; width: 36px; height: 36px;">
+                ${imgHTML}
+                ${emojiHTML}
+              </div>
+              <strong>${snack.name}</strong>
+            </div>
+          </td>
+          <td style="font-weight: 700;">${snack.point} 크레딧</td>
+          <td style="text-align: center; font-weight: 800; color: ${isSoldOut ? 'var(--danger-color)' : 'var(--secondary-hover)'};">
+            ${snack.stock}개
+          </td>
+          <td style="text-align: center;">
+            <div style="display: flex; justify-content: center; align-items: center; gap: 8px;">
+              <button class="credit-adjust-btn minus" onclick="quickAdjustStock(${snack.snackId}, -5)">-5</button>
+              <button class="credit-adjust-btn minus" onclick="quickAdjustStock(${snack.snackId}, -1)">-1</button>
+              <input type="number" id="input-stock-${snack.snackId}" class="admin-inline-input" value="${snack.stock}">
+              <button class="btn-small-action" onclick="manualAdjustStock(${snack.snackId})">수정</button>
+              <button class="credit-adjust-btn plus" onclick="quickAdjustStock(${snack.snackId}, 1)">+1</button>
+              <button class="credit-adjust-btn plus" onclick="quickAdjustStock(${snack.snackId}, 5)">+5</button>
+              <button class="credit-adjust-btn" style="background-color: #FFF3E0; border-color: #FFE0B2; color: #E65100; font-size: 14px;" onclick="setSoldOut(${snack.snackId})">품절</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function quickAdjustStock(snackId, change) {
+      const snack = currentSnacks.find(s => s.snackId === snackId);
+      if (!snack) return;
+      const newStock = Math.max(0, Number(snack.stock) + change);
+      await updateSnackStockAction(snackId, newStock);
+    }
+
+    async function manualAdjustStock(snackId) {
+      const input = document.getElementById(`input-stock-${snackId}`);
+      if (!input) return;
+      const newStock = Math.max(0, Number(input.value || 0));
+      await updateSnackStockAction(snackId, newStock);
+    }
+
+    async function setSoldOut(snackId) {
+      await updateSnackStockAction(snackId, 0);
+    }
+
+    async function updateSnackStockAction(snackId, stock) {
+      try {
+        const res = await fetchAPI('updateSnackStock', {
+          method: 'POST',
+          body: { snackId, stock }
+        });
+        if (res && res.success) {
+          AppState.vibrate(50);
+          AppState.playClickSound();
+          await loadAdminData();
+        } else {
+          alert("재고 반영에 실패했습니다: " + (res?.message || "오류"));
+        }
+      } catch (error) {
+        console.error("재고 업데이트 에러:", error);
+        alert("재고 반영 중 통신 에러가 발생했습니다.");
+      }
+    }
+
+    // --- 신규 간식 추가 구현 ---
+    async function addNewSnackAction() {
+      const nameInput = document.getElementById('new-snack-name');
+      const pointInput = document.getElementById('new-snack-point');
+      const imageInput = document.getElementById('new-snack-image');
+      const stockInput = document.getElementById('new-snack-stock');
+      
+      const name = nameInput.value.trim();
+      const point = Number(pointInput.value || 1);
+      const imageUrl = imageInput.value.trim();
+      const stock = Number(stockInput.value || 0);
+      
+      if (!name) {
+        alert("간식 이름을 입력해 주세요!");
+        nameInput.focus();
+        return;
+      }
+      
+      try {
+        const res = await fetchAPI('addSnack', {
+          method: 'POST',
+          body: { name, point, imageUrl, stock, saleYn: 'Y' }
+        });
+        
+        if (res && res.success) {
+          alert(`[${name}] 간식이 성공적으로 등록되었습니다.`);
+          nameInput.value = '';
+          pointInput.value = '1';
+          imageInput.value = '';
+          stockInput.value = '10';
+          
+          AppState.vibrate(80);
+          AppState.playClickSound();
+          await loadAdminData();
+        } else {
+          alert("간식 등록에 실패했습니다: " + (res?.message || "오류"));
+        }
+      } catch (error) {
+        console.error("간식 추가 에러:", error);
+        alert("간식 추가 중 통신 에러가 발생했습니다.");
+      }
+    }
+
     // 데이터 렌더링 및 집계 계산
     function renderData(rawOrders) {
       // 각 주문마다 고유 식별자가 없을 경우 생성 (timestamp와 nickname을 조합하여 같은 주문건으로 묶이게 함)
@@ -502,6 +969,16 @@
       // 1. 제공 완료 여부에 따른 목록 분리 (DB에서 받아온 servedYn 값 사용)
       const pendingOrders = orders.filter(o => o.servedYn !== 'Y');
       const completedOrders = orders.filter(o => o.servedYn === 'Y');
+
+      // 신규 주문 알림 접수 감지 및 재생
+      if (previousPendingOrders && previousPendingOrders.length > 0) {
+        const prevKeys = previousPendingOrders.map(o => o.orderNo);
+        const hasNewPending = pendingOrders.some(o => !prevKeys.includes(o.orderNo));
+        if (hasNewPending) {
+          playNewOrderSound();
+        }
+      }
+      previousPendingOrders = pendingOrders;
 
       // 2. 미제공 간식 총합 계산 및 렌더링
       const snackTotals = {};
@@ -714,6 +1191,15 @@
         clearInterval(refreshTimer);
         window.location.href = 'index.html';
       });
+
+      // 이용자 검색 바인딩
+      const searchInput = document.getElementById('search-user-input');
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          userSearchQuery = e.target.value;
+          renderUsersManagement(currentUsers);
+        });
+      }
     });
   </script>
 </body>

@@ -241,6 +241,58 @@ function getMockFallback(action, options) {
       success: true,
       message: `주문번호 ${orderId}의 제공 상태를 '${servedYn}'으로 업데이트했습니다.`
     };
+  } else if (action === 'updateUserCredit') {
+    const userId = options.body?.userId;
+    const credit = Number(options.body?.credit || 0);
+    const users = MOCK_DATA.getUsers.users;
+    const user = users.find(u => u.userId === userId);
+    if (user) {
+      user.credit = credit;
+    }
+    const selectedUser = JSON.parse(localStorage.getItem('selectedUser'));
+    if (selectedUser && selectedUser.userId === userId) {
+      selectedUser.credit = credit;
+      localStorage.setItem('selectedUser', JSON.stringify(selectedUser));
+    }
+    res = {
+      success: true,
+      message: "크레딧을 업데이트했습니다."
+    };
+  } else if (action === 'updateSnackStock') {
+    const snackId = Number(options.body?.snackId);
+    const stock = Number(options.body?.stock || 0);
+    const snacks = MOCK_DATA.getSnacks.snacks;
+    const snack = snacks.find(s => s.snackId === snackId);
+    if (snack) {
+      snack.stock = stock;
+    }
+    res = {
+      success: true,
+      message: "재고를 업데이트했습니다."
+    };
+  } else if (action === 'addSnack') {
+    const name = options.body?.name || "새로운 간식";
+    const point = Number(options.body?.point || 1);
+    const imageUrl = options.body?.imageUrl || "";
+    const stock = Number(options.body?.stock || 0);
+    const saleYn = options.body?.saleYn || "Y";
+    const snacks = MOCK_DATA.getSnacks.snacks;
+    const maxId = snacks.reduce((max, s) => s.snackId > max ? s.snackId : max, 0);
+    const newSnackId = maxId + 1;
+    const newSnack = {
+      snackId: newSnackId,
+      name: name,
+      point: point,
+      imageUrl: imageUrl,
+      saleYn: saleYn,
+      stock: stock
+    };
+    snacks.push(newSnack);
+    res = {
+      success: true,
+      message: "신규 간식을 등록했습니다.",
+      snackId: newSnackId
+    };
   } else {
     res = { success: false, error: "액션을 찾을 수 없습니다." };
   }
