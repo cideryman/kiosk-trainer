@@ -176,16 +176,40 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// Progressive Web App 서비스 워커 등록
+// Progressive Web App 서비스 워커 등록 및 실시간 업데이트 처리
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('service-worker.js')
       .then((registration) => {
         console.log('서비스 워커 등록 성공! 범위:', registration.scope);
+
+        // 업데이트 감지 시 처리
+        registration.addEventListener('updatefound', () => {
+          const installingWorker = registration.installing;
+          if (installingWorker) {
+            installingWorker.addEventListener('statechange', () => {
+              if (installingWorker.state === 'installed') {
+                if (navigator.serviceWorker.controller) {
+                  console.log('[Service Worker] 새 버전의 캐시가 준비되었습니다. 곧 업데이트됩니다.');
+                }
+              }
+            });
+          }
+        });
       })
       .catch((error) => {
         console.error('서비스 워커 등록 실패:', error);
       });
+  });
+
+  // 새로운 서비스 워커가 활성화(activate)되어 제어권을 가져갔을 때(controllerchange) 페이지를 자동으로 새로고침하여 최신 코드를 적용합니다.
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) {
+      refreshing = true;
+      console.log('[Service Worker] 최신 캐시 적용을 위해 페이지를 자동으로 새로고침합니다.');
+      window.location.reload();
+    }
   });
 }
 
