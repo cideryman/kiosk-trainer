@@ -449,35 +449,46 @@
       });
     }
 
-    // 제공 완료 처리 (로컬 스토리지에 orderNo 저장)
-    function completeOrder(orderNo) {
-      const completedList = JSON.parse(localStorage.getItem('completedOrders') || '[]');
-      if (!completedList.includes(orderNo)) {
-        completedList.push(orderNo);
-        localStorage.setItem('completedOrders', JSON.stringify(completedList));
+    // 제공 완료 처리 (DB 상태 업데이트)
+    async function completeOrder(orderNo) {
+      try {
+        const res = await fetchAPI('updateOrderServed', {
+          method: 'POST',
+          body: { orderId: orderNo, servedYn: 'Y' }
+        });
+        
+        if (res && res.success) {
+          AppState.vibrate(50);
+          AppState.playClickSound();
+          await loadAdminData(); // 데이터 재로드 및 렌더링
+        } else {
+          alert("상태 반영에 실패했습니다: " + (res?.message || "알 수 없는 오류"));
+        }
+      } catch (error) {
+        console.error("제공 완료 중 오류:", error);
+        alert("상태 반영 중 오류가 발생했습니다.");
       }
-      
-      AppState.vibrate(50);
-      AppState.playClickSound();
-      
-      // 로컬 화면 즉시 재렌더링
-      renderData(currentOrders);
     }
 
-    // 제공 완료 취소 (되돌리기) 처리
-    function undoCompleteOrder(orderNo) {
-      const completedList = JSON.parse(localStorage.getItem('completedOrders') || '[]');
-      const index = completedList.indexOf(orderNo);
-      if (index > -1) {
-        completedList.splice(index, 1);
-        localStorage.setItem('completedOrders', JSON.stringify(completedList));
+    // 제공 완료 취소 (되돌리기) 처리 (DB 상태 업데이트)
+    async function undoCompleteOrder(orderNo) {
+      try {
+        const res = await fetchAPI('updateOrderServed', {
+          method: 'POST',
+          body: { orderId: orderNo, servedYn: 'N' }
+        });
+        
+        if (res && res.success) {
+          AppState.vibrate(50);
+          AppState.playClickSound();
+          await loadAdminData(); // 데이터 재로드 및 렌더링
+        } else {
+          alert("되돌리기에 실패했습니다: " + (res?.message || "알 수 없는 오류"));
+        }
+      } catch (error) {
+        console.error("되돌리기 중 오류:", error);
+        alert("되돌리기 중 오류가 발생했습니다.");
       }
-      
-      AppState.vibrate(50);
-      AppState.playClickSound();
-      
-      // 로컬 화면 즉시 재렌더링
-      renderData(currentOrders);
     }
 
     // 데이터 렌더링 및 집계 계산
@@ -487,11 +498,10 @@
         ...o,
         orderNo: o.orderNo || `${o.timestamp || idx}_${o.nickname || 'unknown'}`
       }));
-      const completedList = JSON.parse(localStorage.getItem('completedOrders') || '[]');
 
-      // 1. 제공 완료 여부에 따른 목록 분리
-      const pendingOrders = orders.filter(o => !completedList.includes(o.orderNo));
-      const completedOrders = orders.filter(o => completedList.includes(o.orderNo));
+      // 1. 제공 완료 여부에 따른 목록 분리 (DB에서 받아온 servedYn 값 사용)
+      const pendingOrders = orders.filter(o => o.servedYn !== 'Y');
+      const completedOrders = orders.filter(o => o.servedYn === 'Y');
 
       // 2. 미제공 간식 총합 계산 및 렌더링
       const snackTotals = {};
