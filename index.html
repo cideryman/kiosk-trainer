@@ -99,11 +99,12 @@
         const colorIndex = Math.abs(user.userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % colors.length;
         const fallbackBgColor = colors[colorIndex];
 
+        const imgUrl = AppState.convertDriveImageUrl(user.imageUrl);
         let avatarHTML = '';
-        if (user.imageUrl && user.imageUrl.trim() !== '') {
+        if (imgUrl && imgUrl.trim() !== '') {
           avatarHTML = `
             <div class="user-avatar-container">
-              <img src="${user.imageUrl}" alt="${user.nickname} 사진" class="user-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+              <img src="${imgUrl}" alt="${user.nickname} 사진" class="user-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
               <div class="user-avatar-fallback" style="background-color: ${fallbackBgColor}; display: none;">${user.nickname.charAt(0)}</div>
             </div>
           `;

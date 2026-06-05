@@ -45,6 +45,38 @@ const MOCK_DATA = {
 };
 
 /**
+ * 구글 드라이브 이미지 주소를 브라우저에서 직접 표시 가능한 썸네일 주소로 변환
+ */
+function convertDriveImageUrl(url) {
+  if (!url) return '';
+  const text = String(url).trim();
+
+  // 구글 드라이브 주소인지 확인
+  const isDrive = text.includes("drive.google.com") || text.includes("docs.google.com");
+  
+  if (isDrive) {
+    // 1) /d/파일ID/ 형식 추출
+    const dMatch = text.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (dMatch && dMatch[1]) {
+      return `https://drive.google.com/thumbnail?id=${dMatch[1]}&sz=w500`;
+    }
+    // 2) id=파일ID 형식 추출
+    const idMatch = text.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (idMatch && idMatch[1]) {
+      return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w500`;
+    }
+  }
+
+  // 3) 만약 HTTP/HTTPS 주소가 아니면서 특정 알파벳/숫자/대시/언더바 조합인 경우 단순 파일 ID로 보고 구글 드라이브 주소로 치환
+  // (ID는 보통 25자 이상의 고유 식별값임. 1, 2, user001 등 짧은 문자열과 혼동 방지)
+  if (!text.startsWith("http") && /^[a-zA-Z0-9_-]{25,}$/.test(text)) {
+    return `https://drive.google.com/thumbnail?id=${text}&sz=w500`;
+  }
+
+  return text;
+}
+
+/**
  * Apps Script API 통신을 담당하는 헬퍼 함수
  * @param {string} action - API 요청 액션 (getUsers, getSnacks, placeOrder, getOrdersToday)
  * @param {Object} [options] - fetch 옵션 (method, body 등)
@@ -96,6 +128,23 @@ async function fetchAPI(action, options = {}) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();
+
+    // 구글 드라이브 이미지 URL 변환 처리
+    if (data && data.success) {
+      if (Array.isArray(data.users)) {
+        data.users = data.users.map(u => ({
+          ...u,
+          imageUrl: convertDriveImageUrl(u.imageUrl)
+        }));
+      }
+      if (Array.isArray(data.snacks)) {
+        data.snacks = data.snacks.map(s => ({
+          ...s,
+          imageUrl: convertDriveImageUrl(s.imageUrl)
+        }));
+      }
+    }
+
     return data;
   } catch (error) {
     console.warn(`[API Warning] 실제 API 호출 실패 혹은 CORS 발생. Mock 데이터를 사용합니다. Action: ${action}`, error);
@@ -112,17 +161,19 @@ async function fetchAPI(action, options = {}) {
  * API 호출 실패 시 로컬에서 응답할 Mock 데이터 처리기
  */
 function getMockFallback(action, options) {
-  if (action === 'getUsers') return MOCK_DATA.getUsers;
-  if (action === 'getSnacks') return MOCK_DATA.getSnacks;
-  if (action === 'getOrdersToday') {
+  let res;
+  if (action === 'getUsers') {
+    res = JSON.parse(JSON.stringify(MOCK_DATA.getUsers));
+  } else if (action === 'getSnacks') {
+    res = JSON.parse(JSON.stringify(MOCK_DATA.getSnacks));
+  } else if (action === 'getOrdersToday') {
     // 로컬 스토리지에 저장된 테스트용 주문 내역이 있으면 그것을 병합
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
-    return {
+    res = {
       success: true,
       orders: [...localOrders, ...MOCK_DATA.getOrdersToday.orders]
     };
-  }
-  if (action === 'placeOrder') {
+  } else if (action === 'placeOrder') {
     // 주문 완료 시 로컬 스토리지에 임시 주문 추가 (관리자 화면에서 확인 가능하게)
     const userId = options.body?.userId || 'unknown';
     const items = options.body?.items || [];
@@ -156,7 +207,26 @@ function getMockFallback(action, options) {
       localStorage.setItem('selectedUser', JSON.stringify(selectedUser));
     }
 
-    return MOCK_DATA.placeOrder;
+    res = JSON.parse(JSON.stringify(MOCK_DATA.placeOrder));
+  } else {
+    res = { success: false, error: "액션을 찾을 수 없습니다." };
   }
-  return { success: false, error: "액션을 찾을 수 없습니다." };
+
+  // 구글 드라이브 이미지 URL 변환 적용
+  if (res && res.success) {
+    if (Array.isArray(res.users)) {
+      res.users = res.users.map(u => ({
+        ...u,
+        imageUrl: convertDriveImageUrl(u.imageUrl)
+      }));
+    }
+    if (Array.isArray(res.snacks)) {
+      res.snacks = res.snacks.map(s => ({
+        ...s,
+        imageUrl: convertDriveImageUrl(s.imageUrl)
+      }));
+    }
+  }
+
+  return res;
 }

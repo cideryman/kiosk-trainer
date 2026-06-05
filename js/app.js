@@ -56,6 +56,35 @@ const AppState = {
   // 금액/포인트 표시 포맷터
   formatPoint(point) {
     return `${point} 크레딧`;
+  },
+
+  // 구글 드라이브 이미지 주소를 브라우저에서 직접 표시 가능한 썸네일 주소로 변환
+  convertDriveImageUrl(url) {
+    if (!url) return '';
+    const text = String(url).trim();
+
+    // 구글 드라이브 주소인지 확인
+    const isDrive = text.includes("drive.google.com") || text.includes("docs.google.com");
+    
+    if (isDrive) {
+      // 1) /d/파일ID/ 형식 추출
+      const dMatch = text.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (dMatch && dMatch[1]) {
+        return `https://drive.google.com/thumbnail?id=${dMatch[1]}&sz=w500`;
+      }
+      // 2) id=파일ID 형식 추출
+      const idMatch = text.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      if (idMatch && idMatch[1]) {
+        return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w500`;
+      }
+    }
+
+    // 3) 만약 HTTP/HTTPS 주소가 아니면서 특정 알파벳/숫자/대시/언더바 조합인 경우 단순 파일 ID로 보고 구글 드라이브 주소로 치환
+    if (!text.startsWith("http") && /^[a-zA-Z0-9_-]{25,}$/.test(text)) {
+      return `https://drive.google.com/thumbnail?id=${text}&sz=w500`;
+    }
+
+    return text;
   }
 };
 

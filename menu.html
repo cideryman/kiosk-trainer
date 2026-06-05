@@ -163,13 +163,14 @@
         card.id = `snack-card-${snack.snackId}`;
 
         // 이미지 구성 (없으면 이모지)
+        const imgUrl = AppState.convertDriveImageUrl(snack.imageUrl);
         let imgHTML = '';
-        if (snack.imageUrl && snack.imageUrl.trim() !== '') {
-          imgHTML = `<img src="${snack.imageUrl}" alt="${snack.name}" class="snack-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`;
+        if (imgUrl && imgUrl.trim() !== '') {
+          imgHTML = `<img src="${imgUrl}" alt="${snack.name}" class="snack-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`;
         }
         
         // 이미지 Fallback으로 항상 대형 이모지 컨테이너 대기
-        const emojiHTML = `<div class="snack-img-placeholder" style="${snack.imageUrl ? 'display:none;' : 'display:flex;'}">${getSnackEmoji(snack.name)}</div>`;
+        const emojiHTML = `<div class="snack-img-placeholder" style="${imgUrl ? 'display:none;' : 'display:flex;'}">${getSnackEmoji(snack.name)}</div>`;
 
         // 남은 재고 텍스트 설정
         const stockText = isSoldOut ? '품절' : `남은 수량 ${snack.stock}개`;

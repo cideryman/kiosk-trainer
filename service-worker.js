@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kiosk-cache-v1';
+const CACHE_NAME = 'kiosk-cache-v4';
 const urlsToCache = [
   'index.html',
   'menu.html',
@@ -19,7 +19,17 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('[Service Worker] 정적 파일 캐싱 진행');
-        return cache.addAll(urlsToCache);
+        // 브라우저 HTTP 캐시를 우회하기 위해 타임스탬프를 쿼리에 추가해 새로 받아 캐시에 넣습니다.
+        const cachePromises = urlsToCache.map((url) => {
+          const cacheBustedUrl = `${url}?_cb=${Date.now()}`;
+          return fetch(cacheBustedUrl).then((response) => {
+            if (!response.ok) {
+              throw new TypeError(`Request failed for: ${url}`);
+            }
+            return cache.put(url, response); // 깨끗한 URL 키로 저장
+          });
+        });
+        return Promise.all(cachePromises);
       })
       .then(() => self.skipWaiting())
   );

@@ -3,7 +3,7 @@
 이 파일은 프로젝트 작업 진행 상황을 기록하고 추적하기 위한 핸드오프 문서입니다.
 
 ## 진행 현황 요약
-- **현재 진행 단계**: PWA(Progressive Web App) 연동 완료 및 신규 DB 구조 연동 검증 완료
+- **현재 진행 단계**: PWA(Progressive Web App) 연동 완료, 신규 DB 구조 연동 검증 완료, 구글 드라이브 이미지 연동 에러 및 서비스 워커 리다이렉션 버그 해결 완료
 - **다음 진행 단계**: 실사용 배포 및 발달장애인 대상 센터 실사용 모니터링 (홈 화면에 바로가기 추가 안내 필요)
 
 ---
@@ -14,7 +14,8 @@
 - [manifest.json](file:///c:/Users/주간보호/OneDrive/Desktop/새 폴더/kiosk-trainer/manifest.json): 웹 앱의 이름, 독립 실행 모드(`standalone`), 세로 화면 고정, 테마 색상 및 PWA용 고해상도 앱 아이콘 2종 지정.
 - [service-worker.js](file:///c:/Users/주간보호/OneDrive/Desktop/새 폴더/kiosk-trainer/service-worker.js): 
   - 정적 리소스(HTML, CSS, JS, manifest, 아이콘 등)를 최초 로드 시 기기에 로컬로 영구 캐싱하여 앱 실행 속도를 비약적으로 단축.
-  - 구글 Apps Script 연동 API(`script.google.com` 및 action 파라미터 요청)는 캐싱 목록에서 배제하여 항상 최신 DB 내용이 갱신되도록 보장 (인터넷 단절 시 친절한 오류박스 출력).
+  - 구글 Apps Script 연동 API(`script.google.com` 및 action 파라미터 요청)는 서비스 워커가 개입하지 않고 브라우저 기본 엔진이 처리하도록 바이패스(Bypass)하여, 크로스 오리진 리다이렉트 시 서비스 워커 내부 fetch 제약으로 인한 CORS 에러(`TypeError: Failed to fetch`)를 완벽하게 예방.
+  - 서비스 워커 설치(`install`) 단계에서 정적 리소스 다운로드 시 브라우저 HTTP 디스크 캐시를 우회하도록 타임스탬프 쿼리파라미터를 추가하여 다운로드하고 원본 URL 키로 저장하는 방식 도입(더블 캐싱 차단).
 
 ### 2. 모바일/태블릿 최적화 메타 태그
 - 안드로이드/Windows: 크롬 및 엣지 브라우저에서 '앱 설치' 배너 활성화.
@@ -37,10 +38,12 @@
 
 ### 1. 이용자 목록
 - `imageUrl` 속성을 추가하여 이용자 사진 연동.
+- 구글 드라이브 주소가 데이터베이스에 저장되어 있을 경우, 웹브라우저에서 직접 표시 및 CORS 로드가 가능한 형태(`https://drive.google.com/thumbnail?id=파일ID&sz=w500`)로 클라이언트 및 API 통신 단에서 실시간 자동 파싱 및 변환 처리 적용.
 - 사진이 없거나 로드 실패 시 파스텔톤 배경과 별명의 첫 글자를 딴 원형 아바타를 이니셜로 대체 표시.
 
 ### 2. 간식 목록
 - `stock` 속성을 추가하여 실시간 남은 재고 수량 연동.
+- 간식 사진 역시 구글 드라이브 주소가 지정되었을 경우 자동으로 썸네일 구조로 변환하여 엑세스 차단(403 Forbidden) 문제 해결.
 - `stock === 0` 인 간식은 자동으로 **품절** 배지 처리 및 선택(+) 버튼 비활성화.
 - 선택 수량이 재고를 초과할 수 없도록 제한하고, 초과 시 사용자에게 시각적/촉각적(진동) 경고 피드백 제공.
 
@@ -50,6 +53,22 @@
 ### 4. 관리자 페이지
 - `getOrdersToday` 호출과 함께 `getSnacks` API를 병렬로 추가 호출.
 - 관리자 화면 우측 하단에 **현재 간식 재고 현황** 섹션을 추가하여 실시간 재고량을 리스팅하고, 재고 0개인 간식은 **`[품절]`**로 빨간색 강조 처리.
+
+---
+
+## 구글 드라이브 이미지 & 서비스 워커 에러 해결 내역 (2026-06-05)
+
+### 1. 서비스 워커 리다이렉션 & CORS 에러 해결
+- **문제**: HTTPS 환경(GitHub Pages 등)에 배포 시 구글 앱스 스크립트 API가 302 리다이렉트될 때 서비스 워커의 `fetch(event.request)`가 CORS 정책으로 차단되며 데이터 로드가 완전히 정지되는 현상 발생.
+- **해결**: [service-worker.js](file:///c:/Users/주간보호/OneDrive/Desktop/새 폴더/kiosk-trainer/service-worker.js)에서 구글 API 주소 및 action 파라미터가 포함된 요청을 감지하면 `event.respondWith` 없이 즉시 `return` 하도록 변경. 브라우저가 직접 리다이렉트와 CORS를 처리하게 함으로써 안정적인 통신 보장.
+
+### 2. 정적 리소스 강제 갱신(더블 캐싱) 해결
+- **문제**: 서비스 워커의 `cache.addAll()` 실행 시 브라우저 HTTP 디스크 캐시의 구버전 파일이 재캐싱되어 코드가 변경되어도 사용자의 화면에 즉시 갱신되지 않는 현상.
+- **해결**: [service-worker.js](file:///c:/Users/주간보호/OneDrive/Desktop/새 폴더/kiosk-trainer/service-worker.js)의 설치 단계에서 타임스탬프(`?_cb=Date.now()`)를 덧붙여 새로 다운로드한 후, 정적 리소스 URL 키값으로 캐시에 저장하는 로직으로 개편. 캐시 버전이 바뀔 때 완벽한 갱신 보장.
+
+### 3. 구글 드라이브 이미지 403 Forbidden 오류 해결
+- **문제**: 구글이 최근 외부 웹페이지에서 `uc?export=view` 형태의 이미지 직링크(Hotlinking) 호출을 전면 차단하여 구글 드라이브에 올린 간식 및 유저 사진이 모두 이모지나 아바타로만 출력되는 현상.
+- **해결**: 공유 가능한 구글 드라이브 이미지 주소(공유용 뷰어 링크, 기존 uc 링크, 혹은 파일 ID 단독 기재)를 CORS가 허용되는 썸네일 주소(`https://drive.google.com/thumbnail?id=파일ID&sz=w500`)로 파싱해주는 `convertDriveImageUrl` 함수를 [js/app.js](file:///c:/Users/주간보호/OneDrive/Desktop/새 폴더/kiosk-trainer/js/app.js) 및 [js/config.js](file:///c:/Users/주간보호/OneDrive/Desktop/새 폴더/kiosk-trainer/js/config.js)에 적용. 모든 화면에서 실제 지정한 사진이 선명하게 로드되도록 조치.
 
 ---
 
