@@ -45,22 +45,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
 
-  // 구글 Apps Script API 요청은 캐시하지 않고 항상 네트워크를 통하게 처리 (Network Only / Network First)
+  // 구글 Apps Script API 요청은 캐시하지 않고, 서비스 워커가 개입하지 않고 브라우저가 직접 처리하도록 반환합니다.
+  // (CORS 및 리다이렉트 이슈 방지)
   if (requestUrl.href.includes('script.google.com') || requestUrl.searchParams.has('action')) {
-    event.respondWith(
-      fetch(event.request)
-        .catch((error) => {
-          console.warn('[Service Worker] API 요청 실패 (네트워크 연결 끊김):', error);
-          // 실패 시 적절히 json 에러 상태를 리턴하도록 처리하여 클라이언트에서 에러 핸들러가 돌도록 함
-          return new Response(JSON.stringify({
-            success: false,
-            message: '네트워크 연결이 끊겨 신선한 데이터를 가져올 수 없습니다.',
-            error: String(error)
-          }), {
-            headers: { 'Content-Type': 'application/json' }
-          });
-        })
-    );
     return;
   }
 
