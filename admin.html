@@ -522,6 +522,35 @@
     let currentUsers = [];
     let currentSnacks = [];
     let userSearchQuery = "";
+    const ADMIN_TOKEN_STORAGE_KEY = 'kioskAdminToken';
+
+    function getAdminToken() {
+      let token = sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY);
+      if (token) return token;
+
+      token = prompt('관리자 비밀번호를 입력해 주세요.');
+      if (!token) {
+        throw new Error('관리자 비밀번호가 필요합니다.');
+      }
+
+      token = token.trim();
+      sessionStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token);
+      return token;
+    }
+
+    function withAdminToken(body) {
+      return {
+        ...body,
+        adminToken: getAdminToken()
+      };
+    }
+
+    function clearAdminTokenIfDenied(res) {
+      const message = String(res?.message || '');
+      if (message.includes('관리자 권한') || message.includes('권한')) {
+        sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
+      }
+    }
 
     // 탭 전환 기능
     function switchTab(tabId) {
@@ -696,7 +725,7 @@
       try {
         const res = await fetchAPI('updateOrderServed', {
           method: 'POST',
-          body: { orderId: orderNo, servedYn: 'Y' }
+          body: withAdminToken({ orderId: orderNo, servedYn: 'Y' })
         });
         
         if (res && res.success) {
@@ -704,6 +733,7 @@
           AppState.playClickSound();
           await loadAdminData(); // 데이터 재로드 및 렌더링
         } else {
+          clearAdminTokenIfDenied(res);
           alert("상태 반영에 실패했습니다: " + (res?.message || "알 수 없는 오류"));
         }
       } catch (error) {
@@ -717,7 +747,7 @@
       try {
         const res = await fetchAPI('updateOrderServed', {
           method: 'POST',
-          body: { orderId: orderNo, servedYn: 'N' }
+          body: withAdminToken({ orderId: orderNo, servedYn: 'N' })
         });
         
         if (res && res.success) {
@@ -725,6 +755,7 @@
           AppState.playClickSound();
           await loadAdminData(); // 데이터 재로드 및 렌더링
         } else {
+          clearAdminTokenIfDenied(res);
           alert("되돌리기에 실패했습니다: " + (res?.message || "알 수 없는 오류"));
         }
       } catch (error) {
@@ -808,13 +839,14 @@
       try {
         const res = await fetchAPI('updateUserCredit', {
           method: 'POST',
-          body: { userId, credit }
+          body: withAdminToken({ userId, credit })
         });
         if (res && res.success) {
           AppState.vibrate(50);
           AppState.playClickSound();
           await loadAdminData();
         } else {
+          clearAdminTokenIfDenied(res);
           alert("크레딧 반영에 실패했습니다: " + (res?.message || "오류"));
         }
       } catch (error) {
@@ -900,13 +932,14 @@
       try {
         const res = await fetchAPI('updateSnackStock', {
           method: 'POST',
-          body: { snackId, stock }
+          body: withAdminToken({ snackId, stock })
         });
         if (res && res.success) {
           AppState.vibrate(50);
           AppState.playClickSound();
           await loadAdminData();
         } else {
+          clearAdminTokenIfDenied(res);
           alert("재고 반영에 실패했습니다: " + (res?.message || "오류"));
         }
       } catch (error) {
@@ -936,7 +969,7 @@
       try {
         const res = await fetchAPI('addSnack', {
           method: 'POST',
-          body: { name, point, imageUrl, stock, saleYn: 'Y' }
+          body: withAdminToken({ name, point, imageUrl, stock, saleYn: 'Y' })
         });
         
         if (res && res.success) {
@@ -950,6 +983,7 @@
           AppState.playClickSound();
           await loadAdminData();
         } else {
+          clearAdminTokenIfDenied(res);
           alert("간식 등록에 실패했습니다: " + (res?.message || "오류"));
         }
       } catch (error) {

@@ -10,13 +10,16 @@
 2. 상단 메뉴에서 **[확장 프로그램] > [Apps Script]**를 클릭합니다.
 3. 기존 편집기 창에 있는 코드 전체를 지우고 아래 **최종 코드** 내용으로 전체 덮어쓰기(붙여넣기) 합니다.
 4. 상단의 **[저장 (디스크 아이콘)]**을 클릭합니다.
-5. 우측 상단의 **[배포] > [새 배포]**를 선택합니다.
-6. 배포 유형이 **[웹앱]**인지 확인하고 아래 항목들을 설정합니다:
+5. 좌측 메뉴의 **[프로젝트 설정]**을 열고 **스크립트 속성**에 아래 값을 추가합니다:
+   - **속성**: `ADMIN_TOKEN`
+   - **값**: 관리자만 아는 비밀번호/토큰 값 (예: 센터 내부 관리자 비밀번호)
+6. 우측 상단의 **[배포] > [새 배포]**를 선택합니다.
+7. 배포 유형이 **[웹앱]**인지 확인하고 아래 항목들을 설정합니다:
    - **설명**: `v2 - 크레딧 및 재고 관리 추가` (임의 기입)
    - **웹앱을 실행할 사용자**: `나 (본인 이메일)`
    - **액세스할 수 있는 사용자**: `모든 사용자 (Anyone)` (중요!)
-7. **[배포]**를 클릭하고, 최초 1회 구글 계정 액세스 권한 승인 창이 뜨면 권한 승인을 완료합니다.
-8. 발급되는 **웹앱 URL(API URL)** 주소를 복사하여 프론트엔드의 `js/config.js` 내 `API_URL` 값에 붙여넣습니다.
+8. **[배포]**를 클릭하고, 최초 1회 구글 계정 액세스 권한 승인 창이 뜨면 권한 승인을 완료합니다.
+9. 발급되는 **웹앱 URL(API URL)** 주소를 복사하여 프론트엔드의 `js/config.js` 내 `API_URL` 값에 붙여넣습니다.
 
 ---
 
@@ -50,6 +53,42 @@ const SHEET = {
   ORDERS: '주문내역',
 };
 
+// 관리자 화면에서만 사용하는 변경 API 목록입니다.
+const ADMIN_ACTIONS = [
+  'updateOrderServed',
+  'updateUserCredit',
+  'updateSnackStock',
+  'addSnack',
+];
+
+/**
+ * 관리자 변경 요청 보호용 토큰 검증 함수
+ * Apps Script > 프로젝트 설정 > 스크립트 속성에 ADMIN_TOKEN 값을 저장해 둡니다.
+ */
+function verifyAdminToken(data) {
+  const expectedToken = PropertiesService
+    .getScriptProperties()
+    .getProperty('ADMIN_TOKEN');
+
+  if (!expectedToken) {
+    return {
+      success: false,
+      message: 'ADMIN_TOKEN 스크립트 속성이 설정되지 않았습니다.',
+    };
+  }
+
+  if (!data.adminToken || String(data.adminToken) !== String(expectedToken)) {
+    return {
+      success: false,
+      message: '관리자 권한이 없습니다.',
+    };
+  }
+
+  return {
+    success: true,
+  };
+}
+
 /**
  * 2. GET 요청 라우터 (조회 API)
  */
@@ -81,6 +120,13 @@ function doPost(e) {
   var JSON_STRING = e.postData.contents;
   var data = JSON.parse(JSON_STRING);
   var action = data.action;
+
+  if (ADMIN_ACTIONS.indexOf(action) !== -1) {
+    const auth = verifyAdminToken(data);
+    if (!auth.success) {
+      return jsonResponse(auth);
+    }
+  }
   
   if (action === 'placeOrder') {
     return jsonResponse(placeOrder(data));
