@@ -65,16 +65,31 @@ function updateViewportHeight() {
   document.documentElement.style.setProperty('--vh', `${vh}px`);
 }
 
-window.addEventListener('resize', updateViewportHeight);
+wwindow.addEventListener('resize', updateViewportHeight);
+
 window.addEventListener('DOMContentLoaded', () => {
   updateViewportHeight();
-  
-  // 모든 버튼 클릭 시 진동 피드백 바인딩 (이용자 편의성)
+
   document.body.addEventListener('click', (e) => {
     if (e.target.closest('button') || e.target.closest('.clickable-card')) {
       AppState.vibrate(40);
     }
+  });
 });
+
+// Progressive Web App 서비스 워커 등록
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js')
+      .then((registration) => {
+        console.log('서비스 워커 등록 성공! 범위:', registration.scope);
+      })
+      .catch((error) => {
+        console.error('서비스 워커 등록 실패:', error);
+      });
+  });
+}
+
 
 // Progressive Web App 서비스 워커 등록
 if ('serviceWorker' in navigator) {
