@@ -190,6 +190,38 @@
       border-radius: var(--radius-sm);
     }
 
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 54px;
+      padding: 4px 8px;
+      font-size: 13px;
+      font-weight: 900;
+      border-radius: 999px;
+      border: 2px solid var(--border-color);
+    }
+
+    .status-badge.active {
+      color: #22543D;
+      background-color: #F0FFF4;
+      border-color: #9AE6B4;
+    }
+
+    .status-badge.inactive {
+      color: #744210;
+      background-color: #FFFAF0;
+      border-color: #FBD38D;
+    }
+
+    .user-group-row td {
+      background-color: #F8FAFC;
+      color: var(--text-main);
+      font-size: 16px;
+      font-weight: 900;
+      border-top: 3px solid var(--border-color);
+    }
+
     /* 미제공 간식 총합 보드 */
     .admin-summary-board {
       background-color: #FFFDF9;
@@ -377,9 +409,13 @@
     <header class="kiosk-header admin-header">
       <div class="kiosk-header-top">
         <h1 style="font-size: 26px;">📊 오늘 주문 현황 (관리자)</h1>
-        <button class="btn btn-primary" id="btn-manual-refresh" style="min-height: 48px; font-size: 16px; width: auto; padding: 0 16px; margin: 0;">
-          🔄 지금 새로고침
-        </button>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+          <button class="btn-small-action" id="btn-download-csv" style="min-height: 48px;">CSV 다운로드</button>
+          <button class="btn-small-action" id="btn-toggle-refresh" style="min-height: 48px;">일시정지</button>
+          <button class="btn btn-primary" id="btn-manual-refresh" style="min-height: 48px; font-size: 16px; width: auto; padding: 0 16px; margin: 0;">
+            🔄 지금 새로고침
+          </button>
+        </div>
       </div>
       <!-- 자동 새로고침 바 -->
       <div class="refresh-indicator">
@@ -498,6 +534,7 @@
                 <thead>
                   <tr>
                     <th>이용자</th>
+                    <th style="text-align: center;">상태</th>
                     <th>보유 크레딧</th>
                     <th style="text-align: center;">빠른 조정</th>
                     <th style="text-align: center;">목표 크레딧</th>
@@ -532,8 +569,16 @@
             <div class="admin-section-title" style="color: var(--text-muted); border-left-color: var(--border-color); margin-top: 20px;">🔐 관리자 비밀번호</div>
             <div class="form-panel">
               <div class="token-status" id="admin-token-status">관리자 비밀번호 상태 확인 중</div>
-              <button class="btn-small-action" onclick="setAdminTokenManually()">비밀번호 입력/변경</button>
+              <button class="btn-small-action" onclick="setAdminTokenManually()">비밀번호 다시 입력</button>
               <button class="btn-danger-action" onclick="clearAdminTokenManual()">저장된 비밀번호 지우기</button>
+            </div>
+
+            <div class="admin-section-title" style="color: var(--text-muted); border-left-color: var(--border-color); margin-top: 20px;">📝 변경 메모</div>
+            <div class="form-panel">
+              <div class="form-field">
+                <label for="admin-change-memo">다음 관리자 변경 로그에 남길 메모</label>
+                <input type="text" id="admin-change-memo" placeholder="예: 월초 충전, 테스트 조정">
+              </div>
             </div>
           </div>
         </div>
@@ -550,6 +595,7 @@
                 <thead>
                   <tr>
                     <th>간식명</th>
+                    <th style="text-align: center;">상태</th>
                     <th>가격</th>
                     <th style="text-align: center;">현재 재고</th>
                     <th style="text-align: center;">재고 조정</th>
@@ -610,6 +656,7 @@
     let currentUsers = [];
     let currentSnacks = [];
     let userSearchQuery = "";
+    let refreshPaused = false;
     const ADMIN_TOKEN_STORAGE_KEY = 'kioskAdminToken';
 
     function esc(value) {
@@ -634,6 +681,11 @@
 
     function stockInputId(snackId) {
       return `input-stock-${encodeURIComponent(String(snackId ?? ''))}`;
+    }
+
+    function getAdminMemo() {
+      const memoInput = document.getElementById('admin-change-memo');
+      return memoInput ? memoInput.value.trim() : '';
     }
 
     function updateAdminTokenStatus() {
@@ -686,7 +738,8 @@
     function withAdminToken(body) {
       return {
         ...body,
-        adminToken: getAdminToken()
+        adminToken: getAdminToken(),
+        adminMemo: getAdminMemo()
       };
     }
 
@@ -778,7 +831,9 @@
     // 주문 데이터 및 집계 로드
     async function loadAdminData() {
       // 새로고침 관련 상태 초기화
-      resetRefreshTimer();
+      if (!refreshPaused) {
+        resetRefreshTimer();
+      }
 
       const pendingContainer = document.getElementById('pending-orders-group');
       if (pendingContainer) {
@@ -796,8 +851,8 @@
       try {
         const [ordersRes, snacksRes, usersRes] = await Promise.all([
           fetchAPI('getOrdersToday'),
-          fetchAPI('getSnacks'),
-          fetchAPI('getUsers')
+          fetchAPI('getSnacks', { params: { includeHidden: 'Y' } }),
+          fetchAPI('getUsers', { params: { includeInactive: 'Y' } })
         ]);
         
         // 1. 유저 이미지 매핑 데이터 생성
@@ -854,8 +909,9 @@
         item.className = 'stat-item';
         
         const isSoldOut = snack.stock === 0;
-        const stockText = isSoldOut ? '품절' : `${snack.stock}개 남음`;
-        const valColor = isSoldOut ? 'var(--danger-color)' : 'var(--secondary-hover)';
+        const isActive = isSnackActive(snack);
+        const stockText = `${isActive ? '' : '[숨김] '}${isSoldOut ? '품절' : `${snack.stock}개 남음`}`;
+        const valColor = !isActive ? '#744210' : (isSoldOut ? 'var(--danger-color)' : 'var(--secondary-hover)');
         const fontWeight = isSoldOut ? '800' : '700';
 
         item.innerHTML = `
@@ -923,12 +979,38 @@
       });
       
       if (filteredUsers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">해당하는 이용자가 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">해당하는 이용자가 없습니다.</td></tr>';
         return;
       }
       
-      filteredUsers.forEach(user => {
+      const activeUsers = filteredUsers.filter(user => isUserActive(user));
+      const inactiveUsers = filteredUsers.filter(user => !isUserActive(user));
+
+      appendUserGroupRows(tbody, '활성 이용자', activeUsers);
+      appendUserGroupRows(tbody, '비활성 이용자', inactiveUsers);
+    }
+
+    function isUserActive(user) {
+      const active = String(user.useYn ?? user.active ?? 'Y').trim().toUpperCase();
+      return active === 'TRUE' || active === '사용' || active === 'Y' || active === 'O' || active === '예';
+    }
+
+    function appendUserGroupRows(tbody, title, users) {
+      const groupRow = document.createElement('tr');
+      groupRow.className = 'user-group-row';
+      groupRow.innerHTML = `<td colspan="6">${esc(title)} <span style="color: var(--text-muted); font-size: 14px;">${users.length}명</span></td>`;
+      tbody.appendChild(groupRow);
+
+      if (users.length === 0) {
+        const emptyRow = document.createElement('tr');
+        emptyRow.innerHTML = `<td colspan="6" class="empty-state">${esc(title)}가 없습니다.</td>`;
+        tbody.appendChild(emptyRow);
+        return;
+      }
+
+      users.forEach(user => {
         const tr = document.createElement('tr');
+        const isActive = isUserActive(user);
         
         const colors = ['#FF9F1C', '#2EC4B6', '#118AB2', '#FF5A5F', '#8338EC', '#3A86C8'];
         const colorIndex = Math.abs(String(user.nickname || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % colors.length;
@@ -955,6 +1037,9 @@
               <strong>${safeNickname} 님</strong>
             </div>
           </td>
+          <td style="text-align: center;">
+            <span class="status-badge ${isActive ? 'active' : 'inactive'}">${isActive ? '활성' : '비활성'}</span>
+          </td>
           <td style="font-weight: 800; font-size: 18px; color: var(--primary-color);">${credit} 크레딧</td>
           <td style="text-align: center;">
             <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
@@ -975,7 +1060,7 @@
             </div>
           </td>
           <td style="text-align: center;">
-            <button class="btn-danger-action" onclick="${callAttr(`deactivateUserAction(${userIdArg}, ${jsString(nickname)})`)}">삭제</button>
+            <button class="${isActive ? 'btn-danger-action' : 'btn-small-action'}" onclick="${callAttr(`updateUserActiveAction(${userIdArg}, ${isActive ? jsString('N') : jsString('Y')}, ${jsString(nickname)})`)}">${isActive ? '비활성화' : '활성화'}</button>
           </td>
         `;
         tbody.appendChild(tr);
@@ -1059,28 +1144,30 @@
       }
     }
 
-    async function deactivateUserAction(userId, nickname) {
-      const ok = confirm(`${nickname} 님을 이용자 목록에서 숨길까요?\n주문 기록은 남고, 스프레드시트의 사용여부만 N으로 바뀝니다.`);
+    async function updateUserActiveAction(userId, useYn, nickname) {
+      const nextActive = String(useYn).toUpperCase() === 'Y';
+      const actionText = nextActive ? '활성화' : '비활성화';
+      const ok = confirm(`${nickname} 님을 ${actionText}할까요?\n주문 기록은 남고, 스프레드시트의 사용여부만 ${nextActive ? 'Y' : 'N'}로 바뀝니다.`);
       if (!ok) return;
 
       try {
-        const res = await fetchAPI('deactivateUser', {
+        const res = await fetchAPI('updateUserActive', {
           method: 'POST',
-          body: withAdminToken({ userId })
+          body: withAdminToken({ userId, useYn })
         });
 
         if (res && res.success) {
-          alert(`${nickname} 님을 비활성화했습니다.`);
+          alert(`${nickname} 님을 ${actionText}했습니다.`);
           AppState.vibrate(80);
           AppState.playClickSound();
           await loadAdminData();
         } else {
           clearAdminTokenIfDenied(res);
-          alert("이용자 삭제에 실패했습니다: " + (res?.message || "오류"));
+          alert("이용자 상태 변경에 실패했습니다: " + (res?.message || "오류"));
         }
       } catch (error) {
-        console.error("이용자 비활성화 에러:", error);
-        alert("이용자 삭제 중 통신 에러가 발생했습니다.");
+        console.error("이용자 상태 변경 에러:", error);
+        alert("이용자 상태 변경 중 통신 에러가 발생했습니다.");
       }
     }
 
@@ -1092,14 +1179,39 @@
       tbody.innerHTML = '';
       
       if (snacks.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">등록된 간식이 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">등록된 간식이 없습니다.</td></tr>';
         return;
       }
-      
+
+      const activeSnacks = snacks.filter(snack => isSnackActive(snack));
+      const hiddenSnacks = snacks.filter(snack => !isSnackActive(snack));
+      appendSnackGroupRows(tbody, '판매중 간식', activeSnacks);
+      appendSnackGroupRows(tbody, '숨김 간식', hiddenSnacks);
+    }
+
+    function isSnackActive(snack) {
+      const active = String(snack.saleYn ?? snack.active ?? 'Y').trim().toUpperCase();
+      return active === 'TRUE' || active === '판매' || active === 'Y' || active === 'O' || active === '예';
+    }
+
+    function appendSnackGroupRows(tbody, title, snacks) {
+      const groupRow = document.createElement('tr');
+      groupRow.className = 'user-group-row';
+      groupRow.innerHTML = `<td colspan="5">${esc(title)} <span style="color: var(--text-muted); font-size: 14px;">${snacks.length}개</span></td>`;
+      tbody.appendChild(groupRow);
+
+      if (snacks.length === 0) {
+        const emptyRow = document.createElement('tr');
+        emptyRow.innerHTML = `<td colspan="5" class="empty-state">${esc(title)}이 없습니다.</td>`;
+        tbody.appendChild(emptyRow);
+        return;
+      }
+
       snacks.forEach(snack => {
         const tr = document.createElement('tr');
         
         const isSoldOut = snack.stock === 0;
+        const isActive = isSnackActive(snack);
         const rawImgUrl = snack.imageUrl || '';
         const imgUrl = rawImgUrl ? AppState.convertDriveImageUrl(rawImgUrl) : '';
         const snackEmoji = AppState.getSnackEmoji(snack.name);
@@ -1127,6 +1239,9 @@
               <strong>${safeSnackName}</strong>
             </div>
           </td>
+          <td style="text-align: center;">
+            <span class="status-badge ${isActive ? 'active' : 'inactive'}">${isActive ? '판매중' : '숨김'}</span>
+          </td>
           <td style="font-weight: 700;">${point} 크레딧</td>
           <td style="text-align: center; font-weight: 800; color: ${isSoldOut ? 'var(--danger-color)' : 'var(--secondary-hover)'};">
             ${stock}개
@@ -1140,6 +1255,7 @@
               <button class="credit-adjust-btn plus" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, 1)`)}">+1</button>
               <button class="credit-adjust-btn plus" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, 5)`)}">+5</button>
               <button class="credit-adjust-btn" style="background-color: #FFF3E0; border-color: #FFE0B2; color: #E65100; font-size: 14px;" onclick="${callAttr(`setSoldOut(${snackIdArg})`)}">품절</button>
+              <button class="${isActive ? 'btn-danger-action' : 'btn-small-action'}" onclick="${callAttr(`updateSnackSaleAction(${snackIdArg}, ${isActive ? jsString('N') : jsString('Y')}, ${jsString(snackName)})`)}">${isActive ? '숨기기' : '판매중'}</button>
             </div>
           </td>
         `;
@@ -1182,6 +1298,31 @@
       } catch (error) {
         console.error("재고 업데이트 에러:", error);
         alert("재고 반영 중 통신 에러가 발생했습니다.");
+      }
+    }
+
+    async function updateSnackSaleAction(snackId, saleYn, snackName) {
+      const nextActive = String(saleYn).toUpperCase() === 'Y';
+      const actionText = nextActive ? '판매중으로 변경' : '숨김 처리';
+      const ok = confirm(`${snackName} 간식을 ${actionText}할까요?`);
+      if (!ok) return;
+
+      try {
+        const res = await fetchAPI('updateSnackSale', {
+          method: 'POST',
+          body: withAdminToken({ snackId, saleYn })
+        });
+        if (res && res.success) {
+          AppState.vibrate(50);
+          AppState.playClickSound();
+          await loadAdminData();
+        } else {
+          clearAdminTokenIfDenied(res);
+          alert("간식 상태 변경에 실패했습니다: " + (res?.message || "오류"));
+        }
+      } catch (error) {
+        console.error("간식 상태 변경 에러:", error);
+        alert("간식 상태 변경 중 통신 에러가 발생했습니다.");
       }
     }
 
@@ -1421,12 +1562,59 @@
       });
     }
 
+    function csvCell(value) {
+      const text = String(value ?? '');
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+
+    function downloadTodayOrdersCsv() {
+      const orders = currentOrders || [];
+      if (orders.length === 0) {
+        alert('다운로드할 오늘 주문이 없습니다.');
+        return;
+      }
+
+      const header = ['주문시간', '주문번호', '이용자ID', '이용자', '간식ID', '간식명', '수량', '차감포인트', '제공여부'];
+      const rows = orders.map(order => [
+        order.timestamp || '',
+        order.orderNo || order.orderId || '',
+        order.userId || '',
+        order.nickname || '',
+        order.snackId || '',
+        order.snackName || '',
+        order.quantity || 0,
+        order.point || 0,
+        order.servedYn || 'N'
+      ]);
+
+      const csv = [header, ...rows]
+        .map(row => row.map(csvCell).join(','))
+        .join('\r\n');
+
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const today = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `orders-${today}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
     // 타이머 처리 (30초 -> 0초)
     function startRefreshTimer() {
       const timerBar = document.getElementById('timer-bar');
       const refreshText = document.getElementById('refresh-text');
+      if (refreshPaused) {
+        if (refreshText) refreshText.textContent = '자동 새로고침 일시정지 중';
+        if (timerBar) timerBar.style.width = '0%';
+        return;
+      }
       
       refreshTimer = setInterval(() => {
+        if (refreshPaused) return;
         refreshSeconds--;
         
         // 텍스트 및 프로그레스바 갱신
@@ -1447,9 +1635,21 @@
       const timerBar = document.getElementById('timer-bar');
       const refreshText = document.getElementById('refresh-text');
       if (timerBar) timerBar.style.width = '0%';
-      if (refreshText) refreshText.textContent = `자동 새로고침 대기 중 (${MAX_REFRESH_TIME}초)`;
+      if (refreshText) refreshText.textContent = refreshPaused ? '자동 새로고침 일시정지 중' : `자동 새로고침 대기 중 (${MAX_REFRESH_TIME}초)`;
       
-      startRefreshTimer();
+      if (!refreshPaused) {
+        startRefreshTimer();
+      }
+    }
+
+    function toggleRefreshPause() {
+      refreshPaused = !refreshPaused;
+      const btn = document.getElementById('btn-toggle-refresh');
+      if (btn) {
+        btn.textContent = refreshPaused ? '자동 재개' : '일시정지';
+      }
+      resetRefreshTimer();
+      AppState.vibrate(40);
     }
 
     // 초기 이벤트 설정
@@ -1461,6 +1661,14 @@
       document.getElementById('btn-manual-refresh').addEventListener('click', () => {
         loadAdminData();
         AppState.vibrate(50);
+      });
+
+      document.getElementById('btn-toggle-refresh').addEventListener('click', () => {
+        toggleRefreshPause();
+      });
+
+      document.getElementById('btn-download-csv').addEventListener('click', () => {
+        downloadTodayOrdersCsv();
       });
 
       // 키오스크 모드로 돌아가기

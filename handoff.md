@@ -63,7 +63,11 @@ https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ
 
 ### Apps Script 최신 코드 재배포
 
-프론트에는 이용자 추가/비활성화 기능이 들어갔고, `google-apps-script.md`에도 `addUser`, `deactivateUser` API가 추가되어 있습니다. 실제 운영 웹앱에서 이 기능을 쓰려면 Apps Script 편집기에 최신 코드를 붙여넣고 새 배포가 필요합니다.
+프론트에는 이용자 추가/활성화/비활성화, 간식 판매중/숨김, CSV 다운로드, 자동 새로고침 일시정지, 관리자 변경 메모 기능이 들어갔습니다. `google-apps-script.md`에도 `addUser`, `updateUserActive`, `updateSnackSale`, `관리자로그` 기록 코드가 추가되어 있습니다. 실제 운영 웹앱에서 이 기능을 쓰려면 Apps Script 편집기에 최신 코드를 붙여넣고 새 배포가 필요합니다.
+
+### 주문번호 호출 방식 검토
+
+주문 완료 화면에 짧은 주문번호를 보여주고, 관리자가 "000번 음식 나왔습니다"처럼 부르는 방식은 아이디어로 보류합니다. 도입하려면 이용자가 번호를 기억/인지할 수 있는지, 관리자 화면에서 같은 번호가 크게 보이는지, 당일 번호 충돌이 없는지를 함께 설계해야 합니다.
 
 ---
 
@@ -85,9 +89,13 @@ https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ
 - 이용자 크레딧 관리
 - 목표 크레딧 바로 맞추기
 - 이용자 추가
-- 이용자 비활성화(삭제 대신 사용여부 N 처리)
+- 이용자 활성/비활성 그룹 관리(완전 삭제는 프론트 미제공)
 - 간식 재고 관리 및 신규 간식 등록
+- 간식 판매중/숨김 상태 관리
+- 오늘 주문 CSV 다운로드
+- 관리자 변경 메모 및 `관리자로그` 기록
+- 자동 새로고침 일시정지/재개
 - 신규 주문 알림음
 - 관리자 변경 API 토큰 보호
-- 관리자 비밀번호 입력/변경/지우기 패널
+- 관리자 비밀번호 다시 입력/지우기 패널
 - 스프레드시트 표시값 escape 처리

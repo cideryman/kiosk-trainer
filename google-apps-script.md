@@ -51,6 +51,7 @@ const SHEET = {
   SNACKS: '간식목록',
   USERS: '이용자목록',
   ORDERS: '주문내역',
+  LOGS: '관리자로그',
 };
 
 // 관리자 화면에서만 사용하는 변경 API 목록입니다.
@@ -58,8 +59,9 @@ const ADMIN_ACTIONS = [
   'updateOrderServed',
   'updateUserCredit',
   'addUser',
-  'deactivateUser',
+  'updateUserActive',
   'updateSnackStock',
+  'updateSnackSale',
   'addSnack',
 ];
 
@@ -98,11 +100,11 @@ function doGet(e) {
   const action = e.parameter.action;
 
   if (action === 'getUsers') {
-    return jsonResponse(getUsers());
+    return jsonResponse(getUsers(e.parameter.includeInactive));
   }
 
   if (action === 'getSnacks') {
-    return jsonResponse(getSnacks());
+    return jsonResponse(getSnacks(e.parameter.includeHidden));
   }
 
   if (action === 'getOrdersToday') {
@@ -138,10 +140,12 @@ function doPost(e) {
     return jsonResponse(updateUserCredit(data));
   } else if (action === 'addUser') {
     return jsonResponse(addUser(data));
-  } else if (action === 'deactivateUser') {
-    return jsonResponse(deactivateUser(data));
+  } else if (action === 'updateUserActive') {
+    return jsonResponse(updateUserActive(data));
   } else if (action === 'updateSnackStock') {
     return jsonResponse(updateSnackStock(data));
+  } else if (action === 'updateSnackSale') {
+    return jsonResponse(updateSnackSale(data));
   } else if (action === 'addSnack') {
     return jsonResponse(addSnack(data));
   }
@@ -161,10 +165,31 @@ function jsonResponse(data) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+function appendAdminLog(action, targetType, targetId, targetName, beforeValue, afterValue, memo) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET.LOGS);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET.LOGS);
+    sheet.appendRow(['timestamp', 'action', 'targetType', 'targetId', 'targetName', 'beforeValue', 'afterValue', 'memo']);
+  }
+
+  sheet.appendRow([
+    new Date(),
+    action,
+    targetType,
+    targetId,
+    targetName || '',
+    beforeValue,
+    afterValue,
+    memo || ''
+  ]);
+}
+
 /**
  * 5. 이용자 목록 조회
  */
-function getUsers() {
+function getUsers(includeInactive) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.USERS);
 
   if (!sheet) {
@@ -176,9 +201,12 @@ function getUsers() {
 
   const values = sheet.getDataRange().getValues();
   const rows = values.slice(1);
+  const shouldIncludeInactive = String(includeInactive || '').trim().toUpperCase() === 'Y';
 
   const users = rows
+    .filter(row => row[0] || row[1])
     .filter(row => {
+      if (shouldIncludeInactive) return true;
       const active = String(row[3] || '').trim().toUpperCase();
       return active === 'TRUE' || active === '사용' || active === 'Y' || active === 'O' || active === '예';
     })
@@ -187,6 +215,7 @@ function getUsers() {
       nickname: row[1],
       credit: Number(row[2] || 0),
       active: row[3],
+      useYn: row[3],
       imageUrl: makeImageUrl(row[4]),
     }));
 
@@ -199,13 +228,16 @@ function getUsers() {
 /**
  * 6. 간식 목록 조회
  */
-function getSnacks() {
+function getSnacks(includeHidden) {
   const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET.SNACKS);
   const values = sheet.getDataRange().getValues();
   const rows = values.slice(1);
+  const shouldIncludeHidden = String(includeHidden || '').trim().toUpperCase() === 'Y';
 
   const snacks = rows
+    .filter(row => row[0] || row[1])
     .filter(row => {
+      if (shouldIncludeHidden) return true;
       const active = String(row[4]).trim().toUpperCase();
       return (
         active === 'TRUE' ||
@@ -224,6 +256,7 @@ function getSnacks() {
         point: Number(row[2]),
         imageUrl: makeImageUrl(row[3]),
         active: row[4],
+        saleYn: row[4],
         stock,
         soldOut: stock <= 0,
       };
@@ -446,8 +479,12 @@ function updateOrderServed(data) {
   for (let i = 1; i < values.length; i++) {
     const rowOrderId = String(values[i][1]);
     if (rowOrderId === String(orderId)) {
+      const beforeServedYn = values[i][8] || 'N';
       orderSheet.getRange(i + 1, 9).setValue(servedYn); // I열 (9번째) 제공여부 수정
       updatedCount++;
+      if (updatedCount === 1) {
+        appendAdminLog('updateOrderServed', 'order', orderId, values[i][3], beforeServedYn, servedYn, data.adminMemo);
+      }
     }
   }
 
@@ -474,8 +511,10 @@ function updateUserCredit(data) {
   var newCredit = Number(data.credit);
   
   for (var i = 1; i < rows.length; i++) {
-    if (rows[i][0] === userId) {
+    if (String(rows[i][0]) === String(userId)) {
+      var beforeCredit = Number(rows[i][2] || 0);
       sheet.getRange(i + 1, 3).setValue(newCredit);
+      appendAdminLog('updateUserCredit', 'user', userId, rows[i][1], beforeCredit, newCredit, data.adminMemo);
       return { success: true, message: '크레딧을 업데이트했습니다.' };
     }
   }
@@ -512,6 +551,7 @@ function addUser(data) {
     data.useYn || 'Y',
     data.imageUrl || ''
   ]);
+  appendAdminLog('addUser', 'user', newUserId, nickname, '', JSON.stringify({ credit: Number(data.credit || 0), useYn: data.useYn || 'Y' }), data.adminMemo);
 
   return {
     success: true,
@@ -521,18 +561,21 @@ function addUser(data) {
 }
 
 /**
- * 12. 이용자 비활성화 API
- * 주문 기록 보존을 위해 행 삭제 대신 사용여부를 N으로 변경합니다.
+ * 12. 이용자 활성/비활성 API
+ * 주문 기록 보존을 위해 행 삭제 대신 사용여부를 Y/N으로 변경합니다.
  */
-function deactivateUser(data) {
+function updateUserActive(data) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.USERS);
   var rows = sheet.getDataRange().getValues();
   var userId = data.userId;
+  var useYn = String(data.useYn || 'N').toUpperCase() === 'Y' ? 'Y' : 'N';
 
   for (var i = 1; i < rows.length; i++) {
     if (String(rows[i][0]) === String(userId)) {
-      sheet.getRange(i + 1, 4).setValue('N');
-      return { success: true, message: '이용자를 비활성화했습니다.' };
+      var beforeUseYn = rows[i][3] || '';
+      sheet.getRange(i + 1, 4).setValue(useYn);
+      appendAdminLog('updateUserActive', 'user', userId, rows[i][1], beforeUseYn, useYn, data.adminMemo);
+      return { success: true, message: '이용자 상태를 업데이트했습니다.', useYn: useYn };
     }
   }
 
@@ -550,7 +593,9 @@ function updateSnackStock(data) {
   
   for (var i = 1; i < rows.length; i++) {
     if (Number(rows[i][0]) === snackId) {
+      var beforeStock = Number(rows[i][5] || 0);
       sheet.getRange(i + 1, 6).setValue(newStock);
+      appendAdminLog('updateSnackStock', 'snack', snackId, rows[i][1], beforeStock, newStock, data.adminMemo);
       return { success: true, message: '재고를 업데이트했습니다.' };
     }
   }
@@ -558,7 +603,28 @@ function updateSnackStock(data) {
 }
 
 /**
- * 14. 신규 간식 품목 등록 API
+ * 14. 간식 판매/숨김 상태 변경 API
+ */
+function updateSnackSale(data) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.SNACKS);
+  var rows = sheet.getDataRange().getValues();
+  var snackId = Number(data.snackId);
+  var saleYn = String(data.saleYn || 'N').toUpperCase() === 'Y' ? 'Y' : 'N';
+
+  for (var i = 1; i < rows.length; i++) {
+    if (Number(rows[i][0]) === snackId) {
+      var beforeSaleYn = rows[i][4] || '';
+      sheet.getRange(i + 1, 5).setValue(saleYn);
+      appendAdminLog('updateSnackSale', 'snack', snackId, rows[i][1], beforeSaleYn, saleYn, data.adminMemo);
+      return { success: true, message: '간식 판매 상태를 업데이트했습니다.', saleYn: saleYn };
+    }
+  }
+
+  return { success: false, message: '간식을 찾을 수 없습니다.' };
+}
+
+/**
+ * 15. 신규 간식 품목 등록 API
  */
 function addSnack(data) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.SNACKS);
@@ -581,6 +647,7 @@ function addSnack(data) {
   ];
   
   sheet.appendRow(newRow);
+  appendAdminLog('addSnack', 'snack', newSnackId, data.name, '', JSON.stringify({ point: Number(data.point || 1), saleYn: data.saleYn || 'Y', stock: Number(data.stock || 0) }), data.adminMemo);
   return { success: true, message: '신규 간식을 등록했습니다.', snackId: newSnackId };
 }
 ```

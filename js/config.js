@@ -164,12 +164,22 @@ function getMockFallback(action, options) {
   let res;
   if (action === 'getUsers') {
     res = JSON.parse(JSON.stringify(MOCK_DATA.getUsers));
-    res.users = res.users.filter(u => {
-      const active = String(u.useYn ?? u.active ?? 'Y').trim().toUpperCase();
-      return active === 'TRUE' || active === '사용' || active === 'Y' || active === 'O' || active === '예';
-    });
+    const includeInactive = String(options.params?.includeInactive || '').trim().toUpperCase() === 'Y';
+    if (!includeInactive) {
+      res.users = res.users.filter(u => {
+        const active = String(u.useYn ?? u.active ?? 'Y').trim().toUpperCase();
+        return active === 'TRUE' || active === '사용' || active === 'Y' || active === 'O' || active === '예';
+      });
+    }
   } else if (action === 'getSnacks') {
     res = JSON.parse(JSON.stringify(MOCK_DATA.getSnacks));
+    const includeHidden = String(options.params?.includeHidden || '').trim().toUpperCase() === 'Y';
+    if (!includeHidden) {
+      res.snacks = res.snacks.filter(s => {
+        const active = String(s.saleYn ?? s.active ?? 'Y').trim().toUpperCase();
+        return active === 'TRUE' || active === '판매' || active === 'Y' || active === 'O' || active === '예';
+      });
+    }
   } else if (action === 'getOrdersToday') {
     // 로컬 스토리지에 저장된 테스트용 주문 내역이 있으면 그것을 병합
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
@@ -226,6 +236,7 @@ function getMockFallback(action, options) {
     const updatedLocalOrders = localOrders.map(o => {
       if (o.orderNo === orderId) {
         updated = true;
+        appendMockAdminLog('updateOrderServed', 'order', orderId, o.nickname, o.servedYn || 'N', servedYn, options.body?.adminMemo);
         return { ...o, servedYn: servedYn };
       }
       return o;
@@ -237,6 +248,7 @@ function getMockFallback(action, options) {
     // 2) MOCK_DATA.getOrdersToday.orders에서도 임시로 업데이트
     const mockOrder = MOCK_DATA.getOrdersToday.orders.find(o => o.orderNo === orderId);
     if (mockOrder) {
+      appendMockAdminLog('updateOrderServed', 'order', orderId, mockOrder.nickname, mockOrder.servedYn || 'N', servedYn, options.body?.adminMemo);
       mockOrder.servedYn = servedYn;
       updated = true;
     }
@@ -251,6 +263,7 @@ function getMockFallback(action, options) {
     const users = MOCK_DATA.getUsers.users;
     const user = users.find(u => String(u.userId) === String(userId));
     if (user) {
+      appendMockAdminLog('updateUserCredit', 'user', userId, user.nickname, user.credit, credit, options.body?.adminMemo);
       user.credit = credit;
     }
     const selectedUser = JSON.parse(localStorage.getItem('selectedUser'));
@@ -281,22 +294,26 @@ function getMockFallback(action, options) {
       useYn,
       imageUrl
     });
+    appendMockAdminLog('addUser', 'user', newUserId, nickname, '', JSON.stringify({ credit, useYn }), options.body?.adminMemo);
     res = {
       success: true,
       message: "신규 이용자를 등록했습니다.",
       userId: newUserId
     };
-  } else if (action === 'deactivateUser') {
+  } else if (action === 'updateUserActive') {
     const userId = options.body?.userId;
+    const useYn = String(options.body?.useYn || 'N').toUpperCase() === 'Y' ? 'Y' : 'N';
     const users = MOCK_DATA.getUsers.users;
     const user = users.find(u => String(u.userId) === String(userId));
     if (user) {
-      user.useYn = "N";
-      user.active = "N";
+      appendMockAdminLog('updateUserActive', 'user', userId, user.nickname, user.useYn ?? user.active ?? 'Y', useYn, options.body?.adminMemo);
+      user.useYn = useYn;
+      user.active = useYn;
     }
     res = {
       success: true,
-      message: "이용자를 비활성화했습니다."
+      message: "이용자 상태를 업데이트했습니다.",
+      useYn
     };
   } else if (action === 'updateSnackStock') {
     const snackId = Number(options.body?.snackId);
@@ -304,11 +321,27 @@ function getMockFallback(action, options) {
     const snacks = MOCK_DATA.getSnacks.snacks;
     const snack = snacks.find(s => s.snackId === snackId);
     if (snack) {
+      appendMockAdminLog('updateSnackStock', 'snack', snackId, snack.name, snack.stock, stock, options.body?.adminMemo);
       snack.stock = stock;
     }
     res = {
       success: true,
       message: "재고를 업데이트했습니다."
+    };
+  } else if (action === 'updateSnackSale') {
+    const snackId = Number(options.body?.snackId);
+    const saleYn = String(options.body?.saleYn || 'N').toUpperCase() === 'Y' ? 'Y' : 'N';
+    const snacks = MOCK_DATA.getSnacks.snacks;
+    const snack = snacks.find(s => Number(s.snackId) === snackId);
+    if (snack) {
+      appendMockAdminLog('updateSnackSale', 'snack', snackId, snack.name, snack.saleYn ?? snack.active ?? 'Y', saleYn, options.body?.adminMemo);
+      snack.saleYn = saleYn;
+      snack.active = saleYn;
+    }
+    res = {
+      success: true,
+      message: "간식 판매 상태를 업데이트했습니다.",
+      saleYn
     };
   } else if (action === 'addSnack') {
     const name = options.body?.name || "새로운 간식";
@@ -328,6 +361,7 @@ function getMockFallback(action, options) {
       stock: stock
     };
     snacks.push(newSnack);
+    appendMockAdminLog('addSnack', 'snack', newSnackId, name, '', JSON.stringify({ point, saleYn, stock }), options.body?.adminMemo);
     res = {
       success: true,
       message: "신규 간식을 등록했습니다.",
@@ -354,4 +388,23 @@ function getMockFallback(action, options) {
   }
 
   return res;
+}
+
+function appendMockAdminLog(action, targetType, targetId, targetName, beforeValue, afterValue, memo) {
+  try {
+    const logs = JSON.parse(localStorage.getItem('mockAdminLogs') || '[]');
+    logs.push({
+      timestamp: new Date().toISOString(),
+      action,
+      targetType,
+      targetId,
+      targetName,
+      beforeValue,
+      afterValue,
+      memo: memo || ''
+    });
+    localStorage.setItem('mockAdminLogs', JSON.stringify(logs));
+  } catch (e) {
+    console.warn('Mock 관리자 로그 저장 실패:', e);
+  }
 }
