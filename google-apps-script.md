@@ -15,7 +15,7 @@
    - **값**: 관리자만 아는 비밀번호/토큰 값 (예: 센터 내부 관리자 비밀번호)
 6. 우측 상단의 **[배포] > [새 배포]**를 선택합니다.
 7. 배포 유형이 **[웹앱]**인지 확인하고 아래 항목들을 설정합니다:
-   - **설명**: `v2 - 크레딧 및 재고 관리 추가` (임의 기입)
+   - **설명**: `v3 - 이용자 관리 추가` (임의 기입)
    - **웹앱을 실행할 사용자**: `나 (본인 이메일)`
    - **액세스할 수 있는 사용자**: `모든 사용자 (Anyone)` (중요!)
 8. **[배포]**를 클릭하고, 최초 1회 구글 계정 액세스 권한 승인 창이 뜨면 권한 승인을 완료합니다.
@@ -57,6 +57,8 @@ const SHEET = {
 const ADMIN_ACTIONS = [
   'updateOrderServed',
   'updateUserCredit',
+  'addUser',
+  'deactivateUser',
   'updateSnackStock',
   'addSnack',
 ];
@@ -134,6 +136,10 @@ function doPost(e) {
     return jsonResponse(updateOrderServed(data));
   } else if (action === 'updateUserCredit') {
     return jsonResponse(updateUserCredit(data));
+  } else if (action === 'addUser') {
+    return jsonResponse(addUser(data));
+  } else if (action === 'deactivateUser') {
+    return jsonResponse(deactivateUser(data));
   } else if (action === 'updateSnackStock') {
     return jsonResponse(updateSnackStock(data));
   } else if (action === 'addSnack') {
@@ -477,7 +483,64 @@ function updateUserCredit(data) {
 }
 
 /**
- * 11. 간식 재고 수량 조정 API
+ * 11. 신규 이용자 등록 API
+ */
+function addUser(data) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.USERS);
+  var rows = sheet.getDataRange().getValues();
+  var nickname = String(data.nickname || '').trim();
+
+  if (!nickname) {
+    return { success: false, message: '이용자 별명이 필요합니다.' };
+  }
+
+  var maxNumber = 0;
+  for (var i = 1; i < rows.length; i++) {
+    var rawId = String(rows[i][0] || '');
+    var match = rawId.match(/(\d+)$/);
+    if (match) {
+      var idNumber = Number(match[1]);
+      if (idNumber > maxNumber) maxNumber = idNumber;
+    }
+  }
+
+  var newUserId = 'user' + String(maxNumber + 1).padStart(3, '0');
+  sheet.appendRow([
+    newUserId,
+    nickname,
+    Number(data.credit || 0),
+    data.useYn || 'Y',
+    data.imageUrl || ''
+  ]);
+
+  return {
+    success: true,
+    message: '신규 이용자를 등록했습니다.',
+    userId: newUserId
+  };
+}
+
+/**
+ * 12. 이용자 비활성화 API
+ * 주문 기록 보존을 위해 행 삭제 대신 사용여부를 N으로 변경합니다.
+ */
+function deactivateUser(data) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.USERS);
+  var rows = sheet.getDataRange().getValues();
+  var userId = data.userId;
+
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === String(userId)) {
+      sheet.getRange(i + 1, 4).setValue('N');
+      return { success: true, message: '이용자를 비활성화했습니다.' };
+    }
+  }
+
+  return { success: false, message: '이용자를 찾을 수 없습니다.' };
+}
+
+/**
+ * 13. 간식 재고 수량 조정 API
  */
 function updateSnackStock(data) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.SNACKS);
@@ -495,7 +558,7 @@ function updateSnackStock(data) {
 }
 
 /**
- * 12. 신규 간식 품목 등록 API
+ * 14. 신규 간식 품목 등록 API
  */
 function addSnack(data) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.SNACKS);

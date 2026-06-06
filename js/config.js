@@ -164,6 +164,10 @@ function getMockFallback(action, options) {
   let res;
   if (action === 'getUsers') {
     res = JSON.parse(JSON.stringify(MOCK_DATA.getUsers));
+    res.users = res.users.filter(u => {
+      const active = String(u.useYn ?? u.active ?? 'Y').trim().toUpperCase();
+      return active === 'TRUE' || active === '사용' || active === 'Y' || active === 'O' || active === '예';
+    });
   } else if (action === 'getSnacks') {
     res = JSON.parse(JSON.stringify(MOCK_DATA.getSnacks));
   } else if (action === 'getOrdersToday') {
@@ -245,18 +249,54 @@ function getMockFallback(action, options) {
     const userId = options.body?.userId;
     const credit = Number(options.body?.credit || 0);
     const users = MOCK_DATA.getUsers.users;
-    const user = users.find(u => u.userId === userId);
+    const user = users.find(u => String(u.userId) === String(userId));
     if (user) {
       user.credit = credit;
     }
     const selectedUser = JSON.parse(localStorage.getItem('selectedUser'));
-    if (selectedUser && selectedUser.userId === userId) {
+    if (selectedUser && String(selectedUser.userId) === String(userId)) {
       selectedUser.credit = credit;
       localStorage.setItem('selectedUser', JSON.stringify(selectedUser));
     }
     res = {
       success: true,
       message: "크레딧을 업데이트했습니다."
+    };
+  } else if (action === 'addUser') {
+    const nickname = options.body?.nickname || "새 이용자";
+    const credit = Number(options.body?.credit || 0);
+    const imageUrl = options.body?.imageUrl || "";
+    const useYn = options.body?.useYn || "Y";
+    const users = MOCK_DATA.getUsers.users;
+    const maxId = users.reduce((max, u) => {
+      const match = String(u.userId || '').match(/(\d+)$/);
+      const idNumber = match ? Number(match[1]) : 0;
+      return idNumber > max ? idNumber : max;
+    }, 0);
+    const newUserId = `user${String(maxId + 1).padStart(3, '0')}`;
+    users.push({
+      userId: newUserId,
+      nickname,
+      credit,
+      useYn,
+      imageUrl
+    });
+    res = {
+      success: true,
+      message: "신규 이용자를 등록했습니다.",
+      userId: newUserId
+    };
+  } else if (action === 'deactivateUser') {
+    const userId = options.body?.userId;
+    const users = MOCK_DATA.getUsers.users;
+    const user = users.find(u => String(u.userId) === String(userId));
+    if (user) {
+      user.useYn = "N";
+      user.active = "N";
+    }
+    res = {
+      success: true,
+      message: "이용자를 비활성화했습니다."
     };
   } else if (action === 'updateSnackStock') {
     const snackId = Number(options.body?.snackId);

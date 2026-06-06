@@ -58,6 +58,19 @@ const AppState = {
     return `${point} 크레딧`;
   },
 
+  escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  },
+
+  escapeAttr(value) {
+    return this.escapeHtml(value);
+  },
+
   // 구글 드라이브 이미지 주소를 브라우저에서 직접 표시 가능한 썸네일 주소로 변환
   convertDriveImageUrl(url) {
     if (!url) return '';

@@ -134,6 +134,62 @@
       background-color: var(--primary-hover);
     }
 
+    .btn-danger-action {
+      padding: 6px 12px;
+      font-size: 14px;
+      font-weight: 800;
+      background-color: #FFF5F5;
+      color: #9B2C2C;
+      border: 2px solid #FEB2B2;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+    .btn-danger-action:active {
+      transform: scale(0.95);
+      background-color: #FED7D7;
+    }
+
+    .form-panel {
+      background-color: var(--card-bg);
+      border: 2.5px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-field label {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .form-field input {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--border-color);
+      font-weight: 700;
+    }
+
+    .token-status {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text-muted);
+      padding: 8px 10px;
+      background-color: #F8FAFC;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-sm);
+    }
+
     /* 미제공 간식 총합 보드 */
     .admin-summary-board {
       background-color: #FFFDF9;
@@ -430,24 +486,55 @@
 
       <!-- Tab 2: 이용자 크레딧 관리 -->
       <div id="tab-users" class="admin-tab-content">
-        <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">🪙 이용자 크레딧 관리</div>
-        <div style="margin-bottom: 20px; display: flex; gap: 10px;">
-          <input type="text" id="search-user-input" placeholder="🔍 이용자 별명을 입력해 찾으세요..." class="search-input" style="flex: 1; padding: 12px; font-size: 18px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); font-weight: 700;">
-        </div>
-        <div class="table-responsive">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>이용자</th>
-                <th>보유 크레딧</th>
-                <th style="text-align: center;">빠른 조정</th>
-                <th style="text-align: center;">직접 수정</th>
-              </tr>
-            </thead>
-            <tbody id="user-management-body">
-              <!-- JS 동적 생성 -->
-            </tbody>
-          </table>
+        <div class="admin-layout">
+          <div class="admin-main">
+            <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">🪙 이용자 크레딧 관리</div>
+            <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+              <input type="text" id="search-user-input" placeholder="🔍 이용자 별명을 입력해 찾으세요..." class="search-input" style="flex: 1; padding: 12px; font-size: 18px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); font-weight: 700;">
+            </div>
+            <div class="table-responsive">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>이용자</th>
+                    <th>보유 크레딧</th>
+                    <th style="text-align: center;">빠른 조정</th>
+                    <th style="text-align: center;">목표 크레딧</th>
+                    <th style="text-align: center;">관리</th>
+                  </tr>
+                </thead>
+                <tbody id="user-management-body">
+                  <!-- JS 동적 생성 -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="admin-side">
+            <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">➕ 신규 이용자 추가</div>
+            <div class="form-panel">
+              <div class="form-field">
+                <label for="new-user-nickname">별명</label>
+                <input type="text" id="new-user-nickname" placeholder="예: 이니">
+              </div>
+              <div class="form-field">
+                <label for="new-user-credit">초기 크레딧</label>
+                <input type="number" id="new-user-credit" min="0" value="10">
+              </div>
+              <div class="form-field">
+                <label for="new-user-image">사진 주소 (구글 드라이브 또는 공백)</label>
+                <input type="text" id="new-user-image" placeholder="공유용 이미지 링크 (선택)">
+              </div>
+              <button class="btn btn-secondary" onclick="addNewUserAction()" style="margin-top: 4px; width: 100%;">이용자 등록</button>
+            </div>
+
+            <div class="admin-section-title" style="color: var(--text-muted); border-left-color: var(--border-color); margin-top: 20px;">🔐 관리자 비밀번호</div>
+            <div class="form-panel">
+              <div class="token-status" id="admin-token-status">관리자 비밀번호 상태 확인 중</div>
+              <button class="btn-small-action" onclick="setAdminTokenManually()">비밀번호 입력/변경</button>
+              <button class="btn-danger-action" onclick="clearAdminTokenManual()">저장된 비밀번호 지우기</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -524,6 +611,51 @@
     let userSearchQuery = "";
     const ADMIN_TOKEN_STORAGE_KEY = 'kioskAdminToken';
 
+    function esc(value) {
+      return AppState.escapeHtml(value);
+    }
+
+    function attr(value) {
+      return AppState.escapeAttr(value);
+    }
+
+    function callAttr(code) {
+      return attr(code);
+    }
+
+    function jsString(value) {
+      return JSON.stringify(String(value ?? ''));
+    }
+
+    function creditInputId(userId) {
+      return `input-credit-${encodeURIComponent(String(userId ?? ''))}`;
+    }
+
+    function stockInputId(snackId) {
+      return `input-stock-${encodeURIComponent(String(snackId ?? ''))}`;
+    }
+
+    function updateAdminTokenStatus() {
+      const statusEl = document.getElementById('admin-token-status');
+      if (!statusEl) return;
+      const token = sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY);
+      statusEl.textContent = token ? '이번 관리자 세션에 비밀번호가 입력되어 있습니다.' : '아직 비밀번호가 입력되지 않았습니다.';
+    }
+
+    function setAdminTokenManually() {
+      const token = prompt('관리자 비밀번호를 입력해 주세요.');
+      if (!token) return;
+      sessionStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token.trim());
+      updateAdminTokenStatus();
+      AppState.vibrate(40);
+    }
+
+    function clearAdminTokenManual() {
+      sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
+      updateAdminTokenStatus();
+      AppState.vibrate(40);
+    }
+
     function getAdminToken() {
       let token = sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY);
       if (token) return token;
@@ -535,6 +667,7 @@
 
       token = token.trim();
       sessionStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token);
+      updateAdminTokenStatus();
       return token;
     }
 
@@ -549,6 +682,7 @@
       const message = String(res?.message || '');
       if (message.includes('관리자 권한') || message.includes('권한')) {
         sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
+        updateAdminTokenStatus();
       }
     }
 
@@ -713,8 +847,8 @@
         const fontWeight = isSoldOut ? '800' : '700';
 
         item.innerHTML = `
-          <span class="stat-item-name">${snack.name}</span>
-          <span class="stat-item-val" style="color: ${valColor}; font-weight: ${fontWeight};">${stockText}</span>
+          <span class="stat-item-name">${esc(snack.name)}</span>
+          <span class="stat-item-val" style="color: ${valColor}; font-weight: ${fontWeight};">${esc(stockText)}</span>
         `;
         stockListEl.appendChild(item);
       });
@@ -773,11 +907,11 @@
       
       const filteredUsers = users.filter(u => {
         if (!userSearchQuery) return true;
-        return u.nickname.toLowerCase().includes(userSearchQuery.toLowerCase());
+        return String(u.nickname || '').toLowerCase().includes(userSearchQuery.toLowerCase());
       });
       
       if (filteredUsers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">해당하는 이용자가 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">해당하는 이용자가 없습니다.</td></tr>';
         return;
       }
       
@@ -785,51 +919,70 @@
         const tr = document.createElement('tr');
         
         const colors = ['#FF9F1C', '#2EC4B6', '#118AB2', '#FF5A5F', '#8338EC', '#3A86C8'];
-        const colorIndex = Math.abs(user.nickname.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % colors.length;
+        const colorIndex = Math.abs(String(user.nickname || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % colors.length;
         const avatarBgColor = colors[colorIndex];
         
         const rawImgUrl = user.imageUrl || '';
         const imgUrl = rawImgUrl ? AppState.convertDriveImageUrl(rawImgUrl) : '';
+        const userId = String(user.userId ?? '');
+        const nickname = String(user.nickname ?? '');
+        const credit = Number(user.credit || 0);
+        const safeNickname = esc(nickname);
+        const safeInitial = esc(nickname.charAt(0) || '?');
+        const safeImgUrl = attr(imgUrl);
+        const safeAvatarBgColor = attr(avatarBgColor);
+        const userIdArg = jsString(userId);
         const avatarHtml = imgUrl 
-          ? `<img src="${imgUrl}" class="admin-avatar" style="width: 36px; height: 36px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="admin-avatar-initial" style="background-color: ${avatarBgColor}; display: none; width: 36px; height: 36px; font-size: 16px;">${user.nickname.charAt(0)}</div>`
-          : `<div class="admin-avatar-initial" style="background-color: ${avatarBgColor}; width: 36px; height: 36px; font-size: 16px;">${user.nickname.charAt(0)}</div>`;
+          ? `<img src="${safeImgUrl}" class="admin-avatar" style="width: 36px; height: 36px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="admin-avatar-initial" style="background-color: ${safeAvatarBgColor}; display: none; width: 36px; height: 36px; font-size: 16px;">${safeInitial}</div>`
+          : `<div class="admin-avatar-initial" style="background-color: ${safeAvatarBgColor}; width: 36px; height: 36px; font-size: 16px;">${safeInitial}</div>`;
 
         tr.innerHTML = `
           <td>
             <div style="display: flex; align-items: center; gap: 10px;">
               ${avatarHtml}
-              <strong>${user.nickname} 님</strong>
+              <strong>${safeNickname} 님</strong>
             </div>
           </td>
-          <td style="font-weight: 800; font-size: 18px; color: var(--primary-color);">${user.credit} 크레딧</td>
+          <td style="font-weight: 800; font-size: 18px; color: var(--primary-color);">${credit} 크레딧</td>
           <td style="text-align: center;">
-            <div style="display: flex; justify-center: center; gap: 6px; justify-content: center;">
-              <button class="credit-adjust-btn minus" onclick="quickAdjustCredit('${user.userId}', -5)">-5</button>
-              <button class="credit-adjust-btn minus" onclick="quickAdjustCredit('${user.userId}', -1)">-1</button>
-              <button class="credit-adjust-btn plus" onclick="quickAdjustCredit('${user.userId}', 1)">+1</button>
-              <button class="credit-adjust-btn plus" onclick="quickAdjustCredit('${user.userId}', 5)">+5</button>
+            <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+              <button class="credit-adjust-btn minus" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, -5)`)}">-5</button>
+              <button class="credit-adjust-btn minus" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, -1)`)}">-1</button>
+              <button class="credit-adjust-btn plus" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, 1)`)}">+1</button>
+              <button class="credit-adjust-btn plus" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, 5)`)}">+5</button>
             </div>
           </td>
           <td style="text-align: center;">
-            <div style="display: flex; justify-content: center; align-items: center; gap: 8px;">
-              <input type="number" id="input-credit-${user.userId}" class="admin-inline-input" value="${user.credit}">
-              <button class="btn-small-action" onclick="manualAdjustCredit('${user.userId}')">변경</button>
+            <div style="display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <button class="credit-adjust-btn" onclick="${callAttr(`setCreditTo(${userIdArg}, 0)`)}">0</button>
+              <button class="credit-adjust-btn" onclick="${callAttr(`setCreditTo(${userIdArg}, 5)`)}">5</button>
+              <button class="credit-adjust-btn" onclick="${callAttr(`setCreditTo(${userIdArg}, 10)`)}">10</button>
+              <button class="credit-adjust-btn" onclick="${callAttr(`setCreditTo(${userIdArg}, 20)`)}">20</button>
+              <input type="number" id="${attr(creditInputId(userId))}" class="admin-inline-input" value="${credit}" min="0">
+              <button class="btn-small-action" onclick="${callAttr(`manualAdjustCredit(${userIdArg})`)}">맞추기</button>
             </div>
+          </td>
+          <td style="text-align: center;">
+            <button class="btn-danger-action" onclick="${callAttr(`deactivateUserAction(${userIdArg}, ${jsString(nickname)})`)}">삭제</button>
           </td>
         `;
         tbody.appendChild(tr);
       });
     }
 
+    async function setCreditTo(userId, credit) {
+      await updateUserCreditAction(userId, Math.max(0, Number(credit || 0)));
+    }
+
     async function quickAdjustCredit(userId, change) {
-      const user = currentUsers.find(u => u.userId === userId);
+      const user = currentUsers.find(u => String(u.userId) === String(userId));
       if (!user) return;
       const newCredit = Math.max(0, Number(user.credit) + change);
       await updateUserCreditAction(userId, newCredit);
     }
 
     async function manualAdjustCredit(userId) {
-      const input = document.getElementById(`input-credit-${userId}`);
+      const input = document.getElementById(creditInputId(userId));
       if (!input) return;
       const newCredit = Math.max(0, Number(input.value || 0));
       await updateUserCreditAction(userId, newCredit);
@@ -855,6 +1008,70 @@
       }
     }
 
+    async function addNewUserAction() {
+      const nicknameInput = document.getElementById('new-user-nickname');
+      const creditInput = document.getElementById('new-user-credit');
+      const imageInput = document.getElementById('new-user-image');
+
+      const nickname = nicknameInput.value.trim();
+      const credit = Math.max(0, Number(creditInput.value || 0));
+      const imageUrl = imageInput.value.trim();
+
+      if (!nickname) {
+        alert("이용자 별명을 입력해 주세요.");
+        nicknameInput.focus();
+        return;
+      }
+
+      try {
+        const res = await fetchAPI('addUser', {
+          method: 'POST',
+          body: withAdminToken({ nickname, credit, imageUrl, useYn: 'Y' })
+        });
+
+        if (res && res.success) {
+          alert(`[${nickname}] 이용자를 등록했습니다.`);
+          nicknameInput.value = '';
+          creditInput.value = '10';
+          imageInput.value = '';
+          AppState.vibrate(80);
+          AppState.playClickSound();
+          await loadAdminData();
+        } else {
+          clearAdminTokenIfDenied(res);
+          alert("이용자 등록에 실패했습니다: " + (res?.message || "오류"));
+        }
+      } catch (error) {
+        console.error("이용자 추가 에러:", error);
+        alert("이용자 추가 중 통신 에러가 발생했습니다.");
+      }
+    }
+
+    async function deactivateUserAction(userId, nickname) {
+      const ok = confirm(`${nickname} 님을 이용자 목록에서 숨길까요?\n주문 기록은 남고, 스프레드시트의 사용여부만 N으로 바뀝니다.`);
+      if (!ok) return;
+
+      try {
+        const res = await fetchAPI('deactivateUser', {
+          method: 'POST',
+          body: withAdminToken({ userId })
+        });
+
+        if (res && res.success) {
+          alert(`${nickname} 님을 비활성화했습니다.`);
+          AppState.vibrate(80);
+          AppState.playClickSound();
+          await loadAdminData();
+        } else {
+          clearAdminTokenIfDenied(res);
+          alert("이용자 삭제에 실패했습니다: " + (res?.message || "오류"));
+        }
+      } catch (error) {
+        console.error("이용자 비활성화 에러:", error);
+        alert("이용자 삭제 중 통신 에러가 발생했습니다.");
+      }
+    }
+
     // --- 간식 목록 및 재고 관리 구현 ---
     function renderSnacksManagement(snacks) {
       const tbody = document.getElementById('snack-management-body');
@@ -874,11 +1091,19 @@
         const rawImgUrl = snack.imageUrl || '';
         const imgUrl = rawImgUrl ? AppState.convertDriveImageUrl(rawImgUrl) : '';
         const snackEmoji = AppState.getSnackEmoji(snack.name);
+        const snackId = snack.snackId;
+        const snackIdArg = jsString(snackId);
+        const snackName = String(snack.name ?? '');
+        const safeSnackName = esc(snackName);
+        const safeImgUrl = attr(imgUrl);
+        const safeSnackEmoji = esc(snackEmoji);
+        const point = Number(snack.point || 0);
+        const stock = Number(snack.stock || 0);
         
         const imgHTML = imgUrl
-          ? `<img src="${imgUrl}" class="admin-avatar" style="width: 36px; height: 36px; border-radius: 6px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`
+          ? `<img src="${safeImgUrl}" class="admin-avatar" style="width: 36px; height: 36px; border-radius: 6px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`
           : ``;
-        const emojiHTML = `<div class="admin-avatar-initial" style="background-color: #F1F5F9; border: 1.5px solid var(--border-color); color: var(--text-main); width: 36px; height: 36px; font-size: 18px; border-radius: 6px; display: flex; justify-content: center; align-items: center; ${imgUrl ? 'display:none;' : ''}">${snackEmoji}</div>`;
+        const emojiHTML = `<div class="admin-avatar-initial" style="background-color: #F1F5F9; border: 1.5px solid var(--border-color); color: var(--text-main); width: 36px; height: 36px; font-size: 18px; border-radius: 6px; display: flex; justify-content: center; align-items: center; ${imgUrl ? 'display:none;' : ''}">${safeSnackEmoji}</div>`;
 
         tr.innerHTML = `
           <td>
@@ -887,22 +1112,22 @@
                 ${imgHTML}
                 ${emojiHTML}
               </div>
-              <strong>${snack.name}</strong>
+              <strong>${safeSnackName}</strong>
             </div>
           </td>
-          <td style="font-weight: 700;">${snack.point} 크레딧</td>
+          <td style="font-weight: 700;">${point} 크레딧</td>
           <td style="text-align: center; font-weight: 800; color: ${isSoldOut ? 'var(--danger-color)' : 'var(--secondary-hover)'};">
-            ${snack.stock}개
+            ${stock}개
           </td>
           <td style="text-align: center;">
             <div style="display: flex; justify-content: center; align-items: center; gap: 8px;">
-              <button class="credit-adjust-btn minus" onclick="quickAdjustStock(${snack.snackId}, -5)">-5</button>
-              <button class="credit-adjust-btn minus" onclick="quickAdjustStock(${snack.snackId}, -1)">-1</button>
-              <input type="number" id="input-stock-${snack.snackId}" class="admin-inline-input" value="${snack.stock}">
-              <button class="btn-small-action" onclick="manualAdjustStock(${snack.snackId})">수정</button>
-              <button class="credit-adjust-btn plus" onclick="quickAdjustStock(${snack.snackId}, 1)">+1</button>
-              <button class="credit-adjust-btn plus" onclick="quickAdjustStock(${snack.snackId}, 5)">+5</button>
-              <button class="credit-adjust-btn" style="background-color: #FFF3E0; border-color: #FFE0B2; color: #E65100; font-size: 14px;" onclick="setSoldOut(${snack.snackId})">품절</button>
+              <button class="credit-adjust-btn minus" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, -5)`)}">-5</button>
+              <button class="credit-adjust-btn minus" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, -1)`)}">-1</button>
+              <input type="number" id="${attr(stockInputId(snackId))}" class="admin-inline-input" value="${stock}">
+              <button class="btn-small-action" onclick="${callAttr(`manualAdjustStock(${snackIdArg})`)}">수정</button>
+              <button class="credit-adjust-btn plus" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, 1)`)}">+1</button>
+              <button class="credit-adjust-btn plus" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, 5)`)}">+5</button>
+              <button class="credit-adjust-btn" style="background-color: #FFF3E0; border-color: #FFE0B2; color: #E65100; font-size: 14px;" onclick="${callAttr(`setSoldOut(${snackIdArg})`)}">품절</button>
             </div>
           </td>
         `;
@@ -911,14 +1136,14 @@
     }
 
     async function quickAdjustStock(snackId, change) {
-      const snack = currentSnacks.find(s => s.snackId === snackId);
+      const snack = currentSnacks.find(s => String(s.snackId) === String(snackId));
       if (!snack) return;
       const newStock = Math.max(0, Number(snack.stock) + change);
       await updateSnackStockAction(snackId, newStock);
     }
 
     async function manualAdjustStock(snackId) {
-      const input = document.getElementById(`input-stock-${snackId}`);
+      const input = document.getElementById(stockInputId(snackId));
       if (!input) return;
       const newStock = Math.max(0, Number(input.value || 0));
       await updateSnackStockAction(snackId, newStock);
@@ -1030,7 +1255,7 @@
         board.innerHTML = `
           <div class="admin-section-title" style="margin-top: 0; color: var(--primary-hover); border-left-color: var(--primary-hover);">📋 지금 꺼내올 간식 (미제공 총수량)</div>
           <div class="totals-grid">
-            ${entries.map(([name, qty]) => `<div class="total-item-badge"><strong>${name}</strong> <span class="highlight">${qty}개</span></div>`).join('')}
+            ${entries.map(([name, qty]) => `<div class="total-item-badge"><strong>${esc(name)}</strong> <span class="highlight">${Number(qty)}개</span></div>`).join('')}
           </div>
         `;
       } else {
@@ -1062,22 +1287,26 @@
         const sortedOrderGroups = Object.values(ordersByNo).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
         sortedOrderGroups.forEach(group => {
-          const nickname = group.nickname;
+          const nickname = String(group.nickname || '');
           const rawImgUrl = userImageMap[nickname] || '';
           const imgUrl = rawImgUrl ? AppState.convertDriveImageUrl(rawImgUrl) : '';
+          const safeNickname = esc(nickname);
+          const safeInitial = esc(nickname.charAt(0) || '?');
+          const safeImgUrl = attr(imgUrl);
           
           const colors = ['#FF9F1C', '#2EC4B6', '#118AB2', '#FF5A5F', '#8338EC', '#3A86C8'];
           const colorIndex = Math.abs(nickname.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % colors.length;
           const avatarBgColor = colors[colorIndex];
+          const orderNoArg = jsString(group.orderNo);
 
           const avatarHtml = imgUrl 
-            ? `<img src="${imgUrl}" class="admin-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="admin-avatar-initial" style="background-color: ${avatarBgColor}; display: none;">${nickname.charAt(0)}</div>`
-            : `<div class="admin-avatar-initial" style="background-color: ${avatarBgColor};">${nickname.charAt(0)}</div>`;
+            ? `<img src="${safeImgUrl}" class="admin-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="admin-avatar-initial" style="background-color: ${attr(avatarBgColor)}; display: none;">${safeInitial}</div>`
+            : `<div class="admin-avatar-initial" style="background-color: ${attr(avatarBgColor)};">${safeInitial}</div>`;
 
           const itemsListHtml = group.items.map(item => `
             <li>
-              <span>${item.snackName}</span>
-              <span><strong>${item.quantity}개</strong></span>
+              <span>${esc(item.snackName)}</span>
+              <span><strong>${Number(item.quantity || 0)}개</strong></span>
             </li>
           `).join('');
 
@@ -1086,13 +1315,13 @@
           card.innerHTML = `
             <div class="user-profile-header">
               ${avatarHtml}
-              <span class="user-name">${nickname} 님</span>
-              <span class="order-time-badge">${formatTime(group.timestamp)}</span>
+              <span class="user-name">${safeNickname} 님</span>
+              <span class="order-time-badge">${esc(formatTime(group.timestamp))}</span>
             </div>
             <ul class="user-order-items">
               ${itemsListHtml}
             </ul>
-            <button class="btn-complete-action" onclick="completeOrder('${group.orderNo}')">제공 완료</button>
+            <button class="btn-complete-action" onclick="${callAttr(`completeOrder(${orderNoArg})`)}">제공 완료</button>
           `;
           pendingContainer.appendChild(card);
         });
@@ -1113,14 +1342,15 @@
           const qtyVal = order.quantity || 0;
 
           const tr = document.createElement('tr');
+          const orderNoArg = jsString(order.orderNo);
           tr.innerHTML = `
-            <td><strong>${formatTime(order.timestamp)}</strong></td>
-            <td>${order.nickname}</td>
-            <td>${order.snackName}</td>
+            <td><strong>${esc(formatTime(order.timestamp))}</strong></td>
+            <td>${esc(order.nickname)}</td>
+            <td>${esc(order.snackName)}</td>
             <td style="text-align: center; font-weight: 800;">${qtyVal}개</td>
-            <td style="text-align: right; font-weight: 800; color: var(--primary-color);">${AppState.formatPoint(pointVal)}</td>
+            <td style="text-align: right; font-weight: 800; color: var(--primary-color);">${esc(AppState.formatPoint(pointVal))}</td>
             <td style="text-align: center;">
-              <button class="btn-undo-action" onclick="undoCompleteOrder('${order.orderNo}')">되돌리기</button>
+              <button class="btn-undo-action" onclick="${callAttr(`undoCompleteOrder(${orderNoArg})`)}">되돌리기</button>
             </td>
           `;
           tbody.appendChild(tr);
@@ -1158,7 +1388,7 @@
         const item = document.createElement('div');
         item.className = 'stat-item';
         item.innerHTML = `
-          <span class="stat-item-name">${name}</span>
+          <span class="stat-item-name">${esc(name)}</span>
           <span class="stat-item-val">${count}개</span>
         `;
         snackStatsEl.appendChild(item);
@@ -1172,7 +1402,7 @@
         const item = document.createElement('div');
         item.className = 'stat-item';
         item.innerHTML = `
-          <span class="stat-item-name">${name} 님</span>
+          <span class="stat-item-name">${esc(name)} 님</span>
           <span class="stat-item-val" style="color: var(--secondary-hover);">${count}건</span>
         `;
         userStatsEl.appendChild(item);
@@ -1212,6 +1442,7 @@
 
     // 초기 이벤트 설정
     window.addEventListener('DOMContentLoaded', () => {
+      updateAdminTokenStatus();
       loadAdminData();
 
       // 수동 새로고침 버튼

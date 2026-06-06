@@ -94,7 +94,7 @@
       }
 
       // 상단 유저 정보 표시
-      document.getElementById('user-badge-container').innerHTML = `<span class="user-badge">${user.nickname} 님</span>`;
+      document.getElementById('user-badge-container').innerHTML = `<span class="user-badge">${AppState.escapeHtml(user.nickname)} 님</span>`;
 
       // 주문서 총합 계산
       totalPoints = cart.reduce((sum, item) => sum + (item.point * item.quantity), 0);
@@ -131,11 +131,14 @@
         itemEl.className = 'order-item';
 
         const itemImgUrl = AppState.convertDriveImageUrl(item.imageUrl);
+        const safeItemImgUrl = AppState.escapeAttr(itemImgUrl);
+        const safeItemName = AppState.escapeHtml(item.name);
+        const safeEmoji = AppState.escapeHtml(AppState.getSnackEmoji(item.name));
         let imgHTML = '';
         if (itemImgUrl && itemImgUrl.trim() !== '') {
-          imgHTML = `<img src="${itemImgUrl}" alt="${item.name}" class="order-item-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`;
+          imgHTML = `<img src="${safeItemImgUrl}" alt="${safeItemName}" class="order-item-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`;
         }
-        const emojiHTML = `<div class="order-item-emoji-fallback" style="${itemImgUrl ? 'display:none;' : 'display:flex;'}">${AppState.getSnackEmoji(item.name)}</div>`;
+        const emojiHTML = `<div class="order-item-emoji-fallback" style="${itemImgUrl ? 'display:none;' : 'display:flex;'}">${safeEmoji}</div>`;
 
         itemEl.innerHTML = `
           <div style="display: flex; align-items: center; gap: 16px;">
@@ -144,11 +147,11 @@
               ${emojiHTML}
             </div>
             <div class="order-item-info">
-              <div class="order-item-name">${item.name}</div>
-              <div class="order-item-qty">${item.quantity}개</div>
+              <div class="order-item-name">${safeItemName}</div>
+              <div class="order-item-qty">${Number(item.quantity || 0)}개</div>
             </div>
           </div>
-          <div class="order-item-point">${AppState.formatPoint(item.point * item.quantity)}</div>
+          <div class="order-item-point">${AppState.escapeHtml(AppState.formatPoint(item.point * item.quantity))}</div>
         `;
         listEl.appendChild(itemEl);
       });

@@ -99,26 +99,30 @@
         const card = document.createElement('div');
         card.className = 'user-card clickable-card';
         card.setAttribute('role', 'button');
-        card.setAttribute('aria-label', `${user.nickname} 선택`);
+        card.setAttribute('aria-label', `${user.nickname || ''} 선택`);
         
         // 파스텔 색상 목록 (가독성 좋고 부드러운)
         const colors = ['#FF9F1C', '#2EC4B6', '#118AB2', '#FF5A5F', '#8338EC', '#3A86C8'];
-        const colorIndex = Math.abs(user.userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % colors.length;
+        const colorIndex = Math.abs(String(user.userId || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % colors.length;
         const fallbackBgColor = colors[colorIndex];
 
         const imgUrl = AppState.convertDriveImageUrl(user.imageUrl);
+        const safeNickname = AppState.escapeHtml(user.nickname);
+        const safeInitial = AppState.escapeHtml(String(user.nickname || '?').charAt(0));
+        const safeImgUrl = AppState.escapeAttr(imgUrl);
+        const safeFallbackBgColor = AppState.escapeAttr(fallbackBgColor);
         let avatarHTML = '';
         if (imgUrl && imgUrl.trim() !== '') {
           avatarHTML = `
             <div class="user-avatar-container">
-              <img src="${imgUrl}" alt="${user.nickname} 사진" class="user-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-              <div class="user-avatar-fallback" style="background-color: ${fallbackBgColor}; display: none;">${user.nickname.charAt(0)}</div>
+              <img src="${safeImgUrl}" alt="${safeNickname} 사진" class="user-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+              <div class="user-avatar-fallback" style="background-color: ${safeFallbackBgColor}; display: none;">${safeInitial}</div>
             </div>
           `;
         } else {
           avatarHTML = `
             <div class="user-avatar-container">
-              <div class="user-avatar-fallback" style="background-color: ${fallbackBgColor};">${user.nickname.charAt(0)}</div>
+              <div class="user-avatar-fallback" style="background-color: ${safeFallbackBgColor};">${safeInitial}</div>
             </div>
           `;
         }
@@ -126,8 +130,8 @@
         // 내부에 아바타, 이름, 크레딧 표기
         card.innerHTML = `
           ${avatarHTML}
-          <div class="user-card-name">${user.nickname}</div>
-          <div class="user-card-credit">${AppState.formatPoint(user.credit)}</div>
+          <div class="user-card-name">${safeNickname}</div>
+          <div class="user-card-credit">${AppState.escapeHtml(AppState.formatPoint(user.credit))}</div>
         `;
         
         // 카드 클릭 이벤트

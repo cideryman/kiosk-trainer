@@ -76,7 +76,7 @@
       }
 
       // 화면 출력
-      document.getElementById('complete-title').innerHTML = `<span>${summaryData.nickname}</span> 님<br>주문이 잘 접수되었어요!`;
+      document.getElementById('complete-title').innerHTML = `<span>${AppState.escapeHtml(summaryData.nickname)}</span> 님<br>주문이 잘 접수되었어요!`;
       document.getElementById('summary-name').textContent = `${summaryData.nickname} 님`;
       document.getElementById('summary-used').textContent = AppState.formatPoint(summaryData.usedPoints);
       document.getElementById('summary-remain').textContent = AppState.formatPoint(summaryData.remainPoints);

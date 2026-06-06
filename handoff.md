@@ -61,13 +61,9 @@ https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ
 
 현재 운영을 막는 문제는 아니지만, 추후 여유가 있으면 정리할 항목입니다.
 
-### 스프레드시트 값 HTML 삽입 정리
+### Apps Script 최신 코드 재배포
 
-일부 화면에서 이용자명, 간식명, 이미지 URL이 `innerHTML` 템플릿 문자열로 들어갑니다. 스프레드시트 값에 HTML 태그나 따옴표가 들어가면 화면이 깨질 수 있으므로, 표시 텍스트는 `textContent` 또는 escape helper로 바꾸는 것이 좋습니다.
-
-### 관리자 토큰 운영 방식
-
-현재 관리자 토큰은 브라우저 세션에 저장해 사용합니다. 현장 운영 중 토큰 공유 범위와 변경 주기를 정해두면 좋습니다.
+프론트에는 이용자 추가/비활성화 기능이 들어갔고, `google-apps-script.md`에도 `addUser`, `deactivateUser` API가 추가되어 있습니다. 실제 운영 웹앱에서 이 기능을 쓰려면 Apps Script 편집기에 최신 코드를 붙여넣고 새 배포가 필요합니다.
 
 ---
 
@@ -87,6 +83,11 @@ https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ
 - 제공 완료/되돌리기 DB 반영
 - 미제공 간식 총량 집계
 - 이용자 크레딧 관리
+- 목표 크레딧 바로 맞추기
+- 이용자 추가
+- 이용자 비활성화(삭제 대신 사용여부 N 처리)
 - 간식 재고 관리 및 신규 간식 등록
 - 신규 주문 알림음
 - 관리자 변경 API 토큰 보호
+- 관리자 비밀번호 입력/변경/지우기 패널
+- 스프레드시트 표시값 escape 처리

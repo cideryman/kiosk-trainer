@@ -94,7 +94,7 @@
       
       // 유저 헤더 렌더링
       const badgeContainer = document.getElementById('user-badge-container');
-      badgeContainer.innerHTML = `<span class="user-badge">${user.nickname} 님</span>`;
+      badgeContainer.innerHTML = `<span class="user-badge">${AppState.escapeHtml(user.nickname)} 님</span>`;
       
       const creditAmount = document.getElementById('user-credit');
       creditAmount.textContent = AppState.formatPoint(user.credit);
@@ -151,13 +151,17 @@
 
         // 이미지 구성 (없으면 이모지)
         const imgUrl = AppState.convertDriveImageUrl(snack.imageUrl);
+        const safeImgUrl = AppState.escapeAttr(imgUrl);
+        const safeSnackName = AppState.escapeHtml(snack.name);
+        const safeSnackEmoji = AppState.escapeHtml(AppState.getSnackEmoji(snack.name));
+        const safePoint = AppState.escapeHtml(AppState.formatPoint(snack.point));
         let imgHTML = '';
         if (imgUrl && imgUrl.trim() !== '') {
-          imgHTML = `<img src="${imgUrl}" alt="${snack.name}" class="snack-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`;
+          imgHTML = `<img src="${safeImgUrl}" alt="${safeSnackName}" class="snack-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`;
         }
         
         // 이미지 Fallback으로 항상 대형 이모지 컨테이너 대기
-        const emojiHTML = `<div class="snack-img-placeholder" style="${imgUrl ? 'display:none;' : 'display:flex;'}">${AppState.getSnackEmoji(snack.name)}</div>`;
+        const emojiHTML = `<div class="snack-img-placeholder" style="${imgUrl ? 'display:none;' : 'display:flex;'}">${safeSnackEmoji}</div>`;
 
         // 남은 재고 텍스트 설정
         const stockText = isSoldOut ? '품절' : `남은 수량 ${snack.stock}개`;
@@ -169,10 +173,10 @@
             ${emojiHTML}
           </div>
           <div class="snack-info">
-            <div class="snack-name">${snack.name}</div>
-            <div class="snack-point">${AppState.formatPoint(snack.point)}</div>
+            <div class="snack-name">${safeSnackName}</div>
+            <div class="snack-point">${safePoint}</div>
             <div class="snack-stock" id="stock-${snack.snackId}" style="font-size: 16px; font-weight: 700; color: ${stockColor}; margin-top: 2px;">
-              ${stockText}
+              ${AppState.escapeHtml(stockText)}
             </div>
             
             <div class="counter-group">
