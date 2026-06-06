@@ -489,6 +489,24 @@
         <div class="admin-layout">
           <div class="admin-main">
             <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">🪙 이용자 크레딧 관리</div>
+            <div class="form-panel" style="margin-bottom: 20px;">
+              <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color); margin-top: 0;">➕ 신규 이용자 추가</div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px;">
+                <div class="form-field">
+                  <label for="new-user-nickname">별명</label>
+                  <input type="text" id="new-user-nickname" placeholder="예: 이니">
+                </div>
+                <div class="form-field">
+                  <label for="new-user-credit">초기 크레딧</label>
+                  <input type="number" id="new-user-credit" min="0" value="10">
+                </div>
+                <div class="form-field">
+                  <label for="new-user-image">사진 주소</label>
+                  <input type="text" id="new-user-image" placeholder="구글 드라이브 링크 (선택)">
+                </div>
+              </div>
+              <button class="btn btn-secondary" onclick="addNewUserAction()" style="margin-top: 4px; width: 100%;">이용자 등록</button>
+            </div>
             <div style="margin-bottom: 20px; display: flex; gap: 10px;">
               <input type="text" id="search-user-input" placeholder="🔍 이용자 별명을 입력해 찾으세요..." class="search-input" style="flex: 1; padding: 12px; font-size: 18px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); font-weight: 700;">
             </div>
@@ -511,24 +529,7 @@
           </div>
 
           <div class="admin-side">
-            <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">➕ 신규 이용자 추가</div>
-            <div class="form-panel">
-              <div class="form-field">
-                <label for="new-user-nickname">별명</label>
-                <input type="text" id="new-user-nickname" placeholder="예: 이니">
-              </div>
-              <div class="form-field">
-                <label for="new-user-credit">초기 크레딧</label>
-                <input type="number" id="new-user-credit" min="0" value="10">
-              </div>
-              <div class="form-field">
-                <label for="new-user-image">사진 주소 (구글 드라이브 또는 공백)</label>
-                <input type="text" id="new-user-image" placeholder="공유용 이미지 링크 (선택)">
-              </div>
-              <button class="btn btn-secondary" onclick="addNewUserAction()" style="margin-top: 4px; width: 100%;">이용자 등록</button>
-            </div>
-
-            <div class="admin-section-title" style="color: var(--text-muted); border-left-color: var(--border-color); margin-top: 20px;">🔐 관리자 비밀번호</div>
+            <div class="admin-section-title" style="color: var(--text-muted); border-left-color: var(--border-color);">🔐 관리자 비밀번호</div>
             <div class="form-panel">
               <div class="token-status" id="admin-token-status">관리자 비밀번호 상태 확인 중</div>
               <button class="btn-small-action" onclick="setAdminTokenManually()">비밀번호 입력/변경</button>
