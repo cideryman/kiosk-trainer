@@ -560,6 +560,31 @@
       <div id="tab-users" class="admin-tab-content">
         <div class="snack-admin-layout">
           <div>
+            <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">🪙 이용자 크레딧 관리</div>
+            <div id="user-api-warning" class="error-box" style="display: none; margin-bottom: 16px; font-size: 16px;"></div>
+            <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
+              <input type="text" id="search-user-input" placeholder="🔍 이용자 별명을 입력해 찾으세요..." class="search-input" style="flex: 1; padding: 12px; font-size: 18px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); font-weight: 700;">
+            </div>
+            <div class="table-responsive">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>이용자</th>
+                    <th style="text-align: center;">상태</th>
+                    <th>보유 크레딧</th>
+                    <th style="text-align: center;">빠른 조정</th>
+                    <th style="text-align: center;">목표 크레딧</th>
+                    <th style="text-align: center;">관리</th>
+                  </tr>
+                </thead>
+                <tbody id="user-management-body">
+                  <!-- JS 동적 생성 -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div>
             <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">➕ 신규 이용자 추가</div>
             <div class="form-panel" id="new-user-panel">
               <div class="user-add-form-grid">
@@ -594,62 +619,12 @@
               </div>
             </div>
           </div>
-
-          <div>
-            <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">🪙 이용자 크레딧 관리</div>
-            <div id="user-api-warning" class="error-box" style="display: none; margin-bottom: 16px; font-size: 16px;"></div>
-            <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
-              <input type="text" id="search-user-input" placeholder="🔍 이용자 별명을 입력해 찾으세요..." class="search-input" style="flex: 1; padding: 12px; font-size: 18px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); font-weight: 700;">
-            </div>
-            <div class="table-responsive">
-              <table class="admin-table">
-                <thead>
-                  <tr>
-                    <th>이용자</th>
-                    <th style="text-align: center;">상태</th>
-                    <th>보유 크레딧</th>
-                    <th style="text-align: center;">빠른 조정</th>
-                    <th style="text-align: center;">목표 크레딧</th>
-                    <th style="text-align: center;">관리</th>
-                  </tr>
-                </thead>
-                <tbody id="user-management-body">
-                  <!-- JS 동적 생성 -->
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
       </div>
 
       <!-- Tab 3: 간식 및 재고 관리 -->
       <div id="tab-snacks" class="admin-tab-content">
         <div class="snack-admin-layout">
-          <div>
-            <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">➕ 신규 간식 추가</div>
-            <div class="form-panel" style="margin-bottom: 8px;">
-              <div class="snack-add-form-grid">
-              <div style="display: flex; flex-direction: column; gap: 6px;">
-                <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">간식 이름</label>
-                <input type="text" id="new-snack-name" placeholder="예: 초코쿠키" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 6px;">
-                <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">가격 (크레딧)</label>
-                <input type="number" id="new-snack-point" min="1" value="1" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 6px;">
-                <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">이미지 주소 (구글 드라이브 또는 공백)</label>
-                <input type="text" id="new-snack-image" placeholder="공유용 이미지 링크 (선택)" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 6px;">
-                <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">초기 입고 재고량</label>
-                <input type="number" id="new-snack-stock" min="0" value="10" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
-              </div>
-              </div>
-              <button class="btn btn-secondary" onclick="addNewSnackAction()" style="margin-top: 12px; width: 100%;">등록하기</button>
-            </div>
-          </div>
-
           <div>
             <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color);">🍪 간식 목록 및 재고 관리</div>
             <div class="table-responsive">
@@ -667,6 +642,31 @@
                   <!-- JS 동적 생성 -->
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          <div>
+            <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">➕ 신규 간식 추가</div>
+            <div class="form-panel" style="margin-bottom: 8px;">
+              <div class="snack-add-form-grid">
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">간식 이름</label>
+                  <input type="text" id="new-snack-name" placeholder="예: 초코쿠키" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">가격 (크레딧)</label>
+                  <input type="number" id="new-snack-point" min="1" value="1" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">이미지 주소 (구글 드라이브 또는 공백)</label>
+                  <input type="text" id="new-snack-image" placeholder="공유용 이미지 링크 (선택)" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">초기 입고 재고량</label>
+                  <input type="number" id="new-snack-stock" min="0" value="10" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
+                </div>
+              </div>
+              <button class="btn btn-secondary" onclick="addNewSnackAction()" style="margin-top: 12px; width: 100%;">등록하기</button>
             </div>
           </div>
         </div>
