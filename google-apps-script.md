@@ -243,117 +243,129 @@ function placeOrder(data) {
     };
   }
 
-  const ss = SpreadsheetApp.getActive();
-  const userSheet = ss.getSheetByName(SHEET.USERS);
-  const snackSheet = ss.getSheetByName(SHEET.SNACKS);
-  const orderSheet = ss.getSheetByName(SHEET.ORDERS);
-
-  const users = userSheet.getDataRange().getValues();
-  const snacks = snackSheet.getDataRange().getValues();
-
-  const userRowIndex = users.findIndex((row, index) => {
-    return index > 0 && String(row[0]) === String(userId);
-  });
-
-  if (userRowIndex === -1) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
     return {
       success: false,
-      message: '이용자를 찾을 수 없습니다.',
+      message: '다른 주문을 처리 중입니다. 잠시 후 다시 시도해 주세요.',
     };
   }
 
-  const nickname = users[userRowIndex][1];
-  const currentCredit = Number(users[userRowIndex][2]);
+  try {
+    const ss = SpreadsheetApp.getActive();
+    const userSheet = ss.getSheetByName(SHEET.USERS);
+    const snackSheet = ss.getSheetByName(SHEET.SNACKS);
+    const orderSheet = ss.getSheetByName(SHEET.ORDERS);
 
-  let totalPoint = 0;
-  const orderItems = [];
+    const users = userSheet.getDataRange().getValues();
+    const snacks = snackSheet.getDataRange().getValues();
 
-  items.forEach(item => {
-    const snackRowIndex = snacks.findIndex((row, index) => {
-      return index > 0 && String(row[0]) === String(item.snackId);
+    const userRowIndex = users.findIndex((row, index) => {
+      return index > 0 && String(row[0]) === String(userId);
     });
 
-    if (snackRowIndex === -1) {
-      throw new Error('간식을 찾을 수 없습니다: ' + item.snackId);
+    if (userRowIndex === -1) {
+      return {
+        success: false,
+        message: '이용자를 찾을 수 없습니다.',
+      };
     }
 
-    const snack = snacks[snackRowIndex];
+    const nickname = users[userRowIndex][1];
+    const currentCredit = Number(users[userRowIndex][2]);
 
-    const snackId = snack[0];
-    const snackName = snack[1];
-    const point = Number(snack[2]);
-    const quantity = Number(item.quantity);
-    const stock = Number(snack[5] || 0);
+    let totalPoint = 0;
+    const orderItems = [];
 
-    if (quantity <= 0) {
-      throw new Error('수량이 올바르지 않습니다.');
-    }
+    items.forEach(item => {
+      const snackRowIndex = snacks.findIndex((row, index) => {
+        return index > 0 && String(row[0]) === String(item.snackId);
+      });
 
-    if (stock < quantity) {
-      throw new Error(`${snackName} 재고가 부족합니다. 현재 재고: ${stock}개`);
-    }
+      if (snackRowIndex === -1) {
+        throw new Error('간식을 찾을 수 없습니다: ' + item.snackId);
+      }
 
-    const itemTotal = point * quantity;
-    totalPoint += itemTotal;
+      const snack = snacks[snackRowIndex];
 
-    orderItems.push({
-      snackRowIndex,
-      snackId,
-      snackName,
-      quantity,
-      point,
-      totalPoint: itemTotal,
-      beforeStock: stock,
-      afterStock: stock - quantity,
+      const snackId = snack[0];
+      const snackName = snack[1];
+      const point = Number(snack[2]);
+      const quantity = Number(item.quantity);
+      const stock = Number(snack[5] || 0);
+
+      if (quantity <= 0) {
+        throw new Error('수량이 올바르지 않습니다.');
+      }
+
+      if (stock < quantity) {
+        throw new Error(`${snackName} 재고가 부족합니다. 현재 재고: ${stock}개`);
+      }
+
+      const itemTotal = point * quantity;
+      totalPoint += itemTotal;
+
+      orderItems.push({
+        snackRowIndex,
+        snackId,
+        snackName,
+        quantity,
+        point,
+        totalPoint: itemTotal,
+        beforeStock: stock,
+        afterStock: stock - quantity,
+      });
     });
-  });
 
-  if (currentCredit < totalPoint) {
+    if (currentCredit < totalPoint) {
+      return {
+        success: false,
+        message: '크레딧이 부족합니다.',
+        currentCredit,
+        totalPoint,
+      };
+    }
+
+    const orderNo = 'ORD-' + new Date().getTime();
+    const now = new Date();
+
+    orderItems.forEach(item => {
+      // 주문내역 마지막 열에 제공 여부 기본값 'N' 명시적 입력
+      orderSheet.appendRow([
+        now,
+        orderNo,
+        userId,
+        nickname,
+        item.snackId,
+        item.snackName,
+        item.quantity,
+        item.totalPoint,
+        'N'
+      ]);
+
+      // 간식 재고 차감 반영
+      snackSheet
+        .getRange(item.snackRowIndex + 1, 6)
+        .setValue(item.afterStock);
+    });
+
+    // 유저 크레딧 차감 반영
+    const newCredit = currentCredit - totalPoint;
+    userSheet.getRange(userRowIndex + 1, 3).setValue(newCredit);
+
     return {
-      success: false,
-      message: '크레딧이 부족합니다.',
-      currentCredit,
-      totalPoint,
-    };
-  }
-
-  const orderNo = 'ORD-' + new Date().getTime();
-  const now = new Date();
-
-  orderItems.forEach(item => {
-    // 주문내역 마지막 열에 제공 여부 기본값 'N' 명시적 입력
-    orderSheet.appendRow([
-      now,
+      success: true,
+      message: '주문이 완료되었습니다.',
       orderNo,
-      userId,
       nickname,
-      item.snackId,
-      item.snackName,
-      item.quantity,
-      item.totalPoint,
-      'N'
-    ]);
-
-    // 간식 재고 차감 반영
-    snackSheet
-      .getRange(item.snackRowIndex + 1, 6)
-      .setValue(item.afterStock);
-  });
-
-  // 유저 크레딧 차감 반영
-  const newCredit = currentCredit - totalPoint;
-  userSheet.getRange(userRowIndex + 1, 3).setValue(newCredit);
-
-  return {
-    success: true,
-    message: '주문이 완료되었습니다.',
-    orderNo,
-    nickname,
-    totalPoint,
-    beforeCredit: currentCredit,
-    afterCredit: newCredit,
-    items: orderItems,
-  };
+      totalPoint,
+      beforeCredit: currentCredit,
+      afterCredit: newCredit,
+      items: orderItems,
+    };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /**
