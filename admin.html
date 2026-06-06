@@ -222,6 +222,42 @@
       border-top: 3px solid var(--border-color);
     }
 
+    .snack-admin-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    @media (min-width: 768px) {
+      .snack-add-form-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        align-items: end;
+      }
+
+      .user-add-form-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        align-items: end;
+      }
+    }
+
+    @media (max-width: 767px) {
+      .snack-add-form-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .user-add-form-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+    }
+
     /* 미제공 간식 총합 보드 */
     .admin-summary-board {
       background-color: #FFFDF9;
@@ -522,12 +558,48 @@
 
       <!-- Tab 2: 이용자 크레딧 관리 -->
       <div id="tab-users" class="admin-tab-content">
-        <div class="admin-layout">
-          <div class="admin-main">
+        <div class="snack-admin-layout">
+          <div>
+            <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">➕ 신규 이용자 추가</div>
+            <div class="form-panel" id="new-user-panel">
+              <div class="user-add-form-grid">
+                <div class="form-field">
+                  <label for="new-user-nickname">별명</label>
+                  <input type="text" id="new-user-nickname" placeholder="예: 이니">
+                </div>
+                <div class="form-field">
+                  <label for="new-user-credit">초기 크레딧</label>
+                  <input type="number" id="new-user-credit" min="0" value="10">
+                </div>
+                <div class="form-field">
+                  <label for="new-user-image">사진 주소</label>
+                  <input type="text" id="new-user-image" placeholder="구글 드라이브 링크 (선택)">
+                </div>
+              </div>
+              <button class="btn btn-secondary" onclick="addNewUserAction()" style="margin-top: 12px; width: 100%;">이용자 등록</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="admin-section-title" style="color: var(--text-muted); border-left-color: var(--border-color);">🔐 관리자 변경 설정</div>
+            <div class="form-panel">
+              <div class="token-status" id="admin-token-status">관리자 비밀번호 상태 확인 중</div>
+              <div class="form-field">
+                <label for="admin-change-memo">다음 관리자 변경 로그에 남길 메모</label>
+                <input type="text" id="admin-change-memo" placeholder="예: 월초 충전, 테스트 조정">
+              </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn-small-action" onclick="setAdminTokenManually()">비밀번호 다시 입력</button>
+                <button class="btn-danger-action" onclick="clearAdminTokenManual()">저장된 비밀번호 지우기</button>
+              </div>
+            </div>
+          </div>
+
+          <div>
             <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">🪙 이용자 크레딧 관리</div>
+            <div id="user-api-warning" class="error-box" style="display: none; margin-bottom: 16px; font-size: 16px;"></div>
             <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
               <input type="text" id="search-user-input" placeholder="🔍 이용자 별명을 입력해 찾으세요..." class="search-input" style="flex: 1; padding: 12px; font-size: 18px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); font-weight: 700;">
-              <button class="btn-small-action" onclick="focusNewUserForm()" style="min-height: 48px; white-space: nowrap;">이용자 추가</button>
             </div>
             <div class="table-responsive">
               <table class="admin-table">
@@ -547,71 +619,16 @@
               </table>
             </div>
           </div>
-
-          <div class="admin-side">
-            <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">➕ 신규 이용자 추가</div>
-            <div class="form-panel" id="new-user-panel">
-              <div class="form-field">
-                <label for="new-user-nickname">별명</label>
-                <input type="text" id="new-user-nickname" placeholder="예: 이니">
-              </div>
-              <div class="form-field">
-                <label for="new-user-credit">초기 크레딧</label>
-                <input type="number" id="new-user-credit" min="0" value="10">
-              </div>
-              <div class="form-field">
-                <label for="new-user-image">사진 주소 (구글 드라이브 또는 공백)</label>
-                <input type="text" id="new-user-image" placeholder="공유용 이미지 링크 (선택)">
-              </div>
-              <button class="btn btn-secondary" onclick="addNewUserAction()" style="margin-top: 4px; width: 100%;">이용자 등록</button>
-            </div>
-
-            <div class="admin-section-title" style="color: var(--text-muted); border-left-color: var(--border-color); margin-top: 20px;">🔐 관리자 비밀번호</div>
-            <div class="form-panel">
-              <div class="token-status" id="admin-token-status">관리자 비밀번호 상태 확인 중</div>
-              <button class="btn-small-action" onclick="setAdminTokenManually()">비밀번호 다시 입력</button>
-              <button class="btn-danger-action" onclick="clearAdminTokenManual()">저장된 비밀번호 지우기</button>
-            </div>
-
-            <div class="admin-section-title" style="color: var(--text-muted); border-left-color: var(--border-color); margin-top: 20px;">📝 변경 메모</div>
-            <div class="form-panel">
-              <div class="form-field">
-                <label for="admin-change-memo">다음 관리자 변경 로그에 남길 메모</label>
-                <input type="text" id="admin-change-memo" placeholder="예: 월초 충전, 테스트 조정">
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
       <!-- Tab 3: 간식 및 재고 관리 -->
       <div id="tab-snacks" class="admin-tab-content">
-        <div class="admin-layout">
-          <!-- 왼쪽: 간식 목록 및 재고 수정 -->
-          <div class="admin-main">
-            <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color);">🍪 간식 목록 및 재고 관리</div>
-            <div class="table-responsive">
-              <table class="admin-table">
-                <thead>
-                  <tr>
-                    <th>간식명</th>
-                    <th style="text-align: center;">상태</th>
-                    <th>가격</th>
-                    <th style="text-align: center;">현재 재고</th>
-                    <th style="text-align: center;">재고 조정</th>
-                  </tr>
-                </thead>
-                <tbody id="snack-management-body">
-                  <!-- JS 동적 생성 -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-          
-          <!-- 오른쪽: 신규 간식 등록 -->
-          <div class="admin-side">
+        <div class="snack-admin-layout">
+          <div>
             <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">➕ 신규 간식 추가</div>
-            <div class="user-order-card" style="gap: 16px;">
+            <div class="form-panel" style="margin-bottom: 8px;">
+              <div class="snack-add-form-grid">
               <div style="display: flex; flex-direction: column; gap: 6px;">
                 <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">간식 이름</label>
                 <input type="text" id="new-snack-name" placeholder="예: 초코쿠키" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
@@ -628,7 +645,28 @@
                 <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">초기 입고 재고량</label>
                 <input type="number" id="new-snack-stock" min="0" value="10" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
               </div>
-              <button class="btn btn-secondary" onclick="addNewSnackAction()" style="margin-top: 10px; width: 100%;">등록하기</button>
+              </div>
+              <button class="btn btn-secondary" onclick="addNewSnackAction()" style="margin-top: 12px; width: 100%;">등록하기</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color);">🍪 간식 목록 및 재고 관리</div>
+            <div class="table-responsive">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>간식명</th>
+                    <th style="text-align: center;">상태</th>
+                    <th>가격</th>
+                    <th style="text-align: center;">현재 재고</th>
+                    <th style="text-align: center;">재고 조정</th>
+                  </tr>
+                </thead>
+                <tbody id="snack-management-body">
+                  <!-- JS 동적 생성 -->
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -707,17 +745,6 @@
       sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
       updateAdminTokenStatus();
       AppState.vibrate(40);
-    }
-
-    function focusNewUserForm() {
-      const panel = document.getElementById('new-user-panel');
-      const input = document.getElementById('new-user-nickname');
-      if (panel) {
-        panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-      if (input) {
-        input.focus();
-      }
     }
 
     function getAdminToken() {
@@ -859,6 +886,7 @@
         userImageMap = {};
         if (usersRes && usersRes.success && Array.isArray(usersRes.users)) {
           currentUsers = usersRes.users;
+          showUserApiWarningIfNeeded(currentUsers);
           usersRes.users.forEach(u => {
             userImageMap[u.nickname] = u.imageUrl || '';
           });
@@ -889,6 +917,19 @@
         if (stockListEl) {
           stockListEl.innerHTML = `<div style="padding: 10px; text-align: center; color: var(--danger-color); font-weight: 700;">불러오기 실패</div>`;
         }
+      }
+    }
+
+    function showUserApiWarningIfNeeded(users) {
+      const warningEl = document.getElementById('user-api-warning');
+      if (!warningEl) return;
+
+      const hasUseYnField = users.some(user => Object.prototype.hasOwnProperty.call(user, 'useYn'));
+      if (!hasUseYnField) {
+        warningEl.textContent = 'Apps Script가 예전 버전입니다. 비활성 이용자를 보려면 google-apps-script.md의 최신 코드로 Apps Script를 다시 배포해 주세요.';
+        warningEl.style.display = 'block';
+      } else {
+        warningEl.style.display = 'none';
       }
     }
 
