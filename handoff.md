@@ -9,6 +9,7 @@
 - 이용자 주문 흐름, 관리자 화면, PWA 설정, Google Apps Script 연동은 구현 완료.
 - 관리자 변경 API는 `ADMIN_TOKEN`으로 보호됨.
 - `google-apps-script.md`에는 동시 주문 경합 방지를 위한 `LockService.getScriptLock()` 코드가 포함되어 있음.
+- **주문화면 크레딧/재고 부족 알림 개선 완료**: 기존에는 스크롤을 내렸을 때 경고 창이 보이지 않던 문제를 해결하여, 어느 메뉴 위치에 있든 화면 상단에 둥둥 뜨는 오버레이(`.warning-overlay`) 형태로 고정 노출되도록 개선했습니다.
 - 현재 프론트 API 주소는 아래 웹앱 URL과 일치함.
 
 ```text

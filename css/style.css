@@ -896,3 +896,35 @@ input:checked + .tts-slider:before {
   user-select: none;
 }
 
+/* 상단 고정 오버레이 경고 박스 */
+.warning-overlay {
+  position: absolute;
+  top: 130px; /* 헤더 영역(약 114px) 바로 아래 배치 */
+  left: 20px;
+  right: 20px;
+  z-index: 90; /* 헤더(z-index: 10)보다 높고, 로딩 오버레이(z-index: 100)보다 낮게 설정 */
+  background-color: #FFF0F0;
+  border: 3px solid var(--danger-color);
+  border-radius: var(--radius-sm);
+  padding: 18px 16px;
+  color: var(--danger-color);
+  font-size: 22px;
+  font-weight: 800;
+  text-align: center;
+  word-break: keep-all;
+  box-shadow: var(--shadow-lg);
+  animation: slideDownFadeIn 0.25s ease-out;
+}
+
+@keyframes slideDownFadeIn {
+  from {
+    transform: translateY(-15px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+
