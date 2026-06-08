@@ -900,8 +900,10 @@ input:checked + .tts-slider:before {
 .warning-overlay {
   position: absolute;
   top: 130px; /* 헤더 영역(약 114px) 바로 아래 배치 */
-  left: 20px;
-  right: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 40px);
+  max-width: 500px; /* 가로화면에서 너무 넓어지는 것 방지 */
   z-index: 90; /* 헤더(z-index: 10)보다 높고, 로딩 오버레이(z-index: 100)보다 낮게 설정 */
   background-color: #FFF0F0;
   border: 3px solid var(--danger-color);
@@ -918,12 +920,48 @@ input:checked + .tts-slider:before {
 
 @keyframes slideDownFadeIn {
   from {
-    transform: translateY(-15px);
+    transform: translate(-50%, -15px);
     opacity: 0;
   }
   to {
-    transform: translateY(0);
+    transform: translate(-50%, 0);
     opacity: 1;
+  }
+}
+
+/* 주문 확인 화면 반응형 레이아웃 */
+.confirm-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 태블릿 및 가로화면 (Landscape) 대응 */
+@media (min-width: 768px) or (orientation: landscape) {
+  .kiosk-container {
+    max-width: 960px;
+    margin: auto;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .grid-container {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  .confirm-layout {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+}
+
+/* 데스크톱 등 대형 화면 대응 */
+@media (min-width: 1024px) {
+  .grid-container {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
