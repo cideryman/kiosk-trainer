@@ -63,6 +63,8 @@ const ADMIN_ACTIONS = [
   'updateSnackStock',
   'updateSnackSale',
   'addSnack',
+  'updateUser',
+  'updateSnack',
 ];
 
 /**
@@ -148,6 +150,10 @@ function doPost(e) {
     return jsonResponse(updateSnackSale(data));
   } else if (action === 'addSnack') {
     return jsonResponse(addSnack(data));
+  } else if (action === 'updateUser') {
+    return jsonResponse(updateUser(data));
+  } else if (action === 'updateSnack') {
+    return jsonResponse(updateSnack(data));
   }
   
   return jsonResponse({
@@ -650,4 +656,92 @@ function addSnack(data) {
   appendAdminLog('addSnack', 'snack', newSnackId, data.name, '', JSON.stringify({ point: Number(data.point || 1), saleYn: data.saleYn || 'Y', stock: Number(data.stock || 0) }), data.adminMemo);
   return { success: true, message: '신규 간식을 등록했습니다.', snackId: newSnackId };
 }
+
+/**
+ * 16. 이용자 정보 전체 수정 API
+ */
+function updateUser(data) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.USERS);
+  var rows = sheet.getDataRange().getValues();
+  var userId = data.userId;
+  var nickname = String(data.nickname || '').trim();
+  var credit = Number(data.credit);
+  var imageUrl = String(data.imageUrl || '').trim();
+  var useYn = String(data.useYn || 'Y').toUpperCase() === 'Y' ? 'Y' : 'N';
+
+  if (!userId) {
+    return { success: false, message: '이용자 ID가 필요합니다.' };
+  }
+  if (!nickname) {
+    return { success: false, message: '이용자 별명이 필요합니다.' };
+  }
+
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === String(userId)) {
+      var beforeNickname = rows[i][1];
+      var beforeCredit = rows[i][2];
+      var beforeUseYn = rows[i][3];
+      var beforeImageUrl = rows[i][4];
+
+      sheet.getRange(i + 1, 2).setValue(nickname);
+      sheet.getRange(i + 1, 3).setValue(credit);
+      sheet.getRange(i + 1, 4).setValue(useYn);
+      sheet.getRange(i + 1, 5).setValue(imageUrl);
+
+      appendAdminLog('updateUser', 'user', userId, nickname, 
+        JSON.stringify({ nickname: beforeNickname, credit: beforeCredit, useYn: beforeUseYn, imageUrl: beforeImageUrl }), 
+        JSON.stringify({ nickname: nickname, credit: credit, useYn: useYn, imageUrl: imageUrl }), 
+        data.adminMemo
+      );
+      return { success: true, message: '이용자 정보를 수정했습니다.' };
+    }
+  }
+  return { success: false, message: '이용자를 찾을 수 없습니다.' };
+}
+
+/**
+ * 17. 간식 정보 전체 수정 API
+ */
+function updateSnack(data) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.SNACKS);
+  var rows = sheet.getDataRange().getValues();
+  var snackId = Number(data.snackId);
+  var name = String(data.name || '').trim();
+  var point = Number(data.point);
+  var imageUrl = String(data.imageUrl || '').trim();
+  var stock = Number(data.stock);
+  var saleYn = String(data.saleYn || 'Y').toUpperCase() === 'Y' ? 'Y' : 'N';
+
+  if (!snackId) {
+    return { success: false, message: '간식 ID가 필요합니다.' };
+  }
+  if (!name) {
+    return { success: false, message: '간식 이름이 필요합니다.' };
+  }
+
+  for (var i = 1; i < rows.length; i++) {
+    if (Number(rows[i][0]) === snackId) {
+      var beforeName = rows[i][1];
+      var beforePoint = rows[i][2];
+      var beforeImageUrl = rows[i][3];
+      var beforeSaleYn = rows[i][4];
+      var beforeStock = rows[i][5];
+
+      sheet.getRange(i + 1, 2).setValue(name);
+      sheet.getRange(i + 1, 3).setValue(point);
+      sheet.getRange(i + 1, 4).setValue(imageUrl);
+      sheet.getRange(i + 1, 5).setValue(saleYn);
+      sheet.getRange(i + 1, 6).setValue(stock);
+
+      appendAdminLog('updateSnack', 'snack', snackId, name, 
+        JSON.stringify({ name: beforeName, point: beforePoint, imageUrl: beforeImageUrl, saleYn: beforeSaleYn, stock: beforeStock }), 
+        JSON.stringify({ name: name, point: point, imageUrl: imageUrl, saleYn: saleYn, stock: stock }), 
+        data.adminMemo
+      );
+      return { success: true, message: '간식 정보를 수정했습니다.' };
+    }
+  }
+  return { success: false, message: '간식을 찾을 수 없습니다.' };
+}
+
 ```

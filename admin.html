@@ -437,6 +437,75 @@
     .btn-undo-action:active {
       transform: scale(0.95);
     }
+
+    /* 관리자용 정보 수정 모달 스타일 */
+    .admin-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    
+    .admin-modal-content {
+      background-color: white;
+      border-radius: var(--radius-md);
+      width: 100%;
+      max-width: 500px;
+      padding: 24px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      animation: modalFadeIn 0.2s ease-out;
+    }
+    
+    @keyframes modalFadeIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    
+    .admin-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+    
+    .admin-modal-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+    
+    .admin-modal-close {
+      background: none;
+      border: none;
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text-muted);
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .admin-modal-body {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .admin-modal-footer {
+      display: flex;
+      gap: 12px;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -679,6 +748,82 @@
         🛒 키오스크 화면으로 가기
       </button>
     </footer>
+  </div>
+
+  <!-- 이용자 정보 수정 모달 -->
+  <div class="admin-modal" id="modal-edit-user">
+    <div class="admin-modal-content">
+      <div class="admin-modal-header">
+        <h2 class="admin-modal-title">🪙 이용자 정보 수정</h2>
+        <button class="admin-modal-close" onclick="closeEditUserModal()">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <input type="hidden" id="edit-user-id">
+        <div class="form-field">
+          <label for="edit-user-nickname">별명</label>
+          <input type="text" id="edit-user-nickname">
+        </div>
+        <div class="form-field">
+          <label for="edit-user-credit">크레딧</label>
+          <input type="number" id="edit-user-credit" min="0">
+        </div>
+        <div class="form-field">
+          <label for="edit-user-image">사진 주소 (구글 드라이브 등)</label>
+          <input type="text" id="edit-user-image">
+        </div>
+        <div class="form-field">
+          <label for="edit-user-active">활성 상태</label>
+          <select id="edit-user-active" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
+            <option value="Y">활성</option>
+            <option value="N">비활성</option>
+          </select>
+        </div>
+      </div>
+      <div class="admin-modal-footer">
+        <button class="btn btn-gray" onclick="closeEditUserModal()" style="flex: 1; min-height: 48px; font-size: 16px;">취소</button>
+        <button class="btn btn-secondary" onclick="updateUserAction()" style="flex: 1; min-height: 48px; font-size: 16px; margin: 0;">저장하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 간식 정보 수정 모달 -->
+  <div class="admin-modal" id="modal-edit-snack">
+    <div class="admin-modal-content">
+      <div class="admin-modal-header">
+        <h2 class="admin-modal-title">🍪 간식 정보 수정</h2>
+        <button class="admin-modal-close" onclick="closeEditSnackModal()">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <input type="hidden" id="edit-snack-id">
+        <div class="form-field">
+          <label for="edit-snack-name">간식 이름</label>
+          <input type="text" id="edit-snack-name">
+        </div>
+        <div class="form-field">
+          <label for="edit-snack-point">가격 (크레딧)</label>
+          <input type="number" id="edit-snack-point" min="1">
+        </div>
+        <div class="form-field">
+          <label for="edit-snack-image">이미지 주소 (구글 드라이브 등)</label>
+          <input type="text" id="edit-snack-image">
+        </div>
+        <div class="form-field">
+          <label for="edit-snack-stock">재고 수량</label>
+          <input type="number" id="edit-snack-stock" min="0">
+        </div>
+        <div class="form-field">
+          <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">판매 상태</label>
+          <select id="edit-snack-sale" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
+            <option value="Y">판매중</option>
+            <option value="N">숨김</option>
+          </select>
+        </div>
+      </div>
+      <div class="admin-modal-footer">
+        <button class="btn btn-gray" onclick="closeEditSnackModal()" style="flex: 1; min-height: 48px; font-size: 16px;">취소</button>
+        <button class="btn btn-secondary" onclick="updateSnackAction()" style="flex: 1; min-height: 48px; font-size: 16px; margin: 0;">저장하기</button>
+      </div>
+    </div>
   </div>
 
   <!-- 스크립트 참조 -->
@@ -1101,7 +1246,10 @@
             </div>
           </td>
           <td style="text-align: center;">
-            <button class="${isActive ? 'btn-danger-action' : 'btn-small-action'}" onclick="${callAttr(`updateUserActiveAction(${userIdArg}, ${isActive ? jsString('N') : jsString('Y')}, ${jsString(nickname)})`)}">${isActive ? '비활성화' : '활성화'}</button>
+            <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
+              <button class="btn-small-action" style="background-color: var(--secondary-color);" onclick="${callAttr(`openEditUserModal(${userIdArg})`)}">수정</button>
+              <button class="${isActive ? 'btn-danger-action' : 'btn-small-action'}" onclick="${callAttr(`updateUserActiveAction(${userIdArg}, ${isActive ? jsString('N') : jsString('Y')}, ${jsString(nickname)})`)}">${isActive ? '비활성화' : '활성화'}</button>
+            </div>
           </td>
         `;
         tbody.appendChild(tr);
@@ -1296,6 +1444,7 @@
               <button class="credit-adjust-btn plus" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, 1)`)}">+1</button>
               <button class="credit-adjust-btn plus" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, 5)`)}">+5</button>
               <button class="credit-adjust-btn" style="background-color: #FFF3E0; border-color: #FFE0B2; color: #E65100; font-size: 14px;" onclick="${callAttr(`setSoldOut(${snackIdArg})`)}">품절</button>
+              <button class="btn-small-action" style="background-color: var(--secondary-color);" onclick="${callAttr(`openEditSnackModal(${snackIdArg})`)}">정보 수정</button>
               <button class="${isActive ? 'btn-danger-action' : 'btn-small-action'}" onclick="${callAttr(`updateSnackSaleAction(${snackIdArg}, ${isActive ? jsString('N') : jsString('Y')}, ${jsString(snackName)})`)}">${isActive ? '숨기기' : '판매중'}</button>
             </div>
           </td>
@@ -1691,6 +1840,116 @@
       }
       resetRefreshTimer();
       AppState.vibrate(40);
+    }
+
+    // --- 이용자 수정 모달 제어 및 API 호출 ---
+    function openEditUserModal(userId) {
+      const user = currentUsers.find(u => String(u.userId) === String(userId));
+      if (!user) return;
+
+      document.getElementById('edit-user-id').value = user.userId;
+      document.getElementById('edit-user-nickname').value = user.nickname || '';
+      document.getElementById('edit-user-credit').value = user.credit || 0;
+      document.getElementById('edit-user-image').value = user.imageUrl || '';
+      
+      const isActive = isUserActive(user);
+      document.getElementById('edit-user-active').value = isActive ? 'Y' : 'N';
+
+      document.getElementById('modal-edit-user').style.display = 'flex';
+      AppState.vibrate(40);
+    }
+
+    function closeEditUserModal() {
+      document.getElementById('modal-edit-user').style.display = 'none';
+      AppState.vibrate(30);
+    }
+
+    async function updateUserAction() {
+      const userId = document.getElementById('edit-user-id').value;
+      const nickname = document.getElementById('edit-user-nickname').value.trim();
+      const credit = Number(document.getElementById('edit-user-credit').value || 0);
+      const imageUrl = document.getElementById('edit-user-image').value.trim();
+      const useYn = document.getElementById('edit-user-active').value;
+
+      if (!nickname) {
+        alert("이용자 별명을 입력해 주세요.");
+        return;
+      }
+
+      try {
+        const res = await fetchAPI('updateUser', {
+          method: 'POST',
+          body: withAdminToken({ userId, nickname, credit, imageUrl, useYn })
+        });
+
+        if (res && res.success) {
+          alert("이용자 정보를 수정했습니다.");
+          closeEditUserModal();
+          await loadAdminData();
+        } else {
+          clearAdminTokenIfDenied(res);
+          alert("수정에 실패했습니다: " + (res?.message || "오류"));
+        }
+      } catch (error) {
+        console.error("이용자 수정 오류:", error);
+        alert("통신 오류가 발생했습니다.");
+      }
+    }
+
+    // --- 간식 수정 모달 제어 및 API 호출 ---
+    function openEditSnackModal(snackId) {
+      const snack = currentSnacks.find(s => String(s.snackId) === String(snackId));
+      if (!snack) return;
+
+      document.getElementById('edit-snack-id').value = snack.snackId;
+      document.getElementById('edit-snack-name').value = snack.name || '';
+      document.getElementById('edit-snack-point').value = snack.point || 1;
+      document.getElementById('edit-snack-image').value = snack.imageUrl || '';
+      document.getElementById('edit-snack-stock').value = snack.stock || 0;
+      
+      const isActive = isSnackActive(snack);
+      document.getElementById('edit-snack-sale').value = isActive ? 'Y' : 'N';
+
+      document.getElementById('modal-edit-snack').style.display = 'flex';
+      AppState.vibrate(40);
+    }
+
+    function closeEditSnackModal() {
+      document.getElementById('modal-edit-snack').style.display = 'none';
+      AppState.vibrate(30);
+    }
+
+    async function updateSnackAction() {
+      const snackId = document.getElementById('edit-snack-id').value;
+      const name = document.getElementById('edit-snack-name').value.trim();
+      const point = Number(document.getElementById('edit-snack-point').value || 1);
+      const imageUrl = document.getElementById('edit-snack-image').value.trim();
+      const stock = Number(document.getElementById('edit-snack-stock').value || 0);
+      const saleYn = document.getElementById('edit-snack-sale').value;
+
+      if (!name) {
+        alert("간식 이름을 입력해 주세요.");
+        return;
+      }
+
+      try {
+        const res = await fetchAPI('updateSnack', {
+          method: 'POST',
+          body: withAdminToken({ snackId, name, point, imageUrl, stock, saleYn })
+        });
+
+        if (res && res.success) {
+          alert("간식 정보를 수정했습니다.");
+          closeEditSnackModal();
+          await loadAdminData();
+        } else {
+          clearAdminTokenIfDenied(res);
+          alert("수정에 실패했습니다: " + (res?.message || "오류"));
+        }
+      } catch (error) {
+        console.error("간식 수정 오류:", error);
+        alert("통신 오류가 발생했습니다.");
+      }
     }
 
     // 초기 이벤트 설정
