@@ -807,11 +807,7 @@
                 </div>
                 <div class="form-field">
                   <label for="new-user-image">사진 주소</label>
-                  <div style="display: flex; gap: 8px;">
-                    <input type="text" id="new-user-image" placeholder="구글 드라이브 링크 (선택)" style="flex: 1;">
-                    <input type="file" id="new-user-image-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'new-user-image', 'new-user-nickname', 'user')">
-                    <button type="button" class="btn-small-action" style="min-height: 44px; white-space: nowrap;" onclick="document.getElementById('new-user-image-file').click()">사진 선택</button>
-                  </div>
+                  <input type="text" id="new-user-image" placeholder="구글 드라이브 링크 (선택)">
                 </div>
               </div>
               <button class="btn btn-secondary" onclick="addNewUserAction()" style="margin-top: 12px; width: 100%;">이용자 등록</button>
@@ -890,11 +886,7 @@
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 6px;">
                   <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">이미지 주소 (구글 드라이브 또는 공백)</label>
-                  <div style="display: flex; gap: 8px;">
-                    <input type="text" id="new-snack-image" placeholder="공유용 이미지 링크 (선택)" style="flex: 1; padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
-                    <input type="file" id="new-snack-image-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'new-snack-image', 'new-snack-name', 'snack')">
-                    <button type="button" class="btn-small-action" style="min-height: 44px; white-space: nowrap;" onclick="document.getElementById('new-snack-image-file').click()">사진 선택</button>
-                  </div>
+                  <input type="text" id="new-snack-image" placeholder="공유용 이미지 링크 (선택)" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 6px;">
                   <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">초기 입고 재고량</label>
@@ -936,11 +928,7 @@
         </div>
         <div class="form-field">
           <label for="edit-user-image">사진 주소 (구글 드라이브 등)</label>
-          <div style="display: flex; gap: 8px;">
-            <input type="text" id="edit-user-image" style="flex: 1;">
-            <input type="file" id="edit-user-image-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'edit-user-image', 'edit-user-nickname', 'user')">
-            <button type="button" class="btn-small-action" style="min-height: 44px; white-space: nowrap;" onclick="document.getElementById('edit-user-image-file').click()">사진 선택</button>
-          </div>
+          <input type="text" id="edit-user-image">
         </div>
         <div class="form-field">
           <label for="edit-user-active">활성 상태</label>
@@ -976,11 +964,7 @@
         </div>
         <div class="form-field">
           <label for="edit-snack-image">이미지 주소 (구글 드라이브 등)</label>
-          <div style="display: flex; gap: 8px;">
-            <input type="text" id="edit-snack-image" style="flex: 1;">
-            <input type="file" id="edit-snack-image-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'edit-snack-image', 'edit-snack-name', 'snack')">
-            <button type="button" class="btn-small-action" style="min-height: 44px; white-space: nowrap;" onclick="document.getElementById('edit-snack-image-file').click()">사진 선택</button>
-          </div>
+          <input type="text" id="edit-snack-image">
         </div>
         <div class="form-field">
           <label for="edit-snack-stock">재고 수량</label>
