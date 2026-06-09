@@ -200,7 +200,17 @@ function getMockFallback(action, options) {
     const snacks = MOCK_DATA.getSnacks.snacks;
     
     const timestampStr = new Date().toISOString();
-    const generatedOrderNo = `ORD-${Date.now()}`;
+    const todayStr = new Date().toISOString().slice(2, 10).replace(/-/g, '');
+    const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
+    const allMockOrders = [...localOrders, ...MOCK_DATA.getOrdersToday.orders];
+    const todayMockOrders = allMockOrders.filter(o => {
+      if (!o.timestamp) return false;
+      const oDateStr = o.timestamp.slice(2, 10).replace(/-/g, '');
+      return oDateStr === todayStr;
+    });
+    const uniqueMockOrderNos = Array.from(new Set(todayMockOrders.map(o => o.orderNo)));
+    const seq = uniqueMockOrderNos.length + 1;
+    const generatedOrderNo = `ORD-${todayStr}-${String(seq).padStart(3, '0')}`;
     const newOrders = items.map(item => {
       const snack = snacks.find(s => s.snackId === item.snackId) || { name: `간식 ${item.snackId}`, point: 1 };
       return {
@@ -214,7 +224,6 @@ function getMockFallback(action, options) {
       };
     });
 
-    const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
     localStorage.setItem('mockOrders', JSON.stringify([...newOrders, ...localOrders]));
 
     // 주문에 따른 사용자 크레딧 차감 시뮬레이션
@@ -226,6 +235,7 @@ function getMockFallback(action, options) {
     }
 
     res = JSON.parse(JSON.stringify(MOCK_DATA.placeOrder));
+    res.orderNo = generatedOrderNo;
   } else if (action === 'updateOrderServed') {
     const orderId = options.body?.orderId;
     const servedYn = options.body?.servedYn || 'N';

@@ -198,6 +198,43 @@ const AppState = {
     } catch (e) {
       console.warn("TTS 재생 실패:", e);
     }
+  },
+
+  bindCardTap(element, callback) {
+    if (!element) return;
+    let startX = 0;
+    let startY = 0;
+    let startTime = 0;
+    let isPointerDown = false;
+
+    element.addEventListener('pointerdown', (e) => {
+      if (!e.isPrimary) return;
+      startX = e.clientX;
+      startY = e.clientY;
+      startTime = Date.now();
+      isPointerDown = true;
+    });
+
+    element.addEventListener('pointerup', (e) => {
+      if (!isPointerDown) return;
+      isPointerDown = false;
+
+      if (!e.isPrimary) return;
+
+      const diffX = e.clientX - startX;
+      const diffY = e.clientY - startY;
+      const dist = Math.sqrt(diffX * diffX + diffY * diffY);
+      const duration = Date.now() - startTime;
+
+      // 25px 이하 이동 및 500ms 이내 탭인 경우 처리
+      if (dist < 25 && duration < 500) {
+        callback(e);
+      }
+    });
+
+    element.addEventListener('pointercancel', () => {
+      isPointerDown = false;
+    });
   }
 };
 

@@ -437,6 +437,7 @@ body {
 }
 
 .btn-counter {
+  position: relative;
   width: 48px;
   height: 48px;
   border-radius: 50%;
@@ -448,6 +449,16 @@ body {
   justify-content: center;
   cursor: pointer;
   transition: all 0.1s ease;
+}
+
+/* 터치 대상 영역(hitbox)을 시각 크기보다 10px씩 넓혀 터치 성공률 향상 */
+.btn-counter::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
 }
 
 .btn-counter:disabled {

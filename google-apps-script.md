@@ -374,7 +374,19 @@ function placeOrder(data) {
       };
     }
 
-    const orderNo = 'ORD-' + new Date().getTime();
+    const todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyMMdd');
+    const todayOrders = orderSheet.getDataRange().getValues().slice(1).filter(row => {
+      if (!row[0]) return false;
+      try {
+        const orderDate = Utilities.formatDate(new Date(row[0]), Session.getScriptTimeZone(), 'yyMMdd');
+        return orderDate === todayStr;
+      } catch (e) {
+        return false;
+      }
+    });
+    const uniqueOrderNos = Array.from(new Set(todayOrders.map(row => String(row[1] || ''))));
+    const seq = uniqueOrderNos.length + 1;
+    const orderNo = 'ORD-' + todayStr + '-' + String(seq).padStart(3, '0');
     const now = new Date();
 
     orderItems.forEach(item => {

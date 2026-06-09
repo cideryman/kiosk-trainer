@@ -189,23 +189,29 @@
 
         snackGrid.appendChild(card);
 
-        // 이벤트 리스너 바인딩
+        // 이벤트 리스너 바인딩 (터치 지터 보정 적용)
         const minusBtn = card.querySelector(`#btn-minus-${snack.snackId}`);
         const plusBtn = card.querySelector(`#btn-plus-${snack.snackId}`);
-        const imgContainer = card.querySelector('.snack-img-container');
 
-        minusBtn.addEventListener('click', (e) => {
+        // 마이너스 버튼 설정 (버블링 전파 방지 포함)
+        minusBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+        AppState.bindCardTap(minusBtn, (e) => {
           e.stopPropagation();
           changeQuantity(snack, -1);
         });
 
-        plusBtn.addEventListener('click', (e) => {
+        // 플러스 버튼 설정 (버블링 전파 방지 포함)
+        plusBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+        AppState.bindCardTap(plusBtn, (e) => {
           e.stopPropagation();
           changeQuantity(snack, 1);
         });
 
-        imgContainer.addEventListener('click', (e) => {
-          e.stopPropagation();
+        // 카드 전체 터치 설정 (버튼 영역 제외 시 +1)
+        AppState.bindCardTap(card, (e) => {
+          if (e.target.closest('.btn-counter-minus') || e.target.closest('.btn-counter-plus')) {
+            return;
+          }
           if (!isSoldOut) {
             changeQuantity(snack, 1);
           }
@@ -351,13 +357,13 @@
       loadSnacks();
 
       // 뒤로가기
-      document.getElementById('btn-back').addEventListener('click', () => {
+      AppState.bindCardTap(document.getElementById('btn-back'), () => {
         AppState.resetAll();
         window.location.href = 'index.html';
       });
 
       // 다음단계
-      document.getElementById('btn-next').addEventListener('click', () => {
+      AppState.bindCardTap(document.getElementById('btn-next'), () => {
         if (cart.length > 0) {
           window.location.href = 'confirm.html';
         }

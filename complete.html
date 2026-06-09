@@ -30,6 +30,13 @@
         <div class="success-message" id="complete-title">주문 성공!</div>
       </div>
 
+      <!-- 주문번호 표시 영역 (주문번호 사용 시에만 노출) -->
+      <div id="order-number-box" class="bill-box" style="display: none; border-style: solid; border-color: var(--primary-color); background-color: #FFF9E6; align-items: center; justify-content: center; gap: 8px; margin: 10px 0;">
+        <span style="font-size: 20px; font-weight: 700; color: var(--text-muted);">내 주문번호</span>
+        <span class="bill-val success-highlight" id="order-number-val" style="font-size: 56px; font-weight: 950; color: var(--primary-color); line-height: 1.1;">-</span>
+        <span style="font-size: 16px; font-weight: 700; color: var(--text-muted);">번호를 잘 기억해 주세요! 🎫</span>
+      </div>
+
       <!-- 영수증 요약 박스 -->
       <div class="bill-box" style="border-style: solid; border-color: var(--secondary-color); background-color: #F4FBF9;">
         <div class="bill-row">
@@ -80,6 +87,25 @@
       document.getElementById('summary-name').textContent = `${summaryData.nickname} 님`;
       document.getElementById('summary-used').textContent = AppState.formatPoint(summaryData.usedPoints);
       document.getElementById('summary-remain').textContent = AppState.formatPoint(summaryData.remainPoints);
+
+      // 주문번호 활성화 여부 확인 및 UI 노출 / TTS 음성 안내 실행
+      const orderNoEnabled = localStorage.getItem('orderNoEnabled') === 'true';
+      let ttsText = `${summaryData.nickname} 님, 주문이 완료되었습니다.`;
+      
+      if (orderNoEnabled && summaryData.orderNo) {
+        const parts = summaryData.orderNo.split('-');
+        if (parts.length >= 3) {
+          const shortNo = parseInt(parts[2], 10);
+          if (!isNaN(shortNo)) {
+            document.getElementById('order-number-box').style.display = 'flex';
+            document.getElementById('order-number-box').style.flexDirection = 'column';
+            document.getElementById('order-number-val').textContent = `${shortNo}번`;
+            ttsText = `주문 완료! ${summaryData.nickname} 님, 주문번호는 ${shortNo}번입니다. 번호를 잘 기억해 주세요.`;
+          }
+        }
+      }
+      
+      AppState.speak(ttsText);
 
       // 모바일 진동 축하 피드백
       AppState.vibrate([100, 50, 100, 50, 200]);

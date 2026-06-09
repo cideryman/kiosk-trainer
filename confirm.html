@@ -197,7 +197,8 @@
           localStorage.setItem('lastOrderSummary', JSON.stringify({
             nickname: user.nickname,
             usedPoints: totalPoints,
-            remainPoints: remainPoints
+            remainPoints: remainPoints,
+            orderNo: response.orderNo || ''
           }));
 
           // 장바구니 초기화 (주문 성공 후 장바구니 삭제 요구사항)
@@ -243,12 +244,12 @@
       initData();
 
       // 이전으로
-      document.getElementById('btn-prev').addEventListener('click', () => {
+      AppState.bindCardTap(document.getElementById('btn-prev'), () => {
         window.location.href = 'menu.html';
       });
 
       // 주문제출
-      document.getElementById('btn-submit').addEventListener('click', () => {
+      AppState.bindCardTap(document.getElementById('btn-submit'), () => {
         submitOrder();
       });
     });

@@ -19,12 +19,23 @@
     <header class="kiosk-header">
       <div class="kiosk-header-top">
         <h1 class="kiosk-title">🍪 주간보호센터 간식가게</h1>
-        <div class="tts-toggle-container">
-          <label class="tts-switch">
-            <input type="checkbox" id="tts-toggle">
-            <span class="tts-slider"></span>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <!-- 주문번호 사용 토글 -->
+          <label class="tts-toggle-container" style="cursor: pointer;">
+            <span class="tts-switch">
+              <input type="checkbox" id="orderno-toggle">
+              <span class="tts-slider"></span>
+            </span>
+            <span class="tts-label">주문번호 발급</span>
           </label>
-          <span class="tts-label">음성 안내</span>
+          <!-- 음성 안내 토글 -->
+          <label class="tts-toggle-container" style="cursor: pointer;">
+            <span class="tts-switch">
+              <input type="checkbox" id="tts-toggle">
+              <span class="tts-slider"></span>
+            </span>
+            <span class="tts-label">음성 안내</span>
+          </label>
         </div>
       </div>
     </header>
@@ -138,8 +149,8 @@
           <div class="user-card-credit">${AppState.escapeHtml(AppState.formatPoint(user.credit))}</div>
         `;
         
-        // 카드 클릭 이벤트
-        card.addEventListener('click', () => {
+        // 카드 터치/클릭 이벤트 (지터 및 흔들림 보정 지원)
+        AppState.bindCardTap(card, () => {
           AppState.setSelectedUser(user);
           
           // 피드백 효과 및 음성 안내 후 이동
@@ -303,6 +314,24 @@
             AppState.speak("음성 안내를 켭니다.");
           } else {
             window.speechSynthesis.cancel();
+          }
+        });
+      }
+
+      // 주문번호 토글 연동 및 초기설정
+      const orderNoToggle = document.getElementById('orderno-toggle');
+      if (orderNoToggle) {
+        if (localStorage.getItem('orderNoEnabled') === null) {
+          localStorage.setItem('orderNoEnabled', 'true');
+        }
+        orderNoToggle.checked = localStorage.getItem('orderNoEnabled') === 'true';
+        orderNoToggle.addEventListener('change', (e) => {
+          localStorage.setItem('orderNoEnabled', e.target.checked ? 'true' : 'false');
+          AppState.vibrate(40);
+          if (e.target.checked) {
+            AppState.speak("주문번호를 발급합니다.");
+          } else {
+            AppState.speak("주문번호를 사용하지 않습니다.");
           }
         });
       }

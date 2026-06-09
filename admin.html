@@ -1703,12 +1703,18 @@
             </li>
           `).join('');
 
+          const parts = String(group.orderNo || '').split('-');
+          let numberPrefix = '';
+          if (parts.length >= 3) {
+            numberPrefix = `<span style="color: var(--primary-color); font-weight: 900; margin-right: 6px;">[${esc(parts[2])}]</span>`;
+          }
+
           const card = document.createElement('div');
           card.className = 'user-order-card';
           card.innerHTML = `
             <div class="user-profile-header">
               ${avatarHtml}
-              <span class="user-name">${safeNickname} 님</span>
+              <span class="user-name">${numberPrefix}${safeNickname} 님</span>
               <span class="order-time-badge">${esc(formatTime(group.timestamp))}</span>
             </div>
             <ul class="user-order-items">
@@ -1737,11 +1743,17 @@
           const pointVal = order.point || 0;
           const qtyVal = order.quantity || 0;
 
+          const parts = String(order.orderNo || '').split('-');
+          let numberPrefix = '';
+          if (parts.length >= 3) {
+            numberPrefix = `<span style="color: var(--primary-color); font-weight: 800; font-family: monospace; margin-right: 4px;">[${esc(parts[2])}]</span>`;
+          }
+
           const tr = document.createElement('tr');
           const orderNoArg = jsString(order.orderNo);
           tr.innerHTML = `
             <td><strong>${esc(formatTime(order.timestamp))}</strong></td>
-            <td>${esc(order.nickname)}</td>
+            <td>${numberPrefix}${esc(order.nickname)}</td>
             <td>${esc(order.snackName)}</td>
             <td style="text-align: center; font-weight: 800;">${qtyVal}개</td>
             <td style="text-align: right; font-weight: 800; color: var(--primary-color);">${esc(AppState.formatPoint(pointVal))}</td>
