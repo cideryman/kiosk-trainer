@@ -167,12 +167,12 @@
         const safeImgUrl = AppState.escapeAttr(imgUrl);
         const safeSnackName = AppState.escapeHtml(snack.name);
         const safeSnackEmoji = AppState.escapeHtml(AppState.getSnackEmoji(snack.name));
-        // 가격을 동전 아이콘 반복으로 표시 (최대 5개 아이콘, 초과분은 +N으로 표기)
+        // 가격을 동전 아이콘 반복으로 표시 (최대 5개 아이콘) + N크레딧 텍스트
         const pointNum = Number(snack.point) || 0;
         const maxCoins = 5;
         const coinCount = Math.min(pointNum, maxCoins);
-        const coinHTML = '🪙'.repeat(coinCount) + (pointNum > maxCoins ? `<span class="coin-number-sub">+${pointNum - maxCoins}</span>` : '');
-        const coinPriceHTML = `<div class="snack-coin-price"><span class="coin-emoji">${coinHTML}</span>${pointNum > 0 && pointNum <= maxCoins ? `<span class="coin-number-sub">(${pointNum})</span>` : ''}</div>`;
+        const coinHTML = '🪙'.repeat(coinCount);
+        const coinPriceHTML = `<div class="snack-coin-price"><span class="coin-emoji">${coinHTML}</span><span class="coin-number-sub">${pointNum}크레딧</span></div>`;
         let imgHTML = '';
         if (imgUrl && imgUrl.trim() !== '') {
           imgHTML = `<img src="${safeImgUrl}" alt="${safeSnackName}" class="snack-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`;
