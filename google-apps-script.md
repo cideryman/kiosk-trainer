@@ -54,6 +54,10 @@ const SHEET = {
   LOGS: '관리자로그',
 };
 
+// Google Drive 폴더 ID 상수 정의
+const USER_IMAGE_FOLDER_ID = '1uykUeSeuwxtJvVVK_J7t-3JHY7yq0q_o';
+const SNACK_IMAGE_FOLDER_ID = '1kUibvC9O7PeOTZ5r7D4EJTVZ8KhCO6ur';
+
 // 관리자 화면에서만 사용하는 변경 API 목록입니다.
 const ADMIN_ACTIONS = [
   'updateOrderServed',
@@ -67,6 +71,7 @@ const ADMIN_ACTIONS = [
   'updateSnack',
   'cancelOrder',
   'updateSnacksOrder',
+  'uploadImage',
 ];
 
 /**
@@ -160,6 +165,8 @@ function doPost(e) {
     return jsonResponse(cancelOrder(data));
   } else if (action === 'updateSnacksOrder') {
     return jsonResponse(updateSnacksOrder(data));
+  } else if (action === 'uploadImage') {
+    return jsonResponse(uploadImage(data));
   }
   
   return jsonResponse({
@@ -894,6 +901,68 @@ function updateSnacksOrder(data) {
   }
 
   return { success: true, message: '표시 순서를 저장했습니다.' };
+}
+
+/**
+ * 19. Google Drive 이미지 업로드 API
+ */
+function uploadImage(data) {
+  try {
+    const base64Data = data.base64Data; // 'data:image/jpeg;base64,...'
+    const fileName = data.fileName;
+    const type = data.type; // 'user' 또는 'snack'
+
+    if (!base64Data || !fileName || !type) {
+      return {
+        success: false,
+        message: '필수 매개변수(base64Data, fileName, type)가 누락되었습니다.'
+      };
+    }
+
+    // base64 헤더 제거 및 바이너리 디코딩
+    const base64Parts = base64Data.split(',');
+    const rawBase64 = base64Parts.length > 1 ? base64Parts[1] : base64Parts[0];
+    const decodedBytes = Utilities.base64Decode(rawBase64);
+    
+    // 파일 생성용 blob 생성 (MimeType 파싱)
+    const mimeMatch = base64Parts[0].match(/data:(.*?);/);
+    const contentType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    const blob = Utilities.newBlob(decodedBytes, contentType, fileName);
+
+    // 대상 폴더 지정
+    let folderId = '';
+    if (type === 'user') {
+      folderId = USER_IMAGE_FOLDER_ID;
+    } else if (type === 'snack') {
+      folderId = SNACK_IMAGE_FOLDER_ID;
+    } else {
+      return { success: false, message: '올바르지 않은 이미지 타입입니다.' };
+    }
+
+    const folder = DriveApp.getFolderById(folderId);
+    if (!folder) {
+      return { success: false, message: '대상 구글 드라이브 폴더를 찾을 수 없습니다.' };
+    }
+
+    // 파일 업로드
+    const file = folder.createFile(blob);
+    
+    // 링크가 있는 누구나 볼 수 있도록 공개 보기 권한 설정
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+    const fileId = file.getId();
+    const imageUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+
+    return {
+      success: true,
+      imageUrl: imageUrl
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: '이미지 업로드 중 오류 발생: ' + error.toString()
+    };
+  }
 }
 
 ```

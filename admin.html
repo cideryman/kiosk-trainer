@@ -807,7 +807,11 @@
                 </div>
                 <div class="form-field">
                   <label for="new-user-image">사진 주소</label>
-                  <input type="text" id="new-user-image" placeholder="구글 드라이브 링크 (선택)">
+                  <div style="display: flex; gap: 8px;">
+                    <input type="text" id="new-user-image" placeholder="구글 드라이브 링크 (선택)" style="flex: 1;">
+                    <input type="file" id="new-user-image-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'new-user-image', 'new-user-nickname', 'user')">
+                    <button type="button" class="btn-small-action" style="min-height: 44px; white-space: nowrap;" onclick="document.getElementById('new-user-image-file').click()">사진 선택</button>
+                  </div>
                 </div>
               </div>
               <button class="btn btn-secondary" onclick="addNewUserAction()" style="margin-top: 12px; width: 100%;">이용자 등록</button>
@@ -886,7 +890,11 @@
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 6px;">
                   <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">이미지 주소 (구글 드라이브 또는 공백)</label>
-                  <input type="text" id="new-snack-image" placeholder="공유용 이미지 링크 (선택)" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
+                  <div style="display: flex; gap: 8px;">
+                    <input type="text" id="new-snack-image" placeholder="공유용 이미지 링크 (선택)" style="flex: 1; padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
+                    <input type="file" id="new-snack-image-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'new-snack-image', 'new-snack-name', 'snack')">
+                    <button type="button" class="btn-small-action" style="min-height: 44px; white-space: nowrap;" onclick="document.getElementById('new-snack-image-file').click()">사진 선택</button>
+                  </div>
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 6px;">
                   <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">초기 입고 재고량</label>
@@ -928,7 +936,11 @@
         </div>
         <div class="form-field">
           <label for="edit-user-image">사진 주소 (구글 드라이브 등)</label>
-          <input type="text" id="edit-user-image">
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="edit-user-image" style="flex: 1;">
+            <input type="file" id="edit-user-image-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'edit-user-image', 'edit-user-nickname', 'user')">
+            <button type="button" class="btn-small-action" style="min-height: 44px; white-space: nowrap;" onclick="document.getElementById('edit-user-image-file').click()">사진 선택</button>
+          </div>
         </div>
         <div class="form-field">
           <label for="edit-user-active">활성 상태</label>
@@ -964,7 +976,11 @@
         </div>
         <div class="form-field">
           <label for="edit-snack-image">이미지 주소 (구글 드라이브 등)</label>
-          <input type="text" id="edit-snack-image">
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="edit-snack-image" style="flex: 1;">
+            <input type="file" id="edit-snack-image-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'edit-snack-image', 'edit-snack-name', 'snack')">
+            <button type="button" class="btn-small-action" style="min-height: 44px; white-space: nowrap;" onclick="document.getElementById('edit-snack-image-file').click()">사진 선택</button>
+          </div>
         </div>
         <div class="form-field">
           <label for="edit-snack-stock">재고 수량</label>
@@ -1576,6 +1592,13 @@
         return;
       }
 
+      // 중복 방지를 위한 버튼 비활성화 처리
+      const submitBtn = document.querySelector('#new-user-panel button[onclick="addNewUserAction()"]');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = '등록 중...';
+      }
+
       try {
         const res = await fetchAPI('addUser', {
           method: 'POST',
@@ -1597,6 +1620,11 @@
       } catch (error) {
         console.error("이용자 추가 에러:", error);
         alert("이용자 추가 중 통신 에러가 발생했습니다.");
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = '이용자 등록';
+        }
       }
     }
 
@@ -1981,6 +2009,13 @@
         nameInput.focus();
         return;
       }
+
+      // 중복 방지를 위한 버튼 비활성화 처리
+      const submitBtn = document.querySelector('#tab-snacks button[onclick="addNewSnackAction()"]');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = '등록 중...';
+      }
       
       try {
         const res = await fetchAPI('addSnack', {
@@ -2005,6 +2040,11 @@
       } catch (error) {
         console.error("간식 추가 에러:", error);
         alert("간식 추가 중 통신 에러가 발생했습니다.");
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = '등록하기';
+        }
       }
     }
 
@@ -2433,6 +2473,85 @@
       } catch (error) {
         console.error("간식 수정 오류:", error);
         alert("통신 오류가 발생했습니다.");
+      }
+    }
+
+    // 사진 선택 시 Apps Script 업로드 헬퍼
+    async function handleImageUpload(fileInput, targetInputId, nameFieldId, type) {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const nameInput = document.getElementById(nameFieldId);
+      const nameVal = nameInput ? nameInput.value.trim() : '';
+
+      if (!nameVal) {
+        alert(type === 'user' ? '이용자 별명을 먼저 입력해 주세요.' : '간식 이름을 먼저 입력해 주세요.');
+        fileInput.value = '';
+        return;
+      }
+
+      // 로딩 표시 및 비활성화
+      const targetInput = document.getElementById(targetInputId);
+      const originalPlaceholder = targetInput.placeholder;
+      targetInput.disabled = true;
+      targetInput.placeholder = '업로드 중... 잠시만 기다려 주세요.';
+      const originalValue = targetInput.value;
+      targetInput.value = '업로드 중...';
+
+      // 버튼 찾아서 비활성화
+      const btn = fileInput.nextElementSibling;
+      let originalBtnText = '사진 선택';
+      if (btn && btn.tagName === 'BUTTON') {
+        originalBtnText = btn.textContent;
+        btn.textContent = '업로드 중...';
+        btn.disabled = true;
+      }
+
+      try {
+        // base64 변환
+        const base64Data = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = error => reject(error);
+          reader.readAsDataURL(file);
+        });
+
+        // 파일명 규칙: user_이름_타임스탬프.jpg 또는 snack_상품명_타임스탬프.jpg
+        const timestamp = Math.floor(Date.now() / 1000);
+        const extension = file.name.split('.').pop() || 'jpg';
+        const fileName = `${type}_${nameVal}_${timestamp}.${extension}`;
+
+        // Apps Script 업로드 API 호출
+        const res = await fetchAPI('uploadImage', {
+          method: 'POST',
+          body: withAdminToken({
+            base64Data: base64Data,
+            fileName: fileName,
+            type: type
+          })
+        });
+
+        if (res && res.success && res.imageUrl) {
+          targetInput.value = res.imageUrl;
+          AppState.vibrate(50);
+          alert('사진이 성공적으로 업로드되었습니다.');
+        } else {
+          clearAdminTokenIfDenied(res);
+          targetInput.value = originalValue;
+          alert('사진 업로드에 실패했습니다: ' + (res?.message || '알 수 없는 오류'));
+        }
+      } catch (error) {
+        console.error('이미지 업로드 에러:', error);
+        targetInput.value = originalValue;
+        alert('이미지 업로드 중 오류가 발생했습니다.');
+      } finally {
+        targetInput.disabled = false;
+        targetInput.placeholder = originalPlaceholder;
+        fileInput.value = ''; // 선택 초기화
+        if (btn && btn.tagName === 'BUTTON') {
+          btn.textContent = originalBtnText;
+          btn.disabled = false;
+        }
       }
     }
 

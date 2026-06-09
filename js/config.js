@@ -445,6 +445,13 @@ function getMockFallback(action, options) {
         message: `주문번호 ${orderId}에 해당하는 대기 중이거나 완료된 주문 기록을 찾을 수 없습니다.`
       };
     }
+  } else if (action === 'uploadImage') {
+    const type = options.body?.type || 'unknown';
+    const fileName = options.body?.fileName || 'image.jpg';
+    res = {
+      success: true,
+      imageUrl: `https://drive.google.com/uc?export=view&id=mock_file_id_${type}_${Date.now()}`
+    };
   } else {
     res = { success: false, error: "액션을 찾을 수 없습니다." };
   }

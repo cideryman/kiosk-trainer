@@ -75,6 +75,18 @@ https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ
     - 간식 가격: `🪙` 반복 (최대 5개, 초과시 보조 숫자) — 가격 비교 직관화
     - 주문 확인 계산서: `🪙 + 숫자` 형태 — 보유/사용/잔액 구분
   - PWA 캐시 버전: `kiosk-cache-v24`로 갱신 완료
+- **📸 Google Drive 이미지 자동 업로드 및 URL 자동 저장 기능 완료** (2026-06-09):
+  - **목적**: 이용자 추가, 이용자 수정, 간식 추가, 간식 수정 시 사진 URL을 직접 입력하는 수고를 덜어주기 위해 컴퓨터나 모바일 기기 내 사진을 골라 업로드하면 구글 드라이브 지정 폴더에 자동 업로드하고 URL을 자동 완성.
+  - **작동 원리**:
+    1. 사진 선택 시 base64로 디코딩하여 Apps Script API (`action: 'uploadImage'`) 호출.
+    2. 구글 앱스 스크립트에서 지정 폴더(`USER_IMAGE_FOLDER_ID`, `SNACK_IMAGE_FOLDER_ID`) 내로 이미지 생성 및 링크가 있는 모든 사용자 공개 보기 권한 자동 부여.
+    3. 반환된 이미지 뷰어 주소(`https://drive.google.com/uc?export=view&id=FILE_ID`)를 각 입력창에 자동 입력.
+  - **파일명 명규 규칙 적용**:
+    - 이용자: `user_이름_타임스탬프.jpg`
+    - 간식: `snack_상품명_타임스탬프.jpg`
+- **🚫 등록 중복 클릭 예방 기능 완료** (2026-06-09):
+  - **목적**: 네트워크 지연 등의 상황에서 등록(이용자 추가, 간식 추가) 버튼을 연속으로 눌러 중복 데이터가 발생하는 문제를 예방.
+  - **구현**: 등록 버튼 클릭 시 버튼이 즉시 비활성화(`disabled`)되며 텍스트가 `등록 중...`으로 표시되어 추가 요청을 차단하고, API 완료 후 재활성화됩니다.
 - PWA 마니페스트, 아이콘, 서비스 워커
 - Google Apps Script API 기본 연동
 - Google Drive 이미지 URL 변환
@@ -106,6 +118,6 @@ https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ
 
 현재 남은 추가 개선 후보는 없습니다. 모든 계획된 기능이 구현 완료되었습니다.
 
-> **운영 배포 주의사항**: Google Apps Script에 최신 코드(`google-apps-script.md`)를 붙여넣고 **[새 배포]**를 진행해야 주문번호 순번 발급이 실제 운영 환경에서 적용됩니다.
+> **운영 배포 주의사항**: Google Apps Script에 최신 코드(`google-apps-script.md`)를 붙여넣고 **[새 배포]**를 진행해야 이미지 자동 업로드 API(`uploadImage`)가 실제 운영 환경에서 작동합니다.
 
 > **PWA 캐시 주의사항**: 동전 아이콘 UI 변경 후 PWA 앱에서 이전 화면이 보일 경우 **강력 새로고침 (Ctrl+Shift+R)** 또는 F12 개발자도구 > 캐시 비우기 및 강력 새로고침을 실행하세요. (`kiosk-cache-v24` 적용됨)
