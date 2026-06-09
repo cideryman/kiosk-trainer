@@ -12,6 +12,169 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="간식 키오스크">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <style>
+    /* 주문 확인 화면 - 수정 가능한 아이템 카드 */
+    .order-item-editable {
+      background-color: var(--card-bg);
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .order-item-editable:active {
+      border-color: var(--primary-color);
+    }
+
+    /* 이미지/이모지 영역 */
+    .order-item-editable .order-item-img-container {
+      width: 60px;
+      height: 60px;
+      flex-shrink: 0;
+    }
+
+    /* 이름+수량 텍스트 영역 */
+    .confirm-item-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .confirm-item-name {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .confirm-item-unit {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .confirm-item-subtotal {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--primary-color);
+      white-space: nowrap;
+    }
+
+    /* 수량 조절 + 삭제 버튼 묶음 */
+    .confirm-item-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .confirm-qty-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .confirm-btn-qty {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      font-size: 22px;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.1s, background-color 0.1s;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    /* 터치 히트박스 확장 */
+    .confirm-btn-qty::before {
+      content: '';
+      position: absolute;
+      top: -10px; left: -10px;
+      right: -10px; bottom: -10px;
+    }
+
+    .confirm-btn-qty:active {
+      transform: scale(0.88);
+    }
+
+    .confirm-btn-minus {
+      background-color: #E9ECEF;
+      color: var(--text-main);
+    }
+
+    .confirm-btn-plus {
+      background-color: var(--primary-color);
+      color: white;
+    }
+
+    .confirm-qty-val {
+      font-size: 22px;
+      font-weight: 900;
+      width: 28px;
+      text-align: center;
+      color: var(--text-main);
+    }
+
+    /* 삭제 버튼 */
+    .confirm-btn-delete {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid #FFD6D6;
+      background-color: #FFF0F0;
+      color: var(--danger-color);
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background-color 0.15s, transform 0.1s;
+      position: relative;
+    }
+
+    .confirm-btn-delete::before {
+      content: '';
+      position: absolute;
+      top: -8px; left: -8px;
+      right: -8px; bottom: -8px;
+    }
+
+    .confirm-btn-delete:active {
+      background-color: #FFD6D6;
+      transform: scale(0.88);
+    }
+
+    /* 빈 장바구니 안내 */
+    .cart-empty-hint {
+      text-align: center;
+      padding: 30px 16px;
+      color: var(--text-muted);
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    /* 삭제 애니메이션 */
+    @keyframes itemRemove {
+      from { opacity: 1; transform: translateX(0); max-height: 120px; }
+      to   { opacity: 0; transform: translateX(60px); max-height: 0; padding: 0; margin: 0; }
+    }
+
+    .order-item-editable.removing {
+      animation: itemRemove 0.28s ease-in forwards;
+      overflow: hidden;
+    }
+  </style>
 </head>
 <body>
   <div class="kiosk-container" id="app-container">
@@ -28,7 +191,8 @@
     <!-- 바디 -->
     <main class="kiosk-body" id="main-content">
       <div class="guide-text">
-        내가 고른 <span>간식</span>이 맞나요?
+        내가 고른 <span>간식</span>이 맞나요?<br>
+        <span style="font-size: 18px; font-weight: 700; color: var(--text-muted);">눌러서 수량을 바꾸거나 빼세요!</span>
       </div>
 
       <div class="confirm-layout">
@@ -54,7 +218,7 @@
         </div>
       </div>
 
-      <!-- 에러 알림 영역 (통신 에러 등) -->
+      <!-- 에러 알림 영역 -->
       <div class="error-box" id="error-message-box" style="display: none; margin-top: 10px;">
         ⚠️ 인터넷이 연결되지 않았습니다. 잠시 후 다시 시도해 주세요.
       </div>
@@ -81,133 +245,226 @@
   <script>
     let user = null;
     let cart = [];
-    let totalPoints = 0;
-    let remainPoints = 0;
 
-    // 데이터 복구 및 검증
+    // ── 계산서 업데이트 ──────────────────────────────────────────
+    function updateBill() {
+      const totalPoints = cart.reduce((sum, item) => sum + (item.point * item.quantity), 0);
+      const remainPoints = user.credit - totalPoints;
+
+      document.getElementById('use-credit').textContent = `-${AppState.formatPoint(totalPoints)}`;
+
+      const remainEl = document.getElementById('remain-credit');
+      remainEl.textContent = AppState.formatPoint(Math.max(0, remainPoints));
+
+      const submitBtn = document.getElementById('btn-submit');
+      const errorBox  = document.getElementById('error-message-box');
+
+      if (remainPoints < 0) {
+        remainEl.className = 'bill-val deficit';
+        submitBtn.disabled = true;
+        submitBtn.textContent = '크레딧 부족';
+        errorBox.textContent = '⚠️ 보유한 크레딧보다 주문 금액이 커서 주문할 수 없습니다.';
+        errorBox.style.display = 'block';
+      } else {
+        remainEl.className = 'bill-val';
+        submitBtn.disabled = cart.length === 0;
+        submitBtn.textContent = cart.length === 0 ? '담은 간식 없음' : '주문하기';
+        errorBox.style.display = 'none';
+      }
+    }
+
+    // ── 수량 변경 ────────────────────────────────────────────────
+    function changeQty(snackId, delta) {
+      const idx = cart.findIndex(i => i.snackId == snackId);
+      if (idx === -1) return;
+
+      cart[idx].quantity += delta;
+
+      if (cart[idx].quantity <= 0) {
+        removeItem(snackId);
+        return;
+      }
+
+      // 수량 텍스트만 갱신 (DOM 재렌더 없이)
+      const qtyEl = document.querySelector(`[data-qty-snack="${snackId}"]`);
+      const subEl = document.querySelector(`[data-sub-snack="${snackId}"]`);
+      const unitEl = document.querySelector(`[data-unit-snack="${snackId}"]`);
+      if (qtyEl) qtyEl.textContent = cart[idx].quantity;
+      if (subEl) subEl.textContent = AppState.formatPoint(cart[idx].point * cart[idx].quantity);
+      if (unitEl) unitEl.textContent = `1개당 ${cart[idx].point} 크레딧`;
+
+      AppState.setCart(cart);
+      updateBill();
+      AppState.vibrate(30);
+      AppState.playClickSound();
+    }
+
+    // ── 항목 삭제 ────────────────────────────────────────────────
+    function removeItem(snackId) {
+      const cardEl = document.querySelector(`[data-card-snack="${snackId}"]`);
+
+      // 슬라이드-아웃 애니메이션
+      if (cardEl) {
+        cardEl.classList.add('removing');
+        cardEl.addEventListener('animationend', () => {
+          cardEl.remove();
+          finishRemove(snackId);
+        }, { once: true });
+      } else {
+        finishRemove(snackId);
+      }
+
+      AppState.vibrate([40, 30, 40]);
+      AppState.playWarningSound();
+    }
+
+    function finishRemove(snackId) {
+      cart = cart.filter(i => i.snackId != snackId);
+      AppState.setCart(cart);
+      updateBill();
+
+      if (cart.length === 0) {
+        document.getElementById('order-item-list').innerHTML =
+          `<div class="cart-empty-hint">🛒 담은 간식이 없어요!<br>이전으로 돌아가서 간식을 골라주세요.</div>`;
+        AppState.speak('담은 간식이 없습니다. 이전 화면으로 이동해주세요.');
+      }
+    }
+
+    // ── 리스트 렌더링 ────────────────────────────────────────────
+    function renderOrderList() {
+      const listEl = document.getElementById('order-item-list');
+      listEl.innerHTML = '';
+
+      if (cart.length === 0) {
+        listEl.innerHTML = `<div class="cart-empty-hint">🛒 담은 간식이 없어요!</div>`;
+        return;
+      }
+
+      cart.forEach(item => {
+        const itemImgUrl   = AppState.convertDriveImageUrl(item.imageUrl);
+        const safeImgUrl   = AppState.escapeAttr(itemImgUrl);
+        const safeName     = AppState.escapeHtml(item.name);
+        const safeEmoji    = AppState.escapeHtml(AppState.getSnackEmoji(item.name));
+        const safeSnackId  = AppState.escapeAttr(String(item.snackId));
+
+        let imgHTML = '';
+        if (itemImgUrl && itemImgUrl.trim() !== '') {
+          imgHTML = `<img src="${safeImgUrl}" alt="${safeName}" class="order-item-img"
+                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`;
+        }
+        const emojiHTML = `<div class="order-item-emoji-fallback" style="${itemImgUrl ? 'display:none;' : 'display:flex;'}">${safeEmoji}</div>`;
+
+        const cardEl = document.createElement('div');
+        cardEl.className = 'order-item-editable';
+        cardEl.setAttribute('data-card-snack', safeSnackId);
+        cardEl.innerHTML = `
+          <!-- 이미지 -->
+          <div class="order-item-img-container">
+            ${imgHTML}
+            ${emojiHTML}
+          </div>
+
+          <!-- 이름 + 소계 -->
+          <div class="confirm-item-info">
+            <div class="confirm-item-name">${safeName}</div>
+            <div class="confirm-item-unit" data-unit-snack="${safeSnackId}">1개당 ${item.point} 크레딧</div>
+            <div class="confirm-item-subtotal" data-sub-snack="${safeSnackId}">${AppState.formatPoint(item.point * item.quantity)}</div>
+          </div>
+
+          <!-- 수량 조절 + 삭제 -->
+          <div class="confirm-item-controls">
+            <div class="confirm-qty-row">
+              <button class="confirm-btn-qty confirm-btn-minus" id="confirm-minus-${safeSnackId}" aria-label="${safeName} 수량 줄이기">−</button>
+              <span class="confirm-qty-val" data-qty-snack="${safeSnackId}">${Number(item.quantity)}</span>
+              <button class="confirm-btn-qty confirm-btn-plus" id="confirm-plus-${safeSnackId}" aria-label="${safeName} 수량 늘리기">+</button>
+            </div>
+            <button class="confirm-btn-delete" id="confirm-del-${safeSnackId}" aria-label="${safeName} 삭제">🗑</button>
+          </div>
+        `;
+
+        listEl.appendChild(cardEl);
+
+        // 이벤트 바인딩 (터치 보정 적용)
+        const minusBtn  = cardEl.querySelector(`#confirm-minus-${safeSnackId}`);
+        const plusBtn   = cardEl.querySelector(`#confirm-plus-${safeSnackId}`);
+        const deleteBtn = cardEl.querySelector(`#confirm-del-${safeSnackId}`);
+
+        minusBtn.addEventListener('pointerdown', e => e.stopPropagation());
+        AppState.bindCardTap(minusBtn, e => {
+          e.stopPropagation();
+          changeQty(item.snackId, -1);
+        });
+
+        plusBtn.addEventListener('pointerdown', e => e.stopPropagation());
+        AppState.bindCardTap(plusBtn, e => {
+          e.stopPropagation();
+          changeQty(item.snackId, 1);
+        });
+
+        deleteBtn.addEventListener('pointerdown', e => e.stopPropagation());
+        AppState.bindCardTap(deleteBtn, e => {
+          e.stopPropagation();
+          removeItem(item.snackId);
+        });
+      });
+    }
+
+    // ── 초기화 ───────────────────────────────────────────────────
     function initData() {
       user = AppState.getSelectedUser();
       cart = AppState.getCart();
 
-      // 세션 없을 시 첫 화면행
       if (!user || cart.length === 0) {
         window.location.href = 'index.html';
         return;
       }
 
-      // 상단 유저 정보 표시
-      document.getElementById('user-badge-container').innerHTML = `<span class="user-badge">${AppState.escapeHtml(user.nickname)} 님</span>`;
-
-      // 주문서 총합 계산
-      totalPoints = cart.reduce((sum, item) => sum + (item.point * item.quantity), 0);
-      remainPoints = user.credit - totalPoints;
-
-      // 계산서 바인딩
+      document.getElementById('user-badge-container').innerHTML =
+        `<span class="user-badge">${AppState.escapeHtml(user.nickname)} 님</span>`;
       document.getElementById('my-credit').textContent = AppState.formatPoint(user.credit);
-      document.getElementById('use-credit').textContent = `-${AppState.formatPoint(totalPoints)}`;
-      
-      const remainEl = document.getElementById('remain-credit');
-      remainEl.textContent = AppState.formatPoint(remainPoints);
-
-      if (remainPoints < 0) {
-        // 혹시라도 크레딧이 초과된 경우 주문 불가 경고 처리
-        remainEl.className = 'bill-val deficit';
-        document.getElementById('btn-submit').disabled = true;
-        document.getElementById('btn-submit').textContent = '크레딧 부족';
-        
-        const errorBox = document.getElementById('error-message-box');
-        errorBox.textContent = '⚠️ 보유한 크레딧보다 주문 금액이 커서 주문할 수 없습니다.';
-        errorBox.style.display = 'block';
-      }
 
       renderOrderList();
+      updateBill();
     }
 
-    // 주문 품목 렌더링
-    function renderOrderList() {
-      const listEl = document.getElementById('order-item-list');
-      listEl.innerHTML = '';
-
-      cart.forEach(item => {
-        const itemEl = document.createElement('div');
-        itemEl.className = 'order-item';
-
-        const itemImgUrl = AppState.convertDriveImageUrl(item.imageUrl);
-        const safeItemImgUrl = AppState.escapeAttr(itemImgUrl);
-        const safeItemName = AppState.escapeHtml(item.name);
-        const safeEmoji = AppState.escapeHtml(AppState.getSnackEmoji(item.name));
-        let imgHTML = '';
-        if (itemImgUrl && itemImgUrl.trim() !== '') {
-          imgHTML = `<img src="${safeItemImgUrl}" alt="${safeItemName}" class="order-item-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`;
-        }
-        const emojiHTML = `<div class="order-item-emoji-fallback" style="${itemImgUrl ? 'display:none;' : 'display:flex;'}">${safeEmoji}</div>`;
-
-        itemEl.innerHTML = `
-          <div style="display: flex; align-items: center; gap: 16px;">
-            <div class="order-item-img-container">
-              ${imgHTML}
-              ${emojiHTML}
-            </div>
-            <div class="order-item-info">
-              <div class="order-item-name">${safeItemName}</div>
-              <div class="order-item-qty">${Number(item.quantity || 0)}개</div>
-            </div>
-          </div>
-          <div class="order-item-point">${AppState.escapeHtml(AppState.formatPoint(item.point * item.quantity))}</div>
-        `;
-        listEl.appendChild(itemEl);
-      });
-    }
-
-    // 주문 제출
+    // ── 주문 제출 ────────────────────────────────────────────────
     async function submitOrder() {
-      const loadingOverlay = document.getElementById('loading-overlay');
-      const errorBox = document.getElementById('error-message-box');
-      const btnSubmit = document.getElementById('btn-submit');
-      const btnPrev = document.getElementById('btn-prev');
+      if (cart.length === 0) return;
 
-      // 중복 제출 차단
+      const totalPoints  = cart.reduce((sum, i) => sum + i.point * i.quantity, 0);
+      const remainPoints = user.credit - totalPoints;
+
+      const loadingOverlay = document.getElementById('loading-overlay');
+      const errorBox       = document.getElementById('error-message-box');
+      const btnSubmit      = document.getElementById('btn-submit');
+      const btnPrev        = document.getElementById('btn-prev');
+
       loadingOverlay.style.display = 'flex';
       errorBox.style.display = 'none';
       btnSubmit.disabled = true;
-      btnPrev.disabled = true;
+      btnPrev.disabled   = true;
 
-      // API 포맷 규격 준비
       const orderPayload = {
         userId: user.userId,
-        items: cart.map(item => ({
-          snackId: item.snackId,
-          quantity: item.quantity
-        }))
+        items: cart.map(item => ({ snackId: item.snackId, quantity: item.quantity }))
       };
 
       try {
-        const response = await fetchAPI('placeOrder', {
-          method: 'POST',
-          body: orderPayload
-        });
+        const response = await fetchAPI('placeOrder', { method: 'POST', body: orderPayload });
 
         if (response && response.success) {
-          // 주문 성공
-          // 로컬 스토리지에 남은 크레딧 반영 (API fallback 테스트 동기화를 위해)
           user.credit = remainPoints;
           AppState.setSelectedUser(user);
 
-          // 주문 완료 화면에서 출력할 주문 요약 임시 저장
           localStorage.setItem('lastOrderSummary', JSON.stringify({
-            nickname: user.nickname,
-            usedPoints: totalPoints,
+            nickname:     user.nickname,
+            usedPoints:   totalPoints,
             remainPoints: remainPoints,
-            orderNo: response.orderNo || ''
+            orderNo:      response.orderNo || ''
           }));
 
-          // 장바구니 초기화 (주문 성공 후 장바구니 삭제 요구사항)
           AppState.clearCart();
-
-          // 최종 완료 페이지로 이동
-          setTimeout(() => {
-            window.location.href = 'complete.html';
-          }, 500);
+          setTimeout(() => { window.location.href = 'complete.html'; }, 500);
         } else {
           throw new Error(response.message || '서버 오류가 발생했습니다.');
         }
@@ -215,40 +472,31 @@
         console.error('주문 제출 중 오류:', error);
         loadingOverlay.style.display = 'none';
         btnSubmit.disabled = false;
-        btnPrev.disabled = false;
+        btnPrev.disabled   = false;
 
         let displayMessage = '인터넷 연결이 불안정합니다. 잠시 후 다시 시도해 주세요.';
         const errStr = String(error.message || '');
-        
-        if (errStr.includes('재고')) {
-          displayMessage = '간식의 남은 수량이 부족해서 주문할 수 없어요!';
-        } else if (errStr.includes('크레딧') || errStr.includes('포인트') || errStr.includes('잔액')) {
-          displayMessage = '크레딧(돈)이 부족해서 주문할 수 없어요!';
-        } else if (errStr) {
-          displayMessage = errStr;
-        }
 
-        // 화면 메시지 박스 표시
+        if (errStr.includes('재고'))               displayMessage = '간식의 남은 수량이 부족해서 주문할 수 없어요!';
+        else if (errStr.includes('크레딧') || errStr.includes('포인트') || errStr.includes('잔액'))
+                                                    displayMessage = '크레딧(돈)이 부족해서 주문할 수 없어요!';
+        else if (errStr)                            displayMessage = errStr;
+
         errorBox.textContent = `⚠️ 주문 실패: ${displayMessage}`;
         errorBox.style.display = 'block';
-        
-        // 시각적으로 한 번 더 인지할 수 있도록 alert 표시
         alert(`주문 실패\n\n${displayMessage}`);
-        
-        AppState.vibrate([100, 100, 100]); // 에러 진동 피드백
+        AppState.vibrate([100, 100, 100]);
       }
     }
 
-    // 바인딩
+    // ── 바인딩 ───────────────────────────────────────────────────
     window.addEventListener('DOMContentLoaded', () => {
       initData();
 
-      // 이전으로
       AppState.bindCardTap(document.getElementById('btn-prev'), () => {
         window.location.href = 'menu.html';
       });
 
-      // 주문제출
       AppState.bindCardTap(document.getElementById('btn-submit'), () => {
         submitOrder();
       });
