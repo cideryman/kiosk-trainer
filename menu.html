@@ -24,7 +24,7 @@
         </div>
       </div>
       <div class="credit-badge">
-        내 동전: <span class="credit-amount" id="user-credit">0 크레딧</span>
+        내 동전 <span class="coin-icon">🪙</span><span class="coin-number" id="user-credit">0</span>
       </div>
     </header>
 
@@ -54,7 +54,7 @@
     <footer class="kiosk-footer">
       <div class="cart-summary">
         <span>담은 간식 개수: <strong id="cart-count">0개</strong></span>
-        <span class="cart-summary-total" id="cart-total">총 0 크레딧</span>
+        <span class="cart-summary-total">합계 <span class="coin-icon">🪙</span><span class="coin-number" id="cart-total">0</span></span>
       </div>
       <div style="display: flex; gap: 12px;">
         <button class="btn btn-gray" id="btn-back" style="flex: 1; min-height: 64px; font-size: 20px;">이름 다시 고르기</button>
@@ -96,8 +96,9 @@
       const badgeContainer = document.getElementById('user-badge-container');
       badgeContainer.innerHTML = `<span class="user-badge">${AppState.escapeHtml(user.nickname)} 님</span>`;
       
+      // 크레딧 숫자만 업데이트 (HTML 구조는 이미 🪙 아이콘 포함)
       const creditAmount = document.getElementById('user-credit');
-      creditAmount.textContent = AppState.formatPoint(user.credit);
+      creditAmount.textContent = user.credit ?? 0;
     }
 
     // 2. 간식 목록 API 조회
@@ -166,7 +167,12 @@
         const safeImgUrl = AppState.escapeAttr(imgUrl);
         const safeSnackName = AppState.escapeHtml(snack.name);
         const safeSnackEmoji = AppState.escapeHtml(AppState.getSnackEmoji(snack.name));
-        const safePoint = AppState.escapeHtml(AppState.formatPoint(snack.point));
+        // 가격을 동전 아이콘 반복으로 표시 (최대 5개 아이콘, 초과분은 +N으로 표기)
+        const pointNum = Number(snack.point) || 0;
+        const maxCoins = 5;
+        const coinCount = Math.min(pointNum, maxCoins);
+        const coinHTML = '🪙'.repeat(coinCount) + (pointNum > maxCoins ? `<span class="coin-number-sub">+${pointNum - maxCoins}</span>` : '');
+        const coinPriceHTML = `<div class="snack-coin-price"><span class="coin-emoji">${coinHTML}</span>${pointNum > 0 && pointNum <= maxCoins ? `<span class="coin-number-sub">(${pointNum})</span>` : ''}</div>`;
         let imgHTML = '';
         if (imgUrl && imgUrl.trim() !== '') {
           imgHTML = `<img src="${safeImgUrl}" alt="${safeSnackName}" class="snack-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`;
@@ -186,7 +192,7 @@
           </div>
           <div class="snack-info">
             <div class="snack-name">${safeSnackName}</div>
-            <div class="snack-point">${safePoint}</div>
+            ${coinPriceHTML}
             <div class="snack-stock" id="stock-${snack.snackId}" style="font-size: 16px; font-weight: 700; color: ${stockColor}; margin-top: 2px;">
               ${AppState.escapeHtml(stockText)}
             </div>
@@ -322,7 +328,8 @@
       const totalPoints = cart.reduce((sum, item) => sum + (item.point * item.quantity), 0);
 
       cartCount.textContent = `${totalQty}개`;
-      cartTotal.textContent = `총 ${totalPoints} 크레딧`;
+      // 합계는 숫자만 업데이트 (HTML 구조에 이미 🪙 아이콘 포함)
+      cartTotal.textContent = totalPoints;
 
       // 하나라도 담겨있어야 다음 진행 가능
       btnNext.disabled = totalQty === 0;

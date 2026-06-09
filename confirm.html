@@ -204,16 +204,31 @@
         <!-- 최종 계산서 영역 -->
         <div class="bill-box">
           <div class="bill-row">
-            <span>내 보유 크레딧</span>
-            <span class="bill-val" id="my-credit">0 크레딧</span>
+            <span>현재 보유</span>
+            <span class="bill-val">
+              <span class="bill-coin-display" id="my-credit">
+                <span class="coin-icon">🪙</span>
+                <span class="coin-number" id="my-credit-num">0</span>
+              </span>
+            </span>
           </div>
           <div class="bill-row">
-            <span>쓸 크레딧</span>
-            <span class="bill-val highlight" id="use-credit">- 0 크레딧</span>
+            <span>선택 상품</span>
+            <span class="bill-val highlight">
+              <span class="bill-coin-display highlight" id="use-credit">
+                <span class="coin-icon">🪙</span>
+                <span class="coin-number" id="use-credit-num">0</span>
+              </span>
+            </span>
           </div>
           <div class="bill-row total">
-            <span>주문 후 남는 크레딧</span>
-            <span class="bill-val" id="remain-credit">0 크레딧</span>
+            <span>주문 후 잔액</span>
+            <span class="bill-val">
+              <span class="bill-coin-display" id="remain-credit">
+                <span class="coin-icon">🪙</span>
+                <span class="coin-number" id="remain-credit-num">0</span>
+              </span>
+            </span>
           </div>
         </div>
       </div>
@@ -251,22 +266,24 @@
       const totalPoints = cart.reduce((sum, item) => sum + (item.point * item.quantity), 0);
       const remainPoints = user.credit - totalPoints;
 
-      document.getElementById('use-credit').textContent = `-${AppState.formatPoint(totalPoints)}`;
+      // 동전 아이콘 숫자만 업데이트 (HTML 구조는 고정)
+      document.getElementById('use-credit-num').textContent = totalPoints;
 
-      const remainEl = document.getElementById('remain-credit');
-      remainEl.textContent = AppState.formatPoint(Math.max(0, remainPoints));
+      const remainNumEl = document.getElementById('remain-credit-num');
+      const remainDisplayEl = document.getElementById('remain-credit');
+      remainNumEl.textContent = Math.max(0, remainPoints);
 
       const submitBtn = document.getElementById('btn-submit');
       const errorBox  = document.getElementById('error-message-box');
 
       if (remainPoints < 0) {
-        remainEl.className = 'bill-val deficit';
+        remainDisplayEl.className = 'bill-coin-display deficit';
         submitBtn.disabled = true;
         submitBtn.textContent = '크레딧 부족';
         errorBox.textContent = '⚠️ 보유한 크레딧보다 주문 금액이 커서 주문할 수 없습니다.';
         errorBox.style.display = 'block';
       } else {
-        remainEl.className = 'bill-val';
+        remainDisplayEl.className = 'bill-coin-display';
         submitBtn.disabled = cart.length === 0;
         submitBtn.textContent = cart.length === 0 ? '담은 간식 없음' : '주문하기';
         errorBox.style.display = 'none';
@@ -290,8 +307,17 @@
       const subEl = document.querySelector(`[data-sub-snack="${snackId}"]`);
       const unitEl = document.querySelector(`[data-unit-snack="${snackId}"]`);
       if (qtyEl) qtyEl.textContent = cart[idx].quantity;
-      if (subEl) subEl.textContent = AppState.formatPoint(cart[idx].point * cart[idx].quantity);
-      if (unitEl) unitEl.textContent = `1개당 ${cart[idx].point} 크레딧`;
+      // 소계: 동전 아이콘 반복 (최대 5개)
+      if (subEl) {
+        const subTotal = cart[idx].point * cart[idx].quantity;
+        const maxC = 5;
+        const cCount = Math.min(subTotal, maxC);
+        subEl.innerHTML = '🪙'.repeat(cCount) + (subTotal > maxC ? `<span style="font-size:13px;font-weight:700;color:var(--text-muted);margin-left:2px">(${subTotal})</span>` : '');
+      }
+      if (unitEl) {
+        const p = cart[idx].point;
+        unitEl.innerHTML = '🪙'.repeat(Math.min(p, 5)) + (p > 5 ? `<span style="font-size:12px;color:var(--text-muted);margin-left:2px">(${p})</span>` : '');
+      }
 
       AppState.setCart(cart);
       updateBill();
@@ -364,11 +390,11 @@
             ${emojiHTML}
           </div>
 
-          <!-- 이름 + 소계 -->
+          <!-- 이름 + 소계 (동전 아이콘 표시) -->
           <div class="confirm-item-info">
             <div class="confirm-item-name">${safeName}</div>
-            <div class="confirm-item-unit" data-unit-snack="${safeSnackId}">1개당 ${item.point} 크레딧</div>
-            <div class="confirm-item-subtotal" data-sub-snack="${safeSnackId}">${AppState.formatPoint(item.point * item.quantity)}</div>
+            <div class="confirm-item-unit confirm-item-unit-coin" data-unit-snack="${safeSnackId}">${'🪙'.repeat(Math.min(item.point, 5))}${item.point > 5 ? `<span style="font-size:12px;color:var(--text-muted);margin-left:2px">(${item.point})</span>` : ''}</div>
+            <div class="confirm-item-subtotal confirm-item-subtotal-coin" data-sub-snack="${safeSnackId}">${'🪙'.repeat(Math.min(item.point * item.quantity, 5))}${item.point * item.quantity > 5 ? `<span style="font-size:13px;font-weight:700;color:var(--text-muted);margin-left:2px">(${item.point * item.quantity})</span>` : ''}</div>
           </div>
 
           <!-- 수량 조절 + 삭제 -->
@@ -421,7 +447,8 @@
 
       document.getElementById('user-badge-container').innerHTML =
         `<span class="user-badge">${AppState.escapeHtml(user.nickname)} 님</span>`;
-      document.getElementById('my-credit').textContent = AppState.formatPoint(user.credit);
+      // 보유 크레딧 숫자만 업데이트 (HTML 구조에 🪙 아이콘 포함)
+      document.getElementById('my-credit-num').textContent = user.credit ?? 0;
 
       renderOrderList();
       updateBill();

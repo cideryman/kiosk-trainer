@@ -1003,4 +1003,148 @@ input:checked + .tts-slider:before {
   }
 }
 
+/* ───────────────────────────────────────────────────────────
+   동전 아이콘 UI (발달장애인 접근성 개선)
+   - 크레딧을 숫자 대신 🪙 + 큰 숫자로 표시
+   - 간식 가격을 동전 아이콘 반복으로 표시
+─────────────────────────────────────────────────────────── */
+
+/* 이용자 카드 크레딧 배지: 🪙 13 형태 */
+.user-card-credit {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--primary-color);
+  background-color: #FFF3E0;
+  padding: 5px 12px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.user-card-credit .coin-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.user-card-credit .coin-number {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--primary-color);
+  line-height: 1;
+}
+
+/* 메뉴 헤더 크레딧 배지: 내 동전 🪙 13 */
+.credit-badge {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-main);
+  background-color: #FFF9E6;
+  border: 2px solid var(--primary-color);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.credit-badge .coin-icon {
+  font-size: 22px;
+}
+
+.credit-badge .coin-number {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--primary-color);
+}
+
+/* 간식 가격 동전 아이콘 표시 */
+.snack-coin-price {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.snack-coin-price .coin-emoji {
+  font-size: 22px;
+  line-height: 1;
+  display: inline-block;
+}
+
+.snack-coin-price .coin-number-sub {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-left: 2px;
+  align-self: flex-end;
+  padding-bottom: 2px;
+}
+
+/* 장바구니 합계 동전 표시 */
+.cart-summary-total .coin-icon {
+  font-size: 20px;
+}
+
+.cart-summary-total .coin-number {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--primary-color);
+}
+
+/* 주문 확인 계산서 동전 표시 */
+.bill-coin-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.bill-coin-display .coin-icon {
+  font-size: 22px;
+}
+
+.bill-coin-display .coin-number {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--text-main);
+}
+
+.bill-coin-display.highlight .coin-number {
+  color: var(--primary-color);
+  font-size: 28px;
+}
+
+.bill-coin-display.deficit .coin-icon,
+.bill-coin-display.deficit .coin-number {
+  color: var(--danger-color);
+}
+
+/* confirm 페이지 아이템 단가 동전 표시 */
+.confirm-item-unit-coin {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.confirm-item-subtotal-coin {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--primary-color);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  flex-wrap: wrap;
+}
+
+.confirm-item-subtotal-coin .coin-emoji {
+  font-size: 18px;
+  line-height: 1;
+}
+
 
