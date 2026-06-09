@@ -29,6 +29,10 @@
       </div>
     </header>
 
+    <!-- 주문 취소 알림 배너 -->
+    <div id="cancellation-banner-container" style="display: none; flex-direction: column; gap: 8px; padding: 12px 20px; background-color: #FFF0F0; border-bottom: 3px solid #FEB2B2; text-align: center;">
+    </div>
+
     <!-- 바디 (스크롤 가능 영역) -->
     <main class="kiosk-body" id="main-content">
       <div class="guide-text">
@@ -153,12 +157,140 @@
       });
     }
 
+    let cancellationInterval = null;
+
+    // 첫 실행 시 기존 취소 내역을 dismiss에 선등록하여 새로고침 시 옛날 취소 건이 다시 보이는 문제 방지
+    async function initCancellationAlerts() {
+      try {
+        const response = await fetchAPI('getOrdersToday');
+        if (response && response.success && Array.isArray(response.orders)) {
+          const existingCancelled = response.orders
+            .filter(o => o.servedYn === 'C')
+            .map(o => o.orderNo);
+          
+          const dismissed = JSON.parse(localStorage.getItem('dismissedCancellations') || '[]');
+          const newDismissed = Array.from(new Set([...dismissed, ...existingCancelled]));
+          localStorage.setItem('dismissedCancellations', JSON.stringify(newDismissed));
+        }
+      } catch (e) {
+        console.warn('취소 알림 초기화 에러:', e);
+      }
+    }
+
+    // 5초 간격으로 취소 주문 감시 폴링
+    function startCancellationPolling() {
+      checkCancelledOrders();
+      cancellationInterval = setInterval(checkCancelledOrders, 5000);
+    }
+
+    async function checkCancelledOrders() {
+      try {
+        const response = await fetchAPI('getOrdersToday');
+        if (response && response.success && Array.isArray(response.orders)) {
+          const now = new Date();
+          const cancelledOrders = response.orders.filter(o => o.servedYn === 'C');
+          const dismissedList = JSON.parse(localStorage.getItem('dismissedCancellations') || '[]');
+          
+          const activeCancellations = [];
+          let playedSound = false;
+          let newlyCancelledNicknames = [];
+          
+          // 주문번호 단위 중복 제거 및 정보 그룹화
+          const orderNoGroups = {};
+          cancelledOrders.forEach(o => {
+            if (!orderNoGroups[o.orderNo]) {
+              orderNoGroups[o.orderNo] = {
+                orderNo: o.orderNo,
+                nickname: o.nickname,
+                cancelTimestamp: o.cancelTimestamp
+              };
+            }
+          });
+          
+          Object.values(orderNoGroups).forEach(group => {
+            if (!group.cancelTimestamp) return;
+            const cancelTime = new Date(group.cancelTimestamp);
+            const diffMs = now.getTime() - cancelTime.getTime();
+            
+            // 3분(180초) 이내의 취소 건이면서 아직 dismiss 처리되지 않은 주문
+            if (Math.abs(diffMs) <= 180000 && !dismissedList.includes(group.orderNo)) {
+              activeCancellations.push(group);
+
+              // 소리 및 TTS 재생 유무 확인 (첫 노출 시 단 1회만 재생)
+              if (!window.playedWarningSoundIds) {
+                window.playedWarningSoundIds = [];
+              }
+              if (!window.playedWarningSoundIds.includes(group.orderNo)) {
+                window.playedWarningSoundIds.push(group.orderNo);
+                playedSound = true;
+                newlyCancelledNicknames.push(group.nickname);
+              }
+            }
+          });
+          
+          if (playedSound) {
+            AppState.playWarningSound();
+            if (newlyCancelledNicknames.length > 0) {
+              const names = newlyCancelledNicknames.join(', ');
+              AppState.speak(`${names} 님의 주문이 취소되었습니다.`);
+            }
+          }
+          
+          renderCancellationBanner(activeCancellations);
+        }
+      } catch (e) {
+        console.warn('취소 주문 폴링 에러:', e);
+      }
+    }
+
+    function renderCancellationBanner(activeCancellations) {
+      const banner = document.getElementById('cancellation-banner-container');
+      if (!banner) return;
+
+      if (activeCancellations.length === 0) {
+        banner.style.display = 'none';
+        banner.innerHTML = '';
+        return;
+      }
+
+      banner.style.display = 'flex';
+      banner.innerHTML = activeCancellations.map(c => `
+        <div class="cancellation-row" style="font-size: 20px; font-weight: 800; color: #9B2C2C; padding: 4px 0;">
+          📢 <span style="color: var(--danger-color); font-size: 22px;">${AppState.escapeHtml(c.nickname)} 님</span>의 주문이 취소되었습니다.
+        </div>
+      `).join('');
+
+      // 60초 타이머 설정하여 각 주문번호를 dismiss 리스트에 등록
+      activeCancellations.forEach(c => {
+        if (!window.activeCancellationTimers) {
+          window.activeCancellationTimers = {};
+        }
+        
+        if (!window.activeCancellationTimers[c.orderNo]) {
+          window.activeCancellationTimers[c.orderNo] = setTimeout(() => {
+            const currentDismissed = JSON.parse(localStorage.getItem('dismissedCancellations') || '[]');
+            if (!currentDismissed.includes(c.orderNo)) {
+              currentDismissed.push(c.orderNo);
+              localStorage.setItem('dismissedCancellations', JSON.stringify(currentDismissed));
+            }
+            delete window.activeCancellationTimers[c.orderNo];
+            checkCancelledOrders(); // 즉시 화면 갱신
+          }, 60000); // 60초 간 노출
+        }
+      });
+    }
+
     // 초기 실행
     window.addEventListener('DOMContentLoaded', () => {
       // 혹시 남아있을 기존 장바구니/선택유저 데이터 초기화
       AppState.resetAll();
       
       loadUsers();
+
+      // 취소 알림 설정 초기화 및 폴링 시작
+      initCancellationAlerts().then(() => {
+        startCancellationPolling();
+      });
 
       // TTS 토글 연동 및 초기설정
       const ttsToggle = document.getElementById('tts-toggle');

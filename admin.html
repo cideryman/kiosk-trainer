@@ -403,6 +403,23 @@
       transform: scale(0.96);
       background-color: var(--secondary-hover);
     }
+
+    .btn-cancel-action {
+      background-color: var(--danger-color);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 18px;
+      font-weight: 800;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+    }
+    
+    .btn-cancel-action:active {
+      transform: scale(0.96);
+      background-color: var(--danger-hover);
+    }
     
     .empty-text {
       font-size: 18px;
@@ -896,6 +913,12 @@
       let token = sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY);
       if (token) return token;
 
+      if (typeof USE_MOCK !== 'undefined' && USE_MOCK) {
+        sessionStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, 'mock-admin-token');
+        updateAdminTokenStatus();
+        return 'mock-admin-token';
+      }
+
       token = prompt('관리자 비밀번호를 입력해 주세요.');
       if (!token) {
         throw new Error('관리자 비밀번호가 필요합니다.');
@@ -1127,6 +1150,32 @@
       } catch (error) {
         console.error("제공 완료 중 오류:", error);
         alert("상태 반영 중 오류가 발생했습니다.");
+      }
+    }
+
+    // 주문 취소 처리 (환불 및 재고 복구)
+    async function cancelOrderAction(orderNo, nickname) {
+      const ok = (typeof USE_MOCK !== 'undefined' && USE_MOCK) ? true : confirm(`[${nickname} 님]의 주문을 취소하시겠습니까?\n사용된 포인트가 환불되고 간식 재고가 복구됩니다.`);
+      if (!ok) return;
+
+      try {
+        const res = await fetchAPI('cancelOrder', {
+          method: 'POST',
+          body: withAdminToken({ orderId: orderNo })
+        });
+        
+        if (res && res.success) {
+          AppState.vibrate(80);
+          AppState.playClickSound();
+          alert(`주문이 성공적으로 취소 및 환불되었습니다.`);
+          await loadAdminData(); // 데이터 재로드 및 렌더링
+        } else {
+          clearAdminTokenIfDenied(res);
+          alert("주문 취소에 실패했습니다: " + (res?.message || "오류"));
+        }
+      } catch (error) {
+        console.error("주문 취소 중 오류:", error);
+        alert("주문 취소 처리 중 오류가 발생했습니다.");
       }
     }
 
@@ -1568,9 +1617,10 @@
         orderNo: o.orderNo || `${o.timestamp || idx}_${o.nickname || 'unknown'}`
       }));
 
-      // 1. 제공 완료 여부에 따른 목록 분리 (DB에서 받아온 servedYn 값 사용)
-      const pendingOrders = orders.filter(o => o.servedYn !== 'Y');
-      const completedOrders = orders.filter(o => o.servedYn === 'Y');
+      // 1. 제공 완료 여부에 따른 목록 분리 (DB에서 받아온 servedYn 값 사용, 취소 'C' 제외)
+      const activeOrders = orders.filter(o => o.servedYn !== 'C');
+      const pendingOrders = activeOrders.filter(o => o.servedYn !== 'Y');
+      const completedOrders = activeOrders.filter(o => o.servedYn === 'Y');
 
       // 신규 주문 알림 접수 감지 및 재생
       if (previousPendingOrders && previousPendingOrders.length > 0) {
@@ -1664,7 +1714,10 @@
             <ul class="user-order-items">
               ${itemsListHtml}
             </ul>
-            <button class="btn-complete-action" onclick="${callAttr(`completeOrder(${orderNoArg})`)}">제공 완료</button>
+            <div style="display: flex; gap: 8px; margin-top: auto; width: 100%;">
+              <button class="btn-cancel-action" style="flex: 1;" onclick="${callAttr(`cancelOrderAction(${orderNoArg}, ${jsString(nickname)})`)}">주문 취소</button>
+              <button class="btn-complete-action" style="flex: 1; margin-top: 0;" onclick="${callAttr(`completeOrder(${orderNoArg})`)}">제공 완료</button>
+            </div>
           `;
           pendingContainer.appendChild(card);
         });
@@ -1700,12 +1753,12 @@
         });
       }
 
-      // 5. 오늘 누적 집계 계산 (전체 주문 기준)
+      // 5. 오늘 누적 집계 계산 (취소된 주문 제외 활성 주문 기준)
       let totalPoints = 0;
       const snackAggregates = {}; // { snackName: totalQuantity }
       const userAggregates = {}; // { nickname: orderCount }
 
-      orders.forEach(order => {
+      activeOrders.forEach(order => {
         const pointVal = order.point || 0;
         const qtyVal = order.quantity || 0;
         

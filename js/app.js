@@ -141,6 +141,41 @@ const AppState = {
     }
   },
 
+  // 경고음 재생 (Web Audio API 동적 합성)
+  playWarningSound() {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      
+      // 첫 번째 음: 높은 도 (C5 - 523.25 Hz)
+      const osc1 = audioCtx.createOscillator();
+      const gain1 = audioCtx.createGain();
+      osc1.connect(gain1);
+      gain1.connect(audioCtx.destination);
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+      gain1.gain.setValueAtTime(0, audioCtx.currentTime);
+      gain1.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + 0.05);
+      gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+      osc1.start(audioCtx.currentTime);
+      osc1.stop(audioCtx.currentTime + 0.4);
+      
+      // 두 번째 음: 솔 (G4 - 392.00 Hz) - 0.15초 뒤 재생
+      const osc2 = audioCtx.createOscillator();
+      const gain2 = audioCtx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(audioCtx.destination);
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(392.00, audioCtx.currentTime + 0.15);
+      gain2.gain.setValueAtTime(0, audioCtx.currentTime + 0.15);
+      gain2.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + 0.2);
+      gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+      osc2.start(audioCtx.currentTime + 0.15);
+      osc2.stop(audioCtx.currentTime + 0.6);
+    } catch (e) {
+      console.warn("경고음 재생 실패:", e);
+    }
+  },
+
   // TTS 상태 및 음성 합성 헬퍼
   isTtsEnabled() {
     return localStorage.getItem('ttsEnabled') === 'true';

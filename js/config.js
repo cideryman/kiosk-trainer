@@ -367,6 +367,74 @@ function getMockFallback(action, options) {
       message: "신규 간식을 등록했습니다.",
       snackId: newSnackId
     };
+  } else if (action === 'cancelOrder') {
+    const orderId = options.body?.orderId;
+    let updated = false;
+    let refundLogs = [];
+
+    // Helper function to process refund and stock restore
+    const processItemRefund = (item) => {
+      // 1. User refund
+      const users = MOCK_DATA.getUsers.users;
+      const user = users.find(u => u.nickname === item.nickname);
+      if (user) {
+        user.credit = (user.credit || 0) + (item.point || 0);
+      }
+      
+      // Update selectedUser if currently active in session
+      const selectedUser = JSON.parse(localStorage.getItem('selectedUser'));
+      if (selectedUser && selectedUser.nickname === item.nickname) {
+        selectedUser.credit = (selectedUser.credit || 0) + (item.point || 0);
+        localStorage.setItem('selectedUser', JSON.stringify(selectedUser));
+      }
+
+      // 2. Snack stock restore
+      const snacks = MOCK_DATA.getSnacks.snacks;
+      const snack = snacks.find(s => s.name === item.snackName);
+      if (snack) {
+        snack.stock = (snack.stock || 0) + (item.quantity || 0);
+      }
+
+      refundLogs.push(`${item.snackName} ${item.quantity}개`);
+    };
+
+    // 1) Update local mockOrders in localStorage
+    const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
+    const updatedLocalOrders = localOrders.map(o => {
+      if (o.orderNo === orderId && o.servedYn !== 'C') {
+        updated = true;
+        processItemRefund(o);
+        appendMockAdminLog('cancelOrder', 'order', orderId, o.nickname, o.servedYn || 'N', 'C', options.body?.adminMemo);
+        return { ...o, servedYn: 'C', cancelTimestamp: new Date().toISOString() };
+      }
+      return o;
+    });
+    if (updated) {
+      localStorage.setItem('mockOrders', JSON.stringify(updatedLocalOrders));
+    }
+
+    // 2) Update MOCK_DATA.getOrdersToday in memory
+    MOCK_DATA.getOrdersToday.orders.forEach(o => {
+      if (o.orderNo === orderId && o.servedYn !== 'C') {
+        updated = true;
+        processItemRefund(o);
+        appendMockAdminLog('cancelOrder', 'order', orderId, o.nickname, o.servedYn || 'N', 'C', options.body?.adminMemo);
+        o.servedYn = 'C';
+        o.cancelTimestamp = new Date().toISOString();
+      }
+    });
+
+    if (updated) {
+      res = {
+        success: true,
+        message: `주문번호 ${orderId}의 주문이 취소되었습니다. 환불 내역: ${refundLogs.join(', ')}`
+      };
+    } else {
+      res = {
+        success: false,
+        message: `주문번호 ${orderId}에 해당하는 대기 중이거나 완료된 주문 기록을 찾을 수 없습니다.`
+      };
+    }
   } else {
     res = { success: false, error: "액션을 찾을 수 없습니다." };
   }

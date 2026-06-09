@@ -191,6 +191,11 @@ body {
   background-color: var(--primary-hover);
 }
 
+.btn-primary:not(:disabled) {
+  --pulse-glow-color: rgba(255, 159, 28, 0.65);
+  animation: pulseGlow 2s infinite ease-in-out;
+}
+
 .btn-secondary {
   background-color: var(--secondary-color);
   color: white;
@@ -199,6 +204,28 @@ body {
 
 .btn-secondary:hover {
   background-color: var(--secondary-hover);
+}
+
+.btn-secondary:not(:disabled) {
+  --pulse-glow-color: rgba(46, 196, 182, 0.55);
+  animation: pulseGlow 2s infinite ease-in-out;
+}
+
+/* 주 버튼(주황/민트) 주목을 유도하기 위한 부드러운 반짝임(맥박) 애니메이션 */
+@keyframes pulseGlow {
+  0% {
+    filter: brightness(1);
+    transform: scale(1);
+  }
+  50% {
+    filter: brightness(1.06);
+    box-shadow: 0 0 16px var(--pulse-glow-color);
+    transform: scale(1.02);
+  }
+  100% {
+    filter: brightness(1);
+    transform: scale(1);
+  }
 }
 
 .btn-danger {
