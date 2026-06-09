@@ -66,6 +66,7 @@ const ADMIN_ACTIONS = [
   'updateUser',
   'updateSnack',
   'cancelOrder',
+  'updateSnacksOrder',
 ];
 
 /**
@@ -157,6 +158,8 @@ function doPost(e) {
     return jsonResponse(updateSnack(data));
   } else if (action === 'cancelOrder') {
     return jsonResponse(cancelOrder(data));
+  } else if (action === 'updateSnacksOrder') {
+    return jsonResponse(updateSnacksOrder(data));
   }
   
   return jsonResponse({
@@ -268,6 +271,7 @@ function getSnacks(includeHidden) {
         saleYn: row[4],
         stock,
         soldOut: stock <= 0,
+        displayOrder: Number(row[6] || 0),
       };
     });
 
@@ -860,6 +864,36 @@ function updateSnack(data) {
     }
   }
   return { success: false, message: '간식을 찾을 수 없습니다.' };
+}
+
+/**
+ * 18. 간식 표시 순서 일괄 업데이트 API
+ * items: [{ snackId, displayOrder }] 배열을 받아 G열을 업데이트합니다.
+ */
+function updateSnacksOrder(data) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.SNACKS);
+  var rows = sheet.getDataRange().getValues();
+  var items = data.items; // [{ snackId, displayOrder }]
+
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return { success: false, message: '순서 데이터가 없습니다.' };
+  }
+
+  // snackId → displayOrder 맵 구성
+  var orderMap = {};
+  items.forEach(function(item) {
+    orderMap[String(item.snackId)] = Number(item.displayOrder);
+  });
+
+  // 해당 행의 G열(7번째 열)을 업데이트
+  for (var i = 1; i < rows.length; i++) {
+    var snackId = String(rows[i][0]);
+    if (orderMap.hasOwnProperty(snackId)) {
+      sheet.getRange(i + 1, 7).setValue(orderMap[snackId]);
+    }
+  }
+
+  return { success: true, message: '표시 순서를 저장했습니다.' };
 }
 
 ```
