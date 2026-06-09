@@ -523,6 +523,43 @@
       gap: 12px;
       margin-top: 10px;
     }
+
+    /* 간식 표시 순서 편집 패널 */
+    .snack-order-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .snack-order-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background-color: #fff;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      cursor: grab;
+      transition: box-shadow 0.15s, border-color 0.15s;
+      user-select: none;
+    }
+    .snack-order-item:active { cursor: grabbing; }
+    .snack-order-item.dragging { opacity: 0.4; border-color: var(--primary-color); box-shadow: var(--shadow-md); }
+    .snack-order-item.drag-over { border-color: var(--secondary-color); background-color: #F0FFFE; }
+    .drag-handle { font-size: 20px; color: var(--text-muted); flex-shrink: 0; line-height: 1; }
+    .snack-order-rank { font-size: 15px; font-weight: 900; color: var(--text-muted); min-width: 24px; text-align: center; }
+    .snack-order-name { flex: 1; font-size: 17px; font-weight: 800; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .snack-order-btns { display: flex; gap: 4px; flex-shrink: 0; }
+    .snack-order-btn {
+      width: 34px; height: 34px; border-radius: 8px;
+      border: 1.5px solid var(--border-color); background-color: #F8F9FA;
+      font-size: 16px; font-weight: 800; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background-color 0.1s;
+    }
+    .snack-order-btn:hover { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
+    .snack-order-btn:active { transform: scale(0.9); }
+    .snack-order-badge { font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 999px; border: 1.5px solid; flex-shrink: 0; }
+    .snack-order-badge.hidden-badge { color: #744210; background-color: #FFFAF0; border-color: #FBD38D; }
   </style>
 </head>
 <body>
@@ -711,6 +748,24 @@
       <!-- Tab 3: 간식 및 재고 관리 -->
       <div id="tab-snacks" class="admin-tab-content">
         <div class="snack-admin-layout">
+
+          <!-- ★ 표시 순서 편집 패널 -->
+          <div>
+            <div class="admin-section-title" style="color: #7C3AED; border-left-color: #7C3AED;">
+              🔢 간식 표시 순서
+              <span style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-left: 8px;">↑↓ 버튼 또는 드래그로 순서를 바꾸세요</span>
+            </div>
+            <div class="form-panel" style="background: linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%); border-color: #C4B5FD;">
+              <div class="snack-order-list" id="snack-order-list">
+                <!-- JS 동적 생성 -->
+              </div>
+              <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; align-items: center;">
+                <button class="btn-small-action" onclick="resetSnackOrder()" style="background-color: #6B7280; font-size: 13px; padding: 6px 12px;">기본 순서로 초기화</button>
+                <span style="font-size: 13px; font-weight: 700; color: #7C3AED;">✅ 변경 즉시 이용자 화면에 반영됩니다</span>
+              </div>
+            </div>
+          </div>
+
           <div>
             <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color);">🍪 간식 목록 및 재고 관리</div>
             <div class="table-responsive">
@@ -757,6 +812,7 @@
           </div>
         </div>
       </div>
+
     </main>
 
     <!-- 관리자 푸터 (키오스크 홈으로 바로가는 편리 버튼) -->
@@ -1410,7 +1466,122 @@
     }
 
     // --- 간식 목록 및 재고 관리 구현 ---
+    // ── 간식 표시 순서 관리 ─────────────────────────────────────
+    const SNACK_ORDER_KEY = 'snackDisplayOrder';
+
+    function getSnackOrder() {
+      try { return JSON.parse(localStorage.getItem(SNACK_ORDER_KEY) || '[]'); }
+      catch (e) { return []; }
+    }
+
+    function saveSnackOrder(idArray) {
+      localStorage.setItem(SNACK_ORDER_KEY, JSON.stringify(idArray.map(String)));
+    }
+
+    /** 저장된 순서 기준으로 snack 배열 정렬 (저장 안 된 항목은 뒤에 추가) */
+    function applySnackOrder(snacks) {
+      const order = getSnackOrder();
+      if (order.length === 0) return snacks;
+      const orderedIds = order.map(String);
+      const indexed = snacks
+        .filter(s => orderedIds.includes(String(s.snackId)))
+        .sort((a, b) => orderedIds.indexOf(String(a.snackId)) - orderedIds.indexOf(String(b.snackId)));
+      const rest = snacks.filter(s => !orderedIds.includes(String(s.snackId)));
+      return [...indexed, ...rest];
+    }
+
+    function resetSnackOrder() {
+      if (!confirm('표시 순서를 기본(스프레드시트 등록 순)으로 초기화할까요?')) return;
+      localStorage.removeItem(SNACK_ORDER_KEY);
+      renderSnackOrderPanel(currentSnacks);
+      AppState.vibrate(40);
+      AppState.playClickSound();
+    }
+
+    /** 순서 편집 패널 렌더링 */
+    function renderSnackOrderPanel(snacks) {
+      const listEl = document.getElementById('snack-order-list');
+      if (!listEl) return;
+
+      const sorted = applySnackOrder(snacks);
+      listEl.innerHTML = '';
+
+      if (sorted.length === 0) {
+        listEl.innerHTML = '<div style="padding: 12px; text-align: center; color: var(--text-muted); font-weight: 700;">등록된 간식이 없습니다.</div>';
+        return;
+      }
+
+      sorted.forEach((snack, idx) => {
+        const isActive = isSnackActive(snack);
+        const emoji = AppState.getSnackEmoji(snack.name);
+        const item = document.createElement('div');
+        item.className = 'snack-order-item';
+        item.draggable = true;
+        item.dataset.snackId = String(snack.snackId);
+        item.innerHTML = `
+          <span class="drag-handle" title="드래그로 이동">⠿</span>
+          <span class="snack-order-rank">${idx + 1}</span>
+          <span style="font-size: 20px;">${esc(emoji)}</span>
+          <span class="snack-order-name">${esc(snack.name)}</span>
+          ${!isActive ? '<span class="snack-order-badge hidden-badge">숨김</span>' : ''}
+          <div class="snack-order-btns">
+            <button class="snack-order-btn" title="위로" onclick="moveSnackOrder(this, -1)">▲</button>
+            <button class="snack-order-btn" title="아래로" onclick="moveSnackOrder(this, 1)">▼</button>
+          </div>
+        `;
+
+        // 드래그&드롭 이벤트
+        item.addEventListener('dragstart', e => {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', String(snack.snackId));
+          setTimeout(() => item.classList.add('dragging'), 0);
+        });
+        item.addEventListener('dragend', () => item.classList.remove('dragging'));
+        item.addEventListener('dragover', e => { e.preventDefault(); item.classList.add('drag-over'); });
+        item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
+        item.addEventListener('drop', e => {
+          e.preventDefault();
+          item.classList.remove('drag-over');
+          const fromId = e.dataTransfer.getData('text/plain');
+          const toId = String(snack.snackId);
+          if (fromId === toId) return;
+
+          const items = [...listEl.querySelectorAll('.snack-order-item')];
+          const ids = items.map(el => el.dataset.snackId);
+          const fromIdx = ids.indexOf(String(fromId));
+          const toIdx = ids.indexOf(toId);
+          if (fromIdx === -1 || toIdx === -1) return;
+
+          ids.splice(fromIdx, 1);
+          ids.splice(toIdx, 0, String(fromId));
+          saveSnackOrder(ids);
+          renderSnackOrderPanel(currentSnacks);
+          AppState.vibrate(30);
+        });
+
+        listEl.appendChild(item);
+      });
+    }
+
+    function moveSnackOrder(btn, dir) {
+      const item = btn.closest('.snack-order-item');
+      const listEl = item.parentElement;
+      const items = [...listEl.querySelectorAll('.snack-order-item')];
+      const ids = items.map(el => el.dataset.snackId);
+      const idx = ids.indexOf(item.dataset.snackId);
+      const newIdx = idx + dir;
+      if (newIdx < 0 || newIdx >= ids.length) return;
+      [ids[idx], ids[newIdx]] = [ids[newIdx], ids[idx]];
+      saveSnackOrder(ids);
+      renderSnackOrderPanel(currentSnacks);
+      AppState.vibrate(30);
+      AppState.playClickSound();
+    }
+
     function renderSnacksManagement(snacks) {
+      // 순서 편집 패널 갱신
+      renderSnackOrderPanel(snacks);
+
       const tbody = document.getElementById('snack-management-body');
       if (!tbody) return;
       
@@ -1421,11 +1592,14 @@
         return;
       }
 
-      const activeSnacks = snacks.filter(snack => isSnackActive(snack));
-      const hiddenSnacks = snacks.filter(snack => !isSnackActive(snack));
+      // 재고 관리 테이블도 저장된 표시 순서 기준으로 정렬
+      const sorted = applySnackOrder(snacks);
+      const activeSnacks = sorted.filter(snack => isSnackActive(snack));
+      const hiddenSnacks = sorted.filter(snack => !isSnackActive(snack));
       appendSnackGroupRows(tbody, '판매중 간식', activeSnacks);
       appendSnackGroupRows(tbody, '숨김 간식', hiddenSnacks);
     }
+
 
     function isSnackActive(snack) {
       const active = String(snack.saleYn ?? snack.active ?? 'Y').trim().toUpperCase();
