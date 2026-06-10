@@ -181,14 +181,15 @@ function getMockFallback(action, options) {
       });
     }
   } else if (action === 'getOrderStatus') {
-    const orderNo = options.params?.orderNo;
+    const identifier = options.params?.orderNo || options.params?.orderToken;
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
     const allMockOrders = [...localOrders, ...MOCK_DATA.getOrdersToday.orders];
-    const matched = allMockOrders.find(o => o.orderNo === orderNo);
+    const matched = allMockOrders.find(o => o.orderNo === identifier || o.orderToken === identifier);
     if (matched) {
       res = {
         success: true,
-        orderNo: orderNo,
+        orderNo: matched.orderNo,
+        orderToken: matched.orderToken || '',
         servedYn: matched.servedYn || 'N',
         cancelTimestamp: matched.cancelTimestamp || ''
       };
@@ -198,6 +199,22 @@ function getMockFallback(action, options) {
         message: '해당 주문을 찾을 수 없습니다.'
       };
     }
+  } else if (action === 'getGuestOrdersToday') {
+    const guestName = options.params?.guestName || '';
+    const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
+    const allMockOrders = [...localOrders, ...MOCK_DATA.getOrdersToday.orders];
+    
+    const todayStr = new Date().toISOString().slice(2, 10).replace(/-/g, '');
+    const matchedOrders = allMockOrders.filter(o => {
+      const isToday = o.timestamp && o.timestamp.slice(2, 10).replace(/-/g, '') === todayStr;
+      const nickname = o.nickname || '';
+      return isToday && nickname.indexOf('(체험)') !== -1 && nickname.indexOf(guestName) !== -1;
+    });
+
+    res = {
+      success: true,
+      orders: matchedOrders
+    };
   } else if (action === 'getOrdersToday') {
     // 로컬 스토리지에 저장된 테스트용 주문 내역이 있으면 그것을 병합
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
@@ -236,16 +253,28 @@ function getMockFallback(action, options) {
     const uniqueMockOrderNos = Array.from(new Set(todayMockOrders.map(o => o.orderNo)));
     const seq = uniqueMockOrderNos.length + 1;
     const generatedOrderNo = `ORD-${todayStr}-${String(seq).padStart(3, '0')}`;
+    let orderToken = '';
+    if (isGuest) {
+      const randVal = Math.floor(1000 + Math.random() * 9000);
+      orderToken = `G-${generatedOrderNo}-${randVal}`;
+    }
+
+    const deliveryType = options.body?.deliveryType || 'pickup';
+    const deliveryFee = Number(options.body?.deliveryFee || 0);
+
     const newOrders = items.map(item => {
       const snack = snacks.find(s => s.snackId === item.snackId) || { name: `간식 ${item.snackId}`, point: 1 };
       return {
         timestamp: timestampStr,
         orderNo: generatedOrderNo,
+        orderToken: orderToken,
         nickname: nickname,
         snackName: snack.name,
         quantity: item.quantity,
         point: snack.point * item.quantity,
-        servedYn: 'N'
+        servedYn: 'N',
+        deliveryType: deliveryType,
+        deliveryFee: deliveryFee
       };
     });
 
@@ -254,7 +283,7 @@ function getMockFallback(action, options) {
     // 주문에 따른 사용자 크레딧 차감 시뮬레이션
     const selectedUser = JSON.parse(localStorage.getItem('selectedUser'));
     if (selectedUser) {
-      const totalCost = newOrders.reduce((sum, o) => sum + o.point, 0);
+      const totalCost = newOrders.reduce((sum, o) => sum + o.point, 0) + deliveryFee;
       selectedUser.credit = Math.max(0, selectedUser.credit - totalCost);
       localStorage.setItem('selectedUser', JSON.stringify(selectedUser));
 
@@ -270,6 +299,7 @@ function getMockFallback(action, options) {
 
     res = JSON.parse(JSON.stringify(MOCK_DATA.placeOrder));
     res.orderNo = generatedOrderNo;
+    res.orderToken = orderToken;
   } else if (action === 'updateOrderServed') {
     const orderId = options.body?.orderId;
     const servedYn = options.body?.servedYn || 'N';

@@ -448,12 +448,19 @@
 
     // 실시간 상태 폴링 함수
     async function pollOrderStatus() {
-      if (!summaryData || !summaryData.orderNo) return;
+      if (!summaryData) return;
+      const orderIdentifier = summaryData.orderToken || summaryData.orderNo;
+      if (!orderIdentifier) return;
       
       try {
-        const response = await fetchAPI('getOrderStatus', {
-          params: { orderNo: summaryData.orderNo }
-        });
+        const params = {};
+        if (summaryData.orderToken) {
+          params.orderToken = summaryData.orderToken;
+        } else {
+          params.orderNo = summaryData.orderNo;
+        }
+
+        const response = await fetchAPI('getOrderStatus', { params });
         if (response && response.success) {
           const currentStatus = response.servedYn || 'N';
           updateTrackingUI(currentStatus, summaryData.nickname);
@@ -470,6 +477,27 @@
       const prevStatus = lastStatus;
       lastStatus = status;
  
+      // localStorage에 있는 guestOrders의 상태 업데이트
+      if (summaryData && summaryData.userId === 'guest' && summaryData.orderNo) {
+        try {
+          const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
+          let updated = false;
+          guestOrders.forEach(o => {
+            if (o.orderNo === summaryData.orderNo) {
+              if (o.status !== status) {
+                o.status = status;
+                updated = true;
+              }
+            }
+          });
+          if (updated) {
+            localStorage.setItem('guestOrders', JSON.stringify(guestOrders));
+          }
+        } catch (e) {
+          console.warn('guestOrders 상태 동기화 실패:', e);
+        }
+      }
+
       const steps = [
         document.getElementById('step-1'),
         document.getElementById('step-2'),

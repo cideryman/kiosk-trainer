@@ -700,8 +700,16 @@
 
             <!-- 대기 중인 주문 카드 목록 -->
             <div style="margin-bottom: 25px;">
-              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 10px;">
                 <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color); margin-bottom: 0;">⏳ 간식 챙겨주기 (제공 대기)</div>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                  <label for="delivery-filter" style="font-size: 15px; font-weight: 800; color: var(--text-muted);">수령방식:</label>
+                  <select id="delivery-filter" onchange="filterDeliveryOrders()" style="padding: 6px 12px; font-size: 15px; font-weight: 700; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;">
+                    <option value="all">전체보기</option>
+                    <option value="pickup">포장만 보기</option>
+                    <option value="delivery">배달만 보기</option>
+                  </select>
+                </div>
               </div>
               <!-- 일괄 처리 컨트롤 바 (대기 주문 있을 때만 표시) -->
               <div class="bulk-action-bar" id="bulk-action-bar" style="display: none;">
@@ -2065,8 +2073,20 @@
 
       // 1. 제공 완료 여부에 따른 목록 분리 (DB에서 받아온 servedYn 값 사용, 취소 'C' 제외)
       const activeOrders = orders.filter(o => o.servedYn !== 'C');
-      const pendingOrders = activeOrders.filter(o => o.servedYn !== 'Y');
-      const completedOrders = activeOrders.filter(o => o.servedYn === 'Y');
+      
+      // 수령방식 필터링 적용
+      const selectEl = document.getElementById('delivery-filter');
+      const filterVal = selectEl ? selectEl.value : 'all';
+      
+      const filteredActive = activeOrders.filter(o => {
+        if (filterVal === 'all') return true;
+        const isGuest = o.userId === 'guest';
+        const type = isGuest ? (o.deliveryType || 'pickup') : 'pickup';
+        return type === filterVal;
+      });
+
+      const pendingOrders = filteredActive.filter(o => o.servedYn !== 'Y');
+      const completedOrders = filteredActive.filter(o => o.servedYn === 'Y');
 
       // 신규 주문 알림 접수 감지 및 재생
       if (previousPendingOrders && previousPendingOrders.length > 0) {
@@ -2117,6 +2137,7 @@
               timestamp: order.timestamp,
               orderNo: order.orderNo,
               servedYn: order.servedYn || 'N',
+              deliveryType: order.deliveryType || 'pickup',
               items: []
             };
           }
@@ -2174,6 +2195,11 @@
             actionBtnHtml = `<button class="btn-complete-action" style="flex: 1; margin-top: 0; background-color: #3A86C8; box-shadow: 0 6px 12px rgba(58, 134, 200, 0.25);" onclick="${callAttr(`updateStatusAction(${orderNoArg}, 'P')`)}">☕ 준비 시작</button>`;
           }
 
+          const isDelivery = group.deliveryType === 'delivery';
+          const deliveryBadgeHtml = isDelivery
+            ? `<span class="status-badge" style="background-color: var(--danger-color); border-color: var(--danger-color); color: white; margin-left: 8px; font-size: 13px; font-weight: 800;">배달</span>`
+            : `<span class="status-badge" style="background-color: var(--secondary-color); border-color: var(--secondary-color); color: white; margin-left: 8px; font-size: 13px; font-weight: 800;">포장</span>`;
+
           const safeOrderNo = attr(group.orderNo);
           const checkboxId = `chk-order-${encodeURIComponent(group.orderNo)}`;
 
@@ -2184,6 +2210,7 @@
             <div class="user-profile-header">
               ${avatarHtml}
               <span class="user-name">${numberPrefix}${safeNickname} 님</span>
+              ${deliveryBadgeHtml}
               <span class="status-badge" style="background-color: ${statusColor}; border-color: ${statusColor}; color: white; margin-left: 8px; font-size: 13px; font-weight: 800;">${statusLabel}</span>
               <span class="order-time-badge">${esc(formatTime(group.timestamp))}</span>
             </div>
@@ -2229,6 +2256,11 @@
           const pointVal = order.point || 0;
           const qtyVal = order.quantity || 0;
 
+          const isDelivery = order.deliveryType === 'delivery';
+          const deliveryBadge = isDelivery
+            ? `<span style="background-color: var(--danger-color); color: white; padding: 2px 6px; font-size: 11px; font-weight: 850; border-radius: 4px; margin-left: 6px;">배달</span>`
+            : `<span style="background-color: var(--secondary-color); color: white; padding: 2px 6px; font-size: 11px; font-weight: 850; border-radius: 4px; margin-left: 6px;">포장</span>`;
+
           const parts = String(order.orderNo || '').split('-');
           let numberPrefix = '';
           if (parts.length >= 3) {
@@ -2239,7 +2271,7 @@
           const orderNoArg = jsString(order.orderNo);
           tr.innerHTML = `
             <td><strong>${esc(formatTime(order.timestamp))}</strong></td>
-            <td>${numberPrefix}${esc(order.nickname)}</td>
+            <td>${numberPrefix}${esc(order.nickname)}${deliveryBadge}</td>
             <td>${esc(order.snackName)}</td>
             <td style="text-align: center; font-weight: 800;">${qtyVal}개</td>
             <td style="text-align: right; font-weight: 800; color: var(--primary-color);">${esc(AppState.formatPoint(pointVal))}</td>
@@ -2255,12 +2287,19 @@
       let totalPoints = 0;
       const snackAggregates = {}; // { snackName: totalQuantity }
       const userAggregates = {}; // { nickname: orderCount }
+      const countedDeliveryFee = {}; // { orderNo: true }
 
       activeOrders.forEach(order => {
         const pointVal = order.point || 0;
         const qtyVal = order.quantity || 0;
         
         totalPoints += pointVal;
+
+        // 배달비 합산 (주문 건당 1회 적용)
+        if (order.deliveryFee && !countedDeliveryFee[order.orderNo]) {
+          totalPoints += Number(order.deliveryFee);
+          countedDeliveryFee[order.orderNo] = true;
+        }
 
         if (order.snackName) {
           snackAggregates[order.snackName] = (snackAggregates[order.snackName] || 0) + qtyVal;
@@ -2301,6 +2340,12 @@
         `;
         userStatsEl.appendChild(item);
       });
+    }
+
+    function filterDeliveryOrders() {
+      if (currentOrders) {
+        renderData(currentOrders);
+      }
     }
 
     function csvCell(value) {

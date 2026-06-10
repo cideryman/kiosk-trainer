@@ -196,6 +196,15 @@
       </div>
 
       <div class="confirm-layout">
+        <!-- 수령 방식 선택 (게스트 전용) -->
+        <div id="delivery-select-box" style="display: none; flex-direction: column; gap: 12px; background-color: var(--card-bg); border: 3px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; box-shadow: var(--shadow-sm); margin-bottom: 10px;">
+          <div style="font-size: 20px; font-weight: 800; color: var(--text-main);">🎁 어떻게 가져갈까요?</div>
+          <div style="display: flex; gap: 12px; margin-top: 4px;">
+            <button class="btn btn-secondary" id="btn-delivery-pickup" style="flex: 1; min-height: 60px; font-size: 20px; box-shadow: none; animation: none;">포장 (0 🪙)</button>
+            <button class="btn btn-gray" id="btn-delivery-deliver" style="flex: 1; min-height: 60px; font-size: 20px; box-shadow: none; animation: none;">배달 (+3 🪙)</button>
+          </div>
+        </div>
+
         <!-- 주문 리스트 영역 -->
         <div class="order-list" id="order-item-list">
           <!-- JS 동적 생성 -->
@@ -218,6 +227,16 @@
               <span class="bill-coin-display highlight" id="use-credit">
                 <span class="coin-icon">🪙</span>
                 <span class="coin-number" id="use-credit-num">0</span>
+              </span>
+            </span>
+          </div>
+          <!-- 배달비 표시 행 (기본 숨김) -->
+          <div class="bill-row" id="delivery-fee-row" style="display: none;">
+            <span>배달비</span>
+            <span class="bill-val highlight" style="color: var(--danger-color);">
+              <span class="bill-coin-display highlight deficit" id="delivery-fee-display" style="border-color: var(--danger-color); background-color: #FFF0F0;">
+                <span class="coin-icon">🪙</span>
+                <span class="coin-number" id="delivery-fee-num">0</span>
               </span>
             </span>
           </div>
@@ -260,14 +279,26 @@
   <script>
     let user = null;
     let cart = [];
+    let deliveryType = 'pickup';
 
     // ── 계산서 업데이트 ──────────────────────────────────────────
     function updateBill() {
-      const totalPoints = cart.reduce((sum, item) => sum + (item.point * item.quantity), 0);
+      const isGuest = (user && user.userId === 'guest');
+      const deliveryFee = (isGuest && deliveryType === 'delivery') ? 3 : 0;
+      const snackPoints = cart.reduce((sum, item) => sum + (item.point * item.quantity), 0);
+      const totalPoints = snackPoints + deliveryFee;
       const remainPoints = user.credit - totalPoints;
 
       // 동전 아이콘 숫자만 업데이트 (HTML 구조는 고정)
-      document.getElementById('use-credit-num').textContent = totalPoints;
+      document.getElementById('use-credit-num').textContent = snackPoints;
+
+      if (isGuest && deliveryType === 'delivery') {
+        document.getElementById('delivery-fee-row').style.display = 'flex';
+        document.getElementById('delivery-fee-num').textContent = 3;
+      } else {
+        document.getElementById('delivery-fee-row').style.display = 'none';
+        document.getElementById('delivery-fee-num').textContent = 0;
+      }
 
       const remainNumEl = document.getElementById('remain-credit-num');
       const remainDisplayEl = document.getElementById('remain-credit');
@@ -280,8 +311,8 @@
         remainDisplayEl.className = 'bill-coin-display deficit';
         submitBtn.disabled = true;
         submitBtn.textContent = '크레딧 부족';
-        errorBox.textContent = (user && user.userId === 'guest')
-          ? '⚠️ 체험용 동전보다 주문 금액이 커서 주문할 수 없습니다.'
+        errorBox.textContent = isGuest
+          ? '⚠️ 체험용 동전(배달비 포함)보다 주문 금액이 커서 주문할 수 없습니다.'
           : '⚠️ 보유한 크레딧보다 주문 금액이 커서 주문할 수 없습니다.';
         errorBox.style.display = 'block';
       } else {
@@ -487,6 +518,29 @@
         if (firstRowSpan) {
           firstRowSpan.textContent = '체험 동전';
         }
+
+        // 게스트일 경우 수령방식 박스 노출 및 바인딩
+        const deliverySelectBox = document.getElementById('delivery-select-box');
+        if (deliverySelectBox) {
+          deliverySelectBox.style.display = 'flex';
+          
+          const btnPickup = document.getElementById('btn-delivery-pickup');
+          const btnDeliver = document.getElementById('btn-delivery-deliver');
+          
+          btnPickup.addEventListener('click', () => {
+            deliveryType = 'pickup';
+            btnPickup.className = 'btn btn-secondary';
+            btnDeliver.className = 'btn btn-gray';
+            updateBill();
+          });
+          
+          btnDeliver.addEventListener('click', () => {
+            deliveryType = 'delivery';
+            btnPickup.className = 'btn btn-gray';
+            btnDeliver.className = 'btn btn-secondary';
+            updateBill();
+          });
+        }
       }
 
       renderOrderList();
@@ -497,7 +551,10 @@
     async function submitOrder() {
       if (cart.length === 0) return;
 
-      const totalPoints  = cart.reduce((sum, i) => sum + i.point * i.quantity, 0);
+      const isGuest = (user.userId === 'guest');
+      const deliveryFee = (isGuest && deliveryType === 'delivery') ? 3 : 0;
+      const snackPoints  = cart.reduce((sum, i) => sum + i.point * i.quantity, 0);
+      const totalPoints = snackPoints + deliveryFee;
       const remainPoints = user.credit - totalPoints;
 
       const loadingOverlay = document.getElementById('loading-overlay');
@@ -515,8 +572,10 @@
         items: cart.map(item => ({ snackId: item.snackId, quantity: item.quantity }))
       };
 
-      if (user.userId === 'guest') {
+      if (isGuest) {
         orderPayload.guestName = user.nickname;
+        orderPayload.deliveryType = deliveryType;
+        orderPayload.deliveryFee = deliveryFee;
       }
 
       try {
@@ -526,14 +585,31 @@
           user.credit = remainPoints;
           AppState.setSelectedUser(user);
 
-          localStorage.setItem('lastOrderSummary', JSON.stringify({
+          const lastOrder = {
             userId:       user.userId,
             nickname:     user.nickname,
             usedPoints:   totalPoints,
             remainPoints: remainPoints,
             orderNo:      response.orderNo || '',
+            orderToken:   response.orderToken || '',
             items:        cart.map(item => ({ name: item.name, quantity: item.quantity }))
-          }));
+          };
+
+          localStorage.setItem('lastOrderSummary', JSON.stringify(lastOrder));
+
+          // 게스트인 경우 guestOrders 배열에 누적 저장
+          if (user.userId === 'guest') {
+            const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
+            guestOrders.push({
+              orderNo: response.orderNo || '',
+              orderToken: response.orderToken || '',
+              guestName: user.nickname,
+              createdAt: new Date().toISOString(),
+              status: 'N',
+              items: cart.map(item => ({ name: item.name, quantity: item.quantity }))
+            });
+            localStorage.setItem('guestOrders', JSON.stringify(guestOrders));
+          }
 
           AppState.clearCart();
           setTimeout(() => { window.location.href = 'complete.html'; }, 500);

@@ -124,7 +124,12 @@ function doGet(e) {
   }
 
   if (action === 'getOrderStatus') {
-    return jsonResponse(getOrderStatus(e.parameter.orderNo));
+    const identifier = e.parameter.orderNo || e.parameter.orderToken;
+    return jsonResponse(getOrderStatus(identifier));
+  }
+
+  if (action === 'getGuestOrdersToday') {
+    return jsonResponse(getGuestOrdersToday(e.parameter.guestName));
   }
 
   return jsonResponse({
@@ -393,12 +398,16 @@ function placeOrder(data) {
       });
     });
 
-    if (currentCredit < totalPoint) {
+    const deliveryType = String(data.deliveryType || 'pickup');
+    const deliveryFee = Number(data.deliveryFee || 0);
+    const totalCredit = totalPoint + deliveryFee;
+
+    if (currentCredit < totalCredit) {
       return {
         success: false,
         message: '크레딧이 부족합니다.',
         currentCredit,
-        totalPoint,
+        totalPoint: totalCredit,
       };
     }
 
@@ -417,6 +426,12 @@ function placeOrder(data) {
     const orderNo = 'ORD-' + todayStr + '-' + String(seq).padStart(3, '0');
     const now = new Date();
 
+    let orderToken = '';
+    if (isGuest) {
+      const randVal = Math.floor(1000 + Math.random() * 9000);
+      orderToken = 'G-' + orderNo + '-' + randVal;
+    }
+
     orderItems.forEach(item => {
       // 주문내역 마지막 열에 제공 여부 기본값 'N' 명시적 입력
       orderSheet.appendRow([
@@ -428,7 +443,12 @@ function placeOrder(data) {
         item.snackName,
         item.quantity,
         item.totalPoint,
-        'N'
+        'N',
+        '', // cancelTimestamp (Column J)
+        orderToken, // orderToken (Column K)
+        deliveryType, // deliveryType (Column L)
+        deliveryFee, // deliveryFee (Column M)
+        totalCredit // totalCredit (Column N)
       ]);
 
       // 간식 재고 차감 반영
@@ -438,7 +458,7 @@ function placeOrder(data) {
     });
 
     // 유저 크레딧 차감 반영
-    let newCredit = currentCredit - totalPoint;
+    let newCredit = currentCredit - totalCredit;
     if (!isGuest) {
       userSheet.getRange(userRowIndex + 1, 3).setValue(newCredit);
     }
@@ -447,8 +467,9 @@ function placeOrder(data) {
       success: true,
       message: '주문이 완료되었습니다.',
       orderNo,
+      orderToken,
       nickname,
-      totalPoint,
+      totalPoint: totalCredit,
       beforeCredit: currentCredit,
       afterCredit: newCredit,
       items: orderItems,
@@ -491,7 +512,11 @@ function getOrdersToday() {
       quantity: Number(row[6]),
       point: Number(row[7]),
       servedYn: row[8] || 'N',
-      cancelTimestamp: row[9] || ''
+      cancelTimestamp: row[9] || '',
+      orderToken: row[10] || '',
+      deliveryType: row[11] || 'pickup',
+      deliveryFee: Number(row[12] || 0),
+      totalCredit: Number(row[13] || 0)
     }));
 
   return {
@@ -503,11 +528,11 @@ function getOrdersToday() {
 /**
  * 8.5. 특정 주문의 진행 상태 단일 조회 API
  */
-function getOrderStatus(orderNo) {
-  if (!orderNo) {
+function getOrderStatus(id) {
+  if (!id) {
     return {
       success: false,
-      message: '주문번호(orderNo)가 누락되었습니다.'
+      message: '주문 식별자(orderNo 또는 orderToken)가 누락되었습니다.'
     };
   }
 
@@ -522,8 +547,10 @@ function getOrderStatus(orderNo) {
   const values = sheet.getDataRange().getValues();
   const rows = values.slice(1);
 
-  // 주문번호가 일치하는 행 필터링
-  const matchedRows = rows.filter(row => String(row[1]) === String(orderNo));
+  // orderNo(index 1) 또는 orderToken(index 10) 필터링
+  const matchedRows = rows.filter(row => {
+    return String(row[1]) === String(id) || (row[10] && String(row[10]) === String(id));
+  });
 
   if (matchedRows.length === 0) {
     return {
@@ -539,9 +566,83 @@ function getOrderStatus(orderNo) {
 
   return {
     success: true,
-    orderNo: orderNo,
+    orderNo: firstRow[1],
+    orderToken: firstRow[10] || '',
     servedYn: servedYn,
-    cancelTimestamp: cancelTimestamp
+    cancelTimestamp: cancelTimestamp,
+    deliveryType: firstRow[11] || 'pickup',
+    deliveryFee: Number(firstRow[12] || 0),
+    totalCredit: Number(firstRow[13] || 0)
+  };
+}
+
+/**
+ * 8.6. 게스트 본인의 오늘 주문 목록만 조회 API (보안을 위해 전체가 아닌 검색어 매칭만 반환)
+ */
+function getGuestOrdersToday(guestName) {
+  if (!guestName) {
+    return {
+      success: false,
+      message: '이름(guestName)이 누락되었습니다.'
+    };
+  }
+
+  const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET.ORDERS);
+  if (!sheet) {
+    return {
+      success: false,
+      message: '주문내역 시트를 찾을 수 없습니다.'
+    };
+  }
+
+  const values = sheet.getDataRange().getValues();
+  const rows = values.slice(1);
+
+  const today = Utilities.formatDate(
+    new Date(),
+    Session.getScriptTimeZone(),
+    'yyyy-MM-dd'
+  );
+
+  const searchName = String(guestName).trim();
+
+  // 오늘이면서 userId가 'guest'이고, 닉네임에 검색어가 포함된 주문 필터링
+  const orders = rows
+    .filter(row => {
+      const orderDate = Utilities.formatDate(
+        new Date(row[0]),
+        Session.getScriptTimeZone(),
+        'yyyy-MM-dd'
+      );
+      if (orderDate !== today) return false;
+
+      const userId = String(row[2]);
+      if (userId !== 'guest') return false;
+
+      const nickname = String(row[3]);
+      // nickname은 "이름 (체험)" 형식임
+      return nickname.indexOf(searchName) !== -1;
+    })
+    .map(row => ({
+      timestamp: row[0],
+      orderNo: row[1],
+      userId: row[2],
+      nickname: row[3],
+      snackId: row[4],
+      snackName: row[5],
+      quantity: Number(row[6]),
+      point: Number(row[7]),
+      servedYn: row[8] || 'N',
+      cancelTimestamp: row[9] || '',
+      orderToken: row[10] || '',
+      deliveryType: row[11] || 'pickup',
+      deliveryFee: Number(row[12] || 0),
+      totalCredit: Number(row[13] || 0)
+    }));
+
+  return {
+    success: true,
+    orders,
   };
 }
 

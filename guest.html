@@ -77,21 +77,41 @@
     </header>
 
     <!-- 바디 -->
-    <main class="kiosk-body" id="main-content" style="justify-content: center;">
-      <div class="guide-text">
-        반갑습니다! 😊<br>
-        체험하실 <span>이름</span>을 적어주세요.
+    <main class="kiosk-body" id="main-content" style="justify-content: center; gap: 24px;">
+      <!-- 선택 화면 -->
+      <div id="view-select" style="display: flex; flex-direction: column; gap: 24px; width: 100%;">
+        <div class="guide-text">
+          방문객 / 체험 모드입니다. 😊<br>
+          <span>원하시는 메뉴</span>를 골라주세요!
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <button class="btn btn-secondary" id="btn-new-order" style="min-height: 84px; font-size: 24px;">
+            🛒 새 주문하기
+          </button>
+          <button class="btn btn-primary" id="btn-check-orders" style="min-height: 84px; font-size: 24px; background-color: var(--primary-color);">
+            🎫 내 주문 확인하기
+          </button>
+        </div>
       </div>
 
-      <div class="guest-input-card">
-        <div class="experience-badge">
-          🎫 가상 크레딧 10개 무료 지급
+      <!-- 이름 입력 화면 (기본 숨김) -->
+      <div id="view-input" style="display: none; flex-direction: column; gap: 20px; width: 100%;">
+        <div class="guide-text">
+          반갑습니다! 😊<br>
+          체험하실 <span>이름</span>을 적어주세요.
         </div>
 
-        <input type="text" id="guest-name-input" class="guest-input" placeholder="예: 홍길동" maxlength="10" autocomplete="off" autofocus>
-        
-        <div style="font-size: 15px; font-weight: 700; color: var(--text-muted); text-align: center; line-height: 1.4; word-break: keep-all;">
-          * 개인정보 수집 및 동의 과정 없이<br>체험을 위해 이름만 잠시 저장합니다.
+        <div class="guest-input-card">
+          <div class="experience-badge">
+            🎫 가상 크레딧 10개 무료 지급
+          </div>
+
+          <input type="text" id="guest-name-input" class="guest-input" placeholder="예: 홍길동" maxlength="10" autocomplete="off">
+          
+          <div style="font-size: 15px; font-weight: 700; color: var(--text-muted); text-align: center; line-height: 1.4; word-break: keep-all;">
+            * 개인정보 수집 및 동의 과정 없이<br>체험을 위해 이름만 잠시 저장합니다.
+          </div>
         </div>
       </div>
     </main>
@@ -99,7 +119,7 @@
     <!-- 푸터 버튼 -->
     <footer class="kiosk-footer" style="display: flex; gap: 12px;">
       <button class="btn btn-gray" id="btn-back" style="flex: 1; min-height: 64px; font-size: 20px;">이전으로</button>
-      <button class="btn btn-secondary" id="btn-start" style="flex: 2; min-height: 64px; font-size: 22px;">체험 시작하기</button>
+      <button class="btn btn-secondary" id="btn-start" style="flex: 2; min-height: 64px; font-size: 22px; display: none;">체험 시작하기</button>
     </footer>
   </div>
 
@@ -111,12 +131,41 @@
       // 혹시 있을 상태 초기화
       AppState.resetAll();
 
+      const viewSelect = document.getElementById('view-select');
+      const viewInput = document.getElementById('view-input');
       const input = document.getElementById('guest-name-input');
+      
+      const btnNewOrder = document.getElementById('btn-new-order');
+      const btnCheckOrders = document.getElementById('btn-check-orders');
       const btnStart = document.getElementById('btn-start');
       const btnBack = document.getElementById('btn-back');
 
-      // 입력란 포커스
-      input.focus();
+      let currentStep = 'select'; // 'select' or 'input'
+
+      function showStep(step) {
+        currentStep = step;
+        if (step === 'select') {
+          viewSelect.style.display = 'flex';
+          viewInput.style.display = 'none';
+          btnStart.style.display = 'none';
+          btnBack.style.flex = '1';
+        } else {
+          viewSelect.style.display = 'none';
+          viewInput.style.display = 'flex';
+          btnStart.style.display = 'flex';
+          btnBack.style.flex = '1';
+          input.focus();
+        }
+      }
+
+      // 이벤트 바인딩
+      AppState.bindCardTap(btnNewOrder, () => {
+        showStep('input');
+      });
+
+      AppState.bindCardTap(btnCheckOrders, () => {
+        window.location.href = 'guest-orders.html';
+      });
 
       // 시작하기 함수
       function startGuestMode() {
@@ -142,7 +191,6 @@
         window.location.href = 'menu.html';
       }
 
-      // 이벤트 바인딩
       AppState.bindCardTap(btnStart, () => {
         startGuestMode();
       });
@@ -155,8 +203,14 @@
       });
 
       AppState.bindCardTap(btnBack, () => {
-        window.location.href = 'index.html';
+        if (currentStep === 'input') {
+          showStep('select');
+        } else {
+          window.location.href = 'index.html';
+        }
       });
+
+      showStep('select');
     });
   </script>
 </body>

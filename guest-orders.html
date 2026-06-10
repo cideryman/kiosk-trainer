@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>간식 키오스크 - 내 주문 확인</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- PWA 설정 -->
+  <link rel="manifest" href="manifest-guest.json">
+  <meta name="theme-color" content="#FF9F1C">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="간식 키오스크">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <style>
+    .section-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 12px;
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .order-card {
+      background-color: var(--card-bg);
+      border: 3px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+
+    .order-card:active {
+      transform: scale(0.97);
+      border-color: var(--primary-color);
+      background-color: #FFFDF9;
+    }
+
+    .order-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+
+    .order-card-time {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .order-card-status {
+      font-size: 16px;
+      font-weight: 850;
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+    }
+
+    .status-n { background-color: #E3F2FD; color: #1E88E5; } /* 접수중 */
+    .status-p { background-color: #FFF3E0; color: #FB8C00; } /* 준비중 */
+    .status-r { background-color: #E0F2F1; color: #00897B; animation: pulseStatus 1.5s infinite alternate; } /* 준비완료 */
+    .status-y { background-color: #F5F5F5; color: #757575; } /* 수령완료 */
+    .status-c { background-color: #FFEBEE; color: #E53935; } /* 취소됨 */
+
+    @keyframes pulseStatus {
+      0% { box-shadow: 0 0 0 rgba(0, 137, 123, 0.2); }
+      100% { box-shadow: 0 0 8px rgba(0, 137, 123, 0.6); }
+    }
+
+    .order-card-body {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .order-card-no {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .order-card-items {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text-main);
+      word-break: keep-all;
+    }
+
+    .order-card-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--secondary-hover);
+    }
+
+    /* 검색 박스 */
+    .search-box {
+      background-color: var(--card-bg);
+      border: 3px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      transition: border-color 0.2s;
+    }
+
+    .search-box:focus-within {
+      border-color: var(--secondary-color);
+    }
+
+    .search-input-wrapper {
+      display: flex;
+      gap: 10px;
+    }
+
+    .search-input {
+      flex: 1;
+      height: 56px;
+      padding: 10px 16px;
+      font-size: 20px;
+      font-weight: 800;
+      border: 3px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      background-color: #F8F9FA;
+      transition: all 0.15s ease-in-out;
+    }
+
+    .search-input:focus {
+      outline: none;
+      background-color: white;
+      border-color: var(--secondary-color);
+    }
+
+    .btn-search {
+      min-height: 56px;
+      font-size: 20px;
+      padding: 0 24px;
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+      font-size: 18px;
+      font-weight: 700;
+      background-color: var(--card-bg);
+      border: 3px dashed var(--border-color);
+      border-radius: var(--radius-md);
+    }
+  </style>
+</head>
+<body>
+  <div class="kiosk-container" id="app-container">
+    <!-- 헤더 -->
+    <header class="kiosk-header">
+      <div class="kiosk-header-top" style="justify-content: center;">
+        <h1 class="kiosk-title" style="font-size: 26px; color: var(--secondary-hover);">📋 내 주문 확인</h1>
+      </div>
+    </header>
+
+    <!-- 바디 -->
+    <main class="kiosk-body" id="main-content">
+      <!-- 로컬 최근 주문 내역 -->
+      <div id="local-orders-section" style="display: none; flex-direction: column; gap: 12px; width: 100%;">
+        <div class="section-title">🕒 최근 이용 내역 (기기 저장)</div>
+        <div id="local-orders-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
+      </div>
+
+      <!-- 이름으로 주문 검색 -->
+      <div class="section-title">🔍 이름으로 오늘 주문 조회</div>
+      <div class="search-box">
+        <div class="search-input-wrapper">
+          <input type="text" id="search-name-input" class="search-input" placeholder="주문 시 입력한 이름" maxlength="10" autocomplete="off">
+          <button class="btn btn-secondary btn-search" id="btn-search-submit">조회</button>
+        </div>
+        <div style="font-size: 14px; font-weight: 700; color: var(--text-muted); text-align: center;">
+          * 오늘 주문한 주문내역을 실시간으로 가져옵니다.
+        </div>
+      </div>
+
+      <!-- 검색 결과 목록 -->
+      <div id="search-results-section" style="display: none; flex-direction: column; gap: 12px; width: 100%; margin-top: 10px;">
+        <div class="section-title">✨ 실시간 검색 결과</div>
+        <div id="search-orders-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
+      </div>
+    </main>
+
+    <!-- 푸터 버튼 -->
+    <footer class="kiosk-footer">
+      <button class="btn btn-gray" id="btn-back" style="min-height: 64px; font-size: 20px;">이전으로</button>
+    </footer>
+
+    <!-- 로딩 오버레이 -->
+    <div class="overlay" id="loading-overlay" style="display: none;">
+      <div class="spinner"></div>
+      <div class="overlay-text">주문 내역을 검색하고 있습니다...</div>
+    </div>
+  </div>
+
+  <!-- 스크립트 참조 -->
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const localSection = document.getElementById('local-orders-section');
+      const localList = document.getElementById('local-orders-list');
+      const searchSection = document.getElementById('search-results-section');
+      const searchList = document.getElementById('search-orders-list');
+      
+      const searchInput = document.getElementById('search-name-input');
+      const btnSearch = document.getElementById('btn-search-submit');
+      const btnBack = document.getElementById('btn-back');
+      const loadingOverlay = document.getElementById('loading-overlay');
+
+      // 1. 로컬 저장 주문 로드
+      function loadLocalOrders() {
+        const localOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
+        if (localOrders.length > 0) {
+          localSection.style.display = 'flex';
+          localList.innerHTML = '';
+          
+          // 최신순 정렬 (역순)
+          const sorted = [...localOrders].reverse();
+          sorted.forEach(order => {
+            localList.appendChild(createOrderCard(order, true));
+          });
+        } else {
+          localSection.style.display = 'none';
+        }
+      }
+
+      // 2. 상태 텍스트 포맷터
+      function getStatusLabel(status) {
+        switch (status) {
+          case 'P': return '준비중 ☕';
+          case 'R': return '준비완료 🔔';
+          case 'Y': return '수령완료 📦';
+          case 'C': return '주문취소 ❌';
+          default: return '접수중 📝';
+        }
+      }
+
+      // 3. 시간 포맷터
+      function formatTime(isoStr) {
+        if (!isoStr) return '';
+        try {
+          const date = new Date(isoStr);
+          const hours = String(date.getHours()).padStart(2, '0');
+          const minutes = String(date.getMinutes()).padStart(2, '0');
+          return `${hours}:${minutes}`;
+        } catch (e) {
+          return '';
+        }
+      }
+
+      // 4. 주문번호 뒷자리 세자리
+      function getShortNo(orderNo) {
+        if (!orderNo) return '-';
+        const parts = orderNo.split('-');
+        if (parts.length >= 3) {
+          return parts[2] + '번';
+        }
+        return orderNo;
+      }
+
+      // 5. 카드 돔 생성
+      function createOrderCard(order, isLocal) {
+        const card = document.createElement('div');
+        card.className = 'order-card';
+        
+        const statusClass = `status-${(order.status || 'N').toLowerCase()}`;
+        const timeStr = formatTime(order.createdAt || order.timestamp);
+        const shortNoStr = getShortNo(order.orderNo);
+        const guestName = order.guestName || (order.nickname ? order.nickname.replace(' (체험)', '') : '게스트');
+        
+        let itemsText = '-';
+        if (order.items && Array.isArray(order.items)) {
+          itemsText = order.items.map(item => `${item.name || item.snackName} ${item.quantity}개`).join(', ');
+        } else if (order.snackName) {
+          itemsText = `${order.snackName} ${order.quantity}개`;
+        }
+
+        card.innerHTML = `
+          <div class="order-card-header">
+            <span class="order-card-time">⏰ ${timeStr}</span>
+            <span class="order-card-status ${statusClass}">${getStatusLabel(order.status || order.servedYn)}</span>
+          </div>
+          <div class="order-card-body">
+            <div class="order-card-no">🎫 주문번호: ${shortNoStr} (${order.orderNo})</div>
+            <div class="order-card-items">${AppState.escapeHtml(itemsText)}</div>
+            <div class="order-card-name">👤 주문자: ${AppState.escapeHtml(guestName)} 님</div>
+          </div>
+        `;
+
+        // 카드 클릭 시 complete.html 연동
+        AppState.bindCardTap(card, () => {
+          // selectedUser 복원
+          AppState.setSelectedUser({
+            userId: 'guest',
+            nickname: guestName,
+            credit: 10
+          });
+
+          // lastOrderSummary 세션 바인딩
+          const usedPoints = order.items 
+            ? order.items.reduce((sum, item) => sum + (item.point || 0) * (item.quantity || 1), 0)
+            : (order.point || 0);
+
+          localStorage.setItem('lastOrderSummary', JSON.stringify({
+            userId: 'guest',
+            nickname: guestName + ' (체험)',
+            usedPoints: usedPoints,
+            remainPoints: 10 - usedPoints,
+            orderNo: order.orderNo,
+            orderToken: order.orderToken,
+            items: order.items || [{ name: order.snackName, quantity: order.quantity }]
+          }));
+
+          AppState.vibrate(60);
+          AppState.playClickSound();
+          window.location.href = 'complete.html';
+        });
+
+        return card;
+      }
+
+      // 6. 이름 검색 실행
+      async function performSearch() {
+        const guestName = searchInput.value.trim();
+        if (!guestName) {
+          alert('검색할 이름을 입력해 주세요!');
+          searchInput.focus();
+          AppState.vibrate([100, 100]);
+          return;
+        }
+
+        loadingOverlay.style.display = 'flex';
+        searchSection.style.display = 'none';
+        searchList.innerHTML = '';
+
+        try {
+          const response = await fetchAPI('getGuestOrdersToday', {
+            params: { guestName }
+          });
+
+          loadingOverlay.style.display = 'none';
+          searchSection.style.display = 'flex';
+
+          if (response && response.success && Array.isArray(response.orders) && response.orders.length > 0) {
+            // 주문번호 별로 그룹화 (동일 주문번호 다중 아이템 병합)
+            const orderGroups = {};
+            response.orders.forEach(o => {
+              if (!orderGroups[o.orderNo]) {
+                orderGroups[o.orderNo] = {
+                  orderNo: o.orderNo,
+                  orderToken: o.orderToken,
+                  nickname: o.nickname,
+                  timestamp: o.timestamp,
+                  status: o.servedYn,
+                  items: []
+                };
+              }
+              orderGroups[o.orderNo].items.push({
+                name: o.snackName,
+                quantity: o.quantity,
+                point: o.point / o.quantity
+              });
+            });
+
+            const mergedOrders = Object.values(orderGroups);
+            mergedOrders.forEach(order => {
+              searchList.appendChild(createOrderCard(order, false));
+            });
+            AppState.vibrate(60);
+          } else {
+            searchList.innerHTML = `<div class="empty-state">오늘 주문한 기록을 찾을 수 없습니다. 😢</div>`;
+            AppState.vibrate([100, 100]);
+          }
+        } catch (error) {
+          console.error('주문 검색 실패:', error);
+          loadingOverlay.style.display = 'none';
+          searchSection.style.display = 'flex';
+          searchList.innerHTML = `<div class="empty-state">네트워크 통신 중 오류가 발생했습니다.</div>`;
+          AppState.vibrate([100, 100]);
+        }
+      }
+
+      // 이벤트 바인딩
+      AppState.bindCardTap(btnSearch, () => {
+        performSearch();
+      });
+
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          performSearch();
+        }
+      });
+
+      AppState.bindCardTap(btnBack, () => {
+        window.location.href = 'guest.html';
+      });
+
+      // 초기 실행
+      loadLocalOrders();
+    });
+  </script>
+</body>
+</html>
