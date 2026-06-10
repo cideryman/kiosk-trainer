@@ -122,7 +122,14 @@ https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ
 - **게스트 모드 페이지 구축 완료** (2026-06-10):
   - 별도 이용자 등록 없이 체험이 가능한 게스트 로그인 페이지(`guest.html`)를 구축하고, 홈 화면 하단에 진입 단추를 추가했습니다.
   - 게스트 주문 시 Apps Script 백엔드(`google-apps-script.md` 참조)에서 실제 이용자 리스트의 크레딧 차감을 건너뛰고 주문내역에만 게스트 닉네임 `이름 (체험)`으로 안전하게 로깅합니다.
-- PWA 캐시 버전: `kiosk-cache-v25`로 갱신 완료.
+- **모드별 독립 PWA 구축 완료** (2026-06-10):
+  - 각 웹 페이지가 개별적인 단독 앱으로 설치 및 식별되도록 4개의 독립 매니페스트(`manifest.json`, `manifest-admin.json`, `manifest-board.json`, `manifest-guest.json`)를 연동하고 `"id"` 속성을 다르게 지정하였습니다.
+  - AI 이미지 생성기를 통해 각 모드의 특성에 맞는 고유 아이콘 4종을 제작해 `icons/`에 배치하고 매칭시켰습니다:
+    - **일반 키오스크 (User)**: `icons/icon-user.png` (초코쿠키 테마)
+    - **관리자 페이지 (Admin)**: `icons/icon-admin.png` (대시보드&설정 테마)
+    - **호출 전광판 (Board)**: `icons/icon-board.png` (호출 모니터 테마)
+    - **게스트 체험 (Guest)**: `icons/icon-guest.png` (체험 패스 테마)
+- PWA 캐시 버전: `kiosk-cache-v26`으로 갱신 완료.
 
 ---
 
@@ -132,4 +139,4 @@ https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ
 
 > **운영 배포 주의사항**: Google Apps Script에 최신 코드(`google-apps-script.md`)를 붙여넣고 **[새 배포]**를 진행해야 게스트 주문 처리 기능 및 기타 신규 기능이 실제 운영 환경에서 작동합니다.
 
-> **PWA 캐시 주의사항**: 동전 아이콘 UI 및 게스트 모드 적용 후 PWA 앱에서 이전 화면이 보일 경우 **강력 새로고침 (Ctrl+Shift+R)** 또는 F12 개발자도구 > 캐시 비우기 및 강력 새로고침을 실행하세요. (`kiosk-cache-v25` 적용됨)
+> **PWA 캐시 주의사항**: 동전 아이콘 UI 및 게스트 모드, 개별 PWA 적용 후 이전 버전 화면이 보일 경우 브라우저 및 설치된 앱의 캐시를 비우거나 **강력 새로고침 (Ctrl+Shift+R)** 또는 F12 개발자도구 > 캐시 비우기 및 강력 새로고침을 실행하세요. (`kiosk-cache-v26` 적용됨)

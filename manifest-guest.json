@@ -1,0 +1,18 @@
+{
+  "id": "kiosk-guest",
+  "name": "간식 키오스크 (체험)",
+  "short_name": "키오스크 체험",
+  "description": "방문자 및 체험 행사를 위한 간식 주문 키오스크",
+  "start_url": "guest.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F8F9FA",
+  "theme_color": "#2EC4B6",
+  "icons": [
+    {
+      "src": "icons/icon-guest.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

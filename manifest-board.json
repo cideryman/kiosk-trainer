@@ -1,0 +1,18 @@
+{
+  "id": "kiosk-board",
+  "name": "간식 호출 전광판",
+  "short_name": "호출 전광판",
+  "description": "실시간 주문 호출 모니터 전광판 화면",
+  "start_url": "board.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F8F9FA",
+  "theme_color": "#2B2D42",
+  "icons": [
+    {
+      "src": "icons/icon-board.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

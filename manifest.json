@@ -1,5 +1,6 @@
 {
-  "name": "주간보호 간식 키오스크",
+  "id": "kiosk-user",
+  "name": "간식 키오스크",
   "short_name": "간식 키오스크",
   "description": "발달장애인을 위한 주간보호 간식 구매 키오스크 시스템",
   "start_url": "index.html",
@@ -9,12 +10,7 @@
   "theme_color": "#FF9F1C",
   "icons": [
     {
-      "src": "icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "icons/icon-512.png",
+      "src": "icons/icon-user.png",
       "sizes": "512x512",
       "type": "image/png"
     }
