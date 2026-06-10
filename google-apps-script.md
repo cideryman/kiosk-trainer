@@ -58,6 +58,9 @@ const SHEET = {
 const USER_IMAGE_FOLDER_ID = '1uykUeSeuwxtJvVVK_J7t-3JHY7yq0q_o';
 const SNACK_IMAGE_FOLDER_ID = '1kUibvC9O7PeOTZ5r7D4EJTVZ8KhCO6ur';
 
+// 게스트 최대 가상 크레딧
+const GUEST_MAX_CREDIT = 10;
+
 // 관리자 화면에서만 사용하는 변경 API 목록입니다.
 const ADMIN_ACTIONS = [
   'updateOrderServed',
@@ -118,6 +121,10 @@ function doGet(e) {
 
   if (action === 'getOrdersToday') {
     return jsonResponse(getOrdersToday());
+  }
+
+  if (action === 'getOrderStatus') {
+    return jsonResponse(getOrderStatus(e.parameter.orderNo));
   }
 
   return jsonResponse({
@@ -325,7 +332,7 @@ function placeOrder(data) {
 
     if (isGuest) {
       nickname = (data.guestName || '게스트') + ' (체험)';
-      currentCredit = 999999; // 가상 무한 크레딧
+      currentCredit = GUEST_MAX_CREDIT;
     } else {
       const users = userSheet.getDataRange().getValues();
       userRowIndex = users.findIndex((row, index) => {
@@ -430,13 +437,10 @@ function placeOrder(data) {
         .setValue(item.afterStock);
     });
 
-    // 유저 크레딧 차감 반영 (게스트 체험이 아닐 때만)
-    let newCredit = currentCredit;
+    // 유저 크레딧 차감 반영
+    let newCredit = currentCredit - totalPoint;
     if (!isGuest) {
-      newCredit = currentCredit - totalPoint;
       userSheet.getRange(userRowIndex + 1, 3).setValue(newCredit);
-    } else {
-      newCredit = 0; // 게스트 체험 완료 후 가상 잔액 0 반환
     }
 
     return {
@@ -445,7 +449,7 @@ function placeOrder(data) {
       orderNo,
       nickname,
       totalPoint,
-      beforeCredit: isGuest ? totalPoint : currentCredit,
+      beforeCredit: currentCredit,
       afterCredit: newCredit,
       items: orderItems,
     };
@@ -493,6 +497,51 @@ function getOrdersToday() {
   return {
     success: true,
     orders,
+  };
+}
+
+/**
+ * 8.5. 특정 주문의 진행 상태 단일 조회 API
+ */
+function getOrderStatus(orderNo) {
+  if (!orderNo) {
+    return {
+      success: false,
+      message: '주문번호(orderNo)가 누락되었습니다.'
+    };
+  }
+
+  const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET.ORDERS);
+  if (!sheet) {
+    return {
+      success: false,
+      message: '주문내역 시트를 찾을 수 없습니다.'
+    };
+  }
+
+  const values = sheet.getDataRange().getValues();
+  const rows = values.slice(1);
+
+  // 주문번호가 일치하는 행 필터링
+  const matchedRows = rows.filter(row => String(row[1]) === String(orderNo));
+
+  if (matchedRows.length === 0) {
+    return {
+      success: false,
+      message: '해당 주문을 찾을 수 없습니다.'
+    };
+  }
+
+  // 첫 번째 항목의 정보 및 상태 반환
+  const firstRow = matchedRows[0];
+  const servedYn = firstRow[8] || 'N';
+  const cancelTimestamp = firstRow[9] || '';
+
+  return {
+    success: true,
+    orderNo: orderNo,
+    servedYn: servedYn,
+    cancelTimestamp: cancelTimestamp
   };
 }
 

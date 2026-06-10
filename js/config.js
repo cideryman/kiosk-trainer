@@ -180,6 +180,24 @@ function getMockFallback(action, options) {
         return active === 'TRUE' || active === '판매' || active === 'Y' || active === 'O' || active === '예';
       });
     }
+  } else if (action === 'getOrderStatus') {
+    const orderNo = options.params?.orderNo;
+    const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
+    const allMockOrders = [...localOrders, ...MOCK_DATA.getOrdersToday.orders];
+    const matched = allMockOrders.find(o => o.orderNo === orderNo);
+    if (matched) {
+      res = {
+        success: true,
+        orderNo: orderNo,
+        servedYn: matched.servedYn || 'N',
+        cancelTimestamp: matched.cancelTimestamp || ''
+      };
+    } else {
+      res = {
+        success: false,
+        message: '해당 주문을 찾을 수 없습니다.'
+      };
+    }
   } else if (action === 'getOrdersToday') {
     // 로컬 스토리지에 저장된 테스트용 주문 내역이 있으면 그것을 병합
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
