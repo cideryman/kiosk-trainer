@@ -316,22 +316,32 @@ function placeOrder(data) {
     const snackSheet = ss.getSheetByName(SHEET.SNACKS);
     const orderSheet = ss.getSheetByName(SHEET.ORDERS);
 
-    const users = userSheet.getDataRange().getValues();
     const snacks = snackSheet.getDataRange().getValues();
 
-    const userRowIndex = users.findIndex((row, index) => {
-      return index > 0 && String(row[0]) === String(userId);
-    });
+    let nickname = '';
+    let currentCredit = 0;
+    let userRowIndex = -1;
+    const isGuest = (String(userId) === 'guest');
 
-    if (userRowIndex === -1) {
-      return {
-        success: false,
-        message: '이용자를 찾을 수 없습니다.',
-      };
+    if (isGuest) {
+      nickname = (data.guestName || '게스트') + ' (체험)';
+      currentCredit = 999999; // 가상 무한 크레딧
+    } else {
+      const users = userSheet.getDataRange().getValues();
+      userRowIndex = users.findIndex((row, index) => {
+        return index > 0 && String(row[0]) === String(userId);
+      });
+
+      if (userRowIndex === -1) {
+        return {
+          success: false,
+          message: '이용자를 찾을 수 없습니다.',
+        };
+      }
+
+      nickname = users[userRowIndex][1];
+      currentCredit = Number(users[userRowIndex][2]);
     }
-
-    const nickname = users[userRowIndex][1];
-    const currentCredit = Number(users[userRowIndex][2]);
 
     let totalPoint = 0;
     const orderItems = [];
@@ -420,9 +430,14 @@ function placeOrder(data) {
         .setValue(item.afterStock);
     });
 
-    // 유저 크레딧 차감 반영
-    const newCredit = currentCredit - totalPoint;
-    userSheet.getRange(userRowIndex + 1, 3).setValue(newCredit);
+    // 유저 크레딧 차감 반영 (게스트 체험이 아닐 때만)
+    let newCredit = currentCredit;
+    if (!isGuest) {
+      newCredit = currentCredit - totalPoint;
+      userSheet.getRange(userRowIndex + 1, 3).setValue(newCredit);
+    } else {
+      newCredit = 0; // 게스트 체험 완료 후 가상 잔액 0 반환
+    }
 
     return {
       success: true,
@@ -430,7 +445,7 @@ function placeOrder(data) {
       orderNo,
       nickname,
       totalPoint,
-      beforeCredit: currentCredit,
+      beforeCredit: isGuest ? totalPoint : currentCredit,
       afterCredit: newCredit,
       items: orderItems,
     };

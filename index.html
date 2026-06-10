@@ -12,6 +12,13 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="간식 키오스크">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <style>
+    @keyframes pulseGlowBanner {
+      0% { transform: scale(1); box-shadow: 0 0 0 rgba(46, 196, 182, 0); }
+      50% { transform: scale(1.015); box-shadow: 0 0 16px rgba(46, 196, 182, 0.4); }
+      100% { transform: scale(1); box-shadow: 0 0 0 rgba(46, 196, 182, 0); }
+    }
+  </style>
 </head>
 <body>
   <div class="kiosk-container" id="app-container">
@@ -20,6 +27,10 @@
       <div class="kiosk-header-top">
         <h1 class="kiosk-title">🍪 주간보호센터 간식가게</h1>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <!-- 호출 전광판 이동 버튼 -->
+          <button onclick="window.open('board.html', '_blank')" style="background-color: var(--secondary-color); color: white; border: none; padding: 6px 12px; font-size: 14px; font-weight: 800; border-radius: var(--radius-sm); cursor: pointer; transition: transform 0.1s; display: flex; align-items: center; gap: 4px; box-shadow: var(--shadow-sm); min-height: 38px;">
+            🖥️ 호출 전광판
+          </button>
           <!-- 주문번호 사용 토글 -->
           <label class="tts-toggle-container" style="cursor: pointer;">
             <span class="tts-switch">
@@ -44,6 +55,11 @@
     <div id="cancellation-banner-container" style="display: none; flex-direction: column; gap: 8px; padding: 12px 20px; background-color: #FFF0F0; border-bottom: 3px solid #FEB2B2; text-align: center;">
     </div>
 
+    <!-- 내 주문 실시간 상태 배너 -->
+    <div id="order-status-banner-container" style="display: none; margin: 0; padding: 16px 20px; text-align: center; border-bottom: 4px solid var(--border-color); background-color: #FFFDF9; border-radius: 0;">
+      <!-- JS로 동적 생성 -->
+    </div>
+
     <!-- 바디 (스크롤 가능 영역) -->
     <main class="kiosk-body" id="main-content">
       <div class="guide-text">
@@ -53,6 +69,13 @@
       <!-- 이용자 목록 그리드 -->
       <div class="grid-container" id="user-grid">
         <!-- JS로 동적 생성 -->
+      </div>
+
+      <!-- 게스트 체험 버튼 -->
+      <div style="margin-top: 24px; display: flex; flex-direction: column;">
+        <button class="btn btn-secondary" id="btn-guest-mode" style="min-height: 64px; font-size: 22px;">
+          🟢 방문객 / 게스트 체험하기
+        </button>
       </div>
     </main>
 
@@ -204,6 +227,10 @@
         if (response && response.success && Array.isArray(response.orders)) {
           const now = new Date();
           const cancelledOrders = response.orders.filter(o => o.servedYn === 'C');
+          
+          // 내 주문 상태 점검 호출
+          checkMyOrderStatus(response.orders);
+
           const dismissedList = JSON.parse(localStorage.getItem('dismissedCancellations') || '[]');
           
           const activeCancellations = [];
@@ -258,6 +285,109 @@
       }
     }
 
+    // 내 실시간 주문 상태 표시 및 음성 호출 기능
+    function checkMyOrderStatus(orders) {
+      const summaryStr = localStorage.getItem('lastOrderSummary');
+      const container = document.getElementById('order-status-banner-container');
+      if (!summaryStr || !container) {
+        if (container) container.style.display = 'none';
+        return;
+      }
+
+      const summary = JSON.parse(summaryStr);
+      if (!summary.orderNo) {
+        container.style.display = 'none';
+        return;
+      }
+
+      // 오늘 내 주문과 일치하는 항목 필터링
+      const myItems = orders.filter(o => o.orderNo === summary.orderNo);
+      if (myItems.length === 0) {
+        container.style.display = 'none';
+        return;
+      }
+
+      const status = myItems[0].servedYn || 'N';
+
+      // 수령완료(Y) 또는 취소(C)인 경우 10초 후에 캐시 비우고 배너 숨김
+      if (status === 'Y' || status === 'C') {
+        if (!window.bannerRemoveTimeout) {
+          window.bannerRemoveTimeout = setTimeout(() => {
+            const currentSummary = localStorage.getItem('lastOrderSummary');
+            if (currentSummary) {
+              const parsed = JSON.parse(currentSummary);
+              if (parsed.orderNo === summary.orderNo) {
+                localStorage.removeItem('lastOrderSummary');
+                container.style.display = 'none';
+              }
+            }
+            window.bannerRemoveTimeout = null;
+          }, 10000);
+        }
+      } else {
+        // 대기중/준비중일 때는 타이머 해제
+        if (window.bannerRemoveTimeout) {
+          clearTimeout(window.bannerRemoveTimeout);
+          window.bannerRemoveTimeout = null;
+        }
+      }
+
+      // 상태별 라벨 및 색상
+      let statusText = '접수중';
+      let statusColor = '#3A86C8'; // blue
+      let styleCss = '';
+      let animeClass = '';
+
+      if (status === 'P') {
+        statusText = '준비중 ☕';
+        statusColor = 'var(--primary-color)'; // orange
+      } else if (status === 'R') {
+        statusText = '준비완료 🔔 (받아가세요!)';
+        statusColor = 'var(--secondary-hover)'; // mint
+        styleCss = 'background-color: #E0F2F1; border-bottom: 4px solid var(--secondary-color); font-size: 22px;';
+        animeClass = 'animation: pulseGlowBanner 1.5s infinite ease-in-out;';
+
+        // 준비완료 첫 감지 시 TTS 안내
+        if (window.lastAnnouncedOrderNo !== summary.orderNo) {
+          window.lastAnnouncedOrderNo = summary.orderNo;
+          AppState.playClickSound();
+          const shortNo = getShortOrderNo(summary.orderNo);
+          AppState.speak(`${summary.nickname} 님, 주문하신 간식이 준비되었습니다. 받아가세요!`);
+          AppState.vibrate([100, 50, 100]);
+        }
+      } else if (status === 'Y') {
+        statusText = '수령완료 📦 맛있게 드세요!';
+        statusColor = 'var(--text-muted)';
+        styleCss = 'background-color: #F8F9FA;';
+      } else if (status === 'C') {
+        statusText = '주문취소 ❌ 환불 처리 완료';
+        statusColor = 'var(--danger-color)';
+        styleCss = 'background-color: #FFF0F0; border-bottom-color: var(--danger-color);';
+      }
+
+      container.style.display = 'block';
+      container.style.cssText = `display: block; padding: 16px 20px; text-align: center; border-bottom: 4px solid ${statusColor}; background-color: #FFFDF9; ${styleCss} ${animeClass}`;
+
+      const shortNo = getShortOrderNo(summary.orderNo);
+      container.innerHTML = `
+        <div style="font-size: 20px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;">
+          <span>✨ 실시간 주문 현황:</span>
+          <span style="color: var(--primary-color); font-size: 24px; font-weight: 900;">[${shortNo}번]</span>
+          <span>현재</span>
+          <span style="color: ${statusColor}; font-size: 24px; font-weight: 950;">${statusText}</span>
+        </div>
+      `;
+    }
+
+    function getShortOrderNo(orderNo) {
+      if (!orderNo) return '-';
+      const parts = orderNo.split('-');
+      if (parts.length >= 3) {
+        return parseInt(parts[2], 10);
+      }
+      return orderNo;
+    }
+
     function renderCancellationBanner(activeCancellations) {
       const banner = document.getElementById('cancellation-banner-container');
       if (!banner) return;
@@ -301,6 +431,15 @@
       AppState.resetAll();
       
       loadUsers();
+
+      // 게스트 버튼 바인딩
+      const guestBtn = document.getElementById('btn-guest-mode');
+      if (guestBtn) {
+        AppState.bindCardTap(guestBtn, () => {
+          AppState.vibrate(50);
+          window.location.href = 'guest.html';
+        });
+      }
 
       // 취소 알림 설정 초기화 및 폴링 시작
       initCancellationAlerts().then(() => {

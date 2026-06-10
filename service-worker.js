@@ -1,10 +1,12 @@
-const CACHE_NAME = 'kiosk-cache-v24';
+const CACHE_NAME = 'kiosk-cache-v25';
 const urlsToCache = [
   'index.html',
   'menu.html',
   'confirm.html',
   'complete.html',
   'admin.html',
+  'guest.html',
+  'board.html',
   'css/style.css',
   'js/app.js',
   'js/config.js',

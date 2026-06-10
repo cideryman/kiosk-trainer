@@ -94,11 +94,20 @@
       
       // 유저 헤더 렌더링
       const badgeContainer = document.getElementById('user-badge-container');
-      badgeContainer.innerHTML = `<span class="user-badge">${AppState.escapeHtml(user.nickname)} 님</span>`;
+      const isGuest = (user.userId === 'guest');
+      badgeContainer.innerHTML = `<span class="user-badge">${AppState.escapeHtml(user.nickname)}${isGuest ? ' (체험)' : ' 님'}</span>`;
       
       // 크레딧 숫자만 업데이트 (HTML 구조는 이미 🪙 아이콘 포함)
       const creditAmount = document.getElementById('user-credit');
       creditAmount.textContent = user.credit ?? 0;
+
+      if (isGuest) {
+        // '내 동전' 라벨을 '체험 동전'으로 변경
+        const creditBadge = document.querySelector('.credit-badge');
+        if (creditBadge) {
+          creditBadge.innerHTML = `체험 동전 <span class="coin-icon">🪙</span><span class="coin-number" id="user-credit">${user.credit ?? 0}</span>`;
+        }
+      }
     }
 
     // 2. 간식 목록 API 조회
@@ -279,13 +288,15 @@
       } else {
         if (cartIndex > -1) {
           cart[cartIndex].quantity = targetQty;
+          cart[cartIndex].stock = snack.stock; // 재고 수량 업데이트
         } else {
           cart.push({
             snackId: snack.snackId,
             name: snack.name,
             point: snack.point,
             imageUrl: snack.imageUrl, // 구글 드라이브 이미지 원본 주소 함께 보관
-            quantity: targetQty
+            quantity: targetQty,
+            stock: snack.stock // 재고 수량 보관
           });
         }
       }
@@ -338,6 +349,11 @@
     // 6. 경고 메시지 토글
     function showCreditWarning() {
       const warningEl = document.getElementById('credit-warning');
+      if (user && user.userId === 'guest') {
+        warningEl.textContent = '⚠️ 체험용 동전이 부족해서 더 담을 수 없어요!';
+      } else {
+        warningEl.textContent = '⚠️ 크레딧이 부족해서 더 담을 수 없어요!';
+      }
       warningEl.style.display = 'block';
       hideStockWarning(); // 재고 경고는 숨김
       

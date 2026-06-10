@@ -191,10 +191,17 @@ function getMockFallback(action, options) {
     // 주문 완료 시 로컬 스토리지에 임시 주문 추가 (관리자 화면에서 확인 가능하게)
     const userId = options.body?.userId || 'unknown';
     const items = options.body?.items || [];
+    const isGuest = (userId === 'guest');
     
     // 사용자 이름 매핑
-    const users = MOCK_DATA.getUsers.users;
-    const user = users.find(u => u.userId === userId) || { nickname: "알수없음" };
+    let nickname = '게스트';
+    if (isGuest) {
+      nickname = (options.body?.guestName || '게스트') + ' (체험)';
+    } else {
+      const users = MOCK_DATA.getUsers.users;
+      const user = users.find(u => u.userId === userId) || { nickname: "알수없음" };
+      nickname = user.nickname;
+    }
     
     // 간식 이름 매핑
     const snacks = MOCK_DATA.getSnacks.snacks;
@@ -216,7 +223,7 @@ function getMockFallback(action, options) {
       return {
         timestamp: timestampStr,
         orderNo: generatedOrderNo,
-        nickname: user.nickname,
+        nickname: nickname,
         snackName: snack.name,
         quantity: item.quantity,
         point: snack.point * item.quantity,
@@ -232,6 +239,15 @@ function getMockFallback(action, options) {
       const totalCost = newOrders.reduce((sum, o) => sum + o.point, 0);
       selectedUser.credit = Math.max(0, selectedUser.credit - totalCost);
       localStorage.setItem('selectedUser', JSON.stringify(selectedUser));
+
+      if (!isGuest) {
+        // 실제 유저인 경우 Mock DB(메모리) 상에서도 차감 반영
+        const users = MOCK_DATA.getUsers.users;
+        const u = users.find(u => u.userId === userId);
+        if (u) {
+          u.credit = Math.max(0, u.credit - totalCost);
+        }
+      }
     }
 
     res = JSON.parse(JSON.stringify(MOCK_DATA.placeOrder));

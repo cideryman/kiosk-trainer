@@ -280,7 +280,9 @@
         remainDisplayEl.className = 'bill-coin-display deficit';
         submitBtn.disabled = true;
         submitBtn.textContent = '크레딧 부족';
-        errorBox.textContent = '⚠️ 보유한 크레딧보다 주문 금액이 커서 주문할 수 없습니다.';
+        errorBox.textContent = (user && user.userId === 'guest')
+          ? '⚠️ 체험용 동전보다 주문 금액이 커서 주문할 수 없습니다.'
+          : '⚠️ 보유한 크레딧보다 주문 금액이 커서 주문할 수 없습니다.';
         errorBox.style.display = 'block';
       } else {
         remainDisplayEl.className = 'bill-coin-display';
@@ -295,6 +297,13 @@
       const idx = cart.findIndex(i => i.snackId == snackId);
       if (idx === -1) return;
 
+      if (delta > 0 && cart[idx].quantity >= (cart[idx].stock ?? 999)) {
+        AppState.vibrate([100, 50, 100]); // 경고성 더블 진동
+        AppState.playWarningSound();
+        alert("재고가 부족하여 더 이상 늘릴 수 없습니다.");
+        return;
+      }
+
       cart[idx].quantity += delta;
 
       if (cart[idx].quantity <= 0) {
@@ -307,6 +316,24 @@
       const subEl = document.querySelector(`[data-sub-snack="${snackId}"]`);
       const unitEl = document.querySelector(`[data-unit-snack="${snackId}"]`);
       if (qtyEl) qtyEl.textContent = cart[idx].quantity;
+      
+      // 플러스 버튼 활성/비활성 상태 갱신
+      const plusBtn = document.querySelector(`#confirm-plus-${snackId}`);
+      if (plusBtn) {
+        const isMaxStock = cart[idx].quantity >= (cart[idx].stock ?? 999);
+        if (isMaxStock) {
+          plusBtn.disabled = true;
+          plusBtn.style.backgroundColor = '#E9ECEF';
+          plusBtn.style.color = '#CED4DA';
+          plusBtn.style.cursor = 'not-allowed';
+        } else {
+          plusBtn.disabled = false;
+          plusBtn.style.backgroundColor = 'var(--primary-color)';
+          plusBtn.style.color = 'white';
+          plusBtn.style.cursor = 'pointer';
+        }
+      }
+
       // 소계: 동전 아이콘 반복 (최대 5개)
       if (subEl) {
         const subTotal = cart[idx].point * cart[idx].quantity;
@@ -402,7 +429,10 @@
             <div class="confirm-qty-row">
               <button class="confirm-btn-qty confirm-btn-minus" id="confirm-minus-${safeSnackId}" aria-label="${safeName} 수량 줄이기">−</button>
               <span class="confirm-qty-val" data-qty-snack="${safeSnackId}">${Number(item.quantity)}</span>
-              <button class="confirm-btn-qty confirm-btn-plus" id="confirm-plus-${safeSnackId}" aria-label="${safeName} 수량 늘리기">+</button>
+              ${(() => {
+                const isMax = item.quantity >= (item.stock ?? 999);
+                return `<button class="confirm-btn-qty confirm-btn-plus" id="confirm-plus-${safeSnackId}" aria-label="${safeName} 수량 늘리기" ${isMax ? 'disabled style="background-color:#E9ECEF;color:#CED4DA;cursor:not-allowed;"' : ''}>+</button>`;
+              })()}
             </div>
             <button class="confirm-btn-delete" id="confirm-del-${safeSnackId}" aria-label="${safeName} 삭제">🗑</button>
           </div>
@@ -445,10 +475,19 @@
         return;
       }
 
+      const isGuest = (user.userId === 'guest');
       document.getElementById('user-badge-container').innerHTML =
-        `<span class="user-badge">${AppState.escapeHtml(user.nickname)} 님</span>`;
+        `<span class="user-badge">${AppState.escapeHtml(user.nickname)}${isGuest ? ' (체험)' : ' 님'}</span>`;
+      
       // 보유 크레딧 숫자만 업데이트 (HTML 구조에 🪙 아이콘 포함)
       document.getElementById('my-credit-num').textContent = user.credit ?? 0;
+
+      if (isGuest) {
+        const firstRowSpan = document.querySelector('.bill-row span');
+        if (firstRowSpan) {
+          firstRowSpan.textContent = '체험 동전';
+        }
+      }
 
       renderOrderList();
       updateBill();
@@ -475,6 +514,10 @@
         userId: user.userId,
         items: cart.map(item => ({ snackId: item.snackId, quantity: item.quantity }))
       };
+
+      if (user.userId === 'guest') {
+        orderPayload.guestName = user.nickname;
+      }
 
       try {
         const response = await fetchAPI('placeOrder', { method: 'POST', body: orderPayload });

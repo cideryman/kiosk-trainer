@@ -647,6 +647,7 @@
       <div class="kiosk-header-top">
         <h1 style="font-size: 26px;">📊 오늘 주문 현황 (관리자)</h1>
         <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+          <button class="btn-small-action" onclick="window.open('board.html', '_blank')" style="min-height: 48px; background-color: #7C3AED; color: white; border: none;">🖥️ 호출 전광판</button>
           <button class="btn-small-action" id="btn-download-csv" style="min-height: 48px;">CSV 다운로드</button>
           <button class="btn-small-action" id="btn-toggle-refresh" style="min-height: 48px;">일시정지</button>
           <button class="btn btn-primary" id="btn-manual-refresh" style="min-height: 48px; font-size: 16px; width: auto; padding: 0 16px; margin: 0;">
@@ -1402,7 +1403,7 @@
       try {
         const res = await fetchAPI('updateOrderServed', {
           method: 'POST',
-          body: withAdminToken({ orderId: orderNo, servedYn: 'N' })
+          body: withAdminToken({ orderId: orderNo, servedYn: 'R' }) // Revert to 'R' (준비완료)
         });
         
         if (res && res.success) {
@@ -1416,6 +1417,28 @@
       } catch (error) {
         console.error("되돌리기 중 오류:", error);
         alert("되돌리기 중 오류가 발생했습니다.");
+      }
+    }
+
+    // 단계별 상태 업그레이드 처리
+    async function updateStatusAction(orderNo, nextStatus) {
+      try {
+        const res = await fetchAPI('updateOrderServed', {
+          method: 'POST',
+          body: withAdminToken({ orderId: orderNo, servedYn: nextStatus })
+        });
+        
+        if (res && res.success) {
+          AppState.vibrate(50);
+          AppState.playClickSound();
+          await loadAdminData(); // 데이터 재로드 및 렌더링
+        } else {
+          clearAdminTokenIfDenied(res);
+          alert("상태 변경에 실패했습니다: " + (res?.message || "오류"));
+        }
+      } catch (error) {
+        console.error("상태 변경 중 오류:", error);
+        alert("상태 변경 중 통신 오류가 발생했습니다.");
       }
     }
 
@@ -2093,6 +2116,7 @@
               nickname: order.nickname,
               timestamp: order.timestamp,
               orderNo: order.orderNo,
+              servedYn: order.servedYn || 'N',
               items: []
             };
           }
@@ -2132,6 +2156,24 @@
             numberPrefix = `<span style="color: var(--primary-color); font-weight: 900; margin-right: 6px;">[${esc(parts[2])}]</span>`;
           }
 
+          const status = group.servedYn || 'N';
+          let statusLabel = '접수중';
+          let statusColor = '#3A86C8'; // blue
+          let actionBtnHtml = '';
+          
+          if (status === 'P') {
+            statusLabel = '준비중';
+            statusColor = 'var(--primary-color)'; // orange
+            actionBtnHtml = `<button class="btn-complete-action" style="flex: 1; margin-top: 0; background-color: var(--primary-color); box-shadow: var(--shadow-btn);" onclick="${callAttr(`updateStatusAction(${orderNoArg}, 'R')`)}">🔔 준비 완료</button>`;
+          } else if (status === 'R') {
+            statusLabel = '준비완료';
+            statusColor = 'var(--secondary-hover)'; // green
+            actionBtnHtml = `<button class="btn-complete-action" style="flex: 1; margin-top: 0; background-color: var(--secondary-color); box-shadow: var(--shadow-btn-sec);" onclick="${callAttr(`updateStatusAction(${orderNoArg}, 'Y')`)}">📦 수령 완료</button>`;
+          } else {
+            // Default: 'N' (접수중)
+            actionBtnHtml = `<button class="btn-complete-action" style="flex: 1; margin-top: 0; background-color: #3A86C8; box-shadow: 0 6px 12px rgba(58, 134, 200, 0.25);" onclick="${callAttr(`updateStatusAction(${orderNoArg}, 'P')`)}">☕ 준비 시작</button>`;
+          }
+
           const safeOrderNo = attr(group.orderNo);
           const checkboxId = `chk-order-${encodeURIComponent(group.orderNo)}`;
 
@@ -2142,6 +2184,7 @@
             <div class="user-profile-header">
               ${avatarHtml}
               <span class="user-name">${numberPrefix}${safeNickname} 님</span>
+              <span class="status-badge" style="background-color: ${statusColor}; border-color: ${statusColor}; color: white; margin-left: 8px; font-size: 13px; font-weight: 800;">${statusLabel}</span>
               <span class="order-time-badge">${esc(formatTime(group.timestamp))}</span>
             </div>
             <ul class="user-order-items">
@@ -2156,7 +2199,7 @@
             </div>
             <div style="display: flex; gap: 8px; margin-top: 8px; width: 100%;">
               <button class="btn-cancel-action" style="flex: 1;" onclick="${callAttr(`cancelOrderAction(${orderNoArg}, ${jsString(nickname)})`)}">주문 취소</button>
-              <button class="btn-complete-action" style="flex: 1; margin-top: 0;" onclick="${callAttr(`completeOrder(${orderNoArg})`)}">제공 완료</button>
+              ${actionBtnHtml}
             </div>
           `;
 
