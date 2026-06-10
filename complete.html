@@ -12,50 +12,284 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="간식 키오스크">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <style>
+    /* 실시간 주문 추적 스텝퍼 스타일 */
+    .tracker-title-box {
+      text-align: center;
+      background-color: var(--card-bg);
+      border: 3px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+      margin-top: 10px;
+    }
+
+    .tracker-order-no {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .tracker-order-no span {
+      font-size: 56px;
+      font-weight: 950;
+      color: var(--primary-color);
+      display: block;
+      margin-top: 4px;
+      line-height: 1.1;
+    }
+
+    .stepper-vertical {
+      display: flex;
+      flex-direction: column;
+      background-color: var(--card-bg);
+      border: 3px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      position: relative;
+      padding-bottom: 28px;
+    }
+
+    .step-item:last-child {
+      padding-bottom: 0;
+    }
+
+    /* 스텝 연결 선 */
+    .step-item::after {
+      content: '';
+      position: absolute;
+      left: 20px;
+      top: 44px;
+      bottom: 0;
+      width: 4px;
+      background-color: var(--border-color);
+      z-index: 1;
+    }
+
+    .step-item:last-child::after {
+      display: none;
+    }
+
+    /* 완료된 단계의 연결선은 민트색 */
+    .step-item.completed::after {
+      background-color: var(--secondary-color);
+    }
+
+    .step-icon-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background-color: #E9ECEF;
+      border: 3px solid #CED4DA;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 20px;
+      color: var(--text-muted);
+      z-index: 2;
+      transition: all 0.3s ease;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .step-item.completed .step-icon-circle {
+      background-color: #E0F2F1;
+      border-color: var(--secondary-color);
+      color: var(--secondary-hover);
+    }
+
+    .step-item.active .step-icon-circle {
+      background-color: #FFF9E6;
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+      box-shadow: 0 0 12px rgba(255, 159, 28, 0.4);
+      transform: scale(1.15);
+      animation: pulseActiveStep 1.5s infinite alternate;
+    }
+
+    @keyframes pulseActiveStep {
+      0% { box-shadow: 0 0 0 rgba(255, 159, 28, 0.2); }
+      100% { box-shadow: 0 0 16px rgba(255, 159, 28, 0.6); }
+    }
+
+    .step-item.active .step-icon-circle span {
+      display: inline-block;
+      animation: bounceEmoji 1s infinite alternate;
+    }
+
+    @keyframes bounceEmoji {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-4px); }
+    }
+
+    .step-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding-top: 4px;
+    }
+
+    .step-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-muted);
+    }
+
+    .step-item.active .step-title {
+      color: var(--text-main);
+      font-size: 20px;
+    }
+
+    .step-item.completed .step-title {
+      color: var(--text-main);
+    }
+
+    .step-desc {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      word-break: keep-all;
+    }
+
+    .step-item.active .step-desc {
+      color: var(--primary-hover);
+    }
+
+    /* 주문 내역 표시 박스 */
+    .tracker-items-box {
+      background-color: #F8FAFC;
+      border: 3px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      font-size: 16px;
+      font-weight: 700;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .tracker-items-title {
+      font-size: 15px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .tracker-items-list {
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+  </style>
 </head>
 <body>
   <div class="kiosk-container" id="app-container">
     <!-- 헤더 -->
     <header class="kiosk-header">
       <div class="kiosk-header-top" style="justify-content: center;">
-        <h1 class="kiosk-title" style="font-size: 28px; text-align: center;">🎉 주문 완료!</h1>
+        <h1 class="kiosk-title" id="page-main-title" style="font-size: 28px; text-align: center;">🎉 주문 완료!</h1>
       </div>
     </header>
 
     <!-- 바디 -->
     <main class="kiosk-body" id="main-content" style="justify-content: center; gap: 30px;">
-      <!-- 체크 이모지 & 축하 메시지 -->
-      <div class="success-check-wrapper">
-        <div class="success-emoji">🍩</div>
-        <div class="success-message" id="complete-title">주문 성공!</div>
+      
+      <!-- 일반 완료 화면 영역 -->
+      <div id="normal-complete-view" style="display: flex; flex-direction: column; gap: 20px; width: 100%;">
+        <!-- 체크 이모지 & 축하 메시지 -->
+        <div class="success-check-wrapper">
+          <div class="success-emoji">🍩</div>
+          <div class="success-message" id="complete-title">주문 성공!</div>
+        </div>
+
+        <!-- 주문번호 표시 영역 (주문번호 사용 시에만 노출) -->
+        <div id="order-number-box" class="bill-box" style="display: none; border-style: solid; border-color: var(--primary-color); background-color: #FFF9E6; align-items: center; justify-content: center; gap: 8px; margin: 10px 0;">
+          <span style="font-size: 20px; font-weight: 700; color: var(--text-muted);">내 주문번호</span>
+          <span class="bill-val success-highlight" id="order-number-val" style="font-size: 56px; font-weight: 950; color: var(--primary-color); line-height: 1.1;">-</span>
+          <span style="font-size: 16px; font-weight: 700; color: var(--text-muted);">번호를 잘 기억해 주세요! 🎫</span>
+        </div>
+
+        <!-- 영수증 요약 박스 -->
+        <div class="bill-box" style="border-style: solid; border-color: var(--secondary-color); background-color: #F4FBF9;">
+          <div class="bill-row">
+            <span>이름</span>
+            <span class="bill-val" id="summary-name" style="font-size: 26px; color: var(--text-main);">-</span>
+          </div>
+          <div class="bill-row">
+            <span>사용한 크레딧</span>
+            <span class="bill-val highlight" id="summary-used" style="color: var(--primary-color); font-size: 26px;">0 크레딧</span>
+          </div>
+          <div class="bill-row total" style="border-top-color: #C2EAE2;">
+            <span>남은 크레딧</span>
+            <span class="bill-val success-highlight" id="summary-remain">0 크레딧</span>
+          </div>
+        </div>
       </div>
 
-      <!-- 주문번호 표시 영역 (주문번호 사용 시에만 노출) -->
-      <div id="order-number-box" class="bill-box" style="display: none; border-style: solid; border-color: var(--primary-color); background-color: #FFF9E6; align-items: center; justify-content: center; gap: 8px; margin: 10px 0;">
-        <span style="font-size: 20px; font-weight: 700; color: var(--text-muted);">내 주문번호</span>
-        <span class="bill-val success-highlight" id="order-number-val" style="font-size: 56px; font-weight: 950; color: var(--primary-color); line-height: 1.1;">-</span>
-        <span style="font-size: 16px; font-weight: 700; color: var(--text-muted);">번호를 잘 기억해 주세요! 🎫</span>
+      <!-- 게스트 실시간 주문 추적 영역 (기본 숨김) -->
+      <div id="guest-tracking-view" style="display: none; flex-direction: column; gap: 20px; width: 100%;">
+        <!-- 상단 주문 상태 카드 -->
+        <div class="tracker-title-box">
+          <div class="tracker-order-no">
+            🎫 내 주문번호
+            <span id="tracker-order-no-val">-</span>
+          </div>
+          <div style="font-size: 20px; font-weight: 850; color: var(--text-main); margin-top: 8px; line-height: 1.4;" id="tracker-nickname-msg">
+            -
+          </div>
+        </div>
+
+        <!-- 실시간 진행 상태 스텝퍼 -->
+        <div class="stepper-vertical">
+          <!-- Step 1 -->
+          <div class="step-item active" id="step-1">
+            <div class="step-icon-circle"><span>📝</span></div>
+            <div class="step-info">
+              <div class="step-title">주문 접수</div>
+              <div class="step-desc" id="step-1-desc">매장에서 주문을 확인했습니다.</div>
+            </div>
+          </div>
+          <!-- Step 2 -->
+          <div class="step-item pending" id="step-2">
+            <div class="step-icon-circle"><span>🍳</span></div>
+            <div class="step-info">
+              <div class="step-title">간식 준비중</div>
+              <div class="step-desc" id="step-2-desc">간식을 맛있게 준비하고 있습니다.</div>
+            </div>
+          </div>
+          <!-- Step 3 -->
+          <div class="step-item pending" id="step-3">
+            <div class="step-icon-circle"><span>🎁</span></div>
+            <div class="step-info">
+              <div class="step-title">준비 완료 (받아가세요!)</div>
+              <div class="step-desc" id="step-3-desc">간식이 준비되었습니다. 받아가세요!</div>
+            </div>
+          </div>
+          <!-- Step 4 -->
+          <div class="step-item pending" id="step-4">
+            <div class="step-icon-circle"><span>😋</span></div>
+            <div class="step-info">
+              <div class="step-title">수령 완료</div>
+              <div class="step-desc" id="step-4-desc">맛있게 드세요! 감사합니다.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 주문 품목 요약 박스 -->
+        <div class="tracker-items-box">
+          <div class="tracker-items-title">🛍️ 주문한 간식</div>
+          <div class="tracker-items-list" id="tracker-items-list-val">
+            -
+          </div>
+        </div>
       </div>
 
-      <!-- 영수증 요약 박스 -->
-      <div class="bill-box" style="border-style: solid; border-color: var(--secondary-color); background-color: #F4FBF9;">
-        <div class="bill-row">
-          <span>이름</span>
-          <span class="bill-val" id="summary-name" style="font-size: 26px; color: var(--text-main);">-</span>
-        </div>
-        <div class="bill-row">
-          <span>사용한 크레딧</span>
-          <span class="bill-val highlight" id="summary-used" style="color: var(--primary-color); font-size: 26px;">0 크레딧</span>
-        </div>
-        <div class="bill-row total" style="border-top-color: #C2EAE2;">
-          <span>남은 크레딧</span>
-          <span class="bill-val success-highlight" id="summary-remain">0 크레딧</span>
-        </div>
-      </div>
-
-      <!-- 안내 타이머 -->
-      <div class="timer-text" id="countdown-text">
-        <span id="timer-sec" style="color: var(--danger-color); font-size: 22px; font-weight: 800;">5</span>초 후에 첫 화면으로 돌아갑니다.
+      <!-- 안내 타이머 (게스트 모드는 취소/완료 시 노출) -->
+      <div class="timer-text" id="countdown-text" style="margin-top: 10px;">
+        <span id="timer-sec" style="color: var(--danger-color); font-size: 24px; font-weight: 850;">5</span>초 후에 첫 화면으로 돌아갑니다.
       </div>
     </main>
 
@@ -71,16 +305,71 @@
   <script>
     let countdownInterval = null;
     let secondsLeft = 5;
+    let pollInterval = null;
+    let lastStatus = null;
+    let summaryData = null;
 
-    // 데이터 바인딩
-    function showSummary() {
-      const summaryData = JSON.parse(localStorage.getItem('lastOrderSummary'));
+    // 띵동 차임벨 효과음 합성 (Web Audio API)
+    function playChimeSound() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // 첫 번째 고음 (솔 - G5 784.00 Hz)
+        const osc1 = audioCtx.createOscillator();
+        const gain1 = audioCtx.createGain();
+        osc1.connect(gain1);
+        gain1.connect(audioCtx.destination);
+        
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(784.00, audioCtx.currentTime);
+        gain1.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain1.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + 0.05);
+        gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+        
+        osc1.start(audioCtx.currentTime);
+        osc1.stop(audioCtx.currentTime + 0.5);
+        
+        // 두 번째 중음 (미 - E5 659.25 Hz)
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.18);
+        gain2.gain.setValueAtTime(0, audioCtx.currentTime + 0.18);
+        gain2.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + 0.23);
+        gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.75);
+        
+        osc2.start(audioCtx.currentTime + 0.18);
+        osc2.stop(audioCtx.currentTime + 0.75);
+      } catch (e) {
+        console.warn('효과음 합성 실패:', e);
+      }
+    }
+
+    // 데이터 바인딩 및 분기 처리
+    function initView() {
+      summaryData = JSON.parse(localStorage.getItem('lastOrderSummary'));
       
       if (!summaryData) {
-        // 비정상 접근 시 메인으로
         goHome();
         return;
       }
+
+      const isGuest = (summaryData.userId === 'guest');
+
+      if (isGuest) {
+        setupGuestMode();
+      } else {
+        setupNormalMode();
+      }
+    }
+
+    // 일반 키오스크 모드 UI 구성
+    function setupNormalMode() {
+      document.getElementById('normal-complete-view').style.display = 'flex';
+      document.getElementById('guest-tracking-view').style.display = 'none';
 
       // 화면 출력
       document.getElementById('complete-title').innerHTML = `<span>${AppState.escapeHtml(summaryData.nickname)}</span> 님<br>주문이 잘 접수되었어요!`;
@@ -88,33 +377,184 @@
       document.getElementById('summary-used').textContent = AppState.formatPoint(summaryData.usedPoints);
       document.getElementById('summary-remain').textContent = AppState.formatPoint(summaryData.remainPoints);
 
-      // 주문번호 활성화 여부 확인 및 UI 노출 / TTS 음성 안내 실행
+      // 주문번호 표시 여부 확인
       const orderNoEnabled = localStorage.getItem('orderNoEnabled') === 'true';
       let ttsText = `${summaryData.nickname} 님, 주문이 완료되었습니다.`;
       
       if (orderNoEnabled && summaryData.orderNo) {
-        const parts = summaryData.orderNo.split('-');
-        if (parts.length >= 3) {
-          const shortNo = parseInt(parts[2], 10);
-          if (!isNaN(shortNo)) {
-            document.getElementById('order-number-box').style.display = 'flex';
-            document.getElementById('order-number-box').style.flexDirection = 'column';
-            document.getElementById('order-number-val').textContent = `${shortNo}번`;
-            ttsText = `주문 완료! ${summaryData.nickname} 님, 주문번호는 ${shortNo}번입니다. 번호를 잘 기억해 주세요.`;
-          }
+        const shortNo = getShortNo(summaryData.orderNo);
+        if (shortNo !== '-') {
+          document.getElementById('order-number-box').style.display = 'flex';
+          document.getElementById('order-number-box').style.flexDirection = 'column';
+          document.getElementById('order-number-val').textContent = `${shortNo}번`;
+          ttsText = `주문 완료! ${summaryData.nickname} 님, 주문번호는 ${shortNo}번입니다. 번호를 잘 기억해 주세요.`;
         }
       }
       
       AppState.speak(ttsText);
-
-      // 모바일 진동 축하 피드백
       AppState.vibrate([100, 50, 100, 50, 200]);
+      
+      // 5초 카운트다운 시작
+      startRedirectTimer(5);
+    }
+
+    // 게스트 모드 실시간 주문 추적 UI 구성
+    function setupGuestMode() {
+      // 제목 변경
+      document.getElementById('page-main-title').textContent = '☕ 실시간 간식 조리 현황';
+      
+      // 타이머 안내 문구 숨기기 (취소/수령 완료 시 다시 노출)
+      document.getElementById('countdown-text').style.display = 'none';
+      
+      document.getElementById('normal-complete-view').style.display = 'none';
+      document.getElementById('guest-tracking-view').style.display = 'flex';
+
+      // 주문번호 바인딩
+      const shortNo = getShortNo(summaryData.orderNo);
+      document.getElementById('tracker-order-no-val').textContent = `${shortNo}번`;
+      
+      // 닉네임 안내문구 바인딩
+      document.getElementById('tracker-nickname-msg').innerHTML = `😊 <span>${AppState.escapeHtml(summaryData.nickname)}</span> 님, 맛있게 조리 중인 간식을 실시간으로 확인해 보세요!`;
+
+      // 주문 간식 내역 바인딩
+      if (summaryData.items && Array.isArray(summaryData.items)) {
+        const itemsStr = summaryData.items.map(item => `${AppState.escapeHtml(item.name)} ${item.quantity}개`).join(', ');
+        document.getElementById('tracker-items-list-val').textContent = itemsStr;
+      } else {
+        document.getElementById('tracker-items-list-val').textContent = '간식 목록을 불러올 수 없습니다.';
+      }
+
+      // 웰컴 TTS 안내
+      AppState.speak(`주문 완료! ${summaryData.nickname} 님, 주문번호는 ${shortNo}번입니다. 실시간으로 주문 진행 상황을 보여드릴게요.`);
+      AppState.vibrate([100, 50, 150]);
+
+      // 실시간 폴링 시작 (4초 간격)
+      pollOrderStatus();
+      pollInterval = setInterval(pollOrderStatus, 4000);
+    }
+
+    // 주문번호에서 뒷자리 세 자리(단축번호) 추출 함수
+    function getShortNo(orderNo) {
+      if (!orderNo) return '-';
+      const parts = orderNo.split('-');
+      if (parts.length >= 3) {
+        const shortNo = parseInt(parts[2], 10);
+        if (!isNaN(shortNo)) {
+          return shortNo;
+        }
+      }
+      return orderNo;
+    }
+
+    // 실시간 상태 폴링 함수
+    async function pollOrderStatus() {
+      if (!summaryData || !summaryData.orderNo) return;
+      
+      try {
+        const response = await fetchAPI('getOrdersToday');
+        if (response && response.success && Array.isArray(response.orders)) {
+          const matched = response.orders.filter(o => o.orderNo === summaryData.orderNo);
+          if (matched.length > 0) {
+            const currentStatus = matched[0].servedYn || 'N';
+            updateTrackingUI(currentStatus, summaryData.nickname);
+          }
+        }
+      } catch (error) {
+        console.warn('[Polling Error] 실시간 주문 폴링 실패:', error);
+      }
+    }
+
+    // 주문 상태에 따라 스텝퍼 UI 업데이트 및 알림
+    function updateTrackingUI(status, nickname) {
+      if (status === lastStatus) return; // 변경될 때만 알림 발생
+      
+      const prevStatus = lastStatus;
+      lastStatus = status;
+
+      const steps = [
+        document.getElementById('step-1'),
+        document.getElementById('step-2'),
+        document.getElementById('step-3'),
+        document.getElementById('step-4')
+      ];
+
+      // 기본값 리셋
+      steps.forEach(el => { el.className = 'step-item pending'; });
+
+      let activeIndex = 0;
+      let ttsText = '';
+      let playSoundFn = null;
+
+      if (status === 'P') { // 준비중
+        activeIndex = 1;
+        ttsText = `${nickname} 님, 주문하신 간식 조리가 시작되었습니다.`;
+        playSoundFn = () => AppState.playClickSound();
+      } else if (status === 'R') { // 준비완료
+        activeIndex = 2;
+        ttsText = `${nickname} 님, 간식이 완성되었습니다! 카운터에서 가져가세요!`;
+        playSoundFn = () => playChimeSound();
+      } else if (status === 'Y') { // 수령완료
+        activeIndex = 3;
+        ttsText = `간식 수령이 완료되었습니다. 맛있게 드세요!`;
+        playSoundFn = () => AppState.playClickSound();
+      } else if (status === 'C') { // 취소됨
+        activeIndex = -1;
+        ttsText = `주문이 취소되었습니다. 불편을 드려 죄송합니다.`;
+        playSoundFn = () => AppState.playWarningSound();
+      } else { // 'N' 접수중
+        activeIndex = 0;
+        ttsText = `주문이 성공적으로 접수되었습니다. 매장 확인 중입니다.`;
+        if (prevStatus !== null) {
+          playSoundFn = () => AppState.playClickSound();
+        }
+      }
+
+      // UI 클래스 적용
+      if (activeIndex >= 0) {
+        for (let i = 0; i <= 3; i++) {
+          if (i < activeIndex) {
+            steps[i].className = 'step-item completed';
+          } else if (i === activeIndex) {
+            steps[i].className = 'step-item active';
+          } else {
+            steps[i].className = 'step-item pending';
+          }
+        }
+      } else if (status === 'C') {
+        // 취소 상태 표기
+        steps.forEach(el => { el.className = 'step-item pending'; });
+        const step1 = document.getElementById('step-1');
+        step1.className = 'step-item active';
+        step1.querySelector('.step-icon-circle span').textContent = '❌';
+        step1.querySelector('.step-title').textContent = '주문 취소됨';
+        step1.querySelector('.step-title').style.color = 'var(--danger-color)';
+        step1.querySelector('.step-desc').textContent = '관리자에 의해 주문이 취소되었습니다.';
+        step1.querySelector('.step-desc').style.color = 'var(--danger-color)';
+      }
+
+      // 실시간 상태 변화 피드백 (최초 렌더링 이후에만 작동)
+      if (prevStatus !== null) {
+        if (playSoundFn) playSoundFn();
+        AppState.speak(ttsText);
+        AppState.vibrate(status === 'R' ? [120, 80, 120] : 60);
+      }
+
+      // 최종 단계(수령완료/취소됨)인 경우 10초 후에 자동 메인화면 리다이렉트
+      if (status === 'Y' || status === 'C') {
+        if (pollInterval) {
+          clearInterval(pollInterval);
+        }
+        startRedirectTimer(10);
+      }
     }
 
     // 메인으로 복귀 처리
     function goHome() {
-      // 타이머 해제
+      // 모든 인터벌 정리
       clearInterval(countdownInterval);
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
       
       // 세션 정리 (마지막 주문 정보 및 유저 초기화)
       localStorage.removeItem('lastOrderSummary');
@@ -124,9 +564,20 @@
       window.location.href = 'index.html';
     }
 
-    // 자동 카운트다운 타이머
-    function startTimer() {
+    // 리다이렉트 타이머 구동
+    function startRedirectTimer(seconds) {
+      clearInterval(countdownInterval); // 이전 타이머 해제
+      secondsLeft = seconds;
+      
+      const countdownTextEl = document.getElementById('countdown-text');
       const timerSecEl = document.getElementById('timer-sec');
+
+      if (countdownTextEl) {
+        countdownTextEl.style.display = 'block';
+      }
+      if (timerSecEl) {
+        timerSecEl.textContent = secondsLeft;
+      }
       
       countdownInterval = setInterval(() => {
         secondsLeft--;
@@ -142,8 +593,7 @@
 
     // 바인딩
     window.addEventListener('DOMContentLoaded', () => {
-      showSummary();
-      startTimer();
+      initView();
 
       // 홈으로 버튼 클릭 시 즉시 복귀
       document.getElementById('btn-home').addEventListener('click', () => {
@@ -153,3 +603,4 @@
   </script>
 </body>
 </html>
+

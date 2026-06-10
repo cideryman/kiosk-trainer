@@ -527,10 +527,12 @@
           AppState.setSelectedUser(user);
 
           localStorage.setItem('lastOrderSummary', JSON.stringify({
+            userId:       user.userId,
             nickname:     user.nickname,
             usedPoints:   totalPoints,
             remainPoints: remainPoints,
-            orderNo:      response.orderNo || ''
+            orderNo:      response.orderNo || '',
+            items:        cart.map(item => ({ name: item.name, quantity: item.quantity }))
           }));
 
           AppState.clearCart();
