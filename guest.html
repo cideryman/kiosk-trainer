@@ -145,11 +145,12 @@
           viewSelect.style.display = 'flex';
           viewInput.style.display = 'none';
           btnStart.style.display = 'none';
-          btnBack.style.flex = '1';
+          btnBack.style.display = 'none'; // select 단계에서는 이전으로 버튼 숨김
         } else {
           viewSelect.style.display = 'none';
           viewInput.style.display = 'flex';
           btnStart.style.display = 'flex';
+          btnBack.style.display = 'flex'; // input 단계에서만 이전으로 버튼 표시
           btnBack.style.flex = '1';
           input.focus();
         }
