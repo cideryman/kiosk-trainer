@@ -209,9 +209,15 @@
           }
         }
       } catch (e) {
-        console.warn('게스트 운영 설정 조회 실패, 기본값 사용:', e);
-        // API 실패 시에도 기존 동작 유지 (열린 상태)
-        isGuestOpen = true;
+        console.warn('게스트 운영 설정 조회 실패:', e);
+        // API 실패 시 운영 보호를 위해 새 주문 차단 (내 주문 확인하기는 가능)
+        isGuestOpen = false;
+        closedNotice.style.display = 'block';
+        closedNoticeText.textContent = '운영 상태를 확인할 수 없어 잠시 주문을 받을 수 없습니다.';
+        btnNewOrder.disabled = true;
+        btnNewOrder.style.opacity = '0.4';
+        btnNewOrder.style.cursor = 'not-allowed';
+        guideText.innerHTML = '방문객 / 체험 모드입니다. 😊<br><span style="color: var(--danger-color); font-size: 18px;">상태 확인이 불가하여 주문이 제한되었습니다.</span>';
       }
 
       // 크레딧 배지 적용

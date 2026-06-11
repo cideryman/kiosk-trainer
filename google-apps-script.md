@@ -1184,10 +1184,28 @@ function getGuestSettings() {
     guestDeliveryFee: 3
   };
 
+  const existingKeys = [];
   values.slice(1).forEach(row => {
     const key = String(row[0]).trim();
-    if (key) settings[key] = row[1];
+    if (key) {
+      settings[key] = row[1];
+      existingKeys.push(key);
+    }
   });
+
+  // 누락된 기본 설정값이 있다면 시트에 자동 추가
+  const defaultSettings = {
+    guestOpen: 'N',
+    guestCloseAt: '',
+    guestBaseCredit: 10,
+    guestDeliveryFee: 3
+  };
+
+  for (const key in defaultSettings) {
+    if (existingKeys.indexOf(key) === -1) {
+      sheet.appendRow([key, defaultSettings[key]]);
+    }
+  }
 
   const now = new Date();
   let isGuestOpenNow = false;

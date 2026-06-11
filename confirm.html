@@ -548,9 +548,8 @@
           const btnPickup = document.getElementById('btn-delivery-pickup');
           const btnDeliver = document.getElementById('btn-delivery-deliver');
           
-          if (typeof GUEST_DELIVERY_FEE !== 'undefined') {
-            btnDeliver.textContent = `배달 (+${GUEST_DELIVERY_FEE} 🪙)`;
-          }
+          const fee = getGuestFee();
+          btnDeliver.textContent = `배달 (+${fee} 🪙)`;
 
           btnPickup.addEventListener('click', () => {
             deliveryType = 'pickup';
