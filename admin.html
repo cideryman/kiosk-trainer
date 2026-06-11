@@ -698,6 +698,26 @@
         </div>
       </div>
 
+      <!-- 게스트 운영 관리 패널 -->
+      <div id="guest-ops-panel" style="margin-bottom: 16px; background-color: var(--card-bg); border: 3px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; box-shadow: var(--shadow-sm);">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 14px;">
+          <div style="font-size: 20px; font-weight: 850; color: var(--text-main);">🎫 게스트 주문 운영</div>
+          <div id="guest-ops-status-badge" style="padding: 6px 14px; border-radius: 999px; font-size: 15px; font-weight: 900; border: 2px solid #CED4DA; background-color: #F8F9FA; color: var(--text-muted);">
+            로딩 중...
+          </div>
+        </div>
+        <div id="guest-ops-info" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; font-size: 16px; font-weight: 700; color: var(--text-muted);">
+          <div>⏰ 마감 예정: <span id="guest-ops-close-time">-</span></div>
+          <div>⏳ 남은 시간: <span id="guest-ops-remaining">-</span></div>
+          <div>🪙 기본 크레딧: <span id="guest-ops-credit">-</span> / 배달비: <span id="guest-ops-fee">-</span></div>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button class="btn-small-action" id="btn-guest-open20" style="flex: 1; min-height: 48px; font-size: 16px; background-color: #38A169; white-space: nowrap;">⏱ 20분 열기</button>
+          <button class="btn-small-action" id="btn-guest-open30" style="flex: 1; min-height: 48px; font-size: 16px; background-color: #2B6CB0; white-space: nowrap;">⏱ 30분 열기</button>
+          <button class="btn-danger-action" id="btn-guest-close" style="flex: 1; min-height: 48px; font-size: 16px; white-space: nowrap;">🛑 지금 마감</button>
+        </div>
+      </div>
+
       <!-- 탭 메뉴 -->
       <div class="admin-tabs">
         <button class="admin-tab-btn active" id="btn-tab-orders" onclick="switchTab('tab-orders')">📋 주문 처리 현황</button>
@@ -1263,6 +1283,9 @@
         } else {
           throw new Error('간식 API 응답 결과가 올바르지 않습니다.');
         }
+
+        // 4. 게스트 운영 설정 갱신
+        loadGuestOpsPanel();
       } catch (error) {
         console.error('관리자 데이터 조회 실패:', error);
         tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 30px; color: var(--danger-color); font-weight: 700;">
@@ -2684,13 +2707,125 @@
     }
 
     // 초기 이벤트 설정
+    // ── 게스트 운영 관리 ────────────────────────────────────────
+    let guestOpsCountdown = null;
+
+    async function loadGuestOpsPanel() {
+      try {
+        const res = await fetchAPI('getGuestSettings');
+        if (res && res.success) {
+          updateGuestOpsUI(res);
+        }
+      } catch (e) {
+        console.warn('게스트 운영 설정 조회 실패:', e);
+      }
+    }
+
+    function updateGuestOpsUI(data) {
+      const badge = document.getElementById('guest-ops-status-badge');
+      const closeTimeEl = document.getElementById('guest-ops-close-time');
+      const remainingEl = document.getElementById('guest-ops-remaining');
+      const creditEl = document.getElementById('guest-ops-credit');
+      const feeEl = document.getElementById('guest-ops-fee');
+
+      creditEl.textContent = `${data.guestBaseCredit ?? '-'}개`;
+      feeEl.textContent = `${data.guestDeliveryFee ?? '-'}개`;
+
+      if (guestOpsCountdown) {
+        clearInterval(guestOpsCountdown);
+        guestOpsCountdown = null;
+      }
+
+      if (data.isGuestOpenNow) {
+        badge.textContent = '🟢 운영중';
+        badge.style.backgroundColor = '#F0FFF4';
+        badge.style.borderColor = '#9AE6B4';
+        badge.style.color = '#22543D';
+
+        if (data.guestCloseAt) {
+          try {
+            const closeDate = new Date(data.guestCloseAt);
+            const h = String(closeDate.getHours()).padStart(2, '0');
+            const m = String(closeDate.getMinutes()).padStart(2, '0');
+            closeTimeEl.textContent = `${h}:${m}`;
+          } catch (e) {
+            closeTimeEl.textContent = '-';
+          }
+        } else {
+          closeTimeEl.textContent = '미설정';
+        }
+
+        if (data.remainingSeconds > 0) {
+          let remaining = data.remainingSeconds;
+          updateGuestOpsTimer(remaining);
+          guestOpsCountdown = setInterval(() => {
+            remaining--;
+            if (remaining <= 0) {
+              clearInterval(guestOpsCountdown);
+              guestOpsCountdown = null;
+              // 자동 마감 전환
+              badge.textContent = '🔴 마감';
+              badge.style.backgroundColor = '#FFF5F5';
+              badge.style.borderColor = '#FEB2B2';
+              badge.style.color = '#9B2C2C';
+              remainingEl.textContent = '종료됨';
+              return;
+            }
+            updateGuestOpsTimer(remaining);
+          }, 1000);
+        } else {
+          remainingEl.textContent = '-';
+        }
+      } else {
+        badge.textContent = '🔴 마감';
+        badge.style.backgroundColor = '#FFF5F5';
+        badge.style.borderColor = '#FEB2B2';
+        badge.style.color = '#9B2C2C';
+        closeTimeEl.textContent = '-';
+        remainingEl.textContent = '-';
+      }
+    }
+
+    function updateGuestOpsTimer(seconds) {
+      const min = Math.floor(seconds / 60);
+      const sec = seconds % 60;
+      document.getElementById('guest-ops-remaining').textContent =
+        `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    }
+
+    async function handleGuestOpsAction(settingsAction) {
+      try {
+        const adminToken = getAdminToken();
+        const res = await fetchAPI('updateGuestSettings', {
+          method: 'POST',
+          body: {
+            settingsAction,
+            adminToken,
+            adminMemo: getAdminMemo()
+          }
+        });
+        if (res && res.success) {
+          alert(res.message || '설정이 변경되었습니다.');
+        } else {
+          clearAdminTokenIfDenied(res);
+          alert(res?.message || '설정 변경에 실패했습니다.');
+        }
+      } catch (e) {
+        alert('설정 변경 중 오류가 발생했습니다.');
+      }
+      // 최신 상태 다시 로드
+      await loadGuestOpsPanel();
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       updateAdminTokenStatus();
       loadAdminData();
+      loadGuestOpsPanel();
 
       // 수동 새로고침 버튼
       document.getElementById('btn-manual-refresh').addEventListener('click', () => {
         loadAdminData();
+        loadGuestOpsPanel();
         AppState.vibrate(50);
       });
 
@@ -2716,6 +2851,19 @@
           renderUsersManagement(currentUsers);
         });
       }
+
+      // 게스트 운영 관리 버튼 바인딩
+      document.getElementById('btn-guest-open20').addEventListener('click', () => {
+        handleGuestOpsAction('open20');
+      });
+      document.getElementById('btn-guest-open30').addEventListener('click', () => {
+        handleGuestOpsAction('open30');
+      });
+      document.getElementById('btn-guest-close').addEventListener('click', () => {
+        if (confirm('게스트 주문을 즉시 마감하시겠습니까?')) {
+          handleGuestOpsAction('closeNow');
+        }
+      });
     });
   </script>
 </body>

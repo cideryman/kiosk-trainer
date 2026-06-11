@@ -52,6 +52,7 @@ const SHEET = {
   USERS: '이용자목록',
   ORDERS: '주문내역',
   LOGS: '관리자로그',
+  SETTINGS: '운영설정',
 };
 
 // Google Drive 폴더 ID 상수 정의
@@ -75,6 +76,7 @@ const ADMIN_ACTIONS = [
   'cancelOrder',
   'updateSnacksOrder',
   'uploadImage',
+  'updateGuestSettings',
 ];
 
 /**
@@ -132,6 +134,10 @@ function doGet(e) {
     return jsonResponse(getGuestOrdersToday(e.parameter.guestName));
   }
 
+  if (action === 'getGuestSettings') {
+    return jsonResponse(getGuestSettings());
+  }
+
   return jsonResponse({
     success: false,
     message: '알 수 없는 요청입니다.',
@@ -179,6 +185,8 @@ function doPost(e) {
     return jsonResponse(updateSnacksOrder(data));
   } else if (action === 'uploadImage') {
     return jsonResponse(uploadImage(data));
+  } else if (action === 'updateGuestSettings') {
+    return jsonResponse(updateGuestSettings(data));
   }
   
   return jsonResponse({
@@ -345,10 +353,19 @@ function placeOrder(data) {
     let currentCredit = 0;
     let userRowIndex = -1;
     const isGuest = (String(userId) === 'guest');
+    let guestFee = 0;
 
     if (isGuest) {
+      const gSettings = getGuestSettings();
+      if (!gSettings.isGuestOpenNow) {
+        return {
+          success: false,
+          message: gSettings.message || '게스트 주문이 마감되었습니다.',
+        };
+      }
       nickname = (data.guestName || '게스트') + ' (체험)';
-      currentCredit = GUEST_MAX_CREDIT;
+      currentCredit = gSettings.guestBaseCredit;
+      guestFee = gSettings.guestDeliveryFee;
     } else {
       const users = userSheet.getDataRange().getValues();
       userRowIndex = users.findIndex((row, index) => {
@@ -410,7 +427,7 @@ function placeOrder(data) {
     });
 
     const deliveryType = String(data.deliveryType || 'pickup');
-    const deliveryFee = Number(data.deliveryFee || 0);
+    const deliveryFee = isGuest && deliveryType === 'delivery' ? guestFee : Number(data.deliveryFee || 0);
     const totalCredit = totalPoint + deliveryFee;
 
     if (currentCredit < totalCredit) {
@@ -1145,6 +1162,131 @@ function uploadImage(data) {
       message: '이미지 업로드 중 오류 발생: ' + error.toString()
     };
   }
+}
+
+/**
+ * 20. 게스트 운영 설정 조회
+ */
+function getGuestSettings() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET.SETTINGS);
+  
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET.SETTINGS);
+    sheet.appendRow(['key', 'value']);
+  }
+
+  const values = sheet.getDataRange().getValues();
+  const settings = {
+    guestOpen: 'N',
+    guestCloseAt: '',
+    guestBaseCredit: 10,
+    guestDeliveryFee: 3
+  };
+
+  values.slice(1).forEach(row => {
+    const key = String(row[0]).trim();
+    if (key) settings[key] = row[1];
+  });
+
+  const now = new Date();
+  let isGuestOpenNow = false;
+  let remainingSeconds = 0;
+  let message = '';
+
+  if (settings.guestOpen === 'Y') {
+    if (settings.guestCloseAt) {
+      const closeAt = new Date(settings.guestCloseAt);
+      const diff = Math.floor((closeAt.getTime() - now.getTime()) / 1000);
+      if (diff > 0) {
+        isGuestOpenNow = true;
+        remainingSeconds = diff;
+        message = '게스트 주문이 운영 중입니다.';
+      } else {
+        isGuestOpenNow = false;
+        message = '게스트 주문 운영 시간이 종료되었습니다.';
+      }
+    } else {
+      isGuestOpenNow = true;
+      message = '게스트 주문이 운영 중입니다 (종료시각 미설정).';
+    }
+  } else {
+    isGuestOpenNow = false;
+    message = '게스트 주문이 마감되었습니다.';
+  }
+
+  return {
+    success: true,
+    guestOpen: settings.guestOpen,
+    guestCloseAt: settings.guestCloseAt,
+    guestBaseCredit: Number(settings.guestBaseCredit || 10),
+    guestDeliveryFee: Number(settings.guestDeliveryFee || 3),
+    isGuestOpenNow,
+    remainingSeconds,
+    message
+  };
+}
+
+/**
+ * 21. 게스트 운영 설정 변경
+ */
+function updateGuestSettings(data) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET.SETTINGS);
+  
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET.SETTINGS);
+    sheet.appendRow(['key', 'value']);
+  }
+
+  const action = data.settingsAction;
+  const now = new Date();
+  let guestOpen = 'N';
+  let guestCloseAt = '';
+  let logBefore = 'N';
+  let logAfter = 'N';
+
+  if (action === 'open20') {
+    guestOpen = 'Y';
+    guestCloseAt = new Date(now.getTime() + 20 * 60 * 1000).toISOString();
+    logAfter = 'Y (20분)';
+  } else if (action === 'open30') {
+    guestOpen = 'Y';
+    guestCloseAt = new Date(now.getTime() + 30 * 60 * 1000).toISOString();
+    logAfter = 'Y (30분)';
+  } else if (action === 'closeNow') {
+    guestOpen = 'N';
+    logBefore = 'Y';
+    logAfter = 'N (즉시 마감)';
+  } else {
+    return { success: false, message: '알 수 없는 설정 변경 요청입니다.' };
+  }
+
+  const values = sheet.getDataRange().getValues();
+  let rowOpen = -1;
+  let rowCloseAt = -1;
+
+  for (let i = 1; i < values.length; i++) {
+    const key = String(values[i][0]).trim();
+    if (key === 'guestOpen') rowOpen = i + 1;
+    if (key === 'guestCloseAt') rowCloseAt = i + 1;
+  }
+
+  if (rowOpen > 0) {
+    sheet.getRange(rowOpen, 2).setValue(guestOpen);
+  } else {
+    sheet.appendRow(['guestOpen', guestOpen]);
+  }
+
+  if (rowCloseAt > 0) {
+    sheet.getRange(rowCloseAt, 2).setValue(guestCloseAt);
+  } else {
+    sheet.appendRow(['guestCloseAt', guestCloseAt]);
+  }
+
+  appendAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', logBefore, logAfter, data.adminMemo);
+
+  return { success: true, message: '게스트 운영 설정이 변경되었습니다.' };
 }
 
 ```

@@ -77,7 +77,19 @@
       </div>
       <!-- 선택 화면 -->
       <div id="view-select" style="display: flex; flex-direction: column; gap: 24px; width: 100%;">
-        <div class="guide-text">
+        <!-- 마감 안내 (기본 숨김) -->
+        <div id="guest-closed-notice" style="display: none; text-align: center; padding: 28px 20px; background-color: #FFF5F5; border: 3px solid #FEB2B2; border-radius: var(--radius-md); box-shadow: var(--shadow-sm);">
+          <div style="font-size: 48px; margin-bottom: 8px;">🔒</div>
+          <div style="font-size: 22px; font-weight: 850; color: #9B2C2C; line-height: 1.4; word-break: keep-all;" id="closed-notice-text">게스트 주문이 마감되었습니다.</div>
+          <div style="font-size: 16px; font-weight: 700; color: var(--text-muted); margin-top: 8px;">아래 버튼으로 기존 주문을 확인할 수 있습니다.</div>
+        </div>
+
+        <!-- 남은 시간 표시 (기본 숨김) -->
+        <div id="guest-remaining-time" style="display: none; text-align: center; padding: 12px 16px; background-color: #E0F2F1; border: 2px solid #80CBC4; border-radius: var(--radius-sm); font-size: 18px; font-weight: 800; color: #00796B;">
+          ⏰ 남은 시간: <span id="remaining-timer">--:--</span>
+        </div>
+
+        <div class="guide-text" id="guide-text-main">
           방문객 / 체험 모드입니다. 😊<br>
           <span>원하시는 메뉴</span>를 골라주세요!
         </div>
@@ -124,7 +136,7 @@
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>
   <script>
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
       // 혹시 있을 상태 초기화
       AppState.resetAll();
 
@@ -137,13 +149,81 @@
       const btnStart = document.getElementById('btn-start');
       const btnBack = document.getElementById('btn-back');
 
-      // 상수 적용
+      const closedNotice = document.getElementById('guest-closed-notice');
+      const closedNoticeText = document.getElementById('closed-notice-text');
+      const remainingTimeBox = document.getElementById('guest-remaining-time');
+      const remainingTimerSpan = document.getElementById('remaining-timer');
+      const guideText = document.getElementById('guide-text-main');
       const guestCreditBadge = document.getElementById('guest-credit-badge');
-      if (guestCreditBadge && typeof GUEST_DEFAULT_CREDIT !== 'undefined') {
-        guestCreditBadge.textContent = `🎫 가상 크레딧 ${GUEST_DEFAULT_CREDIT}개 무료 지급`;
-      }
 
       let currentStep = 'select'; // 'select' or 'input'
+      let guestBaseCredit = GUEST_DEFAULT_CREDIT;
+      let guestDeliveryFee = GUEST_DELIVERY_FEE;
+      let remainingCountdown = null;
+      let isGuestOpen = false;
+
+      // 운영 상태 확인
+      try {
+        const settingsRes = await fetchAPI('getGuestSettings');
+        if (settingsRes && settingsRes.success) {
+          isGuestOpen = settingsRes.isGuestOpenNow;
+          guestBaseCredit = settingsRes.guestBaseCredit ?? GUEST_DEFAULT_CREDIT;
+          guestDeliveryFee = settingsRes.guestDeliveryFee ?? GUEST_DELIVERY_FEE;
+
+          // sessionStorage에 설정값 캐시 (다음 화면에서 사용)
+          sessionStorage.setItem('guestBaseCredit', String(guestBaseCredit));
+          sessionStorage.setItem('guestDeliveryFee', String(guestDeliveryFee));
+
+          if (!isGuestOpen) {
+            // 마감 상태
+            closedNotice.style.display = 'block';
+            closedNoticeText.textContent = settingsRes.message || '게스트 주문이 마감되었습니다.';
+            btnNewOrder.disabled = true;
+            btnNewOrder.style.opacity = '0.4';
+            btnNewOrder.style.cursor = 'not-allowed';
+            guideText.innerHTML = '방문객 / 체험 모드입니다. 😊<br><span style="color: var(--danger-color); font-size: 18px;">현재 주문이 마감된 상태입니다.</span>';
+          } else {
+            // 운영 중 - 남은 시간 표시
+            if (settingsRes.remainingSeconds > 0) {
+              remainingTimeBox.style.display = 'block';
+              let remaining = settingsRes.remainingSeconds;
+              updateTimerDisplay(remaining);
+              remainingCountdown = setInterval(() => {
+                remaining--;
+                if (remaining <= 0) {
+                  clearInterval(remainingCountdown);
+                  // 시간 만료 - 마감 상태로 전환
+                  isGuestOpen = false;
+                  remainingTimeBox.style.display = 'none';
+                  closedNotice.style.display = 'block';
+                  closedNoticeText.textContent = '게스트 주문 운영 시간이 종료되었습니다.';
+                  btnNewOrder.disabled = true;
+                  btnNewOrder.style.opacity = '0.4';
+                  btnNewOrder.style.cursor = 'not-allowed';
+                  guideText.innerHTML = '방문객 / 체험 모드입니다. 😊<br><span style="color: var(--danger-color); font-size: 18px;">현재 주문이 마감된 상태입니다.</span>';
+                  return;
+                }
+                updateTimerDisplay(remaining);
+              }, 1000);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('게스트 운영 설정 조회 실패, 기본값 사용:', e);
+        // API 실패 시에도 기존 동작 유지 (열린 상태)
+        isGuestOpen = true;
+      }
+
+      // 크레딧 배지 적용
+      if (guestCreditBadge) {
+        guestCreditBadge.textContent = `🎫 가상 크레딧 ${guestBaseCredit}개 무료 지급`;
+      }
+
+      function updateTimerDisplay(seconds) {
+        const min = Math.floor(seconds / 60);
+        const sec = seconds % 60;
+        remainingTimerSpan.textContent = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+      }
 
       function showStep(step) {
         currentStep = step;
@@ -151,12 +231,12 @@
           viewSelect.style.display = 'flex';
           viewInput.style.display = 'none';
           btnStart.style.display = 'none';
-          btnBack.style.display = 'none'; // select 단계에서는 이전으로 버튼 숨김
+          btnBack.style.display = 'none';
         } else {
           viewSelect.style.display = 'none';
           viewInput.style.display = 'flex';
           btnStart.style.display = 'flex';
-          btnBack.style.display = 'flex'; // input 단계에서만 이전으로 버튼 표시
+          btnBack.style.display = 'flex';
           btnBack.style.flex = '1';
           input.focus();
         }
@@ -164,6 +244,10 @@
 
       // 이벤트 바인딩
       AppState.bindCardTap(btnNewOrder, () => {
+        if (!isGuestOpen) {
+          AppState.vibrate([100, 100]);
+          return;
+        }
         showStep('input');
       });
 
@@ -173,6 +257,10 @@
 
       // 시작하기 함수
       function startGuestMode() {
+        if (!isGuestOpen) {
+          alert('게스트 주문이 마감된 상태입니다.');
+          return;
+        }
         const guestName = input.value.trim();
         if (!guestName) {
           alert('이름을 입력해 주세요!');
@@ -182,11 +270,10 @@
         }
 
         // 게스트 임시 사용자 저장
-        const creditAmount = typeof GUEST_DEFAULT_CREDIT !== 'undefined' ? GUEST_DEFAULT_CREDIT : 10;
         AppState.setSelectedUser({
           userId: 'guest',
           nickname: guestName,
-          credit: creditAmount
+          credit: guestBaseCredit
         });
 
         AppState.vibrate(60);

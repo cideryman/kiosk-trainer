@@ -215,6 +215,64 @@ function getMockFallback(action, options) {
         });
       }
     }
+  } else if (action === 'getGuestSettings') {
+    const settings = getMockGuestSettings();
+    const now = new Date();
+    let isGuestOpenNow = false;
+    let remainingSeconds = 0;
+    let message = '';
+
+    if (settings.guestOpen === 'Y') {
+      if (settings.guestCloseAt) {
+        const closeAt = new Date(settings.guestCloseAt);
+        const diff = Math.floor((closeAt.getTime() - now.getTime()) / 1000);
+        if (diff > 0) {
+          isGuestOpenNow = true;
+          remainingSeconds = diff;
+          message = '게스트 주문이 운영 중입니다.';
+        } else {
+          isGuestOpenNow = false;
+          message = '게스트 주문 운영 시간이 종료되었습니다.';
+        }
+      } else {
+        isGuestOpenNow = true;
+        message = '게스트 주문이 운영 중입니다 (종료시각 미설정).';
+      }
+    } else {
+      isGuestOpenNow = false;
+      message = '게스트 주문이 마감되었습니다.';
+    }
+
+    res = {
+      success: true,
+      guestOpen: settings.guestOpen,
+      guestCloseAt: settings.guestCloseAt,
+      guestBaseCredit: settings.guestBaseCredit,
+      guestDeliveryFee: settings.guestDeliveryFee,
+      isGuestOpenNow,
+      remainingSeconds,
+      message
+    };
+  } else if (action === 'updateGuestSettings') {
+    const settingsAction = options.body?.settingsAction;
+    const settings = getMockGuestSettings();
+    const now = new Date();
+
+    if (settingsAction === 'open20') {
+      settings.guestOpen = 'Y';
+      settings.guestCloseAt = new Date(now.getTime() + 20 * 60 * 1000).toISOString();
+      appendMockAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', 'N', 'Y (20분)', options.body?.adminMemo);
+    } else if (settingsAction === 'open30') {
+      settings.guestOpen = 'Y';
+      settings.guestCloseAt = new Date(now.getTime() + 30 * 60 * 1000).toISOString();
+      appendMockAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', 'N', 'Y (30분)', options.body?.adminMemo);
+    } else if (settingsAction === 'closeNow') {
+      settings.guestOpen = 'N';
+      appendMockAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', 'Y', 'N (즉시 마감)', options.body?.adminMemo);
+    }
+
+    saveMockGuestSettings(settings);
+    res = { success: true, message: '게스트 운영 설정이 변경되었습니다.' };
   } else if (action === 'getOrderStatus') {
     const identifier = options.params?.orderNo || options.params?.orderToken;
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
@@ -262,6 +320,20 @@ function getMockFallback(action, options) {
     const userId = options.body?.userId || 'unknown';
     const items = options.body?.items || [];
     const isGuest = (userId === 'guest');
+
+    // 게스트 주문 시 운영 상태 검증
+    if (isGuest) {
+      const gSettings = getMockGuestSettings();
+      if (gSettings.guestOpen !== 'Y') {
+        return { success: false, message: '게스트 주문이 마감되었습니다.' };
+      }
+      if (gSettings.guestCloseAt) {
+        const closeAt = new Date(gSettings.guestCloseAt);
+        if (new Date() >= closeAt) {
+          return { success: false, message: '게스트 주문 운영 시간이 종료되었습니다.' };
+        }
+      }
+    }
     
     // 사용자 이름 매핑
     let nickname = '게스트';
@@ -295,7 +367,14 @@ function getMockFallback(action, options) {
     }
 
     const deliveryType = options.body?.deliveryType || 'pickup';
-    const deliveryFee = Number(options.body?.deliveryFee || 0);
+    // 게스트 배달비는 서버 설정값 기준으로 재계산
+    let deliveryFee = 0;
+    if (isGuest && deliveryType === 'delivery') {
+      const gSettings = getMockGuestSettings();
+      deliveryFee = gSettings.guestDeliveryFee;
+    } else {
+      deliveryFee = Number(options.body?.deliveryFee || 0);
+    }
 
     const newOrders = items.map(item => {
       const snack = snacks.find(s => s.snackId === item.snackId) || { name: `간식 ${item.snackId}`, point: 1 };
@@ -630,6 +709,24 @@ function getMockFallback(action, options) {
   }
 
   return res;
+}
+
+function getMockGuestSettings() {
+  try {
+    const cached = localStorage.getItem('mockGuestSettings');
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+  // 기본값 반환 (마감 상태)
+  return {
+    guestOpen: 'N',
+    guestCloseAt: '',
+    guestBaseCredit: GUEST_DEFAULT_CREDIT,
+    guestDeliveryFee: GUEST_DELIVERY_FEE
+  };
+}
+
+function saveMockGuestSettings(settings) {
+  localStorage.setItem('mockGuestSettings', JSON.stringify(settings));
 }
 
 function appendMockAdminLog(action, targetType, targetId, targetName, beforeValue, afterValue, memo) {

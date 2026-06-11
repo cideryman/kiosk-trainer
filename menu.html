@@ -99,6 +99,14 @@
       
       // 크레딧 숫자만 업데이트 (HTML 구조는 이미 🪙 아이콘 포함)
       const creditAmount = document.getElementById('user-credit');
+      // 게스트 모드일 경우 sessionStorage에서 서버 설정값 적용
+      if (user.userId === 'guest') {
+        const serverCredit = Number(sessionStorage.getItem('guestBaseCredit')) || user.credit;
+        if (serverCredit !== user.credit) {
+          user.credit = serverCredit;
+          AppState.setSelectedUser(user);
+        }
+      }
       creditAmount.textContent = user.credit ?? 0;
 
       if (isGuest) {

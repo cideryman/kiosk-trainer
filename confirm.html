@@ -281,10 +281,15 @@
     let cart = [];
     let deliveryType = 'pickup';
 
+    // sessionStorage에서 서버 설정값 읽기 (폴백: config.js 상수)
+    function getGuestFee() {
+      return Number(sessionStorage.getItem('guestDeliveryFee')) || GUEST_DELIVERY_FEE;
+    }
+
     // ── 계산서 업데이트 ──────────────────────────────────────────
     function updateBill() {
       const isGuest = (user && user.userId === 'guest');
-      const fee = typeof GUEST_DELIVERY_FEE !== 'undefined' ? GUEST_DELIVERY_FEE : 3;
+      const fee = getGuestFee();
       const deliveryFee = (isGuest && deliveryType === 'delivery') ? fee : 0;
       const snackPoints = cart.reduce((sum, item) => sum + (item.point * item.quantity), 0);
       const totalPoints = snackPoints + deliveryFee;
@@ -519,6 +524,14 @@
         `<span class="user-badge">${AppState.escapeHtml(user.nickname)}${isGuest ? ' (체험)' : ' 님'}</span>`;
       
       // 보유 크레딧 숫자만 업데이트 (HTML 구조에 🪙 아이콘 포함)
+      // 게스트일 경우 sessionStorage에서 서버 설정값 적용
+      if (isGuest) {
+        const serverCredit = Number(sessionStorage.getItem('guestBaseCredit'));
+        if (serverCredit && serverCredit !== user.credit) {
+          user.credit = serverCredit;
+          AppState.setSelectedUser(user);
+        }
+      }
       document.getElementById('my-credit-num').textContent = user.credit ?? 0;
 
       if (isGuest) {
@@ -564,7 +577,7 @@
       if (cart.length === 0) return;
 
       const isGuest = (user.userId === 'guest');
-      const fee = typeof GUEST_DELIVERY_FEE !== 'undefined' ? GUEST_DELIVERY_FEE : 3;
+      const fee = getGuestFee();
       const deliveryFee = (isGuest && deliveryType === 'delivery') ? fee : 0;
       const snackPoints  = cart.reduce((sum, i) => sum + i.point * i.quantity, 0);
       const totalPoints = snackPoints + deliveryFee;
