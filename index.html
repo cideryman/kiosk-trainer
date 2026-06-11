@@ -24,19 +24,13 @@
   <div class="kiosk-container" id="app-container">
     <!-- 헤더 -->
     <header class="kiosk-header">
-      <div class="kiosk-header-top" style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;">
-        <!-- 왼쪽 여백(균형용) -->
-        <div></div>
-        <!-- 중앙 로고 -->
+      <div class="kiosk-header-top" style="display: flex; justify-content: space-between; align-items: center;">
+        <!-- 로고 -->
         <h1 class="kiosk-title" style="padding: 0; line-height: 1; margin: 0;">
           <img src="assets/store-logo.png" alt="주간매점" style="height: 64px; width: auto; display: block; object-fit: contain;">
         </h1>
-        <!-- 우측 컨트롤 버튼들 -->
+        <!-- 우측 토글 버튼들 -->
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; justify-content: flex-end;">
-          <!-- 호출 전광판 이동 버튼 -->
-          <button onclick="window.open('board.html', '_blank')" style="background-color: var(--secondary-color); color: white; border: none; padding: 6px 12px; font-size: 14px; font-weight: 800; border-radius: var(--radius-sm); cursor: pointer; transition: transform 0.1s; display: flex; align-items: center; gap: 4px; box-shadow: var(--shadow-sm); min-height: 38px; white-space: nowrap;">
-            🖥️ 호출 전광판
-          </button>
           <!-- 주문번호 사용 토글 -->
           <label class="tts-toggle-container" style="cursor: pointer; white-space: nowrap;">
             <span class="tts-switch">
@@ -85,6 +79,17 @@
         </button>
       </div>
     </main>
+
+    <!-- 하단 전광판 버튼 -->
+    <footer class="kiosk-footer" style="padding: 16px 20px;">
+      <button
+        id="btn-board"
+        onclick="window.open('board.html', '_blank')"
+        style="width: 100%; min-height: 56px; background-color: var(--secondary-color); color: white; border: none; border-radius: var(--radius-md); font-size: 20px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: var(--shadow-btn-sec); transition: all 0.15s ease-in-out;"
+      >
+        🖥️ 호출 전광판 열기
+      </button>
+    </footer>
 
     <!-- 로딩 오버레이 -->
     <div class="overlay" id="loading-overlay">
