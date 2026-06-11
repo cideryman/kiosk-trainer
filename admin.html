@@ -214,6 +214,24 @@
       border-color: #FBD38D;
     }
 
+    .status-badge.target-user {
+      color: #2b6cb0;
+      background-color: #ebf8ff;
+      border-color: #bee3f8;
+    }
+
+    .status-badge.target-guest {
+      color: #dd6b20;
+      background-color: #fffaf0;
+      border-color: #fbd38d;
+    }
+
+    .status-badge.target-both {
+      color: #6b46c1;
+      background-color: #faf5ff;
+      border-color: #e9d8fd;
+    }
+
     .user-group-row td {
       background-color: #F8FAFC;
       color: var(--text-main);
@@ -231,7 +249,7 @@
     @media (min-width: 768px) {
       .snack-add-form-grid {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(5, minmax(0, 1fr));
         gap: 12px;
         align-items: end;
       }
@@ -868,6 +886,7 @@
                 <thead>
                   <tr>
                     <th>간식명</th>
+                    <th style="text-align: center;">판매대상</th>
                     <th style="text-align: center;">상태</th>
                     <th>가격</th>
                     <th style="text-align: center;">현재 재고</th>
@@ -900,6 +919,14 @@
                 <div style="display: flex; flex-direction: column; gap: 6px;">
                   <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">초기 입고 재고량</label>
                   <input type="number" id="new-snack-stock" min="0" value="10" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">판매 대상</label>
+                  <select id="new-snack-target" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
+                    <option value="user">일반 이용자만</option>
+                    <option value="guest">게스트만</option>
+                    <option value="both">둘 다 표시</option>
+                  </select>
                 </div>
               </div>
               <button class="btn btn-secondary" onclick="addNewSnackAction()" style="margin-top: 12px; width: 100%;">등록하기</button>
@@ -984,6 +1011,14 @@
           <select id="edit-snack-sale" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
             <option value="Y">판매중</option>
             <option value="N">숨김</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">판매 대상</label>
+          <select id="edit-snack-target" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
+            <option value="user">일반 이용자만</option>
+            <option value="guest">게스트만</option>
+            <option value="both">둘 다 표시</option>
           </select>
         </div>
       </div>
@@ -1855,7 +1890,7 @@
       tbody.innerHTML = '';
       
       if (snacks.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">등록된 간식이 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">등록된 간식이 없습니다.</td></tr>';
         return;
       }
 
@@ -1877,12 +1912,12 @@
     function appendSnackGroupRows(tbody, title, snacks) {
       const groupRow = document.createElement('tr');
       groupRow.className = 'user-group-row';
-      groupRow.innerHTML = `<td colspan="5">${esc(title)} <span style="color: var(--text-muted); font-size: 14px;">${snacks.length}개</span></td>`;
+      groupRow.innerHTML = `<td colspan="6">${esc(title)} <span style="color: var(--text-muted); font-size: 14px;">${snacks.length}개</span></td>`;
       tbody.appendChild(groupRow);
 
       if (snacks.length === 0) {
         const emptyRow = document.createElement('tr');
-        emptyRow.innerHTML = `<td colspan="5" class="empty-state">${esc(title)}이 없습니다.</td>`;
+        emptyRow.innerHTML = `<td colspan="6" class="empty-state">${esc(title)}이 없습니다.</td>`;
         tbody.appendChild(emptyRow);
         return;
       }
@@ -1909,6 +1944,17 @@
           : ``;
         const emojiHTML = `<div class="admin-avatar-initial" style="background-color: #F1F5F9; border: 1.5px solid var(--border-color); color: var(--text-main); width: 36px; height: 36px; font-size: 18px; border-radius: 6px; display: flex; justify-content: center; align-items: center; ${imgUrl ? 'display:none;' : ''}">${safeSnackEmoji}</div>`;
 
+        const targetVal = String(snack.target || 'user').trim().toLowerCase();
+        let targetLabel = '일반';
+        let targetClass = 'target-user';
+        if (targetVal === 'guest') {
+          targetLabel = '게스트';
+          targetClass = 'target-guest';
+        } else if (targetVal === 'both') {
+          targetLabel = '모두';
+          targetClass = 'target-both';
+        }
+
         tr.innerHTML = `
           <td>
             <div style="display: flex; align-items: center; gap: 10px;">
@@ -1918,6 +1964,9 @@
               </div>
               <strong>${safeSnackName}</strong>
             </div>
+          </td>
+          <td style="text-align: center;">
+            <span class="status-badge ${targetClass}">${targetLabel}</span>
           </td>
           <td style="text-align: center;">
             <span class="status-badge ${isActive ? 'active' : 'inactive'}">${isActive ? '판매중' : '숨김'}</span>
@@ -2013,11 +2062,13 @@
       const pointInput = document.getElementById('new-snack-point');
       const imageInput = document.getElementById('new-snack-image');
       const stockInput = document.getElementById('new-snack-stock');
+      const targetInput = document.getElementById('new-snack-target');
       
       const name = nameInput.value.trim();
       const point = Number(pointInput.value || 1);
       const imageUrl = imageInput.value.trim();
       const stock = Number(stockInput.value || 0);
+      const target = targetInput ? targetInput.value : 'user';
       
       if (!name) {
         alert("간식 이름을 입력해 주세요!");
@@ -2035,7 +2086,7 @@
       try {
         const res = await fetchAPI('addSnack', {
           method: 'POST',
-          body: withAdminToken({ name, point, imageUrl, stock, saleYn: 'Y' })
+          body: withAdminToken({ name, point, imageUrl, stock, saleYn: 'Y', target })
         });
         
         if (res && res.success) {
@@ -2044,6 +2095,7 @@
           pointInput.value = '1';
           imageInput.value = '';
           stockInput.value = '10';
+          if (targetInput) targetInput.value = 'user';
           
           AppState.vibrate(80);
           AppState.playClickSound();
@@ -2505,6 +2557,9 @@
       
       const isActive = isSnackActive(snack);
       document.getElementById('edit-snack-sale').value = isActive ? 'Y' : 'N';
+      
+      const targetVal = snack.target || 'user';
+      document.getElementById('edit-snack-target').value = targetVal;
 
       document.getElementById('modal-edit-snack').style.display = 'flex';
       AppState.vibrate(40);
@@ -2522,6 +2577,7 @@
       const imageUrl = document.getElementById('edit-snack-image').value.trim();
       const stock = Number(document.getElementById('edit-snack-stock').value || 0);
       const saleYn = document.getElementById('edit-snack-sale').value;
+      const target = document.getElementById('edit-snack-target').value;
 
       if (!name) {
         alert("간식 이름을 입력해 주세요.");
@@ -2531,7 +2587,7 @@
       try {
         const res = await fetchAPI('updateSnack', {
           method: 'POST',
-          body: withAdminToken({ snackId, name, point, imageUrl, stock, saleYn })
+          body: withAdminToken({ snackId, name, point, imageUrl, stock, saleYn, target })
         });
 
         if (res && res.success) {

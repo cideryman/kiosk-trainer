@@ -22,12 +22,12 @@ const MOCK_DATA = {
   getSnacks: {
     success: true,
     snacks: [
-      { snackId: 1, name: "초코칩 쿠키", point: 1, imageUrl: "", saleYn: "Y", stock: 5 },
-      { snackId: 2, name: "감자칩", point: 2, imageUrl: "", saleYn: "Y", stock: 3 },
-      { snackId: 3, name: "사이다", point: 1, imageUrl: "", saleYn: "Y", stock: 0 }, // 품절 테스트용
-      { snackId: 4, name: "오렌지주스", point: 3, imageUrl: "", saleYn: "Y", stock: 10 },
-      { snackId: 5, name: "초코우유", point: 2, imageUrl: "", saleYn: "Y", stock: 1 }, // 1개 남은 것 테스트용
-      { snackId: 6, name: "하리보 젤리", point: 1, imageUrl: "", saleYn: "Y", stock: 8 }
+      { snackId: 1, name: "초코칩 쿠키", point: 1, imageUrl: "", saleYn: "Y", stock: 5, target: "both" },
+      { snackId: 2, name: "감자칩", point: 2, imageUrl: "", saleYn: "Y", stock: 3, target: "user" },
+      { snackId: 3, name: "사이다", point: 1, imageUrl: "", saleYn: "Y", stock: 0, target: "both" }, // 품절 테스트용
+      { snackId: 4, name: "오렌지주스", point: 3, imageUrl: "", saleYn: "Y", stock: 10, target: "guest" },
+      { snackId: 5, name: "초코우유", point: 2, imageUrl: "", saleYn: "Y", stock: 1, target: "user" }, // 1개 남은 것 테스트용
+      { snackId: 6, name: "하리보 젤리", point: 1, imageUrl: "", saleYn: "Y", stock: 8, target: "guest" }
     ]
   },
   placeOrder: {
@@ -157,6 +157,19 @@ async function fetchAPI(action, options = {}) {
   }
 }
 
+function getMockSnacks() {
+  let cached = localStorage.getItem('mockSnacks');
+  if (!cached) {
+    localStorage.setItem('mockSnacks', JSON.stringify(MOCK_DATA.getSnacks.snacks));
+    return MOCK_DATA.getSnacks.snacks;
+  }
+  return JSON.parse(cached);
+}
+
+function saveMockSnacks(snacks) {
+  localStorage.setItem('mockSnacks', JSON.stringify(snacks));
+}
+
 /**
  * API 호출 실패 시 로컬에서 응답할 Mock 데이터 처리기
  */
@@ -172,13 +185,31 @@ function getMockFallback(action, options) {
       });
     }
   } else if (action === 'getSnacks') {
-    res = JSON.parse(JSON.stringify(MOCK_DATA.getSnacks));
+    res = {
+      success: true,
+      snacks: getMockSnacks()
+    };
     const includeHidden = String(options.params?.includeHidden || '').trim().toUpperCase() === 'Y';
     if (!includeHidden) {
       res.snacks = res.snacks.filter(s => {
         const active = String(s.saleYn ?? s.active ?? 'Y').trim().toUpperCase();
         return active === 'TRUE' || active === '판매' || active === 'Y' || active === 'O' || active === '예';
       });
+    }
+    const mode = options.params?.mode;
+    if (mode) {
+      const cleanedMode = String(mode).trim().toLowerCase();
+      if (cleanedMode === 'user') {
+        res.snacks = res.snacks.filter(s => {
+          const t = s.target ? String(s.target).trim().toLowerCase() : 'user';
+          return t === 'user' || t === 'both';
+        });
+      } else if (cleanedMode === 'guest') {
+        res.snacks = res.snacks.filter(s => {
+          const t = s.target ? String(s.target).trim().toLowerCase() : 'user';
+          return t === 'guest' || t === 'both';
+        });
+      }
     }
   } else if (action === 'getOrderStatus') {
     const identifier = options.params?.orderNo || options.params?.orderToken;
@@ -392,11 +423,12 @@ function getMockFallback(action, options) {
   } else if (action === 'updateSnackStock') {
     const snackId = Number(options.body?.snackId);
     const stock = Number(options.body?.stock || 0);
-    const snacks = MOCK_DATA.getSnacks.snacks;
+    const snacks = getMockSnacks();
     const snack = snacks.find(s => s.snackId === snackId);
     if (snack) {
       appendMockAdminLog('updateSnackStock', 'snack', snackId, snack.name, snack.stock, stock, options.body?.adminMemo);
       snack.stock = stock;
+      saveMockSnacks(snacks);
     }
     res = {
       success: true,
@@ -405,12 +437,13 @@ function getMockFallback(action, options) {
   } else if (action === 'updateSnackSale') {
     const snackId = Number(options.body?.snackId);
     const saleYn = String(options.body?.saleYn || 'N').toUpperCase() === 'Y' ? 'Y' : 'N';
-    const snacks = MOCK_DATA.getSnacks.snacks;
+    const snacks = getMockSnacks();
     const snack = snacks.find(s => Number(s.snackId) === snackId);
     if (snack) {
       appendMockAdminLog('updateSnackSale', 'snack', snackId, snack.name, snack.saleYn ?? snack.active ?? 'Y', saleYn, options.body?.adminMemo);
       snack.saleYn = saleYn;
       snack.active = saleYn;
+      saveMockSnacks(snacks);
     }
     res = {
       success: true,
@@ -423,7 +456,8 @@ function getMockFallback(action, options) {
     const imageUrl = options.body?.imageUrl || "";
     const stock = Number(options.body?.stock || 0);
     const saleYn = options.body?.saleYn || "Y";
-    const snacks = MOCK_DATA.getSnacks.snacks;
+    const target = options.body?.target || "user";
+    const snacks = getMockSnacks();
     const maxId = snacks.reduce((max, s) => s.snackId > max ? s.snackId : max, 0);
     const newSnackId = maxId + 1;
     const newSnack = {
@@ -432,14 +466,69 @@ function getMockFallback(action, options) {
       point: point,
       imageUrl: imageUrl,
       saleYn: saleYn,
-      stock: stock
+      stock: stock,
+      target: target
     };
     snacks.push(newSnack);
-    appendMockAdminLog('addSnack', 'snack', newSnackId, name, '', JSON.stringify({ point, saleYn, stock }), options.body?.adminMemo);
+    saveMockSnacks(snacks);
+    appendMockAdminLog('addSnack', 'snack', newSnackId, name, '', JSON.stringify({ point, saleYn, stock, target }), options.body?.adminMemo);
     res = {
       success: true,
       message: "신규 간식을 등록했습니다.",
       snackId: newSnackId
+    };
+  } else if (action === 'updateSnack') {
+    const snackId = Number(options.body?.snackId);
+    const name = options.body?.name;
+    const point = Number(options.body?.point);
+    const imageUrl = options.body?.imageUrl;
+    const stock = Number(options.body?.stock);
+    const saleYn = options.body?.saleYn;
+    const target = options.body?.target || 'user';
+    const snacks = getMockSnacks();
+    const snack = snacks.find(s => s.snackId === snackId);
+    if (snack) {
+      appendMockAdminLog('updateSnack', 'snack', snackId, name, 
+        JSON.stringify({ name: snack.name, point: snack.point, imageUrl: snack.imageUrl, saleYn: snack.saleYn, stock: snack.stock, target: snack.target }),
+        JSON.stringify({ name, point, imageUrl, saleYn, stock, target }), 
+        options.body?.adminMemo
+      );
+      snack.name = name;
+      snack.point = point;
+      snack.imageUrl = imageUrl;
+      snack.stock = stock;
+      snack.saleYn = saleYn;
+      snack.active = saleYn;
+      snack.target = target;
+      saveMockSnacks(snacks);
+    }
+    res = {
+      success: true,
+      message: "간식 정보를 수정했습니다."
+    };
+  } else if (action === 'updateUser') {
+    const userId = options.body?.userId;
+    const nickname = options.body?.nickname;
+    const credit = Number(options.body?.credit || 0);
+    const imageUrl = options.body?.imageUrl || '';
+    const useYn = options.body?.useYn || 'Y';
+    const users = MOCK_DATA.getUsers.users;
+    const user = users.find(u => String(u.userId) === String(userId));
+    if (user) {
+      appendMockAdminLog('updateUser', 'user', userId, nickname,
+        JSON.stringify({ nickname: user.nickname, credit: user.credit, imageUrl: user.imageUrl, useYn: user.useYn }),
+        JSON.stringify({ nickname, credit, imageUrl, useYn }),
+        options.body?.adminMemo
+      );
+      user.nickname = nickname;
+      user.credit = credit;
+      user.imageUrl = imageUrl;
+      user.useYn = useYn;
+      user.active = useYn;
+    }
+    res = {
+      success: true,
+      message: "이용자 정보를 수정했습니다."
     };
   } else if (action === 'cancelOrder') {
     const orderId = options.body?.orderId;

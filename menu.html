@@ -121,7 +121,9 @@
       snackGrid.innerHTML = '';
 
       try {
-        const response = await fetchAPI('getSnacks');
+        const isGuest = (user && user.userId === 'guest');
+        const mode = isGuest ? 'guest' : 'user';
+        const response = await fetchAPI('getSnacks', { params: { mode } });
         if (response && response.success && Array.isArray(response.snacks)) {
           snacks = response.snacks;
 

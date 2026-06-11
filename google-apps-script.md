@@ -116,7 +116,7 @@ function doGet(e) {
   }
 
   if (action === 'getSnacks') {
-    return jsonResponse(getSnacks(e.parameter.includeHidden));
+    return jsonResponse(getSnacks(e.parameter.includeHidden, e.parameter.mode));
   }
 
   if (action === 'getOrdersToday') {
@@ -259,13 +259,13 @@ function getUsers(includeInactive) {
 /**
  * 6. 간식 목록 조회
  */
-function getSnacks(includeHidden) {
+function getSnacks(includeHidden, mode) {
   const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET.SNACKS);
   const values = sheet.getDataRange().getValues();
   const rows = values.slice(1);
   const shouldIncludeHidden = String(includeHidden || '').trim().toUpperCase() === 'Y';
 
-  const snacks = rows
+  let snacks = rows
     .filter(row => row[0] || row[1])
     .filter(row => {
       if (shouldIncludeHidden) return true;
@@ -280,6 +280,7 @@ function getSnacks(includeHidden) {
     })
     .map(row => {
       const stock = Number(row[5] || 0);
+      const target = row[7] ? String(row[7]).trim().toLowerCase() : 'user';
 
       return {
         snackId: row[0],
@@ -291,8 +292,18 @@ function getSnacks(includeHidden) {
         stock,
         soldOut: stock <= 0,
         displayOrder: Number(row[6] || 0),
+        target: target,
       };
     });
+
+  if (mode) {
+    const cleanedMode = String(mode).trim().toLowerCase();
+    if (cleanedMode === 'user') {
+      snacks = snacks.filter(s => s.target === 'user' || s.target === 'both');
+    } else if (cleanedMode === 'guest') {
+      snacks = snacks.filter(s => s.target === 'guest' || s.target === 'both');
+    }
+  }
 
   return {
     success: true,
@@ -936,6 +947,7 @@ function addSnack(data) {
     if (id > maxId) maxId = id;
   }
   var newSnackId = maxId + 1;
+  var target = String(data.target || 'user').trim().toLowerCase();
   
   var newRow = [
     newSnackId,
@@ -943,11 +955,13 @@ function addSnack(data) {
     Number(data.point || 1),
     data.imageUrl || "",
     data.saleYn || "Y",
-    Number(data.stock || 0)
+    Number(data.stock || 0),
+    0, // displayOrder
+    target
   ];
   
   sheet.appendRow(newRow);
-  appendAdminLog('addSnack', 'snack', newSnackId, data.name, '', JSON.stringify({ point: Number(data.point || 1), saleYn: data.saleYn || 'Y', stock: Number(data.stock || 0) }), data.adminMemo);
+  appendAdminLog('addSnack', 'snack', newSnackId, data.name, '', JSON.stringify({ point: Number(data.point || 1), saleYn: data.saleYn || 'Y', stock: Number(data.stock || 0), target: target }), data.adminMemo);
   return { success: true, message: '신규 간식을 등록했습니다.', snackId: newSnackId };
 }
 
@@ -1005,6 +1019,7 @@ function updateSnack(data) {
   var imageUrl = String(data.imageUrl || '').trim();
   var stock = Number(data.stock);
   var saleYn = String(data.saleYn || 'Y').toUpperCase() === 'Y' ? 'Y' : 'N';
+  var target = String(data.target || 'user').trim().toLowerCase();
 
   if (!snackId) {
     return { success: false, message: '간식 ID가 필요합니다.' };
@@ -1020,16 +1035,18 @@ function updateSnack(data) {
       var beforeImageUrl = rows[i][3];
       var beforeSaleYn = rows[i][4];
       var beforeStock = rows[i][5];
+      var beforeTarget = rows[i][7] ? String(rows[i][7]).trim().toLowerCase() : 'user';
 
       sheet.getRange(i + 1, 2).setValue(name);
       sheet.getRange(i + 1, 3).setValue(point);
       sheet.getRange(i + 1, 4).setValue(imageUrl);
       sheet.getRange(i + 1, 5).setValue(saleYn);
       sheet.getRange(i + 1, 6).setValue(stock);
+      sheet.getRange(i + 1, 8).setValue(target);
 
       appendAdminLog('updateSnack', 'snack', snackId, name, 
-        JSON.stringify({ name: beforeName, point: beforePoint, imageUrl: beforeImageUrl, saleYn: beforeSaleYn, stock: beforeStock }), 
-        JSON.stringify({ name: name, point: point, imageUrl: imageUrl, saleYn: saleYn, stock: stock }), 
+        JSON.stringify({ name: beforeName, point: beforePoint, imageUrl: beforeImageUrl, saleYn: beforeSaleYn, stock: beforeStock, target: beforeTarget }), 
+        JSON.stringify({ name: name, point: point, imageUrl: imageUrl, saleYn: saleYn, stock: stock, target: target }), 
         data.adminMemo
       );
       return { success: true, message: '간식 정보를 수정했습니다.' };
