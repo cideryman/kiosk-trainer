@@ -107,6 +107,9 @@
         if (creditBadge) {
           creditBadge.innerHTML = `체험 동전 <span class="coin-icon">🪙</span><span class="coin-number" id="user-credit">${user.credit ?? 0}</span>`;
         }
+        // 게스트 모드에서는 '이름 다시 고르기' 버튼 숨김
+        const btnBack = document.getElementById('btn-back');
+        if (btnBack) btnBack.style.display = 'none';
       }
     }
 
