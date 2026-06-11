@@ -307,10 +307,11 @@
         // 카드 클릭 시 complete.html 연동
         AppState.bindCardTap(card, () => {
           // selectedUser 복원
+          const creditAmount = typeof GUEST_DEFAULT_CREDIT !== 'undefined' ? GUEST_DEFAULT_CREDIT : 10;
           AppState.setSelectedUser({
             userId: 'guest',
             nickname: guestName,
-            credit: 10
+            credit: creditAmount
           });
 
           // lastOrderSummary 세션 바인딩
@@ -320,9 +321,9 @@
 
           localStorage.setItem('lastOrderSummary', JSON.stringify({
             userId: 'guest',
-            nickname: guestName + ' (체험)',
+            nickname: guestName,
             usedPoints: usedPoints,
-            remainPoints: 10 - usedPoints,
+            remainPoints: creditAmount - usedPoints,
             orderNo: order.orderNo,
             orderToken: order.orderToken,
             items: order.items || [{ name: order.snackName, quantity: order.quantity }]

@@ -100,7 +100,7 @@
         </div>
 
         <div class="guest-input-card">
-          <div class="experience-badge">
+          <div class="experience-badge" id="guest-credit-badge">
             🎫 가상 크레딧 10개 무료 지급
           </div>
 
@@ -136,6 +136,12 @@
       const btnCheckOrders = document.getElementById('btn-check-orders');
       const btnStart = document.getElementById('btn-start');
       const btnBack = document.getElementById('btn-back');
+
+      // 상수 적용
+      const guestCreditBadge = document.getElementById('guest-credit-badge');
+      if (guestCreditBadge && typeof GUEST_DEFAULT_CREDIT !== 'undefined') {
+        guestCreditBadge.textContent = `🎫 가상 크레딧 ${GUEST_DEFAULT_CREDIT}개 무료 지급`;
+      }
 
       let currentStep = 'select'; // 'select' or 'input'
 
@@ -175,11 +181,12 @@
           return;
         }
 
-        // 게스트 임시 사용자 저장 (10 가상 크레딧 부여)
+        // 게스트 임시 사용자 저장
+        const creditAmount = typeof GUEST_DEFAULT_CREDIT !== 'undefined' ? GUEST_DEFAULT_CREDIT : 10;
         AppState.setSelectedUser({
           userId: 'guest',
           nickname: guestName,
-          credit: 10
+          credit: creditAmount
         });
 
         AppState.vibrate(60);

@@ -284,7 +284,8 @@
     // ── 계산서 업데이트 ──────────────────────────────────────────
     function updateBill() {
       const isGuest = (user && user.userId === 'guest');
-      const deliveryFee = (isGuest && deliveryType === 'delivery') ? 3 : 0;
+      const fee = typeof GUEST_DELIVERY_FEE !== 'undefined' ? GUEST_DELIVERY_FEE : 3;
+      const deliveryFee = (isGuest && deliveryType === 'delivery') ? fee : 0;
       const snackPoints = cart.reduce((sum, item) => sum + (item.point * item.quantity), 0);
       const totalPoints = snackPoints + deliveryFee;
       const remainPoints = user.credit - totalPoints;
@@ -294,7 +295,7 @@
 
       if (isGuest && deliveryType === 'delivery') {
         document.getElementById('delivery-fee-row').style.display = 'flex';
-        document.getElementById('delivery-fee-num').textContent = 3;
+        document.getElementById('delivery-fee-num').textContent = fee;
       } else {
         document.getElementById('delivery-fee-row').style.display = 'none';
         document.getElementById('delivery-fee-num').textContent = 0;
@@ -331,7 +332,14 @@
       if (delta > 0 && cart[idx].quantity >= (cart[idx].stock ?? 999)) {
         AppState.vibrate([100, 50, 100]); // 경고성 더블 진동
         AppState.playWarningSound();
-        alert("재고가 부족하여 더 이상 늘릴 수 없습니다.");
+        const errorBox = document.getElementById('error-message-box');
+        if (errorBox) {
+          errorBox.textContent = "⚠️ 재고가 부족해서 더 담을 수 없어요!";
+          errorBox.style.display = 'block';
+          setTimeout(() => {
+            errorBox.style.display = 'none';
+          }, 3000);
+        }
         return;
       }
 
@@ -527,6 +535,10 @@
           const btnPickup = document.getElementById('btn-delivery-pickup');
           const btnDeliver = document.getElementById('btn-delivery-deliver');
           
+          if (typeof GUEST_DELIVERY_FEE !== 'undefined') {
+            btnDeliver.textContent = `배달 (+${GUEST_DELIVERY_FEE} 🪙)`;
+          }
+
           btnPickup.addEventListener('click', () => {
             deliveryType = 'pickup';
             btnPickup.className = 'btn btn-secondary';
@@ -552,7 +564,8 @@
       if (cart.length === 0) return;
 
       const isGuest = (user.userId === 'guest');
-      const deliveryFee = (isGuest && deliveryType === 'delivery') ? 3 : 0;
+      const fee = typeof GUEST_DELIVERY_FEE !== 'undefined' ? GUEST_DELIVERY_FEE : 3;
+      const deliveryFee = (isGuest && deliveryType === 'delivery') ? fee : 0;
       const snackPoints  = cart.reduce((sum, i) => sum + i.point * i.quantity, 0);
       const totalPoints = snackPoints + deliveryFee;
       const remainPoints = user.credit - totalPoints;

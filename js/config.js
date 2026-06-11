@@ -1,6 +1,10 @@
 // Google Apps Script API 설정
 const API_URL = "https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ9_UPux8bq0xROvNK9E1NCBam0Qe/exec";
 
+// 게스트 기본 설정 상수
+const GUEST_DEFAULT_CREDIT = 10;
+const GUEST_DELIVERY_FEE = 3;
+
 // 로컬 테스트용 Mock 데이터 강제 사용 여부
 // - false: 실제 API 호출 (실패 시 Mock으로 자동 폴백하지 않고 실제 에러 메시지 노출)
 // - true: 항상 로컬 Mock 데이터를 사용하여 동작 테스트 및 검증 진행

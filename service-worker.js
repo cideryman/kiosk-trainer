@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kiosk-cache-v31';
+const CACHE_NAME = 'kiosk-cache-v32';
 const urlsToCache = [
   'index.html',
   'menu.html',
@@ -21,8 +21,9 @@ const urlsToCache = [
   'icons/icon-guest.png',
   'icons/icon-192.png',
   'icons/icon-512.png',
-  '주간매점.png',
-  '배달왔삼.png'
+  'assets/store-logo.png',
+  'assets/delivery-banner.png',
+  'assets/store-banner.png'
 ];
 
 // 서비스 워커 설치 및 캐싱
