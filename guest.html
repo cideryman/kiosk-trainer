@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>간식 키오스크 - 게스트 체험</title>
+  <title>배달왔삼 - 게스트 체험</title>
   <link rel="stylesheet" href="css/style.css">
   <!-- PWA 설정 -->
   <link rel="manifest" href="manifest-guest.json">
@@ -18,7 +18,7 @@
       border: 3px solid var(--border-color);
       border-radius: var(--radius-md);
       padding: 30px 24px;
-      box-shadow: var(--shadow-md);
+      box-shadow: var(--shadow-sm);
       display: flex;
       flex-direction: column;
       gap: 20px;
@@ -72,12 +72,16 @@
     <!-- 헤더 -->
     <header class="kiosk-header">
       <div class="kiosk-header-top" style="justify-content: center;">
-        <h1 class="kiosk-title" style="font-size: 26px; color: var(--secondary-hover);">🟢 게스트 체험관</h1>
+        <h1 class="kiosk-title" style="font-size: 26px; color: var(--secondary-hover);">🟢 배달왔삼</h1>
       </div>
     </header>
 
     <!-- 바디 -->
     <main class="kiosk-body" id="main-content" style="justify-content: center; gap: 24px;">
+      <!-- 배달왔삼 상단 배너 이미지 -->
+      <div style="width: 100%; margin-bottom: 10px; border-radius: var(--radius-md); overflow: hidden; border: 3px solid var(--border-color); box-shadow: var(--shadow-sm); background-color: white;">
+        <img src="assets/delivery-banner.png" style="width: 100%; height: auto; display: block; max-height: 260px; object-fit: contain; object-position: center;" alt="배달왔삼">
+      </div>
       <!-- 선택 화면 -->
       <div id="view-select" style="display: flex; flex-direction: column; gap: 24px; width: 100%;">
         <div class="guide-text">

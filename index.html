@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>간식 키오스크 - 이름을 골라요</title>
+  <title>주간매점 - 이름을 골라요</title>
   <link rel="stylesheet" href="css/style.css">
   <!-- PWA 설정 -->
   <link rel="manifest" href="manifest.json">
@@ -25,7 +25,9 @@
     <!-- 헤더 -->
     <header class="kiosk-header">
       <div class="kiosk-header-top">
-        <h1 class="kiosk-title">🍪 주간보호센터 간식가게</h1>
+        <h1 class="kiosk-title" style="padding: 0; line-height: 1;">
+          <img src="assets/store-banner.png" alt="주간매점" style="height: 48px; width: auto; display: block; object-fit: contain;">
+        </h1>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
           <!-- 호출 전광판 이동 버튼 -->
           <button onclick="window.open('board.html', '_blank')" style="background-color: var(--secondary-color); color: white; border: none; padding: 6px 12px; font-size: 14px; font-weight: 800; border-radius: var(--radius-sm); cursor: pointer; transition: transform 0.1s; display: flex; align-items: center; gap: 4px; box-shadow: var(--shadow-sm); min-height: 38px;">
@@ -62,6 +64,7 @@
 
     <!-- 바디 (스크롤 가능 영역) -->
     <main class="kiosk-body" id="main-content">
+      
       <div class="guide-text">
         내 <span>이름(별명)</span>을 찾아서 눌러주세요!
       </div>
