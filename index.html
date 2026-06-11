@@ -24,17 +24,21 @@
   <div class="kiosk-container" id="app-container">
     <!-- 헤더 -->
     <header class="kiosk-header">
-      <div class="kiosk-header-top">
-        <h1 class="kiosk-title" style="padding: 0; line-height: 1;">
-          <img src="assets/store-banner.png" alt="주간매점" style="height: 48px; width: auto; display: block; object-fit: contain;">
+      <div class="kiosk-header-top" style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;">
+        <!-- 왼쪽 여백(균형용) -->
+        <div></div>
+        <!-- 중앙 로고 -->
+        <h1 class="kiosk-title" style="padding: 0; line-height: 1; margin: 0;">
+          <img src="assets/store-logo.png" alt="주간매점" style="height: 64px; width: auto; display: block; object-fit: contain;">
         </h1>
-        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <!-- 우측 컨트롤 버튼들 -->
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; justify-content: flex-end;">
           <!-- 호출 전광판 이동 버튼 -->
-          <button onclick="window.open('board.html', '_blank')" style="background-color: var(--secondary-color); color: white; border: none; padding: 6px 12px; font-size: 14px; font-weight: 800; border-radius: var(--radius-sm); cursor: pointer; transition: transform 0.1s; display: flex; align-items: center; gap: 4px; box-shadow: var(--shadow-sm); min-height: 38px;">
+          <button onclick="window.open('board.html', '_blank')" style="background-color: var(--secondary-color); color: white; border: none; padding: 6px 12px; font-size: 14px; font-weight: 800; border-radius: var(--radius-sm); cursor: pointer; transition: transform 0.1s; display: flex; align-items: center; gap: 4px; box-shadow: var(--shadow-sm); min-height: 38px; white-space: nowrap;">
             🖥️ 호출 전광판
           </button>
           <!-- 주문번호 사용 토글 -->
-          <label class="tts-toggle-container" style="cursor: pointer;">
+          <label class="tts-toggle-container" style="cursor: pointer; white-space: nowrap;">
             <span class="tts-switch">
               <input type="checkbox" id="orderno-toggle">
               <span class="tts-slider"></span>
@@ -42,7 +46,7 @@
             <span class="tts-label">주문번호 발급</span>
           </label>
           <!-- 음성 안내 토글 -->
-          <label class="tts-toggle-container" style="cursor: pointer;">
+          <label class="tts-toggle-container" style="cursor: pointer; white-space: nowrap;">
             <span class="tts-switch">
               <input type="checkbox" id="tts-toggle">
               <span class="tts-slider"></span>
