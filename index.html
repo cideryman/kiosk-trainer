@@ -344,6 +344,9 @@
         }
       }
 
+      const method = myItems[0].deliveryType || 'pickup';
+      const isDelivery = method === 'delivery';
+
       // 상태별 라벨 및 색상
       let statusText = '접수중';
       let statusColor = '#3A86C8'; // blue
@@ -354,7 +357,7 @@
         statusText = '준비중 ☕';
         statusColor = 'var(--primary-color)'; // orange
       } else if (status === 'R') {
-        statusText = '준비완료 🔔 (받아가세요!)';
+        statusText = isDelivery ? '배달중 🛵 (조금만 기다려주세요!)' : '준비완료 🔔 (받아가세요!)';
         statusColor = 'var(--secondary-hover)'; // mint
         styleCss = 'background-color: #E0F2F1; border-bottom: 4px solid var(--secondary-color); font-size: 22px;';
         animeClass = 'animation: pulseGlowBanner 1.5s infinite ease-in-out;';
@@ -363,12 +366,15 @@
         if (window.lastAnnouncedOrderNo !== summary.orderNo) {
           window.lastAnnouncedOrderNo = summary.orderNo;
           AppState.playClickSound();
-          const shortNo = getShortOrderNo(summary.orderNo);
-          AppState.speak(`${summary.nickname} 님, 주문하신 간식이 준비되었습니다. 받아가세요!`);
+          if (isDelivery) {
+            AppState.speak(`${summary.nickname} 님, 주문하신 간식이 배달 중입니다. 조금만 기다려주세요!`);
+          } else {
+            AppState.speak(`${summary.nickname} 님, 주문하신 간식이 준비되었습니다. 받아가세요!`);
+          }
           AppState.vibrate([100, 50, 100]);
         }
       } else if (status === 'Y') {
-        statusText = '수령완료 📦 맛있게 드세요!';
+        statusText = isDelivery ? '배달완료 📦 맛있게 드세요!' : '수령완료 📦 맛있게 드세요!';
         statusColor = 'var(--text-muted)';
         styleCss = 'background-color: #F8F9FA;';
       } else if (status === 'C') {

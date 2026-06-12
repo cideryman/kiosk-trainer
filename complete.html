@@ -345,7 +345,7 @@
           <div class="step-item pending" id="step-3">
             <div class="step-icon-circle"><span>🎁</span></div>
             <div class="step-info">
-              <div class="step-title">준비 완료 (받아가세요!)</div>
+              <div class="step-title" id="step-3-title">준비 완료 (받아가세요!)</div>
               <div class="step-desc" id="step-3-desc">간식이 준비되었습니다. 받아가세요!</div>
             </div>
           </div>
@@ -353,7 +353,7 @@
           <div class="step-item pending" id="step-4">
             <div class="step-icon-circle"><span>😋</span></div>
             <div class="step-info">
-              <div class="step-title">수령 완료</div>
+              <div class="step-title" id="step-4-title">수령 완료</div>
               <div class="step-desc" id="step-4-desc">맛있게 드세요! 감사합니다.</div>
             </div>
           </div>
@@ -567,6 +567,24 @@
       }
 
       // 웰컴 TTS 안내
+      const isDelivery = summaryData.deliveryType === 'delivery';
+      
+      if (isDelivery) {
+        document.getElementById('step-3-title').textContent = '배달 중';
+        document.getElementById('step-3-desc').textContent = '간식이 배달 중입니다. 잠시만 기다려주세요!';
+        document.querySelector('#step-3 .step-icon-circle span').textContent = '🛵';
+        
+        document.getElementById('step-4-title').textContent = '배달 완료';
+        document.getElementById('step-4-desc').textContent = '배달이 완료되었습니다! 맛있게 드세요.';
+      } else {
+        document.getElementById('step-3-title').textContent = '준비 완료 (받아가세요!)';
+        document.getElementById('step-3-desc').textContent = '간식이 준비되었습니다. 받아가세요!';
+        document.querySelector('#step-3 .step-icon-circle span').textContent = '🎁';
+        
+        document.getElementById('step-4-title').textContent = '수령 완료';
+        document.getElementById('step-4-desc').textContent = '맛있게 드세요! 감사합니다.';
+      }
+
       AppState.speak(`주문 완료! ${summaryData.nickname} 님, 주문번호는 ${shortNo}번입니다. 실시간으로 주문 진행 상황을 보여드릴게요.`);
       AppState.vibrate([100, 50, 150]);
 
@@ -655,17 +673,23 @@
       let ttsText = '';
       let playSoundFn = null;
  
+      const isDelivery = summaryData && summaryData.deliveryType === 'delivery';
+
       if (status === 'P') { // 준비중
         activeIndex = 1;
         ttsText = `${nickname} 님, 주문하신 간식 조리가 시작되었습니다.`;
         playSoundFn = () => AppState.playClickSound();
       } else if (status === 'R') { // 준비완료
         activeIndex = 2;
-        ttsText = `${nickname} 님, 간식이 완성되었습니다! 카운터에서 가져가세요!`;
+        ttsText = isDelivery 
+          ? `${nickname} 님, 간식이 배달 중입니다. 잠시만 기다려주세요!`
+          : `${nickname} 님, 간식이 완성되었습니다! 카운터에서 가져가세요!`;
         playSoundFn = () => playChimeSound();
       } else if (status === 'Y') { // 수령완료
         activeIndex = 3;
-        ttsText = `간식 수령이 완료되었습니다. 맛있게 드세요!`;
+        ttsText = isDelivery
+          ? `간식 배달이 완료되었습니다. 맛있게 드세요!`
+          : `간식 수령이 완료되었습니다. 맛있게 드세요!`;
         playSoundFn = () => AppState.playClickSound();
       } else if (status === 'C') { // 취소됨
         activeIndex = -1;

@@ -2333,6 +2333,8 @@
             numberPrefix = `<span style="color: var(--primary-color); font-weight: 900; margin-right: 6px;">[${esc(parts[2])}]</span>`;
           }
 
+          const isDelivery = group.deliveryType === 'delivery';
+          
           const status = group.servedYn || 'N';
           let statusLabel = '접수중';
           let statusColor = '#3A86C8'; // blue
@@ -2341,17 +2343,16 @@
           if (status === 'P') {
             statusLabel = '준비중';
             statusColor = 'var(--primary-color)'; // orange
-            actionBtnHtml = `<button class="btn-complete-action" style="flex: 1; margin-top: 0; background-color: var(--primary-color); box-shadow: var(--shadow-btn);" onclick="${callAttr(`updateStatusAction(${orderNoArg}, 'R')`)}">🔔 준비 완료</button>`;
+            actionBtnHtml = `<button class="btn-complete-action" style="flex: 1; margin-top: 0; background-color: var(--primary-color); box-shadow: var(--shadow-btn);" onclick="${callAttr(`updateStatusAction(${orderNoArg}, 'R')`)}">${isDelivery ? '🛵 배달 출발' : '🔔 준비 완료'}</button>`;
           } else if (status === 'R') {
-            statusLabel = '준비완료';
+            statusLabel = isDelivery ? '배달중' : '준비완료';
             statusColor = 'var(--secondary-hover)'; // green
-            actionBtnHtml = `<button class="btn-complete-action" style="flex: 1; margin-top: 0; background-color: var(--secondary-color); box-shadow: var(--shadow-btn-sec);" onclick="${callAttr(`updateStatusAction(${orderNoArg}, 'Y')`)}">📦 수령 완료</button>`;
+            actionBtnHtml = `<button class="btn-complete-action" style="flex: 1; margin-top: 0; background-color: var(--secondary-color); box-shadow: var(--shadow-btn-sec);" onclick="${callAttr(`updateStatusAction(${orderNoArg}, 'Y')`)}">${isDelivery ? '📦 배달 완료' : '📦 수령 완료'}</button>`;
           } else {
             // Default: 'N' (접수중)
             actionBtnHtml = `<button class="btn-complete-action" style="flex: 1; margin-top: 0; background-color: #3A86C8; box-shadow: 0 6px 12px rgba(58, 134, 200, 0.25);" onclick="${callAttr(`updateStatusAction(${orderNoArg}, 'P')`)}">☕ 준비 시작</button>`;
           }
 
-          const isDelivery = group.deliveryType === 'delivery';
           const deliveryBadgeHtml = isDelivery
             ? `<span class="status-badge" style="background-color: var(--danger-color); border-color: var(--danger-color); color: white; margin-left: 8px; font-size: 13px; font-weight: 800;">배달</span>`
             : `<span class="status-badge" style="background-color: var(--secondary-color); border-color: var(--secondary-color); color: white; margin-left: 8px; font-size: 13px; font-weight: 800;">포장</span>`;

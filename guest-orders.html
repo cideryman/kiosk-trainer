@@ -391,11 +391,12 @@
       }
 
       // 2. 상태 텍스트 포맷터
-      function getStatusLabel(status) {
+      function getStatusLabel(status, method) {
+        const isDelivery = method === 'delivery';
         switch (status) {
           case 'P': return '준비중 ☕';
-          case 'R': return '준비완료 🔔';
-          case 'Y': return '수령완료 📦';
+          case 'R': return isDelivery ? '배달중 🛵' : '준비완료 🔔';
+          case 'Y': return isDelivery ? '배달완료 📦' : '수령완료 📦';
           case 'C': return '주문취소 ❌';
           default: return '접수중 📝';
         }
@@ -460,7 +461,7 @@
         card.innerHTML = `
           <div class="order-card-header">
             <span class="order-card-time">⏰ ${timeStr}</span>
-            <span class="order-card-status ${statusClass}">${getStatusLabel(order.status || order.servedYn)}</span>
+            <span class="order-card-status ${statusClass}">${getStatusLabel(order.status || order.servedYn, order.deliveryType || order.method || 'pickup')}</span>
           </div>
           <div class="order-card-body">
             <div class="order-card-no">🎫 주문번호: ${shortNoStr} (${order.orderNo})</div>
@@ -556,6 +557,7 @@
                   nickname: o.nickname,
                   timestamp: o.timestamp,
                   status: o.servedYn,
+                  deliveryType: o.deliveryType || 'pickup',
                   reviewed: o.reviewed,
                   items: []
                 };

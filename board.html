@@ -375,6 +375,7 @@
             nickname: o.nickname,
             timestamp: o.timestamp,
             servedYn: o.servedYn || 'N',
+            deliveryType: o.deliveryType || 'pickup',
             snacks: []
           };
         }
@@ -441,11 +442,12 @@
         const card = document.createElement('div');
         card.className = `board-card ${type === 'ready' ? 'ready-item' : ''}`;
         
+        const isDelivery = order.deliveryType === 'delivery';
         let statusBadgeText = '접수완료';
         if (order.servedYn === 'P') {
           statusBadgeText = '준비중';
         } else if (order.servedYn === 'R') {
-          statusBadgeText = '가져가세요!';
+          statusBadgeText = isDelivery ? '배달중 🛵' : '가져가세요!';
         }
 
         card.innerHTML = `
