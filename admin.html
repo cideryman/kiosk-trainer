@@ -667,6 +667,7 @@
         <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
           <button class="btn-small-action" onclick="window.open('board.html', '_blank')" style="min-height: 48px; background-color: #7C3AED; color: white; border: none;">🖥️ 호출 전광판</button>
           <button class="btn-small-action" id="btn-download-csv" style="min-height: 48px;">CSV 다운로드</button>
+          <button class="btn-small-action" id="btn-archive-old-orders" style="min-height: 48px; background-color: #4A5568; color: white; border: none;">지난 주문 보관 📁</button>
           <button class="btn-small-action" id="btn-toggle-refresh" style="min-height: 48px;">일시정지</button>
           <button class="btn btn-primary" id="btn-manual-refresh" style="min-height: 48px; font-size: 16px; width: auto; padding: 0 16px; margin: 0;">
             🔄 지금 새로고침
@@ -723,6 +724,7 @@
         <button class="admin-tab-btn active" id="btn-tab-orders" onclick="switchTab('tab-orders')">📋 주문 처리 현황</button>
         <button class="admin-tab-btn" id="btn-tab-users" onclick="switchTab('tab-users')">🪙 이용자 크레딧 관리</button>
         <button class="admin-tab-btn" id="btn-tab-snacks" onclick="switchTab('tab-snacks')">🍪 간식 및 재고 관리</button>
+        <button class="admin-tab-btn" id="btn-tab-reviews" onclick="switchTab('tab-reviews')">💬 후기 내역</button>
       </div>
 
       <!-- Tab 1: 주문 처리 현황 -->
@@ -950,6 +952,33 @@
                 </div>
               </div>
               <button class="btn btn-secondary" onclick="addNewSnackAction()" style="margin-top: 12px; width: 100%;">등록하기</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: 후기 관리 -->
+      <div id="tab-reviews" class="admin-tab-content">
+        <div class="snack-admin-layout">
+          <div>
+            <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color);">💬 게스트 후기 및 응원 내역</div>
+            <div class="table-responsive">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>작성 시간</th>
+                    <th>주문 번호</th>
+                    <th>게스트명</th>
+                    <th>칭찬 스탬프</th>
+                    <th>태그</th>
+                    <th>한마디 응원</th>
+                    <th style="text-align: center;">공개 여부</th>
+                  </tr>
+                </thead>
+                <tbody id="review-table-body">
+                  <!-- JS 동적 생성 -->
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -1250,10 +1279,11 @@
       }
 
       try {
-        const [ordersRes, snacksRes, usersRes] = await Promise.all([
+        const [ordersRes, snacksRes, usersRes, reviewsRes] = await Promise.all([
           fetchAPI('getOrdersToday'),
           fetchAPI('getSnacks', { params: { includeHidden: 'Y' } }),
-          fetchAPI('getUsers', { params: { includeInactive: 'Y' } })
+          fetchAPI('getUsers', { params: { includeInactive: 'Y' } }),
+          fetchAPI('getReviewsForAdmin')
         ]);
         
         // 1. 유저 이미지 매핑 데이터 생성
@@ -1284,7 +1314,12 @@
           throw new Error('간식 API 응답 결과가 올바르지 않습니다.');
         }
 
-        // 4. 게스트 운영 설정 갱신
+        // 4. 후기 데이터 처리
+        if (reviewsRes && reviewsRes.success && Array.isArray(reviewsRes.reviews)) {
+          renderReviews(reviewsRes.reviews);
+        }
+
+        // 5. 게스트 운영 설정 갱신
         loadGuestOpsPanel();
       } catch (error) {
         console.error('관리자 데이터 조회 실패:', error);
@@ -1308,6 +1343,42 @@
       } else {
         warningEl.style.display = 'none';
       }
+    }
+
+    function renderReviews(reviews) {
+      const tbody = document.getElementById('review-table-body');
+      if (!tbody) return;
+      
+      tbody.innerHTML = '';
+      
+      if (reviews.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">등록된 후기가 없습니다.</td></tr>';
+        return;
+      }
+      
+      reviews.forEach(review => {
+        const tr = document.createElement('tr');
+        
+        const isPub = review.isPublic === true || String(review.isPublic).toUpperCase() === 'TRUE' || review.isPublic === 'Y';
+        const pubLabel = isPub ? '공개' : '비공개';
+        const pubClass = isPub ? 'active' : 'inactive';
+        const rawDate = review.createdAt ? new Date(review.createdAt) : null;
+        let formattedDate = review.createdAt || '-';
+        if (rawDate && !isNaN(rawDate.getTime())) {
+          formattedDate = `${rawDate.toLocaleDateString()} ${String(rawDate.getHours()).padStart(2, '0')}:${String(rawDate.getMinutes()).padStart(2, '0')}`;
+        }
+        
+        tr.innerHTML = `
+          <td><strong>${esc(formattedDate)}</strong></td>
+          <td><span style="font-family: monospace;">${esc(review.orderId)}</span></td>
+          <td>${esc(review.guestName)}</td>
+          <td><span style="background-color: #FFF3E0; border: 1.5px solid var(--primary-color); padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #E65100;">${esc(review.stamp)}</span></td>
+          <td>${esc(review.tags || '-')}</td>
+          <td style="max-width: 250px; word-break: break-all;">${esc(review.comment || '-')}</td>
+          <td style="text-align: center;"><span class="status-badge ${pubClass}">${pubLabel}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
     }
 
     // 현재 간식 재고 목록 렌더링
@@ -2836,6 +2907,44 @@
       document.getElementById('btn-download-csv').addEventListener('click', () => {
         downloadTodayOrdersCsv();
       });
+
+      // 지난 주문 보관 버튼 바인딩
+      const btnArchive = document.getElementById('btn-archive-old-orders');
+      if (btnArchive) {
+        btnArchive.addEventListener('click', async () => {
+          if (!confirm('오늘 이전의 지난 모든 주문을 보관함으로 이동하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) {
+            return;
+          }
+          try {
+            const adminToken = getAdminToken();
+            const adminMemo = getAdminMemo();
+            btnArchive.disabled = true;
+            btnArchive.textContent = '보관 중... ⏳';
+            
+            const res = await fetchAPI('archiveOldOrders', {
+              method: 'POST',
+              body: {
+                adminToken,
+                adminMemo
+              }
+            });
+            
+            if (res && res.success) {
+              alert(res.message || '지난 주문 보관이 완료되었습니다.');
+              loadAdminData(); // 데이터 새로고침
+            } else {
+              clearAdminTokenIfDenied(res);
+              alert(res?.message || '지난 주문 보관에 실패했습니다.');
+            }
+          } catch (e) {
+            console.error(e);
+            alert(e.message || '지난 주문 보관 중 오류가 발생했습니다.');
+          } finally {
+            btnArchive.disabled = false;
+            btnArchive.textContent = '지난 주문 보관 📁';
+          }
+        });
+      }
 
       // 키오스크 모드로 돌아가기
       document.getElementById('btn-goto-kiosk').addEventListener('click', () => {

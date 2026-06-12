@@ -9,7 +9,7 @@ const GUEST_DELIVERY_FEE = 3;
 // - 주의: 테스트 시에는 true, 실제 운영 배포 시에는 false로 설정해야 합니다.
 // - false: 실제 API 호출 (실패 시 Mock으로 자동 폴백하지 않고 실제 에러 메시지 노출)
 // - true: 항상 로컬 Mock 데이터를 사용하여 동작 테스트 및 검증 진행
-const USE_MOCK = false;
+const USE_MOCK = true;
 
 // 로컬 테스트 및 API 오류 대응을 위한 Mock 데이터
 const MOCK_DATA = {
@@ -285,7 +285,8 @@ function getMockFallback(action, options) {
         orderNo: matched.orderNo,
         orderToken: matched.orderToken || '',
         servedYn: matched.servedYn || 'N',
-        cancelTimestamp: matched.cancelTimestamp || ''
+        cancelTimestamp: matched.cancelTimestamp || '',
+        reviewed: matched.reviewed || false
       };
     } else {
       res = {
@@ -307,14 +308,14 @@ function getMockFallback(action, options) {
 
     res = {
       success: true,
-      orders: matchedOrders
+      orders: matchedOrders.map(o => ({ ...o, reviewed: o.reviewed || false }))
     };
   } else if (action === 'getOrdersToday') {
     // 로컬 스토리지에 저장된 테스트용 주문 내역이 있으면 그것을 병합
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
     res = {
       success: true,
-      orders: [...localOrders, ...MOCK_DATA.getOrdersToday.orders]
+      orders: [...localOrders, ...MOCK_DATA.getOrdersToday.orders].map(o => ({ ...o, reviewed: o.reviewed || false }))
     };
   } else if (action === 'placeOrder') {
     // 주문 완료 시 로컬 스토리지에 임시 주문 추가 (관리자 화면에서 확인 가능하게)
@@ -389,7 +390,8 @@ function getMockFallback(action, options) {
         point: snack.point * item.quantity,
         servedYn: 'N',
         deliveryType: deliveryType,
-        deliveryFee: deliveryFee
+        deliveryFee: deliveryFee,
+        reviewed: false
       };
     });
 
@@ -689,6 +691,100 @@ function getMockFallback(action, options) {
       success: true,
       imageUrl: `https://drive.google.com/uc?export=view&id=mock_file_id_${type}_${Date.now()}`
     };
+  } else if (action === 'submitReview') {
+    const orderId = options.body?.orderId;
+    const guestName = options.body?.guestName;
+    const stamp = options.body?.stamp || '';
+    const tags = options.body?.tags || '';
+    const comment = options.body?.comment || '';
+    const isPublic = options.body?.isPublic !== false && options.body?.isPublic !== 'false';
+
+    if (!orderId || !guestName) {
+      res = { success: false, message: '필수 매개변수가 누락되었습니다.' };
+    } else {
+      const mockReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
+      const alreadyExists = mockReviews.some(r => r.orderId === orderId);
+      if (alreadyExists) {
+        res = { success: false, message: '이미 후기가 작성된 주문번호입니다.' };
+      } else {
+        mockReviews.push({
+          createdAt: new Date().toISOString(),
+          orderId,
+          guestName,
+          stamp,
+          tags,
+          comment,
+          isPublic
+        });
+        localStorage.setItem('mockReviews', JSON.stringify(mockReviews));
+
+        // local orders reviewed 상태 업데이트
+        const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
+        const updatedLocalOrders = localOrders.map(o => {
+          if (o.orderNo === orderId) {
+            return { ...o, reviewed: true };
+          }
+          return o;
+        });
+        localStorage.setItem('mockOrders', JSON.stringify(updatedLocalOrders));
+
+        // memory orders reviewed 상태 업데이트
+        MOCK_DATA.getOrdersToday.orders.forEach(o => {
+          if (o.orderNo === orderId) {
+            o.reviewed = true;
+          }
+        });
+
+        res = { success: true, message: '후기가 등록되었습니다.' };
+      }
+    }
+  } else if (action === 'getRecentReviews') {
+    const mockReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
+    const publicReviews = mockReviews
+      .filter(r => r.isPublic === true || String(r.isPublic).toUpperCase() === 'TRUE' || r.isPublic === 'Y')
+      .map(r => ({
+        createdAt: r.createdAt,
+        orderId: r.orderId,
+        guestName: r.guestName,
+        stamp: r.stamp,
+        tags: r.tags,
+        comment: r.comment
+      }))
+      .reverse()
+      .slice(0, 10);
+
+    res = { success: true, reviews: publicReviews };
+  } else if (action === 'getReviewsForAdmin') {
+    const mockReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
+    const sortedReviews = [...mockReviews].reverse();
+    res = { success: true, reviews: sortedReviews };
+  } else if (action === 'archiveOldOrders') {
+    const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
+    const todayStr = new Date().toISOString().slice(2, 10).replace(/-/g, '');
+
+    const currentOrders = [];
+    const archivedOrders = [];
+
+    localOrders.forEach(o => {
+      if (o.timestamp) {
+        const orderDateStr = o.timestamp.slice(2, 10).replace(/-/g, '');
+        if (orderDateStr === todayStr) {
+          currentOrders.push(o);
+        } else {
+          archivedOrders.push(o);
+        }
+      } else {
+        currentOrders.push(o);
+      }
+    });
+
+    if (archivedOrders.length > 0) {
+      const allArchived = JSON.parse(localStorage.getItem('mockArchivedOrders') || '[]');
+      localStorage.setItem('mockArchivedOrders', JSON.stringify([...allArchived, ...archivedOrders]));
+      localStorage.setItem('mockOrders', JSON.stringify(currentOrders));
+    }
+
+    res = { success: true, message: `${archivedOrders.length}건의 지난 주문을 성공적으로 보관 처리했습니다.` };
   } else {
     res = { success: false, error: "액션을 찾을 수 없습니다." };
   }

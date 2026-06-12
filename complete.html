@@ -183,6 +183,87 @@
       color: var(--text-main);
       line-height: 1.5;
     }
+
+    /* 후기 작성 전용 스타일 */
+    .stamp-btn.active {
+      border-color: var(--primary-color) !important;
+      background-color: #FFF9E6 !important;
+      color: var(--primary-color) !important;
+    }
+    .tag-capsule.active {
+      background-color: #E0F2F1 !important;
+      border-color: var(--secondary-color) !important;
+      color: #00796B !important;
+    }
+
+    /* 후기 작성 모달 스타일 */
+    .admin-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    
+    .admin-modal-content {
+      background-color: white;
+      border-radius: var(--radius-md);
+      width: 100%;
+      max-width: 500px;
+      padding: 24px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      animation: modalFadeIn 0.2s ease-out;
+    }
+    
+    @keyframes modalFadeIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    
+    .admin-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+    
+    .admin-modal-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+    
+    .admin-modal-close {
+      background: none;
+      border: none;
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text-muted);
+      cursor: pointer;
+      line-height: 1;
+    }
+    
+    .admin-modal-body {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    
+    .admin-modal-footer {
+      display: flex;
+      gap: 12px;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -294,9 +375,64 @@
     </main>
 
     <!-- 푸터 버튼 -->
-    <footer class="kiosk-footer">
-      <button class="btn btn-secondary" id="btn-home">처음으로 돌아가기</button>
+    <footer class="kiosk-footer" style="display: flex; gap: 12px;">
+      <button class="btn btn-gray" id="btn-home" style="flex: 1; min-height: 64px; font-size: 20px;">처음으로</button>
+      <button class="btn btn-secondary" id="btn-write-review-trigger" style="flex: 2; min-height: 64px; font-size: 22px; display: none; background-color: var(--secondary-color); box-shadow: var(--shadow-btn-sec);">따뜻한 한마디 남기기 💌</button>
     </footer>
+  </div>
+
+  <!-- 후기 작성 모달 -->
+  <div class="admin-modal" id="modal-write-review" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center; padding: 20px;">
+    <div class="admin-modal-content" style="background-color: white; border-radius: var(--radius-md); width: 100%; max-width: 500px; padding: 24px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 16px; border: 3px solid var(--border-color);">
+      <div class="admin-modal-header" style="border-bottom: 2px solid var(--border-color); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <h2 class="admin-modal-title" style="color: var(--secondary-hover); font-size: 22px; margin: 0;">💌 칭찬과 응원 보내기</h2>
+        <button class="admin-modal-close" id="btn-close-review-modal" style="font-size: 28px; background: none; border: none; cursor: pointer; color: var(--text-muted);">&times;</button>
+      </div>
+      <div class="admin-modal-body" style="display: flex; flex-direction: column; gap: 16px; margin-top: 10px;">
+        <div style="font-size: 15px; font-weight: 700; color: var(--primary-color); text-align: center; line-height: 1.4; word-break: keep-all; background-color: #FFF9E6; border: 1.5px solid #FFE0B2; padding: 12px; border-radius: var(--radius-sm);">
+          "남겨주신 응원은 이용자들의 다음 활동에 큰 힘이 됩니다."
+        </div>
+        
+        <!-- 칭찬 스탬프 선택 -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">칭찬 스탬프 고르기</label>
+          <div style="display: grid; grid-template-columns: 1fr; gap: 10px;" id="stamp-select-group">
+            <button type="button" class="btn stamp-btn active" data-stamp="👍 친절해요" style="font-size: 15px; font-weight: 800; min-height: 48px; border: 2.5px solid var(--border-color); padding: 0 8px;">👍 친절해요</button>
+            <button type="button" class="btn stamp-btn" data-stamp="⚡ 빨라요" style="font-size: 15px; font-weight: 800; min-height: 48px; border: 2.5px solid var(--border-color); padding: 0 8px;">⚡ 빨라요</button>
+            <button type="button" class="btn stamp-btn" data-stamp="🎁 감동이에요" style="font-size: 15px; font-weight: 800; min-height: 48px; border: 2.5px solid var(--border-color); padding: 0 8px;">🎁 감동이에요</button>
+            <button type="button" class="btn stamp-btn" data-stamp="☕ 응원해요" style="font-size: 15px; font-weight: 800; min-height: 48px; border: 2.5px solid var(--border-color); padding: 0 8px;">☕ 응원해요</button>
+          </div>
+        </div>
+
+        <!-- 태그 선택 -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">태그 선택 (중복 가능)</label>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;" id="tags-select-group">
+            <span class="status-badge tag-capsule" data-tag="정확한 배달" style="cursor: pointer; font-size: 14px; font-weight: 800; padding: 6px 12px; background-color: white; border-color: var(--border-color); color: var(--text-muted);">정확한 배달</span>
+            <span class="status-badge tag-capsule" data-tag="친절한 미소" style="cursor: pointer; font-size: 14px; font-weight: 800; padding: 6px 12px; background-color: white; border-color: var(--border-color); color: var(--text-muted);">친절한 미소</span>
+            <span class="status-badge tag-capsule" data-tag="맛있는 간식" style="cursor: pointer; font-size: 14px; font-weight: 800; padding: 6px 12px; background-color: white; border-color: var(--border-color); color: var(--text-muted);">맛있는 간식</span>
+            <span class="status-badge tag-capsule" data-tag="꼼꼼한 포장" style="cursor: pointer; font-size: 14px; font-weight: 800; padding: 6px 12px; background-color: white; border-color: var(--border-color); color: var(--text-muted);">꼼꼼한 포장</span>
+            <span class="status-badge tag-capsule" data-tag="최고의 서비스" style="cursor: pointer; font-size: 14px; font-weight: 800; padding: 6px 12px; background-color: white; border-color: var(--border-color); color: var(--text-muted);">최고의 서비스</span>
+          </div>
+        </div>
+
+        <!-- 한마디 응원 -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label for="review-comment" style="font-size: 16px; font-weight: 800; color: var(--text-main);">한마디 응원</label>
+          <textarea id="review-comment" placeholder="훈련생들에게 따뜻한 격려의 말을 적어주세요!" style="width: 100%; min-height: 80px; padding: 12px; font-size: 16px; font-weight: 700; border: 2.5px solid var(--border-color); border-radius: var(--radius-sm); outline: none; resize: none; font-family: inherit; transition: border-color 0.15s;" onfocus="this.style.borderColor='var(--secondary-color)'" onblur="this.style.borderColor='var(--border-color)'"></textarea>
+        </div>
+
+        <!-- 공개 여부 토글 -->
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" id="review-is-public" checked style="width: 22px; height: 22px; cursor: pointer; accent-color: var(--secondary-color);">
+          <label for="review-is-public" style="font-size: 15px; font-weight: 700; color: var(--text-muted); cursor: pointer; user-select: none;">칭찬 보드에 공개하기</label>
+        </div>
+      </div>
+      <div class="admin-modal-footer" style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">
+        <button class="btn btn-secondary" id="btn-submit-review" style="width: 100%; min-height: 54px; font-size: 18px; font-weight: 800; margin: 0;">보내기</button>
+        <button class="btn btn-gray" id="btn-cancel-review" style="width: 100%; min-height: 54px; font-size: 18px; font-weight: 800;">취소</button>
+      </div>
+    </div>
   </div>
 
   <!-- 스크립트 참조 -->
@@ -571,6 +707,12 @@
         if (pollInterval) {
           clearInterval(pollInterval);
         }
+        if (status === 'Y') {
+          const btnTrigger = document.getElementById('btn-write-review-trigger');
+          if (btnTrigger) {
+            btnTrigger.style.display = 'block';
+          }
+        }
         startRedirectTimer(10);
       }
     }
@@ -632,6 +774,115 @@
       document.getElementById('btn-home').addEventListener('click', () => {
         goHome();
       });
+
+      // 후기 작성 모달 관련 바인딩
+      const reviewModal = document.getElementById('modal-write-review');
+      const btnWriteReviewTrigger = document.getElementById('btn-write-review-trigger');
+      const btnCloseReviewModal = document.getElementById('btn-close-review-modal');
+      const btnCancelReview = document.getElementById('btn-cancel-review');
+      const btnSubmitReview = document.getElementById('btn-submit-review');
+      const stampButtons = document.querySelectorAll('#stamp-select-group .stamp-btn');
+      const tagCapsules = document.querySelectorAll('#tags-select-group .tag-capsule');
+
+      if (btnWriteReviewTrigger) {
+        btnWriteReviewTrigger.addEventListener('click', () => {
+          // 타이머 일시 정지 및 모달 열기
+          clearInterval(countdownInterval);
+          const countdownTextEl = document.getElementById('countdown-text');
+          if (countdownTextEl) countdownTextEl.style.display = 'none';
+          
+          if (reviewModal) reviewModal.style.display = 'flex';
+          AppState.vibrate(50);
+          AppState.playClickSound();
+        });
+      }
+
+      function closeReviewModal() {
+        if (reviewModal) reviewModal.style.display = 'none';
+        // 5초 타이머 재개
+        startRedirectTimer(5);
+      }
+
+      if (btnCloseReviewModal) {
+        btnCloseReviewModal.addEventListener('click', () => {
+          closeReviewModal();
+          AppState.vibrate(30);
+        });
+      }
+
+      if (btnCancelReview) {
+        btnCancelReview.addEventListener('click', () => {
+          closeReviewModal();
+          AppState.vibrate(30);
+        });
+      }
+
+      // 스탬프 선택 바인딩
+      stampButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          stampButtons.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          AppState.vibrate(30);
+          AppState.playClickSound();
+        });
+      });
+
+      // 태그 선택 바인딩
+      tagCapsules.forEach(cap => {
+        cap.addEventListener('click', () => {
+          cap.classList.toggle('active');
+          AppState.vibrate(30);
+          AppState.playClickSound();
+        });
+      });
+
+      // 후기 제출 바인딩
+      if (btnSubmitReview) {
+        btnSubmitReview.addEventListener('click', async () => {
+          if (!summaryData) return;
+
+          const activeStamp = document.querySelector('#stamp-select-group .stamp-btn.active');
+          const stamp = activeStamp ? activeStamp.getAttribute('data-stamp') : '';
+          
+          const activeCapsules = document.querySelectorAll('#tags-select-group .tag-capsule.active');
+          const tags = Array.from(activeCapsules).map(c => c.getAttribute('data-tag')).join(', ');
+          
+          const comment = document.getElementById('review-comment').value.trim();
+          const isPublic = document.getElementById('review-is-public').checked;
+
+          btnSubmitReview.disabled = true;
+          btnSubmitReview.textContent = '제출 중...';
+
+          try {
+            const res = await fetchAPI('submitReview', {
+              method: 'POST',
+              body: {
+                orderId: summaryData.orderNo,
+                guestName: summaryData.nickname,
+                stamp: stamp,
+                tags: tags,
+                comment: comment,
+                isPublic: isPublic
+              }
+            });
+
+            if (res && res.success) {
+              AppState.vibrate(80);
+              alert('소중한 응원을 남겨주셔서 감사합니다! ❤️');
+              goHome();
+            } else {
+              alert('후기 제출에 실패했습니다: ' + (res.message || '오류'));
+              btnSubmitReview.disabled = false;
+              btnSubmitReview.textContent = '보내기';
+            }
+          } catch (e) {
+            console.error('후기 제출 오류:', e);
+            alert('통신 오류가 발생했습니다.');
+            btnSubmitReview.disabled = false;
+            btnSubmitReview.textContent = '보내기';
+          }
+        });
+      }
     });
   </script>
 </body>

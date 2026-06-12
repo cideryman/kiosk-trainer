@@ -53,6 +53,8 @@ const SHEET = {
   ORDERS: '주문내역',
   LOGS: '관리자로그',
   SETTINGS: '운영설정',
+  REVIEWS: '후기내역',
+  ARCHIVE: '주문보관',
 };
 
 // Google Drive 폴더 ID 상수 정의
@@ -77,6 +79,7 @@ const ADMIN_ACTIONS = [
   'updateSnacksOrder',
   'uploadImage',
   'updateGuestSettings',
+  'archiveOldOrders',
 ];
 
 /**
@@ -138,6 +141,14 @@ function doGet(e) {
     return jsonResponse(getGuestSettings());
   }
 
+  if (action === 'getRecentReviews') {
+    return jsonResponse(getRecentReviews());
+  }
+
+  if (action === 'getReviewsForAdmin') {
+    return jsonResponse(getReviewsForAdmin());
+  }
+
   return jsonResponse({
     success: false,
     message: '알 수 없는 요청입니다.',
@@ -187,6 +198,10 @@ function doPost(e) {
     return jsonResponse(uploadImage(data));
   } else if (action === 'updateGuestSettings') {
     return jsonResponse(updateGuestSettings(data));
+  } else if (action === 'submitReview') {
+    return jsonResponse(submitReview(data));
+  } else if (action === 'archiveOldOrders') {
+    return jsonResponse(archiveOldOrders(data));
   }
   
   return jsonResponse({
@@ -476,7 +491,8 @@ function placeOrder(data) {
         orderToken, // orderToken (Column K)
         deliveryType, // deliveryType (Column L)
         deliveryFee, // deliveryFee (Column M)
-        totalCredit // totalCredit (Column N)
+        totalCredit, // totalCredit (Column N)
+        false // reviewed (Column O)
       ]);
 
       // 간식 재고 차감 반영
@@ -544,7 +560,8 @@ function getOrdersToday() {
       orderToken: row[10] || '',
       deliveryType: row[11] || 'pickup',
       deliveryFee: Number(row[12] || 0),
-      totalCredit: Number(row[13] || 0)
+      totalCredit: Number(row[13] || 0),
+      reviewed: row[14] === true || String(row[14]).toUpperCase() === 'TRUE'
     }));
 
   return {
@@ -665,7 +682,8 @@ function getGuestOrdersToday(guestName) {
       orderToken: row[10] || '',
       deliveryType: row[11] || 'pickup',
       deliveryFee: Number(row[12] || 0),
-      totalCredit: Number(row[13] || 0)
+      totalCredit: Number(row[13] || 0),
+      reviewed: row[14] === true || String(row[14]).toUpperCase() === 'TRUE'
     }));
 
   return {
@@ -1305,6 +1323,233 @@ function updateGuestSettings(data) {
   appendAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', logBefore, logAfter, data.adminMemo);
 
   return { success: true, message: '게스트 운영 설정이 변경되었습니다.' };
+}
+
+/**
+ * 22. 후기 등록 API
+ */
+function submitReview(data) {
+  const orderId = data.orderId;
+  const guestName = data.guestName;
+  const stamp = data.stamp || '';
+  const tags = data.tags || '';
+  const comment = data.comment || '';
+  const isPublic = data.isPublic !== false && data.isPublic !== 'false';
+
+  if (!orderId || !guestName) {
+    return {
+      success: false,
+      message: '필수 매개변수(orderId, guestName)가 누락되었습니다.'
+    };
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    return {
+      success: false,
+      message: '다른 작업을 처리 중입니다. 잠시 후 다시 시도해 주세요.'
+    };
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    
+    // 1. 후기내역 시트 가져오기/생성
+    let reviewSheet = ss.getSheetByName(SHEET.REVIEWS);
+    if (!reviewSheet) {
+      reviewSheet = ss.insertSheet(SHEET.REVIEWS);
+      reviewSheet.appendRow(['createdAt', 'orderId', 'guestName', 'stamp', 'tags', 'comment', 'isPublic']);
+    }
+
+    // 2. 이미 존재하는 후기인지 확인 (동일 주문번호 중복 작성 방지)
+    const reviewValues = reviewSheet.getDataRange().getValues();
+    const isAlreadyReviewed = reviewValues.slice(1).some(row => String(row[1]) === String(orderId));
+    if (isAlreadyReviewed) {
+      return {
+        success: false,
+        message: '이미 후기가 작성된 주문번호입니다.'
+      };
+    }
+
+    // 3. 후기 기록 추가
+    reviewSheet.appendRow([
+      new Date(),
+      orderId,
+      guestName,
+      stamp,
+      tags,
+      comment,
+      isPublic
+    ]);
+
+    // 4. 주문내역 시트에서 reviewed 상태 업데이트
+    const orderSheet = ss.getSheetByName(SHEET.ORDERS);
+    if (orderSheet) {
+      const orderValues = orderSheet.getDataRange().getValues();
+      let updatedCount = 0;
+      for (let i = 1; i < orderValues.length; i++) {
+        if (String(orderValues[i][1]) === String(orderId)) {
+          orderSheet.getRange(i + 1, 15).setValue(true); // O열 (15번째) reviewed를 TRUE로 변경
+          updatedCount++;
+        }
+      }
+    }
+
+    return {
+      success: true,
+      message: '후기가 등록되었습니다.'
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * 23. 최근 공개 후기 조회 API (칭찬 보드용)
+ */
+function getRecentReviews() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const reviewSheet = ss.getSheetByName(SHEET.REVIEWS);
+  if (!reviewSheet) {
+    return { success: true, reviews: [] };
+  }
+
+  const values = reviewSheet.getDataRange().getValues();
+  const rows = values.slice(1);
+
+  // isPublic이 참인 것만 필터링하여 최신순으로 정렬
+  const reviews = rows
+    .filter(row => {
+      const isPub = String(row[6]).trim().toUpperCase();
+      return isPub === 'TRUE' || isPub === 'Y' || isPub === 'O' || isPub === '예' || row[6] === true;
+    })
+    .map(row => ({
+      createdAt: row[0],
+      orderId: row[1],
+      guestName: row[2],
+      stamp: row[3],
+      tags: row[4],
+      comment: row[5]
+    }))
+    .reverse() // 최신 작성순
+    .slice(0, 10); // 최대 10개만 반환
+
+  return {
+    success: true,
+    reviews
+  };
+}
+
+/**
+ * 24. 관리자용 전체 후기 조회 API
+ */
+function getReviewsForAdmin() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const reviewSheet = ss.getSheetByName(SHEET.REVIEWS);
+  if (!reviewSheet) {
+    return { success: true, reviews: [] };
+  }
+
+  const values = reviewSheet.getDataRange().getValues();
+  const rows = values.slice(1);
+
+  const reviews = rows
+    .map(row => ({
+      createdAt: row[0],
+      orderId: row[1],
+      guestName: row[2],
+      stamp: row[3],
+      tags: row[4],
+      comment: row[5],
+      isPublic: row[6]
+    }))
+    .reverse(); // 최신순
+
+  return {
+    success: true,
+    reviews
+  };
+}
+
+/**
+ * 25. 지난 주문 보관 (아카이빙) API
+ */
+function archiveOldOrders(data) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    return {
+      success: false,
+      message: '다른 작업을 처리 중입니다. 잠시 후 다시 시도해 주세요.'
+    };
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const orderSheet = ss.getSheetByName(SHEET.ORDERS);
+    if (!orderSheet) {
+      return { success: false, message: '주문내역 시트를 찾을 수 없습니다.' };
+    }
+
+    let archiveSheet = ss.getSheetByName(SHEET.ARCHIVE);
+    if (!archiveSheet) {
+      archiveSheet = ss.insertSheet(SHEET.ARCHIVE);
+      archiveSheet.appendRow([
+        '주문시간', '주문번호', '이용자ID', '별명', '간식ID', '간식명', '수량',
+        '차감포인트', '제공여부', 'cancelTimestamp', 'orderToken', 'deliveryType', 'deliveryFee', 'totalCredit', 'reviewed'
+      ]);
+    }
+
+    const orderValues = orderSheet.getDataRange().getValues();
+    const header = orderValues[0];
+    const rows = orderValues.slice(1);
+
+    // 오늘 날짜의 자정 기준 시각 구하기
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const rowsToArchive = [];
+    const rowsToArchiveIndices = []; // orderSheet에서의 1-based 행 번호
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const timestamp = new Date(row[0]);
+      if (!isNaN(timestamp.getTime()) && timestamp < today) {
+        rowsToArchive.push(row);
+        rowsToArchiveIndices.push(i + 2); // 1-based index + header row (i+2)
+      }
+    }
+
+    if (rowsToArchive.length === 0) {
+      return {
+        success: true,
+        message: '보관할 지난 주문이 없습니다.'
+      };
+    }
+
+    // 아카이브 시트에 행 추가
+    rowsToArchive.forEach(row => {
+      // 행의 열 개수를 15개로 보장
+      const safeRow = [...row];
+      while (safeRow.length < 15) {
+        safeRow.push('');
+      }
+      archiveSheet.appendRow(safeRow);
+    });
+
+    // 주문내역 시트에서 역순으로 행 삭제 (인덱스 밀림 방지)
+    for (let j = rowsToArchiveIndices.length - 1; j >= 0; j--) {
+      orderSheet.deleteRow(rowsToArchiveIndices[j]);
+    }
+
+    appendAdminLog('archiveOldOrders', 'orders', 'archive', '지난 주문 보관', '', `${rowsToArchive.length}건 보관 완료`, data.adminMemo);
+
+    return {
+      success: true,
+      message: `${rowsToArchive.length}건의 지난 주문을 성공적으로 보관 처리했습니다.`
+    };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 ```
