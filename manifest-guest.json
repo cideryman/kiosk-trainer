@@ -1,16 +1,21 @@
 {
   "id": "kiosk-guest",
-  "name": "간식 키오스크 (체험)",
-  "short_name": "키오스크 체험",
+  "name": "배달왔삼",
+  "short_name": "배달왔삼",
   "description": "방문자 및 체험 행사를 위한 간식 주문 키오스크",
-  "start_url": "guest.html",
+  "start_url": "./guest.html",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#F8F9FA",
   "theme_color": "#2EC4B6",
   "icons": [
     {
-      "src": "icons/icon-guest.png",
+      "src": "icons/guest-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/guest-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
