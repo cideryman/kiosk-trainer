@@ -498,6 +498,7 @@
             remainPoints: creditAmount - usedPoints,
             orderNo: order.orderNo,
             orderToken: order.orderToken,
+            deliveryType: order.deliveryType || order.method || 'pickup',
             items: order.items || [{ name: order.snackName, quantity: order.quantity }]
           }));
 

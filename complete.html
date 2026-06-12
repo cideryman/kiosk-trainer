@@ -450,6 +450,8 @@
     let pollInterval = null;
     let lastStatus = null;
     let summaryData = null;
+    let isRedirecting = false;
+    let isGuestMode = false;
 
     // 띵동 차임벨 효과음 합성 (Web Audio API)
     function playChimeSound() {
@@ -495,13 +497,25 @@
       summaryData = JSON.parse(localStorage.getItem('lastOrderSummary'));
       
       if (!summaryData) {
-        goHome();
+        // 폴백: lastOrderSummary가 비어있어도 selectedUser가 게스트인지 검사
+        const selectedUser = AppState.getSelectedUser();
+        const fallbackIsGuest = selectedUser && selectedUser.userId === 'guest';
+        
+        isRedirecting = true;
+        localStorage.removeItem('lastOrderSummary');
+        AppState.resetAll();
+        
+        if (fallbackIsGuest) {
+          window.location.href = 'guest.html';
+        } else {
+          window.location.href = 'index.html';
+        }
         return;
       }
 
-      const isGuest = (summaryData.userId === 'guest');
+      isGuestMode = (summaryData.userId === 'guest');
 
-      if (isGuest) {
+      if (isGuestMode) {
         setupGuestMode();
       } else {
         setupNormalMode();
@@ -755,24 +769,23 @@
  
     // 메인으로 복귀 처리
     function goHome() {
+      if (isRedirecting) return;
+      isRedirecting = true;
+
       // 모든 인터벌 정리
       clearInterval(countdownInterval);
       if (pollInterval) {
         clearInterval(pollInterval);
       }
       
-      const isGuest = summaryData && summaryData.userId === 'guest';
+      const targetUrl = isGuestMode ? 'guest.html' : 'index.html';
       
       // 세션 정리 (마지막 주문 정보 및 유저 초기화)
       localStorage.removeItem('lastOrderSummary');
       AppState.resetAll();
       
       // 메인으로 이동
-      if (isGuest) {
-        window.location.href = 'guest.html';
-      } else {
-        window.location.href = 'index.html';
-      }
+      window.location.href = targetUrl;
     }
 
     // 리다이렉트 타이머 구동

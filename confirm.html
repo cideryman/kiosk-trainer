@@ -648,6 +648,7 @@
             remainPoints: remainPoints,
             orderNo:      response.orderNo || '',
             orderToken:   response.orderToken || '',
+            deliveryType: isGuest ? deliveryType : 'pickup',
             items:        cart.map(item => ({ name: item.name, quantity: item.quantity }))
           };
 
@@ -662,6 +663,7 @@
               guestName: user.nickname,
               createdAt: new Date().toISOString(),
               status: 'N',
+              deliveryType: deliveryType,
               items: cart.map(item => ({ name: item.name, quantity: item.quantity }))
             });
             localStorage.setItem('guestOrders', JSON.stringify(guestOrders));
