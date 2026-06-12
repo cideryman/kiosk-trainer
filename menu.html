@@ -189,12 +189,18 @@
         const safeImgUrl = AppState.escapeAttr(imgUrl);
         const safeSnackName = AppState.escapeHtml(snack.name);
         const safeSnackEmoji = AppState.escapeHtml(AppState.getSnackEmoji(snack.name));
-        // 가격을 동전 아이콘 반복으로 표시 (최대 5개 아이콘) + N크레딧 텍스트
+        // 게스트 모드와 이용자 모드 구분
         const pointNum = Number(snack.point) || 0;
-        const maxCoins = 5;
-        const coinCount = Math.min(pointNum, maxCoins);
-        const coinHTML = '🪙'.repeat(coinCount);
-        const coinPriceHTML = `<div class="snack-coin-price"><span class="coin-emoji">${coinHTML}</span><span class="coin-number-sub">${pointNum}크레딧</span></div>`;
+        let coinPriceHTML = '';
+        if (user && user.userId === 'guest') {
+          coinPriceHTML = `<div class="snack-coin-price" style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">💰 단가 <span style="color: var(--primary-color); font-weight: 800; font-size: 18px;">${pointNum}🪙</span></div>`;
+        } else {
+          const maxCoins = 5;
+          const coinCount = Math.min(pointNum, maxCoins);
+          const extraText = pointNum > maxCoins ? ` <span style="font-size:16px; font-weight:800; color:var(--text-muted); margin-left: 4px;">+${pointNum - maxCoins}</span>` : '';
+          const coinHTML = '🪙'.repeat(coinCount) + extraText;
+          coinPriceHTML = `<div class="snack-coin-price"><span class="coin-emoji" style="display: flex; align-items: center;">${coinHTML}</span><span class="coin-number-sub">${pointNum}크레딧</span></div>`;
+        }
         let imgHTML = '';
         if (imgUrl && imgUrl.trim() !== '') {
           imgHTML = `<img src="${safeImgUrl}" alt="${safeSnackName}" class="snack-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`;
