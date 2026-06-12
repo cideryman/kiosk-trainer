@@ -43,6 +43,10 @@
       <div class="guide-text" style="margin-bottom: 5px;">
         먹고 싶은 <span>간식</span>을 담아주세요.
       </div>
+      <!-- 게스트 배달 힌트 추가 -->
+      <div id="guest-delivery-hint" style="display: none; background-color: #FFF3E0; border: 2.5px solid var(--primary-color); padding: 12px; border-radius: var(--radius-sm); font-size: 16px; font-weight: 800; color: #E65100; text-align: center; line-height: 1.4; word-break: keep-all; margin-bottom: 10px; box-shadow: var(--shadow-sm);">
+        🛵 배달 주문을 원하시면 배달비(<span id="guest-delivery-fee-text">3</span>🪙)를 남겨두고 간식을 담아주세요! (최대 <span id="guest-max-snack-credit">7</span>🪙까지)
+      </div>
 
       <!-- 간식 목록 그리드 -->
       <div class="grid-container" id="snack-grid">
@@ -118,6 +122,15 @@
         // 게스트 모드에서는 '이름 다시 고르기' 버튼 숨김
         const btnBack = document.getElementById('btn-back');
         if (btnBack) btnBack.style.display = 'none';
+
+        // 배달 힌트 배너 보이기 및 세팅
+        const hintEl = document.getElementById('guest-delivery-hint');
+        if (hintEl) {
+          hintEl.style.display = 'block';
+          const fee = Number(sessionStorage.getItem('guestDeliveryFee')) || GUEST_DELIVERY_FEE;
+          document.getElementById('guest-delivery-fee-text').textContent = fee;
+          document.getElementById('guest-max-snack-credit').textContent = (user.credit ?? 10) - fee;
+        }
       }
     }
 

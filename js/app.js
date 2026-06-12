@@ -259,7 +259,76 @@ window.addEventListener('DOMContentLoaded', () => {
       AppState.playClickSound();
     }
   });
+
+  // 오프라인 상태 실시간 감지 초기화
+  initOfflineDetector();
 });
+
+// 실시간 인터넷 연결 상태 감지 배너 연동
+function initOfflineDetector() {
+  const bannerId = 'global-offline-warning-banner';
+  
+  function showOfflineBanner() {
+    let banner = document.getElementById(bannerId);
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = bannerId;
+      banner.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background-color: #FF5A5F;
+        color: white;
+        text-align: center;
+        font-size: 18px;
+        font-weight: 850;
+        padding: 14px 20px;
+        z-index: 99999;
+        box-shadow: 0 4px 15px rgba(255, 90, 95, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        animation: offlineSlideDown 0.25s ease-out forwards;
+      `;
+      
+      if (!document.getElementById('offline-animation-style')) {
+        const style = document.createElement('style');
+        style.id = 'offline-animation-style';
+        style.textContent = `
+          @keyframes offlineSlideDown {
+            from { transform: translateY(-100%); }
+            to { transform: translateY(0); }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+      
+      banner.innerHTML = `⚠️ 현재 인터넷 연결이 불안정합니다. 연결 상태를 확인해 주세요. 🔌`;
+      document.body.appendChild(banner);
+      
+      AppState.playWarningSound();
+      AppState.vibrate([100, 100, 100]);
+    }
+  }
+  
+  function hideOfflineBanner() {
+    const banner = document.getElementById(bannerId);
+    if (banner) {
+      banner.remove();
+      AppState.playClickSound();
+      AppState.vibrate(50);
+    }
+  }
+  
+  window.addEventListener('offline', showOfflineBanner);
+  window.addEventListener('online', hideOfflineBanner);
+  
+  if (!navigator.onLine) {
+    showOfflineBanner();
+  }
+}
 
 // Progressive Web App 서비스 워커 등록 및 실시간 업데이트 처리
 if ('serviceWorker' in navigator) {

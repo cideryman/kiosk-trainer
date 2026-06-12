@@ -324,11 +324,13 @@
     }
 
     // TTS 음성 호출
-    function speakCalling(orderNo, nickname) {
+    function speakCalling(orderNo, nickname, isDelivery) {
       if (!isAudioEnabled) return;
       
       const shortNo = getShortNo(orderNo);
-      const text = `주문번호 ${shortNo}번, ${nickname} 님, 간식이 준비되었습니다. 받아가세요!`;
+      const text = isDelivery 
+        ? `주문번호 ${shortNo}번, ${nickname} 님, 간식이 배달 중입니다. 조금만 기다려주세요!`
+        : `주문번호 ${shortNo}번, ${nickname} 님, 간식이 준비되었습니다. 받아가세요!`;
       
       try {
         window.speechSynthesis.cancel(); // 진행 중 대화 리셋
@@ -407,7 +409,7 @@
           // 즉시 호출 방송 실행
           setTimeout(() => {
             playChimeSound();
-            speakCalling(order.orderNo, order.nickname);
+            speakCalling(order.orderNo, order.nickname, order.deliveryType === 'delivery');
           }, 100);
         }
       });
