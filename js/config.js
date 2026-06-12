@@ -276,6 +276,10 @@ function getMockFallback(action, options) {
     } else if (settingsAction === 'closeNow') {
       settings.guestOpen = 'N';
       appendMockAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', 'Y', 'N (즉시 마감)', options.body?.adminMemo);
+    } else if (settingsAction === 'updateValues') {
+      settings.guestBaseCredit = Number(options.body?.guestBaseCredit);
+      settings.guestDeliveryFee = Number(options.body?.guestDeliveryFee);
+      appendMockAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `크레딧:${settings.guestBaseCredit}, 배달비:${settings.guestDeliveryFee}`, options.body?.adminMemo);
     }
 
     saveMockGuestSettings(settings);

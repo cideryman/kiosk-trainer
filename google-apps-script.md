@@ -1316,6 +1316,33 @@ function updateGuestSettings(data) {
     guestOpen = 'N';
     logBefore = 'Y';
     logAfter = 'N (즉시 마감)';
+  } else if (action === 'updateValues') {
+    const guestBaseCredit = data.guestBaseCredit;
+    const guestDeliveryFee = data.guestDeliveryFee;
+    
+    const values = sheet.getDataRange().getValues();
+    let rowCredit = -1;
+    let rowFee = -1;
+    for (let i = 1; i < values.length; i++) {
+      const key = String(values[i][0]).trim();
+      if (key === 'guestBaseCredit') rowCredit = i + 1;
+      if (key === 'guestDeliveryFee') rowFee = i + 1;
+    }
+    
+    if (rowCredit > 0) {
+      sheet.getRange(rowCredit, 2).setValue(guestBaseCredit);
+    } else {
+      sheet.appendRow(['guestBaseCredit', guestBaseCredit]);
+    }
+    
+    if (rowFee > 0) {
+      sheet.getRange(rowFee, 2).setValue(guestDeliveryFee);
+    } else {
+      sheet.appendRow(['guestDeliveryFee', guestDeliveryFee]);
+    }
+    
+    appendAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `크레딧:${guestBaseCredit}, 배달비:${guestDeliveryFee}`, data.adminMemo);
+    return { success: true, message: '게스트 설정이 저장되었습니다.' };
   } else {
     return { success: false, message: '알 수 없는 설정 변경 요청입니다.' };
   }
@@ -1344,7 +1371,7 @@ function updateGuestSettings(data) {
 
   appendAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', logBefore, logAfter, data.adminMemo);
 
-  return { success: true, message: '게스트 운영 설정이 변경되었습니다.' };
+  return { success: true, message: '게스트 운영 상태가 변경되었습니다.' };
 }
 
 /**
