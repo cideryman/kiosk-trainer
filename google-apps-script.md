@@ -80,6 +80,7 @@ const ADMIN_ACTIONS = [
   'uploadImage',
   'updateGuestSettings',
   'archiveOldOrders',
+  'getReviewsForAdmin'
 ];
 
 /**
@@ -146,10 +147,6 @@ function doGet(e) {
     return jsonResponse(getRecentReviews());
   }
 
-  if (action === 'getReviewsForAdmin') {
-    return jsonResponse(getReviewsForAdmin());
-  }
-
   return jsonResponse({
     success: false,
     message: '알 수 없는 요청입니다.',
@@ -204,6 +201,8 @@ function doPost(e) {
     return jsonResponse(submitReview(data));
   } else if (action === 'archiveOldOrders') {
     return jsonResponse(archiveOldOrders(data));
+  } else if (action === 'getReviewsForAdmin') {
+    return jsonResponse(getReviewsForAdmin());
   }
   
   return jsonResponse({
@@ -1411,30 +1410,38 @@ function submitReview(data) {
     const servedYnIdx = headers.indexOf('제공여부');
     const statusIdx = headers.indexOf('상태');
     
-    let targetRowIndex = -1;
-    let targetRow = null;
+    let targetIndices = [];
     
     for (let i = 1; i < orderValues.length; i++) {
       if (String(orderValues[i][orderNoIdx !== -1 ? orderNoIdx : 1]) === String(orderId)) {
-        targetRowIndex = i;
-        targetRow = orderValues[i];
-        break;
+        targetIndices.push(i);
       }
     }
     
-    if (targetRowIndex === -1) {
+    if (targetIndices.length === 0) {
       return { success: false, message: '주문 내역을 찾을 수 없습니다.' };
     }
-    
+
+    // 수령완료 여부 체크 (첫 번째 매칭된 행 기준)
+    const targetRow = orderValues[targetIndices[0]];
     const servedYnValue = targetRow[servedYnIdx !== -1 ? servedYnIdx : 8];
     const statusValue = statusIdx !== -1 ? targetRow[statusIdx] : null;
     
     if (servedYnValue !== 'Y' && servedYnValue !== '수령완료' && statusValue !== '수령완료') {
       return { success: false, message: '수령완료된 주문만 응원 메시지를 남길 수 있습니다.' };
     }
-    
-    const reviewedValue = targetRow[reviewedIdx];
-    const isAlreadyReviewed = reviewedValue === true || String(reviewedValue).toUpperCase() === 'TRUE' || String(reviewedValue).toUpperCase() === 'Y';
+
+    // 모든 행에 대해 체크
+    let isAlreadyReviewed = false;
+    for (const idx of targetIndices) {
+      const row = orderValues[idx];
+      const reviewedValue = row[reviewedIdx];
+      if (reviewedValue === true || String(reviewedValue).toUpperCase() === 'TRUE' || String(reviewedValue).toUpperCase() === 'Y') {
+        isAlreadyReviewed = true;
+        break;
+      }
+    }
+
     if (isAlreadyReviewed) {
       return { success: false, message: '이미 응원 메시지를 남긴 주문입니다.' };
     }
@@ -1463,7 +1470,9 @@ function submitReview(data) {
     ]);
 
     // 4. 주문내역 시트에서 reviewed 상태 업데이트
-    orderSheet.getRange(targetRowIndex + 1, reviewedIdx + 1).setValue(true);
+    targetIndices.forEach(idx => {
+      orderSheet.getRange(idx + 1, reviewedIdx + 1).setValue(true);
+    });
 
     return {
       success: true,
@@ -1549,11 +1558,12 @@ function archiveOldOrders(data) {
   if (!lock.tryLock(10000)) {
     return {
       success: false,
-      message: '다른 작업을 처리 중입니다. 잠시 후 다시 시도해 주세요.'
+      message: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.'
     };
   }
 
   try {
+    const memo = data && data.adminMemo ? data.adminMemo : '';
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const orderSheet = ss.getSheetByName(SHEET.ORDERS);
     if (!orderSheet) {
@@ -1611,7 +1621,7 @@ function archiveOldOrders(data) {
       orderSheet.deleteRow(rowsToArchiveIndices[j]);
     }
 
-    appendAdminLog('archiveOldOrders', 'orders', 'archive', '지난 주문 보관', '', `${rowsToArchive.length}건 보관 완료`, data.adminMemo);
+    appendAdminLog('archiveOldOrders', 'orders', 'archive', '지난 주문 보관', '', `${rowsToArchive.length}건 보관 완료`, memo);
 
     return {
       success: true,

@@ -1283,7 +1283,7 @@
           fetchAPI('getOrdersToday'),
           fetchAPI('getSnacks', { params: { includeHidden: 'Y' } }),
           fetchAPI('getUsers', { params: { includeInactive: 'Y' } }),
-          fetchAPI('getReviewsForAdmin')
+          fetchAPI('getReviewsForAdmin', { method: 'POST', body: withAdminToken({}) })
         ]);
         
         // 1. 유저 이미지 매핑 데이터 생성
