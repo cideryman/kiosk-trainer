@@ -114,6 +114,7 @@ function verifyAdminToken(data) {
  * 2. GET 요청 라우터 (조회 API)
  */
 function doGet(e) {
+  Logger.log('doGet Request: ' + JSON.stringify(e.parameter));
   const action = e.parameter.action;
 
   if (action === 'getUsers') {
@@ -160,6 +161,7 @@ function doGet(e) {
  */
 function doPost(e) {
   var JSON_STRING = e.postData.contents;
+  Logger.log('doPost Request: ' + JSON_STRING);
   var data = JSON.parse(JSON_STRING);
   var action = data.action;
 

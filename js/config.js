@@ -11,6 +11,9 @@ const GUEST_DELIVERY_FEE = 3;
 // - true: 항상 로컬 Mock 데이터를 사용하여 동작 테스트 및 검증 진행
 const USE_MOCK = false;
 
+console.log("API_URL:", API_URL);
+console.log("USE_MOCK:", USE_MOCK);
+
 // 로컬 테스트 및 API 오류 대응을 위한 Mock 데이터
 const MOCK_DATA = {
   getUsers: {
@@ -128,11 +131,13 @@ async function fetchAPI(action, options = {}) {
   }
 
   try {
+    console.log("API Request", { url, options: fetchOptions });
     const response = await fetch(url, fetchOptions);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();
+    console.log("API Response", data);
 
     // 구글 드라이브 이미지 URL 변환 처리
     if (data && data.success) {
@@ -152,6 +157,7 @@ async function fetchAPI(action, options = {}) {
 
     return data;
   } catch (error) {
+    console.error("API Error", error);
     console.warn(`[API Warning] 실제 API 호출 실패 혹은 CORS 발생. Mock 데이터를 사용합니다. Action: ${action}`, error);
     // 에러 발생 시 사용자 경험 중단을 막기 위해 Mock 데이터로 폴백 제공
     return {
