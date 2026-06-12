@@ -9,7 +9,7 @@ const GUEST_DELIVERY_FEE = 3;
 // - 주의: 테스트 시에는 true, 실제 운영 배포 시에는 false로 설정해야 합니다.
 // - false: 실제 API 호출 (실패 시 Mock으로 자동 폴백하지 않고 실제 에러 메시지 노출)
 // - true: 항상 로컬 Mock 데이터를 사용하여 동작 테스트 및 검증 진행
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 // 로컬 테스트 및 API 오류 대응을 위한 Mock 데이터
 const MOCK_DATA = {

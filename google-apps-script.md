@@ -529,7 +529,11 @@ function placeOrder(data) {
 function getOrdersToday() {
   const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET.ORDERS);
   const values = sheet.getDataRange().getValues();
+  const headers = values[0] || [];
   const rows = values.slice(1);
+  
+  const reviewedIdx = headers.indexOf('reviewed');
+  const rIdx = reviewedIdx !== -1 ? reviewedIdx : 14;
 
   const today = Utilities.formatDate(
     new Date(),
@@ -561,7 +565,7 @@ function getOrdersToday() {
       deliveryType: row[11] || 'pickup',
       deliveryFee: Number(row[12] || 0),
       totalCredit: Number(row[13] || 0),
-      reviewed: row[14] === true || String(row[14]).toUpperCase() === 'TRUE'
+      reviewed: row[rIdx] === true || String(row[rIdx]).toUpperCase() === 'TRUE' || String(row[rIdx]).toUpperCase() === 'Y'
     }));
 
   return {
@@ -590,7 +594,10 @@ function getOrderStatus(id) {
   }
 
   const values = sheet.getDataRange().getValues();
+  const headers = values[0] || [];
   const rows = values.slice(1);
+  
+  const reviewedIdx = headers.indexOf('reviewed');
 
   // orderNo(index 1) 또는 orderToken(index 10) 필터링
   const matchedRows = rows.filter(row => {
@@ -608,6 +615,15 @@ function getOrderStatus(id) {
   const firstRow = matchedRows[0];
   const servedYn = firstRow[8] || 'N';
   const cancelTimestamp = firstRow[9] || '';
+  
+  let isReviewed = false;
+  if (reviewedIdx !== -1) {
+    const reviewedValue = firstRow[reviewedIdx];
+    isReviewed = reviewedValue === true || String(reviewedValue).toUpperCase() === 'TRUE' || String(reviewedValue).toUpperCase() === 'Y';
+  } else {
+    const reviewedValue = firstRow[14];
+    isReviewed = reviewedValue === true || String(reviewedValue).toUpperCase() === 'TRUE' || String(reviewedValue).toUpperCase() === 'Y';
+  }
 
   return {
     success: true,
@@ -617,7 +633,8 @@ function getOrderStatus(id) {
     cancelTimestamp: cancelTimestamp,
     deliveryType: firstRow[11] || 'pickup',
     deliveryFee: Number(firstRow[12] || 0),
-    totalCredit: Number(firstRow[13] || 0)
+    totalCredit: Number(firstRow[13] || 0),
+    reviewed: isReviewed
   };
 }
 
@@ -641,7 +658,11 @@ function getGuestOrdersToday(guestName) {
   }
 
   const values = sheet.getDataRange().getValues();
+  const headers = values[0] || [];
   const rows = values.slice(1);
+  
+  const reviewedIdx = headers.indexOf('reviewed');
+  const rIdx = reviewedIdx !== -1 ? reviewedIdx : 14;
 
   const today = Utilities.formatDate(
     new Date(),
@@ -683,7 +704,7 @@ function getGuestOrdersToday(guestName) {
       deliveryType: row[11] || 'pickup',
       deliveryFee: Number(row[12] || 0),
       totalCredit: Number(row[13] || 0),
-      reviewed: row[14] === true || String(row[14]).toUpperCase() === 'TRUE'
+      reviewed: row[rIdx] === true || String(row[rIdx]).toUpperCase() === 'TRUE' || String(row[rIdx]).toUpperCase() === 'Y'
     }));
 
   return {
@@ -1333,13 +1354,28 @@ function submitReview(data) {
   const guestName = data.guestName;
   const stamp = data.stamp || '';
   const tags = data.tags || '';
-  const comment = data.comment || '';
+  let comment = data.comment || '';
   const isPublic = data.isPublic !== false && data.isPublic !== 'false';
 
   if (!orderId || !guestName) {
     return {
       success: false,
       message: '필수 매개변수(orderId, guestName)가 누락되었습니다.'
+    };
+  }
+
+  comment = String(comment).trim();
+  if (comment.length > 100) {
+    return {
+      success: false,
+      message: '응원 메시지는 100자 이내로 입력해주세요.'
+    };
+  }
+
+  if (!stamp && !tags) {
+    return {
+      success: false,
+      message: '칭찬 스탬프나 태그를 1개 이상 선택해주세요.'
     };
   }
 
@@ -1354,21 +1390,63 @@ function submitReview(data) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     
-    // 1. 후기내역 시트 가져오기/생성
+    // 1. 주문내역 시트 확인 및 reviewed 컬럼 체크
+    const orderSheet = ss.getSheetByName(SHEET.ORDERS);
+    if (!orderSheet) {
+      return { success: false, message: '주문내역 시트를 찾을 수 없습니다.' };
+    }
+    const orderValues = orderSheet.getDataRange().getValues();
+    const headers = orderValues[0] || [];
+    
+    let reviewedIdx = headers.indexOf('reviewed');
+    if (reviewedIdx === -1) {
+      reviewedIdx = headers.length;
+      orderSheet.getRange(1, reviewedIdx + 1).setValue('reviewed');
+      headers.push('reviewed');
+    }
+
+    const orderNoIdx = headers.indexOf('주문번호');
+    const servedYnIdx = headers.indexOf('제공여부');
+    const statusIdx = headers.indexOf('상태');
+    
+    let targetRowIndex = -1;
+    let targetRow = null;
+    
+    for (let i = 1; i < orderValues.length; i++) {
+      if (String(orderValues[i][orderNoIdx !== -1 ? orderNoIdx : 1]) === String(orderId)) {
+        targetRowIndex = i;
+        targetRow = orderValues[i];
+        break;
+      }
+    }
+    
+    if (targetRowIndex === -1) {
+      return { success: false, message: '주문 내역을 찾을 수 없습니다.' };
+    }
+    
+    const servedYnValue = targetRow[servedYnIdx !== -1 ? servedYnIdx : 8];
+    const statusValue = statusIdx !== -1 ? targetRow[statusIdx] : null;
+    
+    if (servedYnValue !== 'Y' && servedYnValue !== '수령완료' && statusValue !== '수령완료') {
+      return { success: false, message: '수령완료된 주문만 응원 메시지를 남길 수 있습니다.' };
+    }
+    
+    const reviewedValue = targetRow[reviewedIdx];
+    const isAlreadyReviewed = reviewedValue === true || String(reviewedValue).toUpperCase() === 'TRUE' || String(reviewedValue).toUpperCase() === 'Y';
+    if (isAlreadyReviewed) {
+      return { success: false, message: '이미 응원 메시지를 남긴 주문입니다.' };
+    }
+
+    // 2. 후기내역 시트 가져오기/생성
     let reviewSheet = ss.getSheetByName(SHEET.REVIEWS);
     if (!reviewSheet) {
       reviewSheet = ss.insertSheet(SHEET.REVIEWS);
       reviewSheet.appendRow(['createdAt', 'orderId', 'guestName', 'stamp', 'tags', 'comment', 'isPublic']);
-    }
-
-    // 2. 이미 존재하는 후기인지 확인 (동일 주문번호 중복 작성 방지)
-    const reviewValues = reviewSheet.getDataRange().getValues();
-    const isAlreadyReviewed = reviewValues.slice(1).some(row => String(row[1]) === String(orderId));
-    if (isAlreadyReviewed) {
-      return {
-        success: false,
-        message: '이미 후기가 작성된 주문번호입니다.'
-      };
+    } else {
+      const reviewHeaders = reviewSheet.getDataRange().getValues()[0] || [];
+      if (reviewHeaders.length === 0) {
+        reviewSheet.appendRow(['createdAt', 'orderId', 'guestName', 'stamp', 'tags', 'comment', 'isPublic']);
+      }
     }
 
     // 3. 후기 기록 추가
@@ -1383,21 +1461,11 @@ function submitReview(data) {
     ]);
 
     // 4. 주문내역 시트에서 reviewed 상태 업데이트
-    const orderSheet = ss.getSheetByName(SHEET.ORDERS);
-    if (orderSheet) {
-      const orderValues = orderSheet.getDataRange().getValues();
-      let updatedCount = 0;
-      for (let i = 1; i < orderValues.length; i++) {
-        if (String(orderValues[i][1]) === String(orderId)) {
-          orderSheet.getRange(i + 1, 15).setValue(true); // O열 (15번째) reviewed를 TRUE로 변경
-          updatedCount++;
-        }
-      }
-    }
+    orderSheet.getRange(targetRowIndex + 1, reviewedIdx + 1).setValue(true);
 
     return {
       success: true,
-      message: '후기가 등록되었습니다.'
+      message: '응원 메시지가 저장되었습니다.'
     };
   } finally {
     lock.releaseLock();
