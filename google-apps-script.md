@@ -1227,7 +1227,11 @@ function getGuestSettings() {
     guestCloseAt: '',
     guestBaseCredit: 10,
     guestDeliveryFee: 3,
-    guestDefaultDeliveryPlace: '사무실 원탁'
+    guestDefaultDeliveryPlace: '사무실 원탁',
+    todayDeliveryTeamEnabled: true,
+    todayDeliveryTeamTitle: '📦 오늘의 배달팀',
+    todayDeliveryTeamMembers: '김○○|배달 담당, 박○○|상품 준비 담당',
+    todayDeliveryTeamMessage: '맛있게 준비해서 배달하겠습니다!'
   };
 
   const existingKeys = [];
@@ -1245,7 +1249,11 @@ function getGuestSettings() {
     guestCloseAt: '',
     guestBaseCredit: 10,
     guestDeliveryFee: 3,
-    guestDefaultDeliveryPlace: '사무실 원탁'
+    guestDefaultDeliveryPlace: '사무실 원탁',
+    todayDeliveryTeamEnabled: true,
+    todayDeliveryTeamTitle: '📦 오늘의 배달팀',
+    todayDeliveryTeamMembers: '김○○|배달 담당, 박○○|상품 준비 담당',
+    todayDeliveryTeamMessage: '맛있게 준비해서 배달하겠습니다!'
   };
 
   for (const key in defaultSettings) {
@@ -1287,6 +1295,10 @@ function getGuestSettings() {
     guestBaseCredit: Number(settings.guestBaseCredit || 10),
     guestDeliveryFee: Number(settings.guestDeliveryFee || 3),
     guestDefaultDeliveryPlace: settings.guestDefaultDeliveryPlace || '사무실 원탁',
+    todayDeliveryTeamEnabled: settings.todayDeliveryTeamEnabled === true || String(settings.todayDeliveryTeamEnabled).toLowerCase() === 'true',
+    todayDeliveryTeamTitle: settings.todayDeliveryTeamTitle || '📦 오늘의 배달팀',
+    todayDeliveryTeamMembers: settings.todayDeliveryTeamMembers || '',
+    todayDeliveryTeamMessage: settings.todayDeliveryTeamMessage || '',
     isGuestOpenNow,
     remainingSeconds,
     message

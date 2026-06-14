@@ -121,6 +121,20 @@
           <span>원하시는 메뉴</span>를 골라주세요!
         </div>
         
+        <!-- 오늘의 배달팀 -->
+        <div id="today-delivery-team-section" style="display: none; flex-direction: column; gap: 16px; background-color: var(--card-bg); border: 3px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; box-shadow: var(--shadow-sm);">
+          <div id="delivery-team-title" style="font-size: 20px; font-weight: 850; color: var(--text-main); display: flex; align-items: center; justify-content: center; gap: 8px;">
+            📦 오늘의 배달팀
+          </div>
+          
+          <div id="delivery-team-members" style="display: flex; flex-direction: column; gap: 12px;">
+            <!-- 동적 렌더링 -->
+          </div>
+
+          <div id="delivery-team-message" style="font-size: 15px; font-weight: 700; color: #E65100; text-align: center; margin-top: 4px; line-height: 1.4; word-break: keep-all; font-style: italic;">
+          </div>
+        </div>
+
         <div style="display: flex; flex-direction: column; gap: 16px;">
           <button class="btn btn-secondary" id="btn-new-order" style="min-height: 84px; font-size: 24px;">
             🛒 새 주문하기
@@ -222,6 +236,8 @@
           guestBaseCredit = settingsRes.guestBaseCredit ?? GUEST_DEFAULT_CREDIT;
           guestDeliveryFee = settingsRes.guestDeliveryFee ?? GUEST_DELIVERY_FEE;
 
+          renderTodayDeliveryTeam(settingsRes);
+
           // sessionStorage에 설정값 캐시 (다음 화면에서 사용)
           sessionStorage.setItem('guestBaseCredit', String(guestBaseCredit));
           sessionStorage.setItem('guestDeliveryFee', String(guestDeliveryFee));
@@ -276,6 +292,85 @@
       // 크레딧 배지 적용
       if (guestCreditBadge) {
         guestCreditBadge.textContent = `🎫 가상 크레딧 ${guestBaseCredit}개 무료 지급`;
+      }
+
+      function renderTodayDeliveryTeam(settingsRes) {
+        const teamSection = document.getElementById('today-delivery-team-section');
+        if (!teamSection) return;
+
+        const isEnabled = settingsRes.todayDeliveryTeamEnabled;
+        const membersStr = String(settingsRes.todayDeliveryTeamMembers || '').trim();
+
+        if (!isEnabled || !membersStr) {
+          teamSection.style.display = 'none';
+          return;
+        }
+
+        const titleEl = document.getElementById('delivery-team-title');
+        const membersContainer = document.getElementById('delivery-team-members');
+        const messageEl = document.getElementById('delivery-team-message');
+
+        if (titleEl) {
+          titleEl.textContent = settingsRes.todayDeliveryTeamTitle || '📦 오늘의 배달팀';
+        }
+
+        if (membersContainer) {
+          membersContainer.innerHTML = '';
+          const membersList = membersStr.split(',').map(m => m.trim()).filter(Boolean);
+          
+          if (membersList.length === 0) {
+            teamSection.style.display = 'none';
+            return;
+          }
+
+          membersList.forEach(memberItem => {
+            const parts = memberItem.split('|').map(p => p.trim());
+            const name = parts[0] || '';
+            const role = parts.length > 1 ? parts[1] : '';
+
+            if (!name) return;
+
+            const itemDiv = document.createElement('div');
+            itemDiv.style.display = 'flex';
+            itemDiv.style.alignItems = 'center';
+            itemDiv.style.justifyContent = 'center';
+            itemDiv.style.gap = '8px';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.style.fontWeight = '850';
+            nameSpan.style.fontSize = '18px';
+            nameSpan.style.color = 'var(--text-main)';
+            nameSpan.textContent = name;
+            itemDiv.appendChild(nameSpan);
+
+            if (role) {
+              const roleSpan = document.createElement('span');
+              roleSpan.style.backgroundColor = '#FFF3E0';
+              roleSpan.style.border = '1.5px solid var(--primary-color)';
+              roleSpan.style.padding = '2px 8px';
+              roleSpan.style.borderRadius = '999px';
+              roleSpan.style.fontSize = '13px';
+              roleSpan.style.fontWeight = '800';
+              roleSpan.style.color = '#E65100';
+              roleSpan.textContent = role;
+              itemDiv.appendChild(roleSpan);
+            }
+
+            membersContainer.appendChild(itemDiv);
+          });
+        }
+
+        if (messageEl) {
+          const msg = String(settingsRes.todayDeliveryTeamMessage || '').trim();
+          if (msg) {
+            messageEl.textContent = `"${msg}"`;
+            messageEl.style.display = 'block';
+          } else {
+            messageEl.style.display = 'none';
+          }
+        }
+
+        teamSection.style.display = 'flex';
       }
 
       function updateTimerDisplay(seconds) {
