@@ -851,7 +851,7 @@
                     <th>이용자</th>
                     <th style="text-align: center;">상태</th>
                     <th>보유 크레딧</th>
-                    <th style="text-align: center;">빠른 조정</th>
+                    <th style="text-align: center;">증감 조정</th>
                     <th style="text-align: center;">목표 크레딧</th>
                     <th style="text-align: center;">관리</th>
                   </tr>
@@ -1037,11 +1037,15 @@
           <input type="text" id="edit-user-image">
         </div>
         <div class="form-field">
-          <label for="edit-user-active">활성 상태</label>
-          <select id="edit-user-active" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
-            <option value="Y">활성</option>
-            <option value="N">비활성</option>
-          </select>
+          <label>활성 상태</label>
+          <div style="display: flex; gap: 20px; align-items: center; margin-top: 4px; padding: 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background: #F8FAFC;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 16px; font-weight: 800; color: #22543D;">
+              <input type="radio" name="edit-user-active" value="Y" style="width: 20px; height: 20px; accent-color: #38A169;"> 🟢 활성
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 16px; font-weight: 800; color: #742A2A;">
+              <input type="radio" name="edit-user-active" value="N" style="width: 20px; height: 20px; accent-color: #E53E3E;"> 🔴 비활성
+            </label>
+          </div>
         </div>
       </div>
       <div class="admin-modal-footer">
@@ -1672,46 +1676,41 @@
             </div>
           </td>
           <td style="text-align: center;">
-            <span class="status-badge ${isActive ? 'active' : 'inactive'}">${isActive ? '활성' : '비활성'}</span>
+            <span class="status-badge ${isActive ? 'active' : 'inactive'}">${isActive ? '🟢 활성' : '🔴 비활성'}</span>
           </td>
           <td style="font-weight: 800; font-size: 18px; color: var(--primary-color);">${credit} 크레딧</td>
           <td style="text-align: center;">
-            <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
-              <button class="credit-adjust-btn minus" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, -5)`)}">-5</button>
-              <button class="credit-adjust-btn minus" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, -1)`)}">-1</button>
-              <button class="credit-adjust-btn plus" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, 1)`)}">+1</button>
-              <button class="credit-adjust-btn plus" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, 5)`)}">+5</button>
+            <div style="display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: wrap;">
+              <button class="credit-adjust-btn minus" onclick="${callAttr(`applyDeltaCredit(${userIdArg}, -1)`)}">-</button>
+              <input type="number" id="delta-credit-${attr(userId)}" class="admin-inline-input" value="1" min="1" style="width: 50px;">
+              <button class="credit-adjust-btn plus" onclick="${callAttr(`applyDeltaCredit(${userIdArg}, 1)`)}">+</button>
             </div>
           </td>
           <td style="text-align: center;">
             <div style="display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <button class="credit-adjust-btn" onclick="${callAttr(`setCreditTo(${userIdArg}, 0)`)}">0</button>
-              <button class="credit-adjust-btn" onclick="${callAttr(`setCreditTo(${userIdArg}, 5)`)}">5</button>
-              <button class="credit-adjust-btn" onclick="${callAttr(`setCreditTo(${userIdArg}, 10)`)}">10</button>
-              <button class="credit-adjust-btn" onclick="${callAttr(`setCreditTo(${userIdArg}, 20)`)}">20</button>
-              <input type="number" id="${attr(creditInputId(userId))}" class="admin-inline-input" value="${credit}" min="0">
-              <button class="btn-small-action" onclick="${callAttr(`manualAdjustCredit(${userIdArg})`)}">맞추기</button>
+              <input type="number" id="${attr(creditInputId(userId))}" class="admin-inline-input" value="${credit}" min="0" style="width: 60px;">
+              <button class="btn-small-action" onclick="${callAttr(`manualAdjustCredit(${userIdArg})`)}">변경</button>
             </div>
           </td>
           <td style="text-align: center;">
-            <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
-              <button class="btn-small-action" style="background-color: var(--secondary-color);" onclick="${callAttr(`openEditUserModal(${userIdArg})`)}">수정</button>
-              <button class="${isActive ? 'btn-danger-action' : 'btn-small-action'}" onclick="${callAttr(`updateUserActiveAction(${userIdArg}, ${isActive ? jsString('N') : jsString('Y')}, ${jsString(nickname)})`)}">${isActive ? '비활성화' : '활성화'}</button>
-            </div>
+            <button class="btn-small-action" style="background-color: var(--secondary-color);" onclick="${callAttr(`openEditUserModal(${userIdArg})`)}">수정</button>
           </td>
         `;
         tbody.appendChild(tr);
       });
     }
 
-    async function setCreditTo(userId, credit) {
-      await updateUserCreditAction(userId, Math.max(0, Number(credit || 0)));
-    }
-
-    async function quickAdjustCredit(userId, change) {
+    async function applyDeltaCredit(userId, sign) {
+      const deltaInput = document.getElementById(`delta-credit-${userId}`);
+      if (!deltaInput) return;
+      const delta = Number(deltaInput.value || 0);
+      if (delta <= 0 || isNaN(delta)) {
+        alert("0보다 큰 올바른 값을 입력해주세요.");
+        return;
+      }
       const user = currentUsers.find(u => String(u.userId) === String(userId));
       if (!user) return;
-      const newCredit = Math.max(0, Number(user.credit) + change);
+      const newCredit = Math.max(0, Number(user.credit) + (delta * sign));
       await updateUserCreditAction(userId, newCredit);
     }
 
@@ -1793,32 +1792,7 @@
       }
     }
 
-    async function updateUserActiveAction(userId, useYn, nickname) {
-      const nextActive = String(useYn).toUpperCase() === 'Y';
-      const actionText = nextActive ? '활성화' : '비활성화';
-      const ok = confirm(`${nickname} 님을 ${actionText}할까요?\n주문 기록은 남고, 스프레드시트의 사용여부만 ${nextActive ? 'Y' : 'N'}로 바뀝니다.`);
-      if (!ok) return;
 
-      try {
-        const res = await fetchAPI('updateUserActive', {
-          method: 'POST',
-          body: withAdminToken({ userId, useYn })
-        });
-
-        if (res && res.success) {
-          alert(`${nickname} 님을 ${actionText}했습니다.`);
-          AppState.vibrate(80);
-          AppState.playClickSound();
-          await loadAdminData();
-        } else {
-          clearAdminTokenIfDenied(res);
-          alert("이용자 상태 변경에 실패했습니다: " + (res?.message || "오류"));
-        }
-      } catch (error) {
-        console.error("이용자 상태 변경 에러:", error);
-        alert("이용자 상태 변경 중 통신 에러가 발생했습니다.");
-      }
-    }
 
     // --- 간식 목록 및 재고 관리 구현 ---
     // ── 간식 표시 순서 관리 (서버 G열 기반) ─────────────────────
@@ -2625,7 +2599,8 @@
       document.getElementById('edit-user-image').value = user.imageUrl || '';
       
       const isActive = isUserActive(user);
-      document.getElementById('edit-user-active').value = isActive ? 'Y' : 'N';
+      const activeRadio = document.querySelector(`input[name="edit-user-active"][value="${isActive ? 'Y' : 'N'}"]`);
+      if (activeRadio) activeRadio.checked = true;
 
       document.getElementById('modal-edit-user').style.display = 'flex';
       AppState.vibrate(40);
@@ -2641,7 +2616,8 @@
       const nickname = document.getElementById('edit-user-nickname').value.trim();
       const credit = Number(document.getElementById('edit-user-credit').value || 0);
       const imageUrl = document.getElementById('edit-user-image').value.trim();
-      const useYn = document.getElementById('edit-user-active').value;
+      const activeRadio = document.querySelector('input[name="edit-user-active"]:checked');
+      const useYn = activeRadio ? activeRadio.value : 'Y';
 
       if (!nickname) {
         alert("이용자 별명을 입력해 주세요.");
