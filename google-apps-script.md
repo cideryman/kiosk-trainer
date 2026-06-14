@@ -1231,7 +1231,9 @@ function getGuestSettings() {
     todayDeliveryTeamEnabled: true,
     todayDeliveryTeamTitle: '📦 오늘의 배달팀',
     todayDeliveryTeamMembers: '김○○|배달 담당, 박○○|상품 준비 담당',
-    todayDeliveryTeamMessage: '맛있게 준비해서 배달하겠습니다!'
+    todayDeliveryTeamMessage: '맛있게 준비해서 배달하겠습니다!',
+    welcomeTitle: '배달왔삼에 오신 것을 환영합니다 😊',
+    welcomeSubtitle: '오늘의 간식을 주문해보세요!'
   };
 
   const existingKeys = [];
@@ -1253,7 +1255,9 @@ function getGuestSettings() {
     todayDeliveryTeamEnabled: true,
     todayDeliveryTeamTitle: '📦 오늘의 배달팀',
     todayDeliveryTeamMembers: '김○○|배달 담당, 박○○|상품 준비 담당',
-    todayDeliveryTeamMessage: '맛있게 준비해서 배달하겠습니다!'
+    todayDeliveryTeamMessage: '맛있게 준비해서 배달하겠습니다!',
+    welcomeTitle: '배달왔삼에 오신 것을 환영합니다 😊',
+    welcomeSubtitle: '오늘의 간식을 주문해보세요!'
   };
 
   for (const key in defaultSettings) {

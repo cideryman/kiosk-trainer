@@ -94,7 +94,7 @@
           <img src="icons/guest-192.png" alt="아이콘" style="width: 28px; height: 28px; border-radius: 4px; object-fit: contain;"> <span>배달왔<span style="color: var(--primary-color);">삼</span></span>
         </div>
         <div style="font-size: 13px; font-weight: 700; color: var(--text-muted); text-align: center;">
-          직업체험 배달 서비스
+          삼각지 카페 배달 서비스
         </div>
       </div>
       <div style="width: 36px;"></div>
@@ -117,8 +117,8 @@
         </div>
 
         <div class="guide-text" id="guide-text-main">
-          방문객 / 체험 모드입니다. 😊<br>
-          <span>원하시는 메뉴</span>를 골라주세요!
+          배달왔삼에 오신 것을 환영합니다 😊<br>
+          <span>오늘의 간식을 주문해보세요!</span>
         </div>
         
         <!-- 오늘의 배달팀 -->
@@ -171,12 +171,12 @@
       <div id="view-input" style="display: none; flex-direction: column; gap: 20px; width: 100%;">
         <div class="guide-text">
           반갑습니다! 😊<br>
-          체험하실 <span>이름</span>을 적어주세요.
+          주문하실 <span>이름</span>을 적어주세요.
         </div>
 
         <div class="guest-input-card">
           <div class="experience-badge" id="guest-credit-badge">
-            🎫 가상 크레딧 10개 무료 지급
+            🎫 신규 방문 크레딧 10개 지급
           </div>
 
           <input type="text" id="guest-name-input" class="guest-input" placeholder="예: 홍길동" maxlength="15" autocomplete="off">
@@ -227,6 +227,8 @@
       let guestDeliveryFee = GUEST_DELIVERY_FEE;
       let remainingCountdown = null;
       let isGuestOpen = false;
+      let welcomeTitle = '배달왔삼에 오신 것을 환영합니다 😊';
+      let welcomeSubtitle = '오늘의 간식을 주문해보세요!';
 
       // 운영 상태 확인
       try {
@@ -235,6 +237,11 @@
           isGuestOpen = settingsRes.isGuestOpenNow;
           guestBaseCredit = settingsRes.guestBaseCredit ?? GUEST_DEFAULT_CREDIT;
           guestDeliveryFee = settingsRes.guestDeliveryFee ?? GUEST_DELIVERY_FEE;
+          welcomeTitle = settingsRes.welcomeTitle || welcomeTitle;
+          welcomeSubtitle = settingsRes.welcomeSubtitle || welcomeSubtitle;
+
+          // 초기 문구 렌더링
+          guideText.innerHTML = `${welcomeTitle}<br><span>${welcomeSubtitle}</span>`;
 
           renderTodayDeliveryTeam(settingsRes);
 
@@ -250,7 +257,7 @@
             btnNewOrder.disabled = true;
             btnNewOrder.style.opacity = '0.4';
             btnNewOrder.style.cursor = 'not-allowed';
-            guideText.innerHTML = '방문객 / 체험 모드입니다. 😊<br><span style="color: var(--danger-color); font-size: 18px;">현재 주문이 마감된 상태입니다.</span>';
+            guideText.innerHTML = `${welcomeTitle}<br><span style="color: var(--danger-color); font-size: 18px;">현재 주문이 마감된 상태입니다.</span>`;
           } else {
             // 운영 중 - 남은 시간 표시
             if (settingsRes.remainingSeconds > 0) {
@@ -269,7 +276,7 @@
                   btnNewOrder.disabled = true;
                   btnNewOrder.style.opacity = '0.4';
                   btnNewOrder.style.cursor = 'not-allowed';
-                  guideText.innerHTML = '방문객 / 체험 모드입니다. 😊<br><span style="color: var(--danger-color); font-size: 18px;">현재 주문이 마감된 상태입니다.</span>';
+                  guideText.innerHTML = `${welcomeTitle}<br><span style="color: var(--danger-color); font-size: 18px;">현재 주문이 마감된 상태입니다.</span>`;
                   return;
                 }
                 updateTimerDisplay(remaining);
@@ -286,12 +293,12 @@
         btnNewOrder.disabled = true;
         btnNewOrder.style.opacity = '0.4';
         btnNewOrder.style.cursor = 'not-allowed';
-        guideText.innerHTML = '방문객 / 체험 모드입니다. 😊<br><span style="color: var(--danger-color); font-size: 18px;">상태 확인이 불가하여 주문이 제한되었습니다.</span>';
+        guideText.innerHTML = `${welcomeTitle}<br><span style="color: var(--danger-color); font-size: 18px;">상태 확인이 불가하여 주문이 제한되었습니다.</span>`;
       }
 
       // 크레딧 배지 적용
       if (guestCreditBadge) {
-        guestCreditBadge.textContent = `🎫 가상 크레딧 ${guestBaseCredit}개 무료 지급`;
+        guestCreditBadge.textContent = `🎫 신규 방문 크레딧 ${guestBaseCredit}개 지급`;
       }
 
       function renderTodayDeliveryTeam(settingsRes) {
