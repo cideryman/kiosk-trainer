@@ -96,11 +96,33 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - Appends the delivery location into Column P (`deliveryPlace`) of the orders table.
   - Renders the delivery location across order completion tracking page (`complete.html`), guest order history lookup (`guest-orders.html`), and admin boards (`admin.html`).
 
-### 4) Production Readiness & Deployment (Latest)
+### 4) Production Readiness & Deployment
 * **API Configuration**:
   - Reverted `USE_MOCK = false` in `js/config.js` to ensure the project communicates with the live Google Sheets backend.
 * **Google Apps Script Requirement**:
   - The `deliveryPlace` column (Column P) support has been added to the backend. The latest `Code.gs` from `google-apps-script.md` must be copied to the Google Apps Script editor and deployed as a **New Deployment** for the changes to take effect in production.
+
+### 5) "Today's Delivery Team" & Rebranding
+* **Guest UI Welcome Messaging & Brand Reorientation**:
+  - Pivoted away from "vocational training / mock experience" terminology to a realistic "delivery service" model.
+  - Welcome text, name prompts, and credit labels have been updated on `guest.html`:
+    - "직업체험 배달 서비스" -> "삼각지 카페 배달 서비스"
+    - "체험하실 이름을 적어주세요" -> "주문하실 이름을 적어주세요"
+    - "가상 크레딧 10개 무료 지급" -> "신규 방문 크레딧 10개 지급"
+* **Operational Control of Today's Delivery Team**:
+  - Added a dashboard control panel under `admin.html` to configure:
+    - Team visibility toggle, Title (e.g. "📦 오늘의 배달팀"), Members (e.g. "김○○|배달 담당, 박○○|상품 준비 담당"), and Team message.
+  - Dynamically renders the delivery team info on the Guest home screen when enabled.
+  - Data mapping is dynamically handled using the pre-existing sheet key-value structure under `운영설정` (Settings) tab.
+
+### 6) Code Review Improvements (Latest)
+* **GAS Archiving Performance Optimization**:
+  - Heavily optimized `archiveOldOrders` in [google-apps-script.md](file:///c:/Users/user/Desktop/키오스크/google-apps-script.md). Replaced the sequential `deleteRow()` and `appendRow()` looping logic (which triggered network timeouts in Google Apps Script when processing multiple history items) with memory-side filtering and a single bulk-write (`setValues`) operation.
+* **Admin Refresh Pause on Editing**:
+  - Added a global `isModalOpen` state flag in `admin.html` to temporarily pause the 30-second auto-refresh timer when administrative modals are open. 
+  - Prevents form data loss and modal closure while editing user credits or snack details. Re-initiates the countdown immediately once modals are dismissed.
+* **PWA Service Worker Cache Busting**:
+  - Bumped the service worker version in [service-worker.js](file:///c:/Users/user/Desktop/키오스크/service-worker.js) to `kiosk-cache-v46` to force-update client browsers and bypass stale local HTML caches.
 
 ---
 

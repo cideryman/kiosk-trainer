@@ -1133,6 +1133,7 @@
     let currentSnacks = [];
     let userSearchQuery = "";
     let refreshPaused = false;
+    let isModalOpen = false;
     const ADMIN_TOKEN_STORAGE_KEY = 'kioskAdminToken';
 
     function esc(value) {
@@ -2559,14 +2560,16 @@
     function startRefreshTimer() {
       const timerBar = document.getElementById('timer-bar');
       const refreshText = document.getElementById('refresh-text');
-      if (refreshPaused) {
-        if (refreshText) refreshText.textContent = '자동 새로고침 일시정지 중';
+      if (refreshPaused || isModalOpen) {
+        if (refreshText) {
+          refreshText.textContent = isModalOpen ? '정보 수정 중 (새로고침 일시중지)' : '자동 새로고침 일시정지 중';
+        }
         if (timerBar) timerBar.style.width = '0%';
         return;
       }
       
       refreshTimer = setInterval(() => {
-        if (refreshPaused) return;
+        if (refreshPaused || isModalOpen) return;
         refreshSeconds--;
         
         // 텍스트 및 프로그레스바 갱신
@@ -2587,9 +2590,15 @@
       const timerBar = document.getElementById('timer-bar');
       const refreshText = document.getElementById('refresh-text');
       if (timerBar) timerBar.style.width = '0%';
-      if (refreshText) refreshText.textContent = refreshPaused ? '자동 새로고침 일시정지 중' : `자동 새로고침 대기 중 (${MAX_REFRESH_TIME}초)`;
+      if (refreshText) {
+        if (isModalOpen) {
+          refreshText.textContent = '정보 수정 중 (새로고침 일시중지)';
+        } else {
+          refreshText.textContent = refreshPaused ? '자동 새로고침 일시정지 중' : `자동 새로고침 대기 중 (${MAX_REFRESH_TIME}초)`;
+        }
+      }
       
-      if (!refreshPaused) {
+      if (!refreshPaused && !isModalOpen) {
         startRefreshTimer();
       }
     }
@@ -2620,11 +2629,17 @@
 
       document.getElementById('modal-edit-user').style.display = 'flex';
       AppState.vibrate(40);
+      
+      isModalOpen = true;
+      resetRefreshTimer();
     }
 
     function closeEditUserModal() {
       document.getElementById('modal-edit-user').style.display = 'none';
       AppState.vibrate(30);
+      
+      isModalOpen = false;
+      resetRefreshTimer();
     }
 
     async function updateUserAction() {
@@ -2679,11 +2694,17 @@
 
       document.getElementById('modal-edit-snack').style.display = 'flex';
       AppState.vibrate(40);
+      
+      isModalOpen = true;
+      resetRefreshTimer();
     }
 
     function closeEditSnackModal() {
       document.getElementById('modal-edit-snack').style.display = 'none';
       AppState.vibrate(30);
+      
+      isModalOpen = false;
+      resetRefreshTimer();
     }
 
     async function updateSnackAction() {

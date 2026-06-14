@@ -1676,6 +1676,13 @@ function archiveOldOrders(data) {
     }
 
     const orderValues = orderSheet.getDataRange().getValues();
+    if (orderValues.length <= 1) {
+      return {
+        success: true,
+        message: '보관할 지난 주문이 없습니다.'
+      };
+    }
+
     const header = orderValues[0];
     const rows = orderValues.slice(1);
 
@@ -1684,14 +1691,20 @@ function archiveOldOrders(data) {
     today.setHours(0, 0, 0, 0);
 
     const rowsToArchive = [];
-    const rowsToArchiveIndices = []; // orderSheet에서의 1-based 행 번호
+    const rowsToKeep = [header];
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const timestamp = new Date(row[0]);
       if (!isNaN(timestamp.getTime()) && timestamp < today) {
-        rowsToArchive.push(row);
-        rowsToArchiveIndices.push(i + 2); // 1-based index + header row (i+2)
+        // 행의 열 개수를 15개로 맞춰 안전하게 아카이빙
+        const safeRow = [...row];
+        while (safeRow.length < 15) {
+          safeRow.push('');
+        }
+        rowsToArchive.push(safeRow.slice(0, 15));
+      } else {
+        rowsToKeep.push(row);
       }
     }
 
@@ -1702,20 +1715,25 @@ function archiveOldOrders(data) {
       };
     }
 
-    // 아카이브 시트에 행 추가
-    rowsToArchive.forEach(row => {
-      // 행의 열 개수를 15개로 보장
+    // 아카이브 시트에 일괄 추가 (setValues)
+    const lastRow = archiveSheet.getLastRow();
+    const colCount = 15; // 아카이브 시트의 컬럼 수
+    archiveSheet.getRange(lastRow + 1, 1, rowsToArchive.length, colCount).setValues(rowsToArchive);
+
+    // 주문내역 시트 일괄 덮어쓰기 (clearContent 후 setValues)
+    orderSheet.clearContent();
+    
+    // rowsToKeep의 각 행 길이를 헤더 길이에 맞추어 안전한 setValues 실행
+    const maxCols = header.length;
+    const safeRowsToKeep = rowsToKeep.map(row => {
       const safeRow = [...row];
-      while (safeRow.length < 15) {
+      while (safeRow.length < maxCols) {
         safeRow.push('');
       }
-      archiveSheet.appendRow(safeRow);
+      return safeRow.slice(0, maxCols);
     });
 
-    // 주문내역 시트에서 역순으로 행 삭제 (인덱스 밀림 방지)
-    for (let j = rowsToArchiveIndices.length - 1; j >= 0; j--) {
-      orderSheet.deleteRow(rowsToArchiveIndices[j]);
-    }
+    orderSheet.getRange(1, 1, safeRowsToKeep.length, maxCols).setValues(safeRowsToKeep);
 
     appendAdminLog('archiveOldOrders', 'orders', 'archive', '지난 주문 보관', '', `${rowsToArchive.length}건 보관 완료`, memo);
 
