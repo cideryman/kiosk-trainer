@@ -1340,16 +1340,28 @@ function updateGuestSettings(data) {
     const guestBaseCredit = data.guestBaseCredit;
     const guestDeliveryFee = data.guestDeliveryFee;
     const guestDefaultDeliveryPlace = data.guestDefaultDeliveryPlace;
+    const todayDeliveryTeamEnabled = data.todayDeliveryTeamEnabled !== undefined ? data.todayDeliveryTeamEnabled : true;
+    const todayDeliveryTeamTitle = data.todayDeliveryTeamTitle || '📦 오늘의 배달팀';
+    const todayDeliveryTeamMembers = data.todayDeliveryTeamMembers || '';
+    const todayDeliveryTeamMessage = data.todayDeliveryTeamMessage || '';
     
     const values = sheet.getDataRange().getValues();
     let rowCredit = -1;
     let rowFee = -1;
     let rowDeliveryPlace = -1;
+    let rowTeamEnabled = -1;
+    let rowTeamTitle = -1;
+    let rowTeamMembers = -1;
+    let rowTeamMessage = -1;
     for (let i = 1; i < values.length; i++) {
       const key = String(values[i][0]).trim();
       if (key === 'guestBaseCredit') rowCredit = i + 1;
       if (key === 'guestDeliveryFee') rowFee = i + 1;
       if (key === 'guestDefaultDeliveryPlace') rowDeliveryPlace = i + 1;
+      if (key === 'todayDeliveryTeamEnabled') rowTeamEnabled = i + 1;
+      if (key === 'todayDeliveryTeamTitle') rowTeamTitle = i + 1;
+      if (key === 'todayDeliveryTeamMembers') rowTeamMembers = i + 1;
+      if (key === 'todayDeliveryTeamMessage') rowTeamMessage = i + 1;
     }
     
     if (rowCredit > 0) {
@@ -1368,6 +1380,30 @@ function updateGuestSettings(data) {
       sheet.getRange(rowDeliveryPlace, 2).setValue(guestDefaultDeliveryPlace);
     } else {
       sheet.appendRow(['guestDefaultDeliveryPlace', guestDefaultDeliveryPlace]);
+    }
+    
+    if (rowTeamEnabled > 0) {
+      sheet.getRange(rowTeamEnabled, 2).setValue(todayDeliveryTeamEnabled);
+    } else {
+      sheet.appendRow(['todayDeliveryTeamEnabled', todayDeliveryTeamEnabled]);
+    }
+    
+    if (rowTeamTitle > 0) {
+      sheet.getRange(rowTeamTitle, 2).setValue(todayDeliveryTeamTitle);
+    } else {
+      sheet.appendRow(['todayDeliveryTeamTitle', todayDeliveryTeamTitle]);
+    }
+    
+    if (rowTeamMembers > 0) {
+      sheet.getRange(rowTeamMembers, 2).setValue(todayDeliveryTeamMembers);
+    } else {
+      sheet.appendRow(['todayDeliveryTeamMembers', todayDeliveryTeamMembers]);
+    }
+    
+    if (rowTeamMessage > 0) {
+      sheet.getRange(rowTeamMessage, 2).setValue(todayDeliveryTeamMessage);
+    } else {
+      sheet.appendRow(['todayDeliveryTeamMessage', todayDeliveryTeamMessage]);
     }
     
     appendAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `크레딧:${guestBaseCredit}, 배달비:${guestDeliveryFee}, 기본배달지:${guestDefaultDeliveryPlace}`, data.adminMemo);

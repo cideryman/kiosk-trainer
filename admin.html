@@ -723,7 +723,30 @@
               <span>기본 배달지:</span>
               <input type="text" id="input-guest-delivery-place" class="admin-inline-input" value="사무실 원탁" style="width: 140px; text-align: left; padding: 6px 10px;">
             </div>
-            <button class="btn-small-action" onclick="saveGuestSettings()" style="background-color: var(--secondary-color); min-height: 38px;">저장</button>
+          </div>
+          <!-- 오늘의 배달팀 설정 추가 -->
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 2px dashed var(--border-color);">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+              <div style="font-size: 16px; font-weight: 800; color: var(--text-main);">📦 오늘의 배달팀 설정</div>
+              <button class="btn-small-action" onclick="saveGuestSettings()" style="background-color: var(--secondary-color); min-height: 38px;">설정 저장</button>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 700;">
+                <input type="checkbox" id="input-team-enabled" style="width: 18px; height: 18px; accent-color: var(--secondary-color);"> 표시하기
+              </label>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span>타이틀:</span>
+                <input type="text" id="input-team-title" class="admin-inline-input" style="width: 160px; text-align: left; padding: 6px 10px;" placeholder="📦 오늘의 배달팀">
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <span>멤버:</span>
+              <input type="text" id="input-team-members" class="admin-inline-input" style="flex: 1; min-width: 200px; text-align: left; padding: 6px 10px;" placeholder="김○○|배달 담당, 박○○|상품 준비 담당">
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <span>한마디:</span>
+              <input type="text" id="input-team-message" class="admin-inline-input" style="flex: 1; min-width: 200px; text-align: left; padding: 6px 10px;" placeholder="맛있게 준비해서 배달하겠습니다!">
+            </div>
           </div>
         </div>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -2799,9 +2822,19 @@
       const feeEl = document.getElementById('input-guest-fee');
       const deliveryPlaceEl = document.getElementById('input-guest-delivery-place');
 
+      const teamEnabledEl = document.getElementById('input-team-enabled');
+      const teamTitleEl = document.getElementById('input-team-title');
+      const teamMembersEl = document.getElementById('input-team-members');
+      const teamMessageEl = document.getElementById('input-team-message');
+
       if (creditEl) creditEl.value = data.guestBaseCredit ?? 10;
       if (feeEl) feeEl.value = data.guestDeliveryFee ?? 3;
       if (deliveryPlaceEl) deliveryPlaceEl.value = data.guestDefaultDeliveryPlace ?? '사무실 원탁';
+      
+      if (teamEnabledEl) teamEnabledEl.checked = data.todayDeliveryTeamEnabled !== false && String(data.todayDeliveryTeamEnabled).toLowerCase() !== 'false';
+      if (teamTitleEl) teamTitleEl.value = data.todayDeliveryTeamTitle || '';
+      if (teamMembersEl) teamMembersEl.value = data.todayDeliveryTeamMembers || '';
+      if (teamMessageEl) teamMessageEl.value = data.todayDeliveryTeamMessage || '';
 
       if (guestOpsCountdown) {
         clearInterval(guestOpsCountdown);
@@ -2893,11 +2926,20 @@
       const creditInput = document.getElementById('input-guest-credit');
       const feeInput = document.getElementById('input-guest-fee');
       const deliveryPlaceInput = document.getElementById('input-guest-delivery-place');
+      const teamEnabledInput = document.getElementById('input-team-enabled');
+      const teamTitleInput = document.getElementById('input-team-title');
+      const teamMembersInput = document.getElementById('input-team-members');
+      const teamMessageInput = document.getElementById('input-team-message');
+
       if (!creditInput || !feeInput || !deliveryPlaceInput) return;
 
       const guestBaseCredit = Number(creditInput.value);
       const guestDeliveryFee = Number(feeInput.value);
       const guestDefaultDeliveryPlace = deliveryPlaceInput.value.trim();
+      const todayDeliveryTeamEnabled = teamEnabledInput ? teamEnabledInput.checked : true;
+      const todayDeliveryTeamTitle = teamTitleInput ? teamTitleInput.value.trim() : '';
+      const todayDeliveryTeamMembers = teamMembersInput ? teamMembersInput.value.trim() : '';
+      const todayDeliveryTeamMessage = teamMessageInput ? teamMessageInput.value.trim() : '';
 
       try {
         const adminToken = getAdminToken();
@@ -2908,6 +2950,10 @@
             guestBaseCredit,
             guestDeliveryFee,
             guestDefaultDeliveryPlace,
+            todayDeliveryTeamEnabled,
+            todayDeliveryTeamTitle,
+            todayDeliveryTeamMembers,
+            todayDeliveryTeamMessage,
             adminToken,
             adminMemo: getAdminMemo()
           }
