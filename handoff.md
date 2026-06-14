@@ -96,6 +96,12 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - Appends the delivery location into Column P (`deliveryPlace`) of the orders table.
   - Renders the delivery location across order completion tracking page (`complete.html`), guest order history lookup (`guest-orders.html`), and admin boards (`admin.html`).
 
+### 4) Production Readiness & Deployment (Latest)
+* **API Configuration**:
+  - Reverted `USE_MOCK = false` in `js/config.js` to ensure the project communicates with the live Google Sheets backend.
+* **Google Apps Script Requirement**:
+  - The `deliveryPlace` column (Column P) support has been added to the backend. The latest `Code.gs` from `google-apps-script.md` must be copied to the Google Apps Script editor and deployed as a **New Deployment** for the changes to take effect in production.
+
 ---
 
 ## 6. Implementation Notes & Cautions
