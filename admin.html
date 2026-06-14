@@ -659,13 +659,6 @@
   </style>
 </head>
 <body>
-  <div id="debug-mock-orders" style="background: yellow; color: black; padding: 10px; font-family: monospace; word-break: break-all; font-size: 12px; z-index: 9999; position: relative;"></div>
-  <script>
-    window.addEventListener('DOMContentLoaded', () => {
-      const el = document.getElementById('debug-mock-orders');
-      if (el) el.textContent = 'MOCK_ORDERS: ' + localStorage.getItem('mockOrders');
-    });
-  </script>
   <div class="kiosk-container" style="height: auto; min-height: 100vh;">
     <!-- 관리자 헤더 -->
     <header class="kiosk-header admin-header">
