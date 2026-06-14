@@ -321,6 +321,10 @@
           <div style="font-size: 20px; font-weight: 850; color: var(--text-main); margin-top: 8px; line-height: 1.4;" id="tracker-nickname-msg">
             -
           </div>
+          <!-- 배달지 정보 노출 -->
+          <div id="tracker-delivery-place-box" style="display: none; font-size: 18px; font-weight: 850; color: #00796B; background-color: #E0F2F1; border: 2px solid #80CBC4; border-radius: var(--radius-sm); padding: 8px 12px; margin-top: 10px; align-items: center; justify-content: center; gap: 6px;">
+            📍 배달지: <span id="tracker-delivery-place-val">-</span>
+          </div>
         </div>
 
         <!-- 실시간 진행 상태 스텝퍼 -->
@@ -597,6 +601,20 @@
         
         document.getElementById('step-4-title').textContent = '수령 완료';
         document.getElementById('step-4-desc').textContent = '맛있게 드세요! 감사합니다.';
+      }
+
+      // 배달지 박스 노출 처리
+      const deliveryPlaceBox = document.getElementById('tracker-delivery-place-box');
+      const deliveryPlaceVal = document.getElementById('tracker-delivery-place-val');
+      if (isDelivery && summaryData.deliveryPlace) {
+        if (deliveryPlaceBox && deliveryPlaceVal) {
+          deliveryPlaceBox.style.display = 'flex';
+          deliveryPlaceVal.textContent = summaryData.deliveryPlace;
+        }
+      } else {
+        if (deliveryPlaceBox) {
+          deliveryPlaceBox.style.display = 'none';
+        }
       }
 
       AppState.speak(`주문 완료! ${summaryData.nickname} 님, 주문번호는 ${shortNo}번입니다. 실시간으로 주문 진행 상황을 보여드릴게요.`);

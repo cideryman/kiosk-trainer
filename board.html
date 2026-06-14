@@ -324,13 +324,20 @@
     }
 
     // TTS 음성 호출
-    function speakCalling(orderNo, nickname, isDelivery) {
+    function speakCalling(orderNo, nickname, isDelivery, deliveryPlace) {
       if (!isAudioEnabled) return;
       
       const shortNo = getShortNo(orderNo);
-      const text = isDelivery 
-        ? `주문번호 ${shortNo}번, ${nickname} 님, 간식이 배달 중입니다. 조금만 기다려주세요!`
-        : `주문번호 ${shortNo}번, ${nickname} 님, 간식이 준비되었습니다. 받아가세요!`;
+      let text = '';
+      if (isDelivery) {
+        if (deliveryPlace) {
+          text = `주문번호 ${shortNo}번, ${nickname} 님, ${deliveryPlace}로 간식이 배달 중입니다. 조금만 기다려주세요!`;
+        } else {
+          text = `주문번호 ${shortNo}번, ${nickname} 님, 간식이 배달 중입니다. 조금만 기다려주세요!`;
+        }
+      } else {
+        text = `주문번호 ${shortNo}번, ${nickname} 님, 간식이 준비되었습니다. 받아가세요!`;
+      }
       
       try {
         window.speechSynthesis.cancel(); // 진행 중 대화 리셋
@@ -378,6 +385,7 @@
             timestamp: o.timestamp,
             servedYn: o.servedYn || 'N',
             deliveryType: o.deliveryType || 'pickup',
+            deliveryPlace: o.deliveryPlace || '',
             snacks: []
           };
         }
@@ -409,7 +417,7 @@
           // 즉시 호출 방송 실행
           setTimeout(() => {
             playChimeSound();
-            speakCalling(order.orderNo, order.nickname, order.deliveryType === 'delivery');
+            speakCalling(order.orderNo, order.nickname, order.deliveryType === 'delivery', order.deliveryPlace);
           }, 100);
         }
       });
@@ -452,11 +460,16 @@
           statusBadgeText = isDelivery ? '배달중 🛵' : '가져가세요!';
         }
 
+        const deliveryPlaceHtml = (isDelivery && order.deliveryPlace)
+          ? `<div style="font-size: 16px; font-weight: 800; color: #E53935; margin-top: 4px;">📍 배달지: ${AppState.escapeHtml(order.deliveryPlace)}</div>`
+          : '';
+
         card.innerHTML = `
           <div class="board-number-box">${shortNo}</div>
           <div class="board-info-box">
             <div class="board-username">${safeNickname} 님</div>
             <div class="board-snacks-list">${safeSnacksText}</div>
+            ${deliveryPlaceHtml}
           </div>
           <div class="board-status-badge">${statusBadgeText}</div>
         `;

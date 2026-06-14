@@ -445,6 +445,7 @@ function placeOrder(data) {
     const deliveryType = String(data.deliveryType || 'pickup');
     const deliveryFee = isGuest && deliveryType === 'delivery' ? guestFee : Number(data.deliveryFee || 0);
     const totalCredit = totalPoint + deliveryFee;
+    const deliveryPlace = isGuest && deliveryType === 'delivery' ? String(data.deliveryPlace || '').trim() : '';
 
     if (currentCredit < totalCredit) {
       return {
@@ -493,7 +494,8 @@ function placeOrder(data) {
         deliveryType, // deliveryType (Column L)
         deliveryFee, // deliveryFee (Column M)
         totalCredit, // totalCredit (Column N)
-        false // reviewed (Column O)
+        false, // reviewed (Column O)
+        deliveryPlace // deliveryPlace (Column P)
       ]);
 
       // 간식 재고 차감 반영
@@ -566,7 +568,8 @@ function getOrdersToday() {
       deliveryType: row[11] || 'pickup',
       deliveryFee: Number(row[12] || 0),
       totalCredit: Number(row[13] || 0),
-      reviewed: row[rIdx] === true || String(row[rIdx]).toUpperCase() === 'TRUE' || String(row[rIdx]).toUpperCase() === 'Y'
+      reviewed: row[rIdx] === true || String(row[rIdx]).toUpperCase() === 'TRUE' || String(row[rIdx]).toUpperCase() === 'Y',
+      deliveryPlace: row[15] || ''
     }));
 
   return {
@@ -635,7 +638,8 @@ function getOrderStatus(id) {
     deliveryType: firstRow[11] || 'pickup',
     deliveryFee: Number(firstRow[12] || 0),
     totalCredit: Number(firstRow[13] || 0),
-    reviewed: isReviewed
+    reviewed: isReviewed,
+    deliveryPlace: firstRow[15] || ''
   };
 }
 
@@ -705,7 +709,8 @@ function getGuestOrdersToday(guestName) {
       deliveryType: row[11] || 'pickup',
       deliveryFee: Number(row[12] || 0),
       totalCredit: Number(row[13] || 0),
-      reviewed: row[rIdx] === true || String(row[rIdx]).toUpperCase() === 'TRUE' || String(row[rIdx]).toUpperCase() === 'Y'
+      reviewed: row[rIdx] === true || String(row[rIdx]).toUpperCase() === 'TRUE' || String(row[rIdx]).toUpperCase() === 'Y',
+      deliveryPlace: row[15] || ''
     }));
 
   return {
@@ -1221,7 +1226,8 @@ function getGuestSettings() {
     guestOpen: 'N',
     guestCloseAt: '',
     guestBaseCredit: 10,
-    guestDeliveryFee: 3
+    guestDeliveryFee: 3,
+    guestDefaultDeliveryPlace: '사무실 원탁'
   };
 
   const existingKeys = [];
@@ -1238,7 +1244,8 @@ function getGuestSettings() {
     guestOpen: 'N',
     guestCloseAt: '',
     guestBaseCredit: 10,
-    guestDeliveryFee: 3
+    guestDeliveryFee: 3,
+    guestDefaultDeliveryPlace: '사무실 원탁'
   };
 
   for (const key in defaultSettings) {
@@ -1279,6 +1286,7 @@ function getGuestSettings() {
     guestCloseAt: settings.guestCloseAt,
     guestBaseCredit: Number(settings.guestBaseCredit || 10),
     guestDeliveryFee: Number(settings.guestDeliveryFee || 3),
+    guestDefaultDeliveryPlace: settings.guestDefaultDeliveryPlace || '사무실 원탁',
     isGuestOpenNow,
     remainingSeconds,
     message
@@ -1319,14 +1327,17 @@ function updateGuestSettings(data) {
   } else if (action === 'updateValues') {
     const guestBaseCredit = data.guestBaseCredit;
     const guestDeliveryFee = data.guestDeliveryFee;
+    const guestDefaultDeliveryPlace = data.guestDefaultDeliveryPlace;
     
     const values = sheet.getDataRange().getValues();
     let rowCredit = -1;
     let rowFee = -1;
+    let rowDeliveryPlace = -1;
     for (let i = 1; i < values.length; i++) {
       const key = String(values[i][0]).trim();
       if (key === 'guestBaseCredit') rowCredit = i + 1;
       if (key === 'guestDeliveryFee') rowFee = i + 1;
+      if (key === 'guestDefaultDeliveryPlace') rowDeliveryPlace = i + 1;
     }
     
     if (rowCredit > 0) {
@@ -1341,7 +1352,13 @@ function updateGuestSettings(data) {
       sheet.appendRow(['guestDeliveryFee', guestDeliveryFee]);
     }
     
-    appendAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `크레딧:${guestBaseCredit}, 배달비:${guestDeliveryFee}`, data.adminMemo);
+    if (rowDeliveryPlace > 0) {
+      sheet.getRange(rowDeliveryPlace, 2).setValue(guestDefaultDeliveryPlace);
+    } else {
+      sheet.appendRow(['guestDefaultDeliveryPlace', guestDefaultDeliveryPlace]);
+    }
+    
+    appendAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `크레딧:${guestBaseCredit}, 배달비:${guestDeliveryFee}, 기본배달지:${guestDefaultDeliveryPlace}`, data.adminMemo);
     return { success: true, message: '게스트 설정이 저장되었습니다.' };
   } else {
     return { success: false, message: '알 수 없는 설정 변경 요청입니다.' };

@@ -203,6 +203,12 @@
             <button class="btn btn-secondary" id="btn-delivery-pickup" style="flex: 1; min-height: 60px; font-size: 20px; box-shadow: none; animation: none;">포장 (0 🪙)</button>
             <button class="btn btn-gray" id="btn-delivery-deliver" style="flex: 1; min-height: 60px; font-size: 20px; box-shadow: none; animation: none;">배달 (+🪙)</button>
           </div>
+          
+          <!-- 배달지 입력 영역 -->
+          <div id="delivery-place-box" style="display: none; flex-direction: column; gap: 8px; margin-top: 12px; border-top: 2px dashed var(--border-color); padding-top: 12px;">
+            <label for="delivery-place-input" style="font-size: 18px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 4px;">📍 어디로 배달할까요?</label>
+            <input type="text" id="delivery-place-input" class="guest-input" style="width: 100%; box-sizing: border-box; font-size: 18px; min-height: 48px; font-weight: 800; text-align: left; padding: 8px 12px; margin-top: 4px;" placeholder="예: 사무실 원탁">
+          </div>
         </div>
 
         <!-- 주문 리스트 영역 -->
@@ -578,14 +584,23 @@
           
           const btnPickup = document.getElementById('btn-delivery-pickup');
           const btnDeliver = document.getElementById('btn-delivery-deliver');
+          const deliveryPlaceBox = document.getElementById('delivery-place-box');
+          const deliveryPlaceInput = document.getElementById('delivery-place-input');
           
           const fee = getGuestFee();
           btnDeliver.textContent = `배달 (+${fee} 🪙)`;
+
+          // 기본 배달지 설정
+          if (deliveryPlaceInput) {
+            const defaultPlace = sessionStorage.getItem('guestDefaultDeliveryPlace') || '사무실 원탁';
+            deliveryPlaceInput.value = defaultPlace;
+          }
 
           btnPickup.addEventListener('click', () => {
             deliveryType = 'pickup';
             btnPickup.className = 'btn btn-secondary';
             btnDeliver.className = 'btn btn-gray';
+            if (deliveryPlaceBox) deliveryPlaceBox.style.display = 'none';
             updateBill();
           });
           
@@ -593,6 +608,8 @@
             deliveryType = 'delivery';
             btnPickup.className = 'btn btn-gray';
             btnDeliver.className = 'btn btn-secondary';
+            if (deliveryPlaceBox) deliveryPlaceBox.style.display = 'flex';
+            if (deliveryPlaceInput) deliveryPlaceInput.focus();
             updateBill();
           });
         }
@@ -623,6 +640,20 @@
       btnSubmit.disabled = true;
       btnPrev.disabled   = true;
 
+      let deliveryPlace = '';
+      if (isGuest && deliveryType === 'delivery') {
+        const deliveryPlaceInput = document.getElementById('delivery-place-input');
+        deliveryPlace = deliveryPlaceInput ? deliveryPlaceInput.value.trim() : '';
+        if (!deliveryPlace) {
+          alert('배달지를 입력해 주세요.');
+          loadingOverlay.style.display = 'none';
+          btnSubmit.disabled = false;
+          btnPrev.disabled   = false;
+          if (deliveryPlaceInput) deliveryPlaceInput.focus();
+          return;
+        }
+      }
+
       const orderPayload = {
         userId: user.userId,
         items: cart.map(item => ({ snackId: item.snackId, quantity: item.quantity }))
@@ -632,6 +663,7 @@
         orderPayload.guestName = user.nickname;
         orderPayload.deliveryType = deliveryType;
         orderPayload.deliveryFee = deliveryFee;
+        orderPayload.deliveryPlace = deliveryPlace;
       }
 
       try {
@@ -649,6 +681,7 @@
             orderNo:      response.orderNo || '',
             orderToken:   response.orderToken || '',
             deliveryType: isGuest ? deliveryType : 'pickup',
+            deliveryPlace: isGuest && deliveryType === 'delivery' ? deliveryPlace : '',
             items:        cart.map(item => ({ name: item.name, quantity: item.quantity }))
           };
 
@@ -664,6 +697,7 @@
               createdAt: new Date().toISOString(),
               status: 'N',
               deliveryType: deliveryType,
+              deliveryPlace: deliveryType === 'delivery' ? deliveryPlace : '',
               items: cart.map(item => ({ name: item.name, quantity: item.quantity }))
             });
             localStorage.setItem('guestOrders', JSON.stringify(guestOrders));

@@ -659,6 +659,13 @@
   </style>
 </head>
 <body>
+  <div id="debug-mock-orders" style="background: yellow; color: black; padding: 10px; font-family: monospace; word-break: break-all; font-size: 12px; z-index: 9999; position: relative;"></div>
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const el = document.getElementById('debug-mock-orders');
+      if (el) el.textContent = 'MOCK_ORDERS: ' + localStorage.getItem('mockOrders');
+    });
+  </script>
   <div class="kiosk-container" style="height: auto; min-height: 100vh;">
     <!-- 관리자 헤더 -->
     <header class="kiosk-header admin-header">
@@ -718,6 +725,10 @@
             <div style="display: flex; align-items: center; gap: 6px;">
               <span>배달비:</span>
               <input type="number" id="input-guest-fee" class="admin-inline-input" value="3" min="0" style="width: 70px;">
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span>기본 배달지:</span>
+              <input type="text" id="input-guest-delivery-place" class="admin-inline-input" value="사무실 원탁" style="width: 140px; text-align: left; padding: 6px 10px;">
             </div>
             <button class="btn-small-action" onclick="saveGuestSettings()" style="background-color: var(--secondary-color); min-height: 38px;">저장</button>
           </div>
@@ -2357,6 +2368,10 @@
             ? `<span class="status-badge" style="background-color: var(--danger-color); border-color: var(--danger-color); color: white; margin-left: 8px; font-size: 13px; font-weight: 800;">배달</span>`
             : `<span class="status-badge" style="background-color: var(--secondary-color); border-color: var(--secondary-color); color: white; margin-left: 8px; font-size: 13px; font-weight: 800;">포장</span>`;
 
+          const deliveryPlaceText = (isDelivery && group.items[0] && group.items[0].deliveryPlace)
+            ? `<div style="font-size: 16px; font-weight: 800; color: #E53935; margin-top: 4px;">📍 배달지: ${esc(group.items[0].deliveryPlace)}</div>`
+            : '';
+
           const safeOrderNo = attr(group.orderNo);
           const checkboxId = `chk-order-${encodeURIComponent(group.orderNo)}`;
 
@@ -2374,6 +2389,7 @@
             <ul class="user-order-items">
               ${itemsListHtml}
             </ul>
+            ${deliveryPlaceText}
             <div class="card-checkbox-wrap">
               <input type="checkbox" class="card-checkbox pending-order-checkbox"
                 id="${attr(checkboxId)}"
@@ -2417,6 +2433,9 @@
           const deliveryBadge = isDelivery
             ? `<span style="background-color: var(--danger-color); color: white; padding: 2px 6px; font-size: 11px; font-weight: 850; border-radius: 4px; margin-left: 6px;">배달</span>`
             : `<span style="background-color: var(--secondary-color); color: white; padding: 2px 6px; font-size: 11px; font-weight: 850; border-radius: 4px; margin-left: 6px;">포장</span>`;
+          const deliveryPlaceText = (isDelivery && order.deliveryPlace)
+            ? `<div style="font-size: 12px; font-weight: 700; color: #E53935; margin-top: 2px;">📍 ${esc(order.deliveryPlace)}</div>`
+            : '';
 
           const parts = String(order.orderNo || '').split('-');
           let numberPrefix = '';
@@ -2428,7 +2447,7 @@
           const orderNoArg = jsString(order.orderNo);
           tr.innerHTML = `
             <td><strong>${esc(formatTime(order.timestamp))}</strong></td>
-            <td>${numberPrefix}${esc(order.nickname)}${deliveryBadge}</td>
+            <td>${numberPrefix}${esc(order.nickname)}${deliveryBadge}${deliveryPlaceText}</td>
             <td>${esc(order.snackName)}</td>
             <td style="text-align: center; font-weight: 800;">${qtyVal}개</td>
             <td style="text-align: right; font-weight: 800; color: var(--primary-color);">${esc(AppState.formatPoint(pointVal))}</td>
@@ -2809,9 +2828,11 @@
       const remainingEl = document.getElementById('guest-ops-remaining');
       const creditEl = document.getElementById('input-guest-credit');
       const feeEl = document.getElementById('input-guest-fee');
+      const deliveryPlaceEl = document.getElementById('input-guest-delivery-place');
 
       if (creditEl) creditEl.value = data.guestBaseCredit ?? 10;
       if (feeEl) feeEl.value = data.guestDeliveryFee ?? 3;
+      if (deliveryPlaceEl) deliveryPlaceEl.value = data.guestDefaultDeliveryPlace ?? '사무실 원탁';
 
       if (guestOpsCountdown) {
         clearInterval(guestOpsCountdown);
@@ -2902,10 +2923,12 @@
     async function saveGuestSettings() {
       const creditInput = document.getElementById('input-guest-credit');
       const feeInput = document.getElementById('input-guest-fee');
-      if (!creditInput || !feeInput) return;
+      const deliveryPlaceInput = document.getElementById('input-guest-delivery-place');
+      if (!creditInput || !feeInput || !deliveryPlaceInput) return;
 
       const guestBaseCredit = Number(creditInput.value);
       const guestDeliveryFee = Number(feeInput.value);
+      const guestDefaultDeliveryPlace = deliveryPlaceInput.value.trim();
 
       try {
         const adminToken = getAdminToken();
@@ -2915,6 +2938,7 @@
             settingsAction: 'updateValues',
             guestBaseCredit,
             guestDeliveryFee,
+            guestDefaultDeliveryPlace,
             adminToken,
             adminMemo: getAdminMemo()
           }

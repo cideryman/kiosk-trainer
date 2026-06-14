@@ -56,9 +56,10 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 ## 4. Database Schema (Google Sheets)
 * **`이용자목록` (Users)**: `userId` (ID), `nickname` (Name/Alias), `credit` (Balance), `useYn` (Active flag: Y/N), `imageUrl` (User Photo ID or URL).
 * **`간식목록` (Snacks)**: `snackId` (ID), `name` (Name), `point` (Cost), `imageUrl` (Image), `saleYn` (Availability flag: Y/N), `stock` (Inventory, 0 = Sold Out), `displayOrder` (Order in list), `target` (user/guest/both).
-* **`주문내역` (Orders)**: `timestamp`, `orderNo` (ID), `userId`, `nickname`, `snackId`, `snackName`, `quantity`, `point` (Cost), `servedYn` (Served status: N/P/R/Y), `cancelTimestamp`, `orderToken`, `deliveryType` (pickup/delivery), `deliveryFee`, `totalCredit`, `reviewed` (Boolean).
+* **`주문내역` (Orders)**: `timestamp`, `orderNo` (ID), `userId`, `nickname`, `snackId`, `snackName`, `quantity`, `point` (Cost), `servedYn` (Served status: N/P/R/Y), `cancelTimestamp`, `orderToken`, `deliveryType` (pickup/delivery), `deliveryFee`, `totalCredit`, `reviewed` (Boolean), `deliveryPlace` (Delivery location, Column P).
 * **`관리자로그` (Admin Logs)**: Tracks modifications made by administrative accounts for audit.
 * **`운영설정` (System Settings)**: System operational metadata.
+  - Added `guestDefaultDeliveryPlace` key mapping (defaults to "사무실 원탁") for the guest delivery place defaults.
 * **`후기내역` (Reviews)**: Customer reviews / compliments.
 
 ---
@@ -80,6 +81,20 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - [manifest-admin.json](file:///c:/Users/user/Desktop/키오스크/manifest-admin.json)
   - [manifest-board.json](file:///c:/Users/user/Desktop/키오스크/manifest-board.json)
   - [manifest-guest.json](file:///c:/Users/user/Desktop/키오스크/manifest-guest.json)
+
+### 3) Guest Nickname & Delivery Place Enhancements
+* **Random Nickname Generation**:
+  - Automatically populates the guest nickname input (`guest.html`) using a random combination rule: `Adjective + 삼각지 + Noun` (e.g. "행복한 삼각지 토끼").
+  - Includes an 8% chance to roll a special character nickname: `Adjective + Special Character` (Special characters: "해냄이", "쭉쭉이", "여비").
+  - Preserves the nickname across browser reloads using `localStorage` ('guestNickname'), with automatic sync when customized.
+  - Blocks ordering if nickname input is empty and displays "닉네임을 입력해 주세요.".
+* **Delivery Place Inputs & UI Toggles**:
+  - In `confirm.html`, toggles the delivery location input block based on pickup/delivery selection.
+  - Pulls default delivery place configuration from Google Sheets settings database (`guestDefaultDeliveryPlace` key, defaulting to "사무실 원탁").
+  - Disallows order submissions on blank delivery place inputs.
+* **Delivery Location Tracking**:
+  - Appends the delivery location into Column P (`deliveryPlace`) of the orders table.
+  - Renders the delivery location across order completion tracking page (`complete.html`), guest order history lookup (`guest-orders.html`), and admin boards (`admin.html`).
 
 ---
 

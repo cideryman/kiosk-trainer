@@ -250,16 +250,17 @@ function getMockFallback(action, options) {
       message = '게스트 주문이 마감되었습니다.';
     }
 
-    res = {
-      success: true,
-      guestOpen: settings.guestOpen,
-      guestCloseAt: settings.guestCloseAt,
-      guestBaseCredit: settings.guestBaseCredit,
-      guestDeliveryFee: settings.guestDeliveryFee,
-      isGuestOpenNow,
-      remainingSeconds,
-      message
-    };
+      res = {
+        success: true,
+        guestOpen: settings.guestOpen,
+        guestCloseAt: settings.guestCloseAt,
+        guestBaseCredit: settings.guestBaseCredit,
+        guestDeliveryFee: settings.guestDeliveryFee,
+        guestDefaultDeliveryPlace: settings.guestDefaultDeliveryPlace ?? '사무실 원탁',
+        isGuestOpenNow,
+        remainingSeconds,
+        message
+      };
   } else if (action === 'updateGuestSettings') {
     const settingsAction = options.body?.settingsAction;
     const settings = getMockGuestSettings();
@@ -279,7 +280,8 @@ function getMockFallback(action, options) {
     } else if (settingsAction === 'updateValues') {
       settings.guestBaseCredit = Number(options.body?.guestBaseCredit);
       settings.guestDeliveryFee = Number(options.body?.guestDeliveryFee);
-      appendMockAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `크레딧:${settings.guestBaseCredit}, 배달비:${settings.guestDeliveryFee}`, options.body?.adminMemo);
+      settings.guestDefaultDeliveryPlace = String(options.body?.guestDefaultDeliveryPlace || '사무실 원탁').trim();
+      appendMockAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `크레딧:${settings.guestBaseCredit}, 배달비:${settings.guestDeliveryFee}, 기본배달지:${settings.guestDefaultDeliveryPlace}`, options.body?.adminMemo);
     }
 
     saveMockGuestSettings(settings);
@@ -296,6 +298,9 @@ function getMockFallback(action, options) {
         orderToken: matched.orderToken || '',
         servedYn: matched.servedYn || 'N',
         cancelTimestamp: matched.cancelTimestamp || '',
+        deliveryType: matched.deliveryType || 'pickup',
+        deliveryFee: matched.deliveryFee || 0,
+        deliveryPlace: matched.deliveryPlace || '',
         reviewed: matched.reviewed || false
       };
     } else {
@@ -379,6 +384,7 @@ function getMockFallback(action, options) {
     }
 
     const deliveryType = options.body?.deliveryType || 'pickup';
+    const deliveryPlace = (deliveryType === 'delivery') ? String(options.body?.deliveryPlace || '').trim() : '';
     // 게스트 배달비는 서버 설정값 기준으로 재계산
     let deliveryFee = 0;
     if (isGuest && deliveryType === 'delivery') {
@@ -401,6 +407,7 @@ function getMockFallback(action, options) {
         servedYn: 'N',
         deliveryType: deliveryType,
         deliveryFee: deliveryFee,
+        deliveryPlace: deliveryPlace,
         reviewed: false
       };
     });
@@ -828,7 +835,8 @@ function getMockGuestSettings() {
     guestOpen: 'N',
     guestCloseAt: '',
     guestBaseCredit: GUEST_DEFAULT_CREDIT,
-    guestDeliveryFee: GUEST_DELIVERY_FEE
+    guestDeliveryFee: GUEST_DELIVERY_FEE,
+    guestDefaultDeliveryPlace: '사무실 원탁'
   };
 }
 

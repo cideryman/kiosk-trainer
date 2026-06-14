@@ -165,9 +165,12 @@
             🎫 가상 크레딧 10개 무료 지급
           </div>
 
-          <input type="text" id="guest-name-input" class="guest-input" placeholder="예: 홍길동" maxlength="10" autocomplete="off">
+          <input type="text" id="guest-name-input" class="guest-input" placeholder="예: 홍길동" maxlength="15" autocomplete="off">
+          <div style="font-size: 15px; font-weight: 700; color: var(--secondary-hover); text-align: center; margin-top: -8px; line-height: 1.4; word-break: keep-all;">
+            개인정보 보호를 위해 랜덤 닉네임을 기본으로 제공합니다. 필요하면 수정할 수 있어요.
+          </div>
           
-          <div style="font-size: 15px; font-weight: 700; color: var(--text-muted); text-align: center; line-height: 1.4; word-break: keep-all;">
+          <div style="font-size: 15px; font-weight: 700; color: var(--text-muted); text-align: center; line-height: 1.4; word-break: keep-all; margin-top: 8px;">
             * 개인정보 수집 및 동의 과정 없이<br>체험을 위해 이름만 잠시 저장합니다.
           </div>
         </div>
@@ -222,6 +225,7 @@
           // sessionStorage에 설정값 캐시 (다음 화면에서 사용)
           sessionStorage.setItem('guestBaseCredit', String(guestBaseCredit));
           sessionStorage.setItem('guestDeliveryFee', String(guestDeliveryFee));
+          sessionStorage.setItem('guestDefaultDeliveryPlace', settingsRes.guestDefaultDeliveryPlace ?? '사무실 원탁');
 
           if (!isGuestOpen) {
             // 마감 상태
@@ -280,6 +284,37 @@
         remainingTimerSpan.textContent = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
       }
 
+      const NICKNAME_WORDS = {
+        adjectives: ["행복한", "씩씩한", "반짝이는", "따뜻한", "용감한", "즐거운", "친절한", "신나는", "멋진", "귀여운", "사랑스러운", "슬기로운"],
+        nouns: ["토끼", "해바라기", "연필", "커피잔", "구름", "별", "나무", "고양이", "강아지", "도토리", "바람", "하늘"],
+        special: ["해냄이", "쭉쭉이", "여비"]
+      };
+
+      function generateRandomNickname() {
+        const isSpecial = Math.random() < 0.08; // 약 8% 확률
+        const adj = NICKNAME_WORDS.adjectives[Math.floor(Math.random() * NICKNAME_WORDS.adjectives.length)];
+        if (isSpecial) {
+          const char = NICKNAME_WORDS.special[Math.floor(Math.random() * NICKNAME_WORDS.special.length)];
+          return `${adj} ${char}`;
+        } else {
+          const noun = NICKNAME_WORDS.nouns[Math.floor(Math.random() * NICKNAME_WORDS.nouns.length)];
+          return `${adj} 삼각지 ${noun}`;
+        }
+      }
+
+      function initNickname() {
+        let savedNickname = localStorage.getItem('guestNickname');
+        if (!savedNickname) {
+          savedNickname = generateRandomNickname();
+          localStorage.setItem('guestNickname', savedNickname);
+        }
+        input.value = savedNickname;
+      }
+
+      input.addEventListener('input', () => {
+        localStorage.setItem('guestNickname', input.value);
+      });
+
       function showStep(step) {
         currentStep = step;
         if (step === 'select') {
@@ -293,6 +328,7 @@
           btnStart.style.display = 'flex';
           btnBack.style.display = 'flex';
           btnBack.style.flex = '1';
+          initNickname();
           input.focus();
         }
       }
@@ -318,7 +354,7 @@
         }
         const guestName = input.value.trim();
         if (!guestName) {
-          alert('이름을 입력해 주세요!');
+          alert('닉네임을 입력해 주세요.');
           input.focus();
           AppState.vibrate([100, 100]);
           return;

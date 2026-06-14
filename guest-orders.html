@@ -458,6 +458,11 @@
           `;
         }
 
+        const isDelivery = (order.deliveryType === 'delivery' || order.method === 'delivery');
+        const deliveryPlaceHtml = (isDelivery && order.deliveryPlace) 
+          ? `<div style="font-size: 16px; font-weight: 800; color: #00796B; margin-top: 4px;">📍 배달지: ${AppState.escapeHtml(order.deliveryPlace)}</div>`
+          : '';
+
         card.innerHTML = `
           <div class="order-card-header">
             <span class="order-card-time">⏰ ${timeStr}</span>
@@ -467,6 +472,7 @@
             <div class="order-card-no">🎫 주문번호: ${shortNoStr} (${order.orderNo})</div>
             <div class="order-card-items">${AppState.escapeHtml(itemsText)}</div>
             <div class="order-card-name">👤 주문자: ${AppState.escapeHtml(guestName)} 님</div>
+            ${deliveryPlaceHtml}
             ${reviewBtnHtml}
           </div>
         `;
@@ -499,6 +505,7 @@
             orderNo: order.orderNo,
             orderToken: order.orderToken,
             deliveryType: order.deliveryType || order.method || 'pickup',
+            deliveryPlace: order.deliveryPlace || '',
             items: order.items || [{ name: order.snackName, quantity: order.quantity }]
           }));
 
@@ -559,6 +566,7 @@
                   timestamp: o.timestamp,
                   status: o.servedYn,
                   deliveryType: o.deliveryType || 'pickup',
+                  deliveryPlace: o.deliveryPlace || '',
                   reviewed: o.reviewed,
                   items: []
                 };
