@@ -359,11 +359,23 @@
 
       // 헤더 보드 버튼 이벤트 제거됨
 
-      // 후기 더보기 버튼 이벤트
+      // 후기 더보기 버튼 관련 상태 및 변수
+      let allReviews = [];
+      let showingAllReviews = false;
+      const INITIAL_REVIEW_COUNT = 3;
       const btnMoreReviews = document.getElementById('btn-more-reviews');
+
       if (btnMoreReviews) {
-        AppState.bindCardTap(btnMoreReviews, () => {
-          window.location.href = 'board.html';
+        btnMoreReviews.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // 이벤트 전파가 방지되므로 햅틱 및 효과음을 수동으로 제공합니다.
+          AppState.vibrate(40);
+          AppState.playClickSound();
+
+          showingAllReviews = !showingAllReviews;
+          renderReviews();
         });
       }
 
@@ -375,58 +387,15 @@
         try {
           const res = await fetchAPI('getRecentReviews');
           if (res && res.success && Array.isArray(res.reviews) && res.reviews.length > 0) {
-            container.innerHTML = '';
-            
-            const reviewCountBadge = document.getElementById('review-count-badge');
-            if (reviewCountBadge) {
-              reviewCountBadge.textContent = `(${res.reviews.length})`;
-            }
-            
-            res.reviews.forEach(review => {
-              const card = document.createElement('div');
-              card.style.backgroundColor = 'white';
-              card.style.border = '2px solid var(--border-color)';
-              card.style.borderRadius = 'var(--radius-sm)';
-              card.style.padding = '12px 16px';
-              card.style.display = 'flex';
-              card.style.flexDirection = 'column';
-              card.style.gap = '6px';
-              card.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
-              
-              // 훈련생 이름은 실명 노출 없이 '오늘의 배달원' 등으로 통일 표시
-              const recipientName = "오늘의 배달원"; 
-              const maskedGuest = maskGuestName(review.guestName);
-              const stampHtml = review.stamp ? `<span style="background-color: #FFF3E0; border: 1.5px solid var(--primary-color); padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #E65100;">${AppState.escapeHtml(review.stamp)}</span>` : '';
-              
-              let tagsHtml = '';
-              if (review.tags) {
-                const tagsList = String(review.tags).split(',').map(t => t.trim()).filter(Boolean);
-                tagsHtml = tagsList.map(t => `<span style="background-color: #E0F2F1; border: 1.5px solid var(--secondary-color); padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #00796B; margin-left: 4px;">#${AppState.escapeHtml(t)}</span>`).join('');
-              }
-
-              card.innerHTML = `
-                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
-                  <span style="font-weight: 850; font-size: 15px; color: var(--secondary-hover);">👤 ${AppState.escapeHtml(recipientName)} 님에게</span>
-                  <div style="display: flex; gap: 4px; align-items: center;">
-                    ${stampHtml}
-                  </div>
-                </div>
-                <div style="font-size: 15px; font-weight: 700; color: var(--text-main); line-height: 1.4; word-break: break-all; margin: 4px 0;">
-                  "${AppState.escapeHtml(review.comment || '응원합니다!')}"
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 700; color: var(--text-muted); margin-top: 4px;">
-                  <div style="display: flex; flex-wrap: wrap; gap: 4px;">${tagsHtml}</div>
-                  <span>작성자: ${AppState.escapeHtml(maskedGuest)} 님</span>
-                </div>
-              `;
-              container.appendChild(card);
-            });
+            allReviews = res.reviews;
+            renderReviews();
           } else {
             container.innerHTML = `
               <div style="text-align: center; padding: 24px; border: 2px dashed var(--border-color); border-radius: var(--radius-sm); color: var(--text-muted); font-weight: 700; font-size: 15px;">
                 첫 번째 따뜻한 응원의 한마디를 남겨보세요! 🥰
               </div>
             `;
+            if (btnMoreReviews) btnMoreReviews.style.display = 'none';
           }
         } catch (e) {
           console.warn('칭찬 보드 로드 실패:', e);
@@ -435,6 +404,68 @@
               칭찬 보드를 불러오지 못했습니다. 😢
             </div>
           `;
+          if (btnMoreReviews) btnMoreReviews.style.display = 'none';
+        }
+      }
+
+      function renderReviews() {
+        const container = document.getElementById('praise-list-container');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const reviewCountBadge = document.getElementById('review-count-badge');
+        if (reviewCountBadge) {
+          reviewCountBadge.textContent = `(${allReviews.length})`;
+        }
+
+        allReviews.forEach((review, idx) => {
+          const card = document.createElement('div');
+          card.style.backgroundColor = 'white';
+          card.style.border = '2px solid var(--border-color)';
+          card.style.borderRadius = 'var(--radius-sm)';
+          card.style.padding = '12px 16px';
+          card.style.display = (!showingAllReviews && idx >= INITIAL_REVIEW_COUNT) ? 'none' : 'flex';
+          card.style.flexDirection = 'column';
+          card.style.gap = '6px';
+          card.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
+          
+          // 훈련생 이름은 실명 노출 없이 '오늘의 배달원' 등으로 통일 표시
+          const recipientName = "오늘의 배달원"; 
+          const maskedGuest = maskGuestName(review.guestName);
+          const stampHtml = review.stamp ? `<span style="background-color: #FFF3E0; border: 1.5px solid var(--primary-color); padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #E65100;">${AppState.escapeHtml(review.stamp)}</span>` : '';
+          
+          let tagsHtml = '';
+          if (review.tags) {
+            const tagsList = String(review.tags).split(',').map(t => t.trim()).filter(Boolean);
+            tagsHtml = tagsList.map(t => `<span style="background-color: #E0F2F1; border: 1.5px solid var(--secondary-color); padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #00796B; margin-left: 4px;">#${AppState.escapeHtml(t)}</span>`).join('');
+          }
+
+          card.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+              <span style="font-weight: 850; font-size: 15px; color: var(--secondary-hover);">👤 ${AppState.escapeHtml(recipientName)} 님에게</span>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                ${stampHtml}
+              </div>
+            </div>
+            <div style="font-size: 15px; font-weight: 700; color: var(--text-main); line-height: 1.4; word-break: break-all; margin: 4px 0;">
+              "${AppState.escapeHtml(review.comment || '응원합니다!')}"
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 700; color: var(--text-muted); margin-top: 4px;">
+              <div style="display: flex; flex-wrap: wrap; gap: 4px;">${tagsHtml}</div>
+              <span>작성자: ${AppState.escapeHtml(maskedGuest)} 님</span>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+
+        // 후기 개수가 기본 노출 개수 이하이면 더보기 버튼을 숨깁니다.
+        if (btnMoreReviews) {
+          if (allReviews.length <= INITIAL_REVIEW_COUNT) {
+            btnMoreReviews.style.display = 'none';
+          } else {
+            btnMoreReviews.style.display = 'block';
+            btnMoreReviews.textContent = showingAllReviews ? '❤️ 후기 접기' : '❤️ 후기 더보기';
+          }
         }
       }
 
@@ -446,7 +477,7 @@
         return clean[0] + '*'.repeat(clean.length - 2) + clean[clean.length - 1];
       }
 
-      // 후기 접기/펼치기 토글
+      // 후기 접기/펼치기 토글 (최근 후기 제목 클릭 시)
       const reviewToggle = document.getElementById('review-toggle');
       const praiseContent = document.getElementById('praise-content');
       const reviewToggleText = document.getElementById('review-toggle-text');
