@@ -1605,13 +1605,11 @@
       
       modal.style.display = 'flex';
       isModalOpen = true;
-      pauseRefresh();
     }
 
     function closeCancelReasonModal() {
       document.getElementById('modal-cancel-reason').style.display = 'none';
       isModalOpen = false;
-      resumeRefresh();
     }
 
     function toggleCancelReasonDetail() {
