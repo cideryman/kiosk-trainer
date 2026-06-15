@@ -163,6 +163,8 @@ function doPost(e) {
     return jsonResponse(updateSnack(data));
   } else if (action === 'cancelOrder') {
     return jsonResponse(cancelOrder(data));
+  } else if (action === 'userCancelOrder') {
+    return jsonResponse(userCancelOrder(data));
   } else if (action === 'updateSnacksOrder') {
     return jsonResponse(updateSnacksOrder(data));
   } else if (action === 'uploadImage') {
@@ -866,6 +868,119 @@ function cancelOrder(data) {
       success: false,
       message: error.message
     };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * 9.6. 이용자 직접 주문 취소 API
+ */
+function userCancelOrder(data) {
+  ensureOrderHeaders();
+  const orderId = data.orderId;
+
+  if (!orderId) {
+    return { success: false, message: '주문 식별자가 누락되었습니다.' };
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    return { success: false, message: '다른 작업을 처리 중입니다. 잠시 후 다시 시도해 주세요.' };
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActive();
+    const orderSheet = ss.getSheetByName(SHEET.ORDERS);
+    const userSheet = ss.getSheetByName(SHEET.USERS);
+    const snackSheet = ss.getSheetByName(SHEET.SNACKS);
+
+    if (!orderSheet || !userSheet || !snackSheet) {
+      return { success: false, message: '필요한 시트를 찾을 수 없습니다.' };
+    }
+
+    const orderRange = orderSheet.getDataRange();
+    const orderValues = orderRange.getValues();
+    const userValues = userSheet.getDataRange().getValues();
+    const snackValues = snackSheet.getDataRange().getValues();
+
+    if (orderSheet.getMaxColumns() < 18) {
+      orderSheet.insertColumnsAfter(orderSheet.getMaxColumns(), 18 - orderSheet.getMaxColumns());
+    }
+
+    let updatedCount = 0;
+    let refundLogs = [];
+    let isAlreadyStarted = false;
+
+    for (let i = 1; i < orderValues.length; i++) {
+      const rowOrderId = String(orderValues[i][1]); // B열: orderNo
+      const rowOrderToken = String(orderValues[i][10]); // K열: orderToken
+      const servedYn = orderValues[i][8] || 'N';
+
+      // orderId가 orderNo(회원) 또는 orderToken(게스트)와 일치하는 경우
+      if (rowOrderId === String(orderId) || rowOrderToken === String(orderId)) {
+        if (servedYn === 'C') continue; // 이미 취소된 항목 무시
+        
+        if (servedYn !== 'N') {
+          isAlreadyStarted = true;
+          continue;
+        }
+
+        const userId = String(orderValues[i][2]);
+        const snackId = String(orderValues[i][4]);
+        const snackName = orderValues[i][5];
+        const quantity = Number(orderValues[i][6] || 0);
+        const point = Number(orderValues[i][7] || 0);
+
+        // 유저 크레딧 환불
+        const userRowIndex = userValues.findIndex((row, idx) => idx > 0 && String(row[0]) === userId);
+        if (userRowIndex !== -1) {
+          const currentCredit = Number(userValues[userRowIndex][2] || 0);
+          const newCredit = currentCredit + point;
+          userSheet.getRange(userRowIndex + 1, 3).setValue(newCredit);
+          userValues[userRowIndex][2] = newCredit;
+        }
+
+        // 간식 재고 복구
+        const snackRowIndex = snackValues.findIndex((row, idx) => idx > 0 && String(row[0]) === snackId);
+        if (snackRowIndex !== -1) {
+          const currentStock = Number(snackValues[snackRowIndex][5] || 0);
+          const newStock = currentStock + quantity;
+          snackSheet.getRange(snackRowIndex + 1, 6).setValue(newStock);
+          snackValues[snackRowIndex][5] = newStock;
+        }
+
+        // 주문 상태 'C' 및 취소 사유 기록
+        orderSheet.getRange(i + 1, 9).setValue('C');
+        orderSheet.getRange(i + 1, 10).setValue(new Date());
+        orderSheet.getRange(i + 1, 17).setValue('이용자 직접 취소');
+        orderSheet.getRange(i + 1, 18).setValue(''); // Detail은 빈 값
+
+        updatedCount++;
+        refundLogs.push(`${snackName} ${quantity}개 (${point} 크레딧)`);
+      }
+    }
+
+    if (isAlreadyStarted && updatedCount === 0) {
+      return {
+        success: false,
+        message: '이미 준비가 시작되어 취소할 수 없습니다. 관리자에게 문의해주세요.'
+      };
+    }
+
+    if (updatedCount > 0) {
+      return {
+        success: true,
+        message: `주문이 취소되었습니다. 환불 내역: ${refundLogs.join(', ')} (총 ${updatedCount}건)`
+      };
+    } else {
+      return {
+        success: false,
+        message: '해당 주문 기록을 찾을 수 없습니다.'
+      };
+    }
+  } catch (error) {
+    return { success: false, message: error.message };
   } finally {
     lock.releaseLock();
   }
