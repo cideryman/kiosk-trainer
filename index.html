@@ -24,23 +24,15 @@
   <div class="kiosk-container" id="app-container">
     <!-- 헤더 -->
     <header class="kiosk-header">
-      <div class="kiosk-header-top" style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="kiosk-header-top" style="display: flex; justify-content: center; align-items: center; position: relative;">
         <!-- 로고 -->
         <h1 class="kiosk-title" style="padding: 0; line-height: 1; margin: 0;">
           <img src="assets/store-logo.png" alt="주간매점" style="height: 64px; width: auto; display: block; object-fit: contain;">
         </h1>
         <!-- 우측 토글 버튼들 -->
-        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; justify-content: flex-end;">
-          <!-- 주문번호 사용 토글 -->
-          <label class="tts-toggle-container" style="cursor: pointer; white-space: nowrap;">
-            <span class="tts-switch">
-              <input type="checkbox" id="orderno-toggle">
-              <span class="tts-slider"></span>
-            </span>
-            <span class="tts-label">주문번호 발급</span>
-          </label>
+        <div style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center;">
           <!-- 음성 안내 토글 -->
-          <label class="tts-toggle-container" style="cursor: pointer; white-space: nowrap;">
+          <label class="tts-toggle-container" style="cursor: pointer; white-space: nowrap; margin: 0;">
             <span class="tts-switch">
               <input type="checkbox" id="tts-toggle">
               <span class="tts-slider"></span>
@@ -256,7 +248,8 @@
               orderNoGroups[o.orderNo] = {
                 orderNo: o.orderNo,
                 nickname: o.nickname,
-                cancelTimestamp: o.cancelTimestamp
+                cancelTimestamp: o.cancelTimestamp,
+                cancelReason: o.cancelReason
               };
             }
           });
@@ -417,11 +410,15 @@
       }
 
       banner.style.display = 'flex';
-      banner.innerHTML = activeCancellations.map(c => `
-        <div class="cancellation-row" style="font-size: 20px; font-weight: 800; color: #9B2C2C; padding: 4px 0;">
-          📢 <span style="color: var(--danger-color); font-size: 22px;">${AppState.escapeHtml(c.nickname)} 님</span>의 주문이 취소되었습니다.
+      banner.innerHTML = activeCancellations.map(c => {
+        const reasonHtml = c.cancelReason ? `<div style="font-size: 16px; font-weight: 700; color: var(--danger-color); margin-top: 4px;">사유: ${AppState.escapeHtml(c.cancelReason)}</div>` : '';
+        return `
+        <div class="cancellation-row" style="font-size: 20px; font-weight: 800; color: #9B2C2C; padding: 8px 0; display: flex; flex-direction: column; align-items: center; border-bottom: 1px dashed rgba(155, 44, 44, 0.2);">
+          <div>📢 <span style="color: var(--danger-color); font-size: 22px;">${AppState.escapeHtml(c.nickname)} 님</span>의 주문이 취소되었습니다.</div>
+          ${reasonHtml}
         </div>
-      `).join('');
+        `;
+      }).join('');
 
       // 60초 타이머 설정하여 각 주문번호를 dismiss 리스트에 등록
       activeCancellations.forEach(c => {
@@ -479,23 +476,8 @@
         });
       }
 
-      // 주문번호 토글 연동 및 초기설정
-      const orderNoToggle = document.getElementById('orderno-toggle');
-      if (orderNoToggle) {
-        if (localStorage.getItem('orderNoEnabled') === null) {
-          localStorage.setItem('orderNoEnabled', 'true');
-        }
-        orderNoToggle.checked = localStorage.getItem('orderNoEnabled') === 'true';
-        orderNoToggle.addEventListener('change', (e) => {
-          localStorage.setItem('orderNoEnabled', e.target.checked ? 'true' : 'false');
-          AppState.vibrate(40);
-          if (e.target.checked) {
-            AppState.speak("주문번호를 발급합니다.");
-          } else {
-            AppState.speak("주문번호를 사용하지 않습니다.");
-          }
-        });
-      }
+      // 주문번호 상시 발급으로 고정
+      localStorage.setItem('orderNoEnabled', 'true');
 
       // 다시 시도 버튼 바인딩
       document.getElementById('btn-retry').addEventListener('click', () => {
