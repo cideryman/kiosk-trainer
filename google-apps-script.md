@@ -80,7 +80,8 @@ const ADMIN_ACTIONS = [
   'uploadImage',
   'updateGuestSettings',
   'archiveOldOrders',
-  'getReviewsForAdmin'
+  'getReviewsForAdmin',
+  'autoFillEmptySnackIds'
 ];
 
 /**
@@ -207,6 +208,8 @@ function doPost(e) {
     return jsonResponse(getReviewsForAdmin());
   } else if (action === 'ensureOrderHeaders') {
     return jsonResponse({ success: true, message: ensureOrderHeaders() });
+  } else if (action === 'autoFillEmptySnackIds') {
+    return jsonResponse(autoFillEmptySnackIds());
   }
   
   return jsonResponse({
@@ -1940,4 +1943,102 @@ function ensureOrderHeaders() {
   return '헤더 보정이 완료되었습니다.';
 }
 
+/**
+ * 27. 빈 간식ID 자동 채우기 기능
+ * 비어 있는 간식ID를 기존 가장 높은 숫자 ID부터 순차적으로 채웁니다.
+ * 중복되거나 숫자가 아닌 ID가 발견될 경우 경고를 반환합니다.
+ */
+function autoFillEmptySnackIds() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    return { success: false, message: '다른 작업이 진행 중입니다.', hasError: true };
+  }
+  
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET.SNACKS);
+    if (!sheet) {
+      return { success: false, message: '간식목록 시트를 찾을 수 없습니다.', hasError: true };
+    }
+
+    const range = sheet.getDataRange();
+    const values = range.getValues();
+    if (values.length <= 1) {
+      return { success: true, filledCount: 0, message: '간식 데이터가 없습니다.' };
+    }
+
+    const rows = values.slice(1);
+    const existingIds = [];
+    const emptyRowsIndexes = [];
+    
+    // 1. 유효성 검사 및 데이터 수집
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const snackId = row[0];
+      const snackName = row[1];
+      
+      // 이름도 없고 ID도 없으면 빈 줄로 간주
+      if (!snackId && !snackName) continue;
+      
+      if (!snackId) {
+        emptyRowsIndexes.push(i + 1); // 데이터 행 인덱스 (sheet rows is i + 2)
+      } else {
+        existingIds.push(String(snackId).trim());
+      }
+    }
+
+    // 빈 ID가 없다면 조기 종료
+    if (emptyRowsIndexes.length === 0) {
+      return { success: true, filledCount: 0, message: '모든 간식ID가 정상입니다.' };
+    }
+
+    // 2. 숫자가 아닌 ID나 중복 ID 검사 (오류 시 자동 수정 중단)
+    const idCounts = {};
+    let hasInvalid = false;
+    let hasDuplicate = false;
+    
+    existingIds.forEach(id => {
+      if (isNaN(Number(id)) || id === '') {
+        hasInvalid = true;
+      }
+      idCounts[id] = (idCounts[id] || 0) + 1;
+      if (idCounts[id] > 1) {
+        hasDuplicate = true;
+      }
+    });
+
+    if (hasInvalid || hasDuplicate) {
+      return { 
+        success: false, 
+        message: '경고: 간식 목록에 숫자가 아닌 ID나 중복된 ID가 존재합니다. 시트를 직접 확인해주세요.',
+        hasError: true 
+      };
+    }
+
+    // 3. 가장 큰 ID 찾기 및 빈 ID 채우기
+    let maxId = 0;
+    existingIds.forEach(id => {
+      const num = Number(id);
+      if (num > maxId) maxId = num;
+    });
+
+    let currentId = maxId;
+    let filledCount = 0;
+
+    emptyRowsIndexes.forEach(rowIndex => {
+      currentId++;
+      // sheet index는 1-based, 헤더 고려하여 +1
+      sheet.getRange(rowIndex + 1, 1).setValue(currentId);
+      filledCount++;
+    });
+
+    return { 
+      success: true, 
+      filledCount: filledCount, 
+      message: `${filledCount}개의 빈 간식ID를 자동으로 채웠습니다.` 
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
 ```

@@ -802,6 +802,43 @@ function getMockFallback(action, options) {
     }
 
     res = { success: true, message: `${archivedOrders.length}건의 지난 주문을 성공적으로 보관 처리했습니다.` };
+  } else if (action === 'autoFillEmptySnackIds') {
+    const snacks = getMockSnacks();
+    let hasInvalid = false;
+    let hasDuplicate = false;
+    const existingIds = [];
+    const emptyCount = snacks.filter(s => !s.snackId).length;
+
+    const idCounts = {};
+    snacks.forEach(s => {
+      if (!s.snackId && s.snackId !== 0) return;
+      existingIds.push(s.snackId);
+      if (isNaN(Number(s.snackId)) || String(s.snackId).trim() === '') hasInvalid = true;
+      idCounts[s.snackId] = (idCounts[s.snackId] || 0) + 1;
+      if (idCounts[s.snackId] > 1) hasDuplicate = true;
+    });
+
+    if (hasInvalid || hasDuplicate) {
+      res = { success: false, message: '경고: 간식 목록에 숫자가 아닌 ID나 중복된 ID가 존재합니다. 시트를 직접 확인해주세요.', hasError: true };
+    } else if (emptyCount === 0) {
+      res = { success: true, filledCount: 0, message: '모든 간식ID가 정상입니다.' };
+    } else {
+      let maxId = 0;
+      existingIds.forEach(id => {
+        const num = Number(id);
+        if (num > maxId) maxId = num;
+      });
+      let filled = 0;
+      snacks.forEach(s => {
+        if (!s.snackId && s.snackId !== 0) {
+          maxId++;
+          s.snackId = maxId;
+          filled++;
+        }
+      });
+      saveMockSnacks(snacks);
+      res = { success: true, filledCount: filled, message: `${filled}개의 빈 간식ID를 자동으로 채웠습니다.` };
+    }
   } else {
     res = { success: false, error: "액션을 찾을 수 없습니다." };
   }

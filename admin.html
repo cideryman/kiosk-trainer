@@ -921,6 +921,7 @@
       <!-- Tab 3: 간식 및 재고 관리 -->
       <div id="tab-snacks" class="admin-tab-content">
         <div class="snack-admin-layout">
+          <div id="snack-api-warning" class="error-box" style="display: none; margin-bottom: 0px; font-size: 16px; font-weight: 700; padding: 12px; border-radius: var(--radius-sm); border: 2px solid;"></div>
 
           <!-- ★ 표시 순서 편집 패널 -->
           <div>
@@ -1394,6 +1395,74 @@
         // 3. 간식 재고 데이터 처리
         if (snacksRes && snacksRes.success && Array.isArray(snacksRes.snacks)) {
           currentSnacks = snacksRes.snacks;
+          
+          // --- 간식 ID 자동 채우기 보완 검사 로직 ---
+          const snackWarningEl = document.getElementById('snack-api-warning');
+          if (snackWarningEl) snackWarningEl.style.display = 'none';
+
+          let hasEmptyId = false;
+          let hasInvalidOrDuplicate = false;
+          const idSet = new Set();
+
+          for (const s of currentSnacks) {
+            if (!s.snackId && s.snackId !== 0) {
+              hasEmptyId = true;
+            } else {
+              if (isNaN(Number(s.snackId)) || String(s.snackId).trim() === '') {
+                hasInvalidOrDuplicate = true;
+              }
+              if (idSet.has(String(s.snackId))) {
+                hasInvalidOrDuplicate = true;
+              }
+              idSet.add(String(s.snackId));
+            }
+          }
+
+          if (hasInvalidOrDuplicate) {
+            if (snackWarningEl) {
+              snackWarningEl.style.display = 'block';
+              snackWarningEl.style.color = '#9B2C2C';
+              snackWarningEl.style.backgroundColor = '#FFF5F5';
+              snackWarningEl.style.borderColor = '#FEB2B2';
+              snackWarningEl.innerHTML = '⚠️ <b>경고:</b> 간식 목록에 <b>숫자가 아닌 ID</b>나 <b>중복된 ID</b>가 존재합니다. 시트를 직접 확인해주세요.';
+            }
+          } else if (hasEmptyId) {
+            // 빈 ID가 존재하고, 유효성 오류가 없으면 자동 채우기 API 호출
+            try {
+              const adminToken = getAdminToken();
+              const autoFillRes = await fetchAPI('autoFillEmptySnackIds', {
+                method: 'POST',
+                body: { adminToken, adminMemo: '빈 간식ID 자동 채우기' }
+              });
+              
+              if (autoFillRes && autoFillRes.success && autoFillRes.filledCount > 0) {
+                if (snackWarningEl) {
+                  snackWarningEl.style.display = 'block';
+                  snackWarningEl.style.color = '#22543D';
+                  snackWarningEl.style.backgroundColor = '#F0FFF4';
+                  snackWarningEl.style.borderColor = '#9AE6B4';
+                  snackWarningEl.innerHTML = `✅ <b>알림:</b> ${autoFillRes.filledCount}개의 빈 간식ID를 자동으로 채웠습니다.`;
+                }
+                // 간식 목록 다시 불러오기
+                const reSnacksRes = await fetchAPI('getSnacks', { params: { includeHidden: 'Y' } });
+                if (reSnacksRes && reSnacksRes.success && Array.isArray(reSnacksRes.snacks)) {
+                  currentSnacks = reSnacksRes.snacks;
+                }
+              } else if (autoFillRes && autoFillRes.hasError) {
+                if (snackWarningEl) {
+                  snackWarningEl.style.display = 'block';
+                  snackWarningEl.style.color = '#9B2C2C';
+                  snackWarningEl.style.backgroundColor = '#FFF5F5';
+                  snackWarningEl.style.borderColor = '#FEB2B2';
+                  snackWarningEl.innerHTML = `⚠️ <b>경고:</b> ${autoFillRes.message}`;
+                }
+              }
+            } catch (e) {
+              console.error("간식 ID 자동 채우기 중 오류:", e);
+            }
+          }
+          // ---------------------------------------------
+
           renderSnacksStock(currentSnacks);
           renderSnacksManagement(currentSnacks);
         } else {
