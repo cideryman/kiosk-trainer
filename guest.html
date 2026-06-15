@@ -142,6 +142,9 @@
           <button class="btn btn-primary" id="btn-check-orders" style="min-height: 84px; font-size: 24px; background-color: var(--primary-color);">
             🎫 내 주문 확인하기
           </button>
+          <button class="btn btn-secondary" id="btn-write-review" style="display: none; min-height: 84px; font-size: 24px; background-color: #E65100; color: white; border: none; box-shadow: var(--shadow-btn-sec);">
+            ✍️ 후기 작성하기
+          </button>
         </div>
 
         <!-- 최근 칭찬 보드 -->
@@ -447,6 +450,35 @@
       AppState.bindCardTap(btnCheckOrders, () => {
         window.location.href = 'guest-orders.html';
       });
+
+      // 후기 작성 버튼 활성화 로직
+      function checkReviewEligibility() {
+        try {
+          const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
+          const unreviewedOrders = guestOrders.filter(o => 
+            (o.status === 'Y' || o.servedYn === 'Y') && 
+            (o.reviewed !== true && o.reviewed !== 'true')
+          );
+          
+          const btnWriteReview = document.getElementById('btn-write-review');
+          if (btnWriteReview) {
+            if (unreviewedOrders.length > 0) {
+              btnWriteReview.style.display = 'block';
+            } else {
+              btnWriteReview.style.display = 'none';
+            }
+          }
+        } catch(e) {}
+      }
+      checkReviewEligibility();
+
+      const btnWriteReview = document.getElementById('btn-write-review');
+      if (btnWriteReview) {
+        AppState.bindCardTap(btnWriteReview, () => {
+          AppState.vibrate(50);
+          window.location.href = 'guest-orders.html?openReview=true';
+        });
+      }
 
       // 시작하기 함수
       function startGuestMode() {
