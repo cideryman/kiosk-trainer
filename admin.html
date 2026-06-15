@@ -1278,7 +1278,7 @@
       AppState.playClickSound();
     }
 
-    // 신규 주문 발생 시 띵동 알림음 재생 (Web Audio API 주파수 합성)
+    // 신규 주문 발생 시 띵동 알림음 후 배달의민족 커스텀 알림음 재생
     function playNewOrderSound() {
       try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1312,6 +1312,15 @@
         
         osc2.start(audioCtx.currentTime + 0.22);
         osc2.stop(audioCtx.currentTime + 0.9);
+
+        // 딩동 소리 재생이 끝날 즈음(약 1초 후)에 원장님 커스텀 목소리 재생
+        setTimeout(() => {
+          const audio = new Audio('sounds/new-order.mp3');
+          audio.play().catch(e => {
+            console.warn("오디오 자동 재생 차단:", e);
+          });
+        }, 1000);
+
       } catch (e) {
         console.warn("알림음 재생 실패:", e);
       }
