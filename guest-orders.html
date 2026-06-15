@@ -463,6 +463,13 @@
           ? `<div style="font-size: 16px; font-weight: 800; color: #00796B; margin-top: 4px;">📍 배달지: ${AppState.escapeHtml(order.deliveryPlace)}</div>`
           : '';
 
+        const isCanceled = (order.status === 'C' || order.servedYn === 'C');
+        let cancelHtml = '';
+        if (isCanceled) {
+          const reasonText = order.cancelReason || '사유 없음';
+          cancelHtml = `<div style="font-size: 15px; font-weight: 800; color: var(--danger-color); margin-top: 8px; background-color: #fdf2f2; padding: 10px; border-radius: 8px; border: 1px solid #fecaca;">🚫 취소 사유: ${AppState.escapeHtml(reasonText)}</div>`;
+        }
+
         card.innerHTML = `
           <div class="order-card-header">
             <span class="order-card-time">⏰ ${timeStr}</span>
@@ -473,6 +480,7 @@
             <div class="order-card-items">${AppState.escapeHtml(itemsText)}</div>
             <div class="order-card-name">👤 주문자: ${AppState.escapeHtml(guestName)} 님</div>
             ${deliveryPlaceHtml}
+            ${cancelHtml}
             ${reviewBtnHtml}
           </div>
         `;

@@ -1119,6 +1119,39 @@
     </div>
   </div>
 
+  <!-- 주문 취소 사유 모달 -->
+  <div class="admin-modal" id="modal-cancel-reason">
+    <div class="admin-modal-content" style="max-width: 400px;">
+      <div class="admin-modal-header">
+        <h2 class="admin-modal-title">🚫 주문 취소</h2>
+        <button class="admin-modal-close" onclick="closeCancelReasonModal()">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <p id="cancel-modal-desc" style="font-size: 15px; color: var(--text-main); margin-bottom: 16px; font-weight: 700;"></p>
+        <div class="form-field">
+          <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">취소 사유 선택 <span style="color: var(--danger-color);">*</span></label>
+          <select id="cancel-reason-select" style="padding: 12px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;" onchange="toggleCancelReasonDetail()">
+            <option value="">사유를 선택해주세요</option>
+            <option value="재고 부족">재고 부족</option>
+            <option value="주문자 요청">주문자 요청</option>
+            <option value="중복 주문">중복 주문</option>
+            <option value="운영 마감">운영 마감</option>
+            <option value="배달 불가">배달 불가</option>
+            <option value="기타">기타 (직접 입력)</option>
+          </select>
+        </div>
+        <div class="form-field" id="cancel-reason-detail-container" style="display: none;">
+          <label for="cancel-reason-detail" style="font-size: 16px; font-weight: 800; color: var(--text-main);">상세 사유 입력 <span style="color: var(--danger-color);">*</span></label>
+          <input type="text" id="cancel-reason-detail" placeholder="취소 사유를 입력해 주세요." style="padding: 12px; font-size: 16px;">
+        </div>
+      </div>
+      <div class="admin-modal-footer">
+        <button class="btn btn-gray" onclick="closeCancelReasonModal()" style="flex: 1; min-height: 48px; font-size: 16px;">닫기</button>
+        <button class="btn btn-secondary" onclick="submitCancelOrder()" style="flex: 1; min-height: 48px; font-size: 16px; margin: 0; background-color: var(--danger-color); border-color: var(--danger-color);">취소 처리</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 스크립트 참조 -->
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>
@@ -1551,15 +1584,75 @@
       }
     }
 
-    // 주문 취소 처리 (환불 및 재고 복구)
-    async function cancelOrderAction(orderNo, nickname) {
-      const ok = (typeof USE_MOCK !== 'undefined' && USE_MOCK) ? true : confirm(`[${nickname} 님]의 주문을 취소하시겠습니까?\n사용된 포인트가 환불되고 간식 재고가 복구됩니다.`);
-      if (!ok) return;
+    // 주문 취소 처리 모달 열기
+    let currentCancelOrderNo = null;
+    let currentCancelNickname = null;
 
+    function cancelOrderAction(orderNo, nickname) {
+      if (typeof USE_MOCK !== 'undefined' && USE_MOCK) {
+        // Mock 환경에서는 바로 취소
+        executeCancelOrder(orderNo, '기타', 'Mock Test');
+        return;
+      }
+      currentCancelOrderNo = orderNo;
+      currentCancelNickname = nickname;
+      
+      const modal = document.getElementById('modal-cancel-reason');
+      document.getElementById('cancel-modal-desc').textContent = `[${nickname} 님]의 주문을 취소하시겠습니까? 사용된 포인트가 환불되고 간식 재고가 복구됩니다.`;
+      document.getElementById('cancel-reason-select').value = '';
+      document.getElementById('cancel-reason-detail').value = '';
+      toggleCancelReasonDetail();
+      
+      modal.style.display = 'flex';
+      isModalOpen = true;
+      pauseRefresh();
+    }
+
+    function closeCancelReasonModal() {
+      document.getElementById('modal-cancel-reason').style.display = 'none';
+      isModalOpen = false;
+      resumeRefresh();
+    }
+
+    function toggleCancelReasonDetail() {
+      const select = document.getElementById('cancel-reason-select');
+      const container = document.getElementById('cancel-reason-detail-container');
+      if (select.value === '기타') {
+        container.style.display = 'flex';
+      } else {
+        container.style.display = 'none';
+      }
+    }
+
+    async function submitCancelOrder() {
+      const select = document.getElementById('cancel-reason-select');
+      const detailInput = document.getElementById('cancel-reason-detail');
+      const reason = select.value;
+      const detail = detailInput.value.trim();
+
+      if (!reason) {
+        alert('취소 사유를 선택해 주세요.');
+        select.focus();
+        return;
+      }
+
+      if (reason === '기타' && !detail) {
+        alert('취소 사유를 입력해 주세요.');
+        detailInput.focus();
+        return;
+      }
+
+      closeCancelReasonModal();
+      await executeCancelOrder(currentCancelOrderNo, reason, detail);
+    }
+
+    async function executeCancelOrder(orderNo, reason, detail) {
       try {
+        const payload = withAdminToken({ orderId: orderNo, cancelReason: reason, cancelReasonDetail: detail });
+        console.log("Canceling order:", payload);
         const res = await fetchAPI('cancelOrder', {
           method: 'POST',
-          body: withAdminToken({ orderId: orderNo })
+          body: payload
         });
         
         if (res && res.success) {
@@ -1569,11 +1662,11 @@
           await loadAdminData(); // 데이터 재로드 및 렌더링
         } else {
           clearAdminTokenIfDenied(res);
-          alert("주문 취소에 실패했습니다: " + (res?.message || "오류"));
+          alert("주문 취소에 실패했습니다: " + (res?.message || "서버에서 거부되었습니다.") + "\n응답값: " + JSON.stringify(res));
         }
       } catch (error) {
         console.error("주문 취소 중 오류:", error);
-        alert("주문 취소 처리 중 오류가 발생했습니다.");
+        alert("주문 취소 처리 중 오류가 발생했습니다.\n상세: " + error.message + "\n\n* Apps Script가 최신 버전으로 올바르게 배포되었고, config.js의 URL이 맞는지 확인해 주세요.");
       }
     }
 
@@ -2229,14 +2322,22 @@
         orderNo: o.orderNo || `${o.timestamp || idx}_${o.nickname || 'unknown'}`
       }));
 
-      // 1. 제공 완료 여부에 따른 목록 분리 (DB에서 받아온 servedYn 값 사용, 취소 'C' 제외)
+      // 1. 제공 완료 여부에 따른 목록 분리 (DB에서 받아온 servedYn 값 사용)
       const activeOrders = orders.filter(o => o.servedYn !== 'C');
+      const canceledOrders = orders.filter(o => o.servedYn === 'C');
       
       // 수령방식 필터링 적용
       const selectEl = document.getElementById('delivery-filter');
       const filterVal = selectEl ? selectEl.value : 'all';
       
       const filteredActive = activeOrders.filter(o => {
+        if (filterVal === 'all') return true;
+        const isGuest = o.userId === 'guest';
+        const type = isGuest ? (o.deliveryType || 'pickup') : 'pickup';
+        return type === filterVal;
+      });
+
+      const filteredCanceled = canceledOrders.filter(o => {
         if (filterVal === 'all') return true;
         const isGuest = o.userId === 'guest';
         const type = isGuest ? (o.deliveryType || 'pickup') : 'pickup';
@@ -2406,19 +2507,26 @@
       // 일괄 처리 바 표시 여부 갱신
       updateBulkActionBar(pendingOrders.length > 0);
 
-      // 4. 완료된 주문 내역 테이블 렌더링
+      // 4. 완료 및 취소된 주문 내역 테이블 렌더링
       const tbody = document.getElementById('order-table-body');
       tbody.innerHTML = '';
 
-      if (completedOrders.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">오늘 완료된 주문이 없습니다.</td></tr>';
+      const combinedCompleted = [...completedOrders, ...filteredCanceled];
+
+      if (combinedCompleted.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">오늘 완료/취소된 주문이 없습니다.</td></tr>';
       } else {
-        // 최신 완료 주문이 가장 위에 보이도록 정렬
-        const sortedCompleted = [...completedOrders].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        // 최신 완료/취소 주문이 가장 위에 보이도록 정렬
+        const sortedCompleted = combinedCompleted.sort((a, b) => {
+          const aTime = a.cancelTimestamp ? new Date(a.cancelTimestamp) : new Date(a.timestamp);
+          const bTime = b.cancelTimestamp ? new Date(b.cancelTimestamp) : new Date(b.timestamp);
+          return bTime - aTime;
+        });
 
         sortedCompleted.forEach(order => {
           const pointVal = order.point || 0;
           const qtyVal = order.quantity || 0;
+          const isCanceled = order.servedYn === 'C';
 
           const isDelivery = order.deliveryType === 'delivery';
           const deliveryBadge = isDelivery
@@ -2436,14 +2544,24 @@
 
           const tr = document.createElement('tr');
           const orderNoArg = jsString(order.orderNo);
+          
+          let rowStyle = '';
+          let statusHtml = '';
+          if (isCanceled) {
+            rowStyle = 'opacity: 0.8; background-color: #fdf2f2;';
+            const reasonDetail = order.cancelReason === '기타' && order.cancelReasonDetail ? `<br><span style="font-weight: 500;">상세: ${esc(order.cancelReasonDetail)}</span>` : '';
+            statusHtml = `<div style="color: var(--danger-color); font-weight: 800; font-size: 13px; margin-top: 4px;">[상태: 취소]<br>사유: ${esc(order.cancelReason || '사유 없음')}${reasonDetail}</div>`;
+          }
+
+          tr.style = rowStyle;
           tr.innerHTML = `
-            <td><strong>${esc(formatTime(order.timestamp))}</strong></td>
+            <td><strong>${esc(formatTime(isCanceled ? order.cancelTimestamp : order.timestamp))}</strong></td>
             <td>${numberPrefix}${esc(order.nickname)}${deliveryBadge}${deliveryPlaceText}</td>
-            <td>${esc(order.snackName)}</td>
+            <td>${esc(order.snackName)}${statusHtml}</td>
             <td style="text-align: center; font-weight: 800;">${qtyVal}개</td>
             <td style="text-align: right; font-weight: 800; color: var(--primary-color);">${esc(AppState.formatPoint(pointVal))}</td>
             <td style="text-align: center;">
-              <button class="btn-undo-action" onclick="${callAttr(`undoCompleteOrder(${orderNoArg})`)}">되돌리기</button>
+              ${!isCanceled ? `<button class="btn-undo-action" onclick="${callAttr(`undoCompleteOrder(${orderNoArg})`)}">되돌리기</button>` : `<span style="color: var(--danger-color); font-weight: 800;">취소됨</span>`}
             </td>
           `;
           tbody.appendChild(tr);

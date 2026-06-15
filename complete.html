@@ -655,7 +655,7 @@
         const response = await fetchAPI('getOrderStatus', { params });
         if (response && response.success) {
           const currentStatus = response.servedYn || 'N';
-          updateTrackingUI(currentStatus, summaryData.nickname, response.reviewed);
+          updateTrackingUI(currentStatus, summaryData.nickname, response.reviewed, response.cancelReason, response.cancelReasonDetail);
         }
       } catch (error) {
         console.warn('[Polling Error] 실시간 주문 폴링 실패:', error);
@@ -663,7 +663,7 @@
     }
 
     // 주문 상태에 따라 스텝퍼 UI 업데이트 및 알림
-    function updateTrackingUI(status, nickname, reviewed = false) {
+    function updateTrackingUI(status, nickname, reviewed = false, cancelReason = '', cancelReasonDetail = '') {
       if (status === lastStatus && summaryData && summaryData.lastReviewedState === reviewed) return; // 변경될 때만 알림 발생
       
       const prevStatus = lastStatus;
@@ -754,7 +754,13 @@
         step1.querySelector('.step-icon-circle span').textContent = '❌';
         step1.querySelector('.step-title').textContent = '주문 취소됨';
         step1.querySelector('.step-title').style.color = 'var(--danger-color)';
-        step1.querySelector('.step-desc').textContent = '관리자에 의해 주문이 취소되었습니다.';
+        
+        let reasonStr = cancelReason ? `취소 사유: ${cancelReason}` : '관리자에 의해 주문이 취소되었습니다.';
+        if (cancelReason === '기타' && cancelReasonDetail) {
+          reasonStr += ` (${cancelReasonDetail})`;
+        }
+        
+        step1.querySelector('.step-desc').textContent = reasonStr;
         step1.querySelector('.step-desc').style.color = 'var(--danger-color)';
       }
  
