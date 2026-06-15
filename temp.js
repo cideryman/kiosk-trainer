@@ -506,6 +506,7 @@ function placeOrder(data) {
  * 8. 오늘 접수된 주문 내역 조회
  */
 function getOrdersToday() {
+  ensureOrderHeaders();
   const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET.ORDERS);
   const values = sheet.getDataRange().getValues();
   const headers = values[0] || [];
@@ -560,6 +561,7 @@ function getOrdersToday() {
  * 8.5. 특정 주문의 진행 상태 단일 조회 API
  */
 function getOrderStatus(id) {
+  ensureOrderHeaders();
   if (!id) {
     return {
       success: false,
@@ -620,6 +622,7 @@ function getOrderStatus(id) {
  * 8.6. 게스트 본인의 오늘 주문 목록만 조회 API (보안을 위해 전체가 아닌 검색어 매칭만 반환)
  */
 function getGuestOrdersToday(guestName) {
+  ensureOrderHeaders();
   if (!guestName) {
     return {
       success: false,
@@ -751,6 +754,7 @@ function updateOrderServed(data) {
  * 9.5. 주문 취소 및 환불/재고 복구 API
  */
 function cancelOrder(data) {
+  ensureOrderHeaders();
   const orderId = data.orderId;
 
   if (!orderId) {
@@ -857,6 +861,11 @@ function cancelOrder(data) {
         message: `주문번호 ${orderId}에 해당하는 대기 중이거나 완료된 주문 기록을 찾을 수 없습니다.`
       };
     }
+  } catch (error) {
+    return {
+      success: false,
+      message: error.message
+    };
   } finally {
     lock.releaseLock();
   }
@@ -1435,6 +1444,7 @@ function updateGuestSettings(data) {
  * 22. 후기 등록 API
  */
 function submitReview(data) {
+  ensureOrderHeaders();
   const orderId = data.orderId;
   const guestName = data.guestName;
   const stamp = data.stamp || '';
@@ -1560,7 +1570,12 @@ function submitReview(data) {
 
     return {
       success: true,
-      message: '응원 메시지가 저장되었습니다.'
+      message: '리뷰가 성공적으로 등록되었습니다.'
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.message
     };
   } finally {
     lock.releaseLock();
@@ -1638,6 +1653,7 @@ function getReviewsForAdmin() {
  * 25. 지난 주문 보관 (아카이빙) API
  */
 function archiveOldOrders(data) {
+  ensureOrderHeaders();
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(10000)) {
     return {
@@ -1729,6 +1745,11 @@ function archiveOldOrders(data) {
       success: true,
       message: `${rowsToArchive.length}건의 지난 주문을 성공적으로 보관 처리했습니다.`
     };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.message
+    };
   } finally {
     lock.releaseLock();
   }
@@ -1759,87 +1780,20 @@ function archiveOldOrders(data) {
 function ensureOrderHeaders() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const orderSheet = ss.getSheetByName(SHEET.ORDERS);
-  if (!orderSheet) return '주문내역 시트가 없습니다.';
+  if (!orderSheet) return;
 
-  // 필요한 컬럼 수(A~R = 18개) 확보
   const REQUIRED_COLS = 18;
   if (orderSheet.getMaxColumns() < REQUIRED_COLS) {
     orderSheet.insertColumnsAfter(orderSheet.getMaxColumns(), REQUIRED_COLS - orderSheet.getMaxColumns());
   }
 
-  const values = orderSheet.getDataRange().getValues();
-  if (values.length === 0) return '데이터가 없습니다.';
-
-  const headers = values[0];
   const newHeaders = [
     '주문시간', '주문번호', '이용자ID', '별명', '간식ID', '간식명', '수량',
     '차감포인트', '제공여부', 'cancelTimestamp', 'orderToken', 'deliveryType', 
     'deliveryFee', 'totalCredit', 'reviewed', 'deliveryAddress', 'cancelReason', 'cancelReasonDetail'
   ];
 
-  // 각 헤더의 기존 인덱스 찾기
-  const colIdx = {
-    reviewed: headers.indexOf('reviewed') !== -1 ? headers.indexOf('reviewed') : 14,
-    cancelReason: headers.indexOf('cancelReason'),
-    cancelReasonDetail: headers.indexOf('cancelReasonDetail'),
-    deliveryAddress: headers.indexOf('deliveryAddress')
-  };
-
-  const newData = [newHeaders];
-
-  // 데이터 마이그레이션 진행
-  for (let i = 1; i < values.length; i++) {
-    const row = values[i];
-    const newRow = new Array(REQUIRED_COLS).fill('');
-
-    // 기본 A~N 데이터 복사 (인덱스 0~13)
-    for (let j = 0; j <= 13; j++) {
-      if (j < row.length) {
-        newRow[j] = row[j];
-      }
-    }
-
-    // 기존 데이터 읽기
-    const rawReviewed = colIdx.reviewed < row.length ? row[colIdx.reviewed] : '';
-    let rawAddress = colIdx.deliveryAddress !== -1 && colIdx.deliveryAddress < row.length ? row[colIdx.deliveryAddress] : '';
-    
-    // 만약 기존에 deliveryAddress 컬럼이 없었지만, 과거 코드에서 P열(인덱스 15)에 주소를 저장했을 경우 대응
-    if (colIdx.deliveryAddress === -1 && row.length > 15 && String(row[15]).trim() !== '' && String(row[15]).trim().toUpperCase() !== 'TRUE' && String(row[15]).trim().toUpperCase() !== 'FALSE') {
-       rawAddress = row[15];
-    }
-
-    // 마이그레이션 로직: reviewed 컬럼(O열) 값 판별
-    let finalReviewed = '';
-    let finalAddress = rawAddress;
-
-    if (rawReviewed === true || String(rawReviewed).trim().toUpperCase() === 'TRUE') {
-      finalReviewed = true;
-    } else if (rawReviewed === false || String(rawReviewed).trim().toUpperCase() === 'FALSE') {
-      finalReviewed = false;
-    } else if (String(rawReviewed).trim() !== '') {
-      // TRUE/FALSE가 아닌 일반 텍스트(예: "사무실 원탁")가 reviewed 컬럼에 있는 경우 배송지로 취급!
-      finalReviewed = false; // 알 수 없는 텍스트이므로 기본값 false
-      if (!finalAddress) {
-        finalAddress = String(rawReviewed).trim();
-      }
-    }
-
-    // O열 (reviewed)
-    newRow[14] = finalReviewed;
-    // P열 (deliveryAddress)
-    newRow[15] = finalAddress;
-    // Q열 (cancelReason)
-    newRow[16] = colIdx.cancelReason !== -1 && colIdx.cancelReason < row.length ? row[colIdx.cancelReason] : '';
-    // R열 (cancelReasonDetail)
-    newRow[17] = colIdx.cancelReasonDetail !== -1 && colIdx.cancelReasonDetail < row.length ? row[colIdx.cancelReasonDetail] : '';
-
-    newData.push(newRow);
-  }
-
-  // 기존 시트 클리어 및 새 데이터 구조 쓰기
-  orderSheet.clear();
-  orderSheet.getRange(1, 1, newData.length, REQUIRED_COLS).setValues(newData);
-
-  return '헤더 보정 및 마이그레이션이 완료되었습니다.';
+  orderSheet.getRange(1, 1, 1, REQUIRED_COLS).setValues([newHeaders]);
+  return '헤더 보정이 완료되었습니다.';
 }
 
