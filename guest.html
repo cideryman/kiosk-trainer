@@ -499,6 +499,36 @@
       }
       checkReviewEligibility();
 
+      // 백그라운드 주문 상태 동기화 (후기 버튼 자동 갱신용)
+      async function syncGuestOrders() {
+        try {
+          const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
+          if (guestOrders.length === 0) return;
+          
+          const response = await fetchAPI('getOrdersToday');
+          if (response && response.success && Array.isArray(response.orders)) {
+            let updated = false;
+            guestOrders.forEach(localOrder => {
+              const serverOrder = response.orders.find(o => o.orderNo === localOrder.orderNo);
+              if (serverOrder) {
+                if (localOrder.status !== serverOrder.servedYn || localOrder.reviewed !== serverOrder.reviewed) {
+                  localOrder.status = serverOrder.servedYn;
+                  localOrder.reviewed = serverOrder.reviewed;
+                  updated = true;
+                }
+              }
+            });
+            if (updated) {
+              localStorage.setItem('guestOrders', JSON.stringify(guestOrders));
+              checkReviewEligibility(); // 후기 버튼 갱신
+            }
+          }
+        } catch (e) {
+          console.warn('동기화 실패:', e);
+        }
+      }
+      syncGuestOrders();
+
       const btnWriteReview = document.getElementById('btn-write-review');
       if (btnWriteReview) {
         AppState.bindCardTap(btnWriteReview, () => {
