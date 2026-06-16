@@ -342,6 +342,29 @@ function getSnacks(includeHidden, mode) {
   };
 }
 
+function isActiveValue(value) {
+  const v = String(value || '').trim().toUpperCase();
+  return v === 'Y' || v === 'TRUE' || v === '활성' || v === '판매' || v === 'O' || v === '예';
+}
+
+function canOrderSnack(snackRow, mode) {
+  if (!isActiveValue(snackRow[4])) {
+    return false;
+  }
+
+  const target = String(snackRow[7] || 'user').trim().toLowerCase();
+
+  if (mode === 'guest') {
+    return target === 'all' || target === 'both' || target === 'guest';
+  }
+
+  if (mode === 'user' || mode === 'kiosk') {
+    return target === 'all' || target === 'both' || target === 'user' || target === 'kiosk';
+  }
+
+  return false;
+}
+
 /**
  * 7. 주문 접수 및 크레딧/재고 자동 계산 처리
  */
@@ -452,6 +475,11 @@ function placeOrder(data) {
       const point = Number(snack[2]);
       const quantity = Number(item.quantity);
       const stock = Number(snack[5] || 0);
+
+      const mode = isGuest ? 'guest' : 'user';
+      if (!canOrderSnack(snack, mode)) {
+        throw new Error(`'${snackName}' 은(는) 현재 주문할 수 없는 간식입니다.`);
+      }
 
       if (quantity <= 0) {
         throw new Error('수량이 올바르지 않습니다.');
