@@ -114,16 +114,18 @@
       creditAmount.textContent = user.credit ?? 0;
 
       // 크레딧 표시부 렌더링
-      const creditBadge = document.getElementById('guest-credit-badge');
-      if (creditBadge) {
-        if (isGuest) {
+      const creditBadge = document.querySelector('.credit-badge');
+      if (isGuest) {
+        if (creditBadge) {
           // '내 동전' 라벨을 '크레딧'으로 변경
           creditBadge.classList.add('guest-mode');
           creditBadge.innerHTML = `크레딧 <span class="coin-icon">🪙</span><span class="coin-number" id="user-credit">${user.credit ?? 0}</span>`;
         }
-        // 게스트 모드에서는 '이름 다시 고르기' 버튼 숨김
+        // 게스트 모드에서는 '이름 다시 고르기' 대신 '처음 화면으로 가기'로 표시
         const btnBack = document.getElementById('btn-back');
-        if (btnBack) btnBack.style.display = 'none';
+        if (btnBack) {
+          btnBack.textContent = '처음 화면으로 가기';
+        }
 
         // 배달 힌트 배너 보이기 및 세팅
         const hintEl = document.getElementById('guest-delivery-hint');
@@ -428,7 +430,11 @@
       // 뒤로가기
       AppState.bindCardTap(document.getElementById('btn-back'), () => {
         AppState.resetAll();
-        window.location.href = 'index.html';
+        if (user && user.userId === 'guest') {
+          window.location.href = 'guest.html';
+        } else {
+          window.location.href = 'index.html';
+        }
       });
 
       // 다음단계

@@ -138,8 +138,6 @@ function doGet(e) {
 
   if (action === 'getGuestOrdersToday') {
     return jsonResponse(getGuestOrdersToday(e.parameter.guestName));
-  } else if (action === 'getGuestOrderByToken') {
-    return jsonResponse(getGuestOrderByToken(data));
   }
 
   if (action === 'getGuestSettings') {
@@ -212,6 +210,8 @@ function doPost(e) {
     return jsonResponse({ success: true, message: ensureOrderHeaders() });
   } else if (action === 'autoFillEmptySnackIds') {
     return jsonResponse(autoFillEmptySnackIds());
+  } else if (action === 'getGuestOrderByToken') {
+    return jsonResponse(getGuestOrderByToken(data));
   }
   
   return jsonResponse({
