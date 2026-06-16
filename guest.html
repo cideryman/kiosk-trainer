@@ -253,8 +253,12 @@
           renderTodayDeliveryTeam(settingsRes);
           
           if (!settingsRes.guestAllowMultipleOrders) {
-            const multipleNotice = document.getElementById('multiple-orders-notice');
-            if (multipleNotice) multipleNotice.style.display = 'block';
+            const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
+            const hasActiveOrder = guestOrders.some(o => !['제공완료', '배달완료', '취소', '관리자취소', 'Y', 'C'].includes(String(o.status).trim()));
+            if (hasActiveOrder) {
+              const multipleNotice = document.getElementById('multiple-orders-notice');
+              if (multipleNotice) multipleNotice.style.display = 'block';
+            }
           }
 
           // sessionStorage에 설정값 캐시 (다음 화면에서 사용)
