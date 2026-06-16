@@ -365,6 +365,26 @@ function canOrderSnack(snackRow, mode) {
   return false;
 }
 
+function isSameKoreaDate(dateValue, now) {
+  if (!dateValue) return false;
+  try {
+    const tz = 'Asia/Seoul';
+    const d1 = Utilities.formatDate(new Date(dateValue), tz, 'yyyy-MM-dd');
+    const d2 = Utilities.formatDate(now || new Date(), tz, 'yyyy-MM-dd');
+    return d1 === d2;
+  } catch(e) {
+    return false;
+  }
+}
+
+function isClosedOrderStatus(status) {
+  const s = String(status || '').trim().toLowerCase();
+  return [
+    'cancelled', 'canceled', '취소', '관리자취소', 
+    '제공완료', '배달완료', '완료', 'completed', 'done', 'y', 'c'
+  ].includes(s);
+}
+
 /**
  * 7. 주문 접수 및 크레딧/재고 자동 계산 처리
  */
@@ -418,11 +438,13 @@ function placeOrder(data) {
         const orderValues = orderSheet.getDataRange().getValues();
         const servedYnIdx = headers.indexOf('제공여부');
         let hasActiveOrder = false;
+        const nowTime = new Date();
         for (let i = 1; i < orderValues.length; i++) {
           const row = orderValues[i];
           if (deviceIdIdx !== -1 && String(row[deviceIdIdx]) === String(data.guestDeviceId)) {
+            const orderTime = row[0];
             const status = String(row[servedYnIdx !== -1 ? servedYnIdx : 8]).trim();
-            if (!['제공완료', '배달완료', '취소', '관리자취소', 'Y', 'C'].includes(status)) {
+            if (isSameKoreaDate(orderTime, nowTime) && !isClosedOrderStatus(status)) {
               hasActiveOrder = true;
               break;
             }
