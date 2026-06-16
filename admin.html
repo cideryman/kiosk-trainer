@@ -725,6 +725,11 @@
               <input type="text" id="input-guest-delivery-place" class="admin-inline-input" value="사무실 원탁" style="width: 140px; text-align: left; padding: 6px 10px;">
             </div>
           </div>
+          <div style="display: flex; gap: 12px; align-items: center; margin-top: 8px; flex-wrap: wrap;">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 800; color: #E65100;">
+              <input type="checkbox" id="input-guest-allow-multiple" style="width: 18px; height: 18px; accent-color: var(--secondary-color);"> 진행 중 주문이 있어도 추가 주문 허용
+            </label>
+          </div>
           <!-- 오늘의 배달팀 설정 추가 -->
           <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 2px dashed var(--border-color);">
             <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
@@ -3052,6 +3057,7 @@
       const teamTitleEl = document.getElementById('input-team-title');
       const teamMembersEl = document.getElementById('input-team-members');
       const teamMessageEl = document.getElementById('input-team-message');
+      const allowMultipleEl = document.getElementById('input-guest-allow-multiple');
 
       if (creditEl) creditEl.value = data.guestBaseCredit ?? 10;
       if (feeEl) feeEl.value = data.guestDeliveryFee ?? 3;
@@ -3061,6 +3067,7 @@
       if (teamTitleEl) teamTitleEl.value = data.todayDeliveryTeamTitle || '';
       if (teamMembersEl) teamMembersEl.value = data.todayDeliveryTeamMembers || '';
       if (teamMessageEl) teamMessageEl.value = data.todayDeliveryTeamMessage || '';
+      if (allowMultipleEl) allowMultipleEl.checked = data.guestAllowMultipleOrders === true;
 
       if (guestOpsCountdown) {
         clearInterval(guestOpsCountdown);
@@ -3156,6 +3163,7 @@
       const teamTitleInput = document.getElementById('input-team-title');
       const teamMembersInput = document.getElementById('input-team-members');
       const teamMessageInput = document.getElementById('input-team-message');
+      const allowMultipleInput = document.getElementById('input-guest-allow-multiple');
 
       if (!creditInput || !feeInput || !deliveryPlaceInput) return;
 
@@ -3166,6 +3174,7 @@
       const todayDeliveryTeamTitle = teamTitleInput ? teamTitleInput.value.trim() : '';
       const todayDeliveryTeamMembers = teamMembersInput ? teamMembersInput.value.trim() : '';
       const todayDeliveryTeamMessage = teamMessageInput ? teamMessageInput.value.trim() : '';
+      const guestAllowMultipleOrders = allowMultipleInput ? allowMultipleInput.checked : false;
 
       try {
         const adminToken = getAdminToken();
@@ -3180,6 +3189,7 @@
             todayDeliveryTeamTitle,
             todayDeliveryTeamMembers,
             todayDeliveryTeamMessage,
+            guestAllowMultipleOrders,
             adminToken,
             adminMemo: getAdminMemo()
           }

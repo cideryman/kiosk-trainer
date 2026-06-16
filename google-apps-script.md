@@ -377,6 +377,10 @@ function placeOrder(data) {
     let userRowIndex = -1;
     const isGuest = (String(userId) === 'guest');
     let guestFee = 0;
+    
+    ensureOrderHeaders();
+    const headers = orderSheet.getDataRange().getValues()[0] || [];
+    const deviceIdIdx = headers.indexOf('guestDeviceId');
 
     if (isGuest) {
       const gSettings = getGuestSettings();
@@ -386,6 +390,29 @@ function placeOrder(data) {
           message: gSettings.message || '게스트 주문이 마감되었습니다.',
         };
       }
+      
+      if (!gSettings.guestAllowMultipleOrders && data.guestDeviceId) {
+        const orderValues = orderSheet.getDataRange().getValues();
+        const servedYnIdx = headers.indexOf('제공여부');
+        let hasActiveOrder = false;
+        for (let i = 1; i < orderValues.length; i++) {
+          const row = orderValues[i];
+          if (deviceIdIdx !== -1 && String(row[deviceIdIdx]) === String(data.guestDeviceId)) {
+            const status = String(row[servedYnIdx !== -1 ? servedYnIdx : 8]).trim();
+            if (!['제공완료', '배달완료', '취소', '관리자취소', 'Y', 'C'].includes(status)) {
+              hasActiveOrder = true;
+              break;
+            }
+          }
+        }
+        if (hasActiveOrder) {
+          return {
+            success: false,
+            message: '현재 진행 중인 주문이 있습니다. 주문 완료 후 다시 주문해주세요.'
+          };
+        }
+      }
+
       nickname = (data.guestName || '게스트') + ' (체험)';
       currentCredit = gSettings.guestBaseCredit;
       guestFee = gSettings.guestDeliveryFee;
@@ -486,7 +513,7 @@ function placeOrder(data) {
 
     orderItems.forEach(item => {
       // 주문내역 마지막 열에 제공 여부 기본값 'N' 명시적 입력
-      orderSheet.appendRow([
+      const newRow = [
         now, // A: 주문시간
         orderNo, // B: 주문번호
         userId, // C: 이용자ID
@@ -505,7 +532,16 @@ function placeOrder(data) {
         deliveryPlace, // P: deliveryAddress
         '', // Q: cancelReason
         '' // R: cancelReasonDetail
-      ]);
+      ];
+      
+      while (newRow.length <= deviceIdIdx) {
+        newRow.push('');
+      }
+      if (deviceIdIdx !== -1) {
+        newRow[deviceIdIdx] = data.guestDeviceId || '';
+      }
+      
+      orderSheet.appendRow(newRow);
 
       // 간식 재고 차감 반영
       snackSheet
@@ -1376,7 +1412,8 @@ function getGuestSettings() {
     todayDeliveryTeamMembers: '김○○|배달 담당, 박○○|상품 준비 담당',
     todayDeliveryTeamMessage: '맛있게 준비해서 배달하겠습니다!',
     welcomeTitle: '배달왔삼에 오신 것을 환영합니다 😊',
-    welcomeSubtitle: '오늘의 간식을 주문해보세요!'
+    welcomeSubtitle: '오늘의 간식을 주문해보세요!',
+    guestAllowMultipleOrders: 'FALSE'
   };
 
   const existingKeys = [];
@@ -1400,7 +1437,8 @@ function getGuestSettings() {
     todayDeliveryTeamMembers: '김○○|배달 담당, 박○○|상품 준비 담당',
     todayDeliveryTeamMessage: '맛있게 준비해서 배달하겠습니다!',
     welcomeTitle: '배달왔삼에 오신 것을 환영합니다 😊',
-    welcomeSubtitle: '오늘의 간식을 주문해보세요!'
+    welcomeSubtitle: '오늘의 간식을 주문해보세요!',
+    guestAllowMultipleOrders: 'FALSE'
   };
 
   for (const key in defaultSettings) {
@@ -1446,6 +1484,7 @@ function getGuestSettings() {
     todayDeliveryTeamTitle: settings.todayDeliveryTeamTitle || '📦 오늘의 배달팀',
     todayDeliveryTeamMembers: settings.todayDeliveryTeamMembers || '',
     todayDeliveryTeamMessage: settings.todayDeliveryTeamMessage || '',
+    guestAllowMultipleOrders: String(settings.guestAllowMultipleOrders || 'FALSE').toUpperCase() === 'TRUE',
     isGuestOpenNow,
     remainingSeconds,
     message
@@ -1491,6 +1530,7 @@ function updateGuestSettings(data) {
     const todayDeliveryTeamTitle = data.todayDeliveryTeamTitle || '📦 오늘의 배달팀';
     const todayDeliveryTeamMembers = data.todayDeliveryTeamMembers || '';
     const todayDeliveryTeamMessage = data.todayDeliveryTeamMessage || '';
+    const guestAllowMultipleOrders = data.guestAllowMultipleOrders !== undefined ? (data.guestAllowMultipleOrders ? 'TRUE' : 'FALSE') : undefined;
     
     const values = sheet.getDataRange().getValues();
     let rowCredit = -1;
@@ -1500,6 +1540,7 @@ function updateGuestSettings(data) {
     let rowTeamTitle = -1;
     let rowTeamMembers = -1;
     let rowTeamMessage = -1;
+    let rowAllowMultiple = -1;
     for (let i = 1; i < values.length; i++) {
       const key = String(values[i][0]).trim();
       if (key === 'guestBaseCredit') rowCredit = i + 1;
@@ -1509,6 +1550,7 @@ function updateGuestSettings(data) {
       if (key === 'todayDeliveryTeamTitle') rowTeamTitle = i + 1;
       if (key === 'todayDeliveryTeamMembers') rowTeamMembers = i + 1;
       if (key === 'todayDeliveryTeamMessage') rowTeamMessage = i + 1;
+      if (key === 'guestAllowMultipleOrders') rowAllowMultiple = i + 1;
     }
     
     if (rowCredit > 0) {
@@ -1551,6 +1593,14 @@ function updateGuestSettings(data) {
       sheet.getRange(rowTeamMessage, 2).setValue(todayDeliveryTeamMessage);
     } else {
       sheet.appendRow(['todayDeliveryTeamMessage', todayDeliveryTeamMessage]);
+    }
+    
+    if (guestAllowMultipleOrders !== undefined) {
+      if (rowAllowMultiple > 0) {
+        sheet.getRange(rowAllowMultiple, 2).setValue(guestAllowMultipleOrders);
+      } else {
+        sheet.appendRow(['guestAllowMultipleOrders', guestAllowMultipleOrders]);
+      }
     }
     
     appendAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `크레딧:${guestBaseCredit}, 배달비:${guestDeliveryFee}, 기본배달지:${guestDefaultDeliveryPlace}`, data.adminMemo);
@@ -1933,13 +1983,34 @@ function ensureOrderHeaders() {
     orderSheet.insertColumnsAfter(orderSheet.getMaxColumns(), REQUIRED_COLS - orderSheet.getMaxColumns());
   }
 
-  const newHeaders = [
+  const currentHeaders = orderSheet.getDataRange().getValues()[0] || [];
+  let headers = currentHeaders.filter(h => h !== '');
+
+  const defaultHeaders = [
     '주문시간', '주문번호', '이용자ID', '별명', '간식ID', '간식명', '수량',
     '차감포인트', '제공여부', 'cancelTimestamp', 'orderToken', 'deliveryType', 
     'deliveryFee', 'totalCredit', 'reviewed', 'deliveryAddress', 'cancelReason', 'cancelReasonDetail'
   ];
 
-  orderSheet.getRange(1, 1, 1, REQUIRED_COLS).setValues([newHeaders]);
+  let modified = false;
+  defaultHeaders.forEach(dh => {
+    if (headers.indexOf(dh) === -1) {
+      headers.push(dh);
+      modified = true;
+    }
+  });
+
+  if (headers.indexOf('guestDeviceId') === -1) {
+    headers.push('guestDeviceId');
+    modified = true;
+  }
+
+  if (modified) {
+    if (orderSheet.getMaxColumns() < headers.length) {
+      orderSheet.insertColumnsAfter(orderSheet.getMaxColumns(), headers.length - orderSheet.getMaxColumns());
+    }
+    orderSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
   return '헤더 보정이 완료되었습니다.';
 }
 

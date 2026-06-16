@@ -40,6 +40,15 @@ const AppState = {
     // selectedUser는 주문 완료 화면에서 필요할 수 있으므로, 완전 초기화 시점에 삭제
   },
 
+  getGuestDeviceId() {
+    let deviceId = localStorage.getItem('guestDeviceId');
+    if (!deviceId) {
+      deviceId = 'GUEST-' + Math.floor(Math.random() * 1000000) + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+      localStorage.setItem('guestDeviceId', deviceId);
+    }
+    return deviceId;
+  },
+
   // 모든 세션 초기화
   resetAll() {
     this.clearSelectedUser();

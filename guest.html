@@ -135,6 +135,10 @@
           </div>
         </div>
 
+        <div id="multiple-orders-notice" style="display: none; text-align: center; padding: 12px 16px; background-color: #FFF3E0; border: 2px solid #FFCC80; border-radius: var(--radius-sm); font-size: 15px; font-weight: 800; color: #E65100;">
+          ⚠️ 진행 중인 주문이 있으면 완료 후 다시 주문할 수 있어요.
+        </div>
+
         <div style="display: flex; flex-direction: column; gap: 16px;">
           <button class="btn btn-secondary" id="btn-new-order" style="min-height: 84px; font-size: 24px;">
             🛒 새 주문하기
@@ -247,6 +251,11 @@
           guideText.innerHTML = `${welcomeTitle}<br><span>${welcomeSubtitle}</span>`;
 
           renderTodayDeliveryTeam(settingsRes);
+          
+          if (!settingsRes.guestAllowMultipleOrders) {
+            const multipleNotice = document.getElementById('multiple-orders-notice');
+            if (multipleNotice) multipleNotice.style.display = 'block';
+          }
 
           // sessionStorage에 설정값 캐시 (다음 화면에서 사용)
           sessionStorage.setItem('guestBaseCredit', String(guestBaseCredit));
