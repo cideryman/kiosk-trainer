@@ -2121,7 +2121,7 @@ function ensureOrderHeaders() {
   const defaultHeaders = [
     '주문시간', '주문번호', '이용자ID', '별명', '간식ID', '간식명', '수량',
     '차감포인트', '제공여부', 'cancelTimestamp', 'orderToken', 'deliveryType', 
-    'deliveryFee', 'totalCredit', 'reviewed', 'deliveryAddress', 'cancelReason', 'cancelReasonDetail'
+    'deliveryFee', 'totalCredit', 'reviewed', 'deliveryPlace', 'cancelReason', 'cancelReasonDetail'
   ];
 
   let modified = false;
