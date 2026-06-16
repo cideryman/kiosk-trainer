@@ -437,14 +437,30 @@
           }
         } catch (error) {
           console.error('주문 조회 실패:', error);
-          loadingOverlay.style.display = 'none';
+          if (loadingOverlay) loadingOverlay.style.display = 'none';
           
           // 오프라인/에러 시 로컬 데이터라도 표시
-          localList.innerHTML = '';
-          const sorted = [...localOrders].reverse();
-          sorted.forEach(order => {
-            localList.appendChild(createOrderCard(order, true));
-          });
+          if (localList) {
+            localList.innerHTML = '';
+            try {
+              const sorted = [...localOrders].reverse();
+              sorted.forEach(order => {
+                if (!order) return;
+                try {
+                  const card = createOrderCard(order, true);
+                  if (card) localList.appendChild(card);
+                } catch(err) {
+                  console.error('개별 카드 생성 실패:', err);
+                }
+              });
+              
+              if (localList.innerHTML === '') {
+                localList.innerHTML = `<div class="empty-state">서버 연결에 실패하였고, 표시할 로컬 주문도 없습니다.</div>`;
+              }
+            } catch(e) {
+              localList.innerHTML = `<div class="empty-state">로컬 주문 내역을 불러오는 중 오류가 발생했습니다.</div>`;
+            }
+          }
         }
       }
 
@@ -479,7 +495,7 @@
       // 4. 주문번호 뒷자리 세자리
       function getShortNo(orderNo) {
         if (!orderNo) return '-';
-        const parts = orderNo.split('-');
+        const parts = String(orderNo).split('-');
         if (parts.length >= 3) {
           return parts[2] + '번';
         }
@@ -488,13 +504,15 @@
 
       // 5. 카드 돔 생성
       function createOrderCard(order, isLocal) {
+        if (!order) return null;
         const card = document.createElement('div');
         card.className = 'order-card';
         
-        const statusClass = `status-${(order.status || 'N').toLowerCase()}`;
+        const currentStatus = String(order.status || order.servedYn || 'N');
+        const statusClass = `status-${currentStatus.toLowerCase()}`;
         const timeStr = formatTime(order.createdAt || order.timestamp);
         const shortNoStr = getShortNo(order.orderNo);
-        const guestName = order.guestName || (order.nickname ? order.nickname.replace(/ \((체험|비회원)\)/g, '') : '게스트');
+        const guestName = order.guestName || (order.nickname ? String(order.nickname).replace(/ \((체험|비회원)\)/g, '') : '게스트');
         
         let itemsText = '-';
         if (order.items && Array.isArray(order.items)) {
