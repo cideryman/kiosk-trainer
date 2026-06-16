@@ -618,6 +618,11 @@ function placeOrder(data) {
       afterCredit: newCredit,
       items: orderItems,
     };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.message || '주문 처리 중 오류가 발생했습니다.'
+    };
   } finally {
     lock.releaseLock();
   }

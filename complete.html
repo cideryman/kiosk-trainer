@@ -1002,6 +1002,21 @@
           if (res && res.success) {
             AppState.vibrate([100, 50, 100]);
             alert('주문이 정상적으로 취소되었습니다.');
+            
+            // 로컬 스토리지 guestOrders 업데이트 (게스트 모드일 경우)
+            if (isGuestMode) {
+              try {
+                const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
+                const updated = guestOrders.map(o => {
+                  if (o.orderToken === summaryData.orderToken) {
+                    return { ...o, status: 'C' };
+                  }
+                  return o;
+                });
+                localStorage.setItem('guestOrders', JSON.stringify(updated));
+              } catch(e) {}
+            }
+
             // 취소 후 메인으로
             goHome();
           } else {
