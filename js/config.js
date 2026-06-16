@@ -318,7 +318,7 @@ function getMockFallback(action, options) {
     const matchedOrders = allMockOrders.filter(o => {
       const isToday = o.timestamp && o.timestamp.slice(2, 10).replace(/-/g, '') === todayStr;
       const nickname = o.nickname || '';
-      return isToday && nickname.indexOf('(체험)') !== -1 && nickname.indexOf(guestName) !== -1;
+      return isToday && nickname.indexOf('(비회원)') !== -1 && nickname.indexOf(guestName) !== -1;
     });
 
     res = {
@@ -355,7 +355,7 @@ function getMockFallback(action, options) {
     // 사용자 이름 매핑
     let nickname = '게스트';
     if (isGuest) {
-      nickname = (options.body?.guestName || '게스트') + ' (체험)';
+      nickname = (options.body?.guestName || '게스트') + ' (비회원)';
     } else {
       const users = MOCK_DATA.getUsers.users;
       const user = users.find(u => u.userId === userId) || { nickname: "알수없음" };

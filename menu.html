@@ -113,11 +113,13 @@
       }
       creditAmount.textContent = user.credit ?? 0;
 
-      if (isGuest) {
-        // '내 동전' 라벨을 '체험 동전'으로 변경
-        const creditBadge = document.querySelector('.credit-badge');
-        if (creditBadge) {
-          creditBadge.innerHTML = `체험 동전 <span class="coin-icon">🪙</span><span class="coin-number" id="user-credit">${user.credit ?? 0}</span>`;
+      // 크레딧 표시부 렌더링
+      const creditBadge = document.getElementById('guest-credit-badge');
+      if (creditBadge) {
+        if (isGuest) {
+          // '내 동전' 라벨을 '크레딧'으로 변경
+          creditBadge.classList.add('guest-mode');
+          creditBadge.innerHTML = `크레딧 <span class="coin-icon">🪙</span><span class="coin-number" id="user-credit">${user.credit ?? 0}</span>`;
         }
         // 게스트 모드에서는 '이름 다시 고르기' 버튼 숨김
         const btnBack = document.getElementById('btn-back');
@@ -382,7 +384,7 @@
     function showCreditWarning() {
       const warningEl = document.getElementById('credit-warning');
       if (user && user.userId === 'guest') {
-        warningEl.textContent = '⚠️ 체험용 동전이 부족해서 더 담을 수 없어요!';
+        warningEl.textContent = '⚠️ 보유 동전이 부족해서 더 담을 수 없어요!';
       } else {
         warningEl.textContent = '⚠️ 크레딧이 부족해서 더 담을 수 없어요!';
       }

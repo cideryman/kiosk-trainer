@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>배달왔삼 - 게스트 체험</title>
+  <title>배달왔삼 - 비회원 주문</title>
   <link rel="stylesheet" href="css/style.css">
   <!-- PWA 설정 -->
   <link rel="manifest" href="manifest-guest.json">
@@ -192,7 +192,7 @@
           </div>
           
           <div style="font-size: 15px; font-weight: 700; color: var(--text-muted); text-align: center; line-height: 1.4; word-break: keep-all; margin-top: 8px;">
-            * 개인정보 수집 및 동의 과정 없이<br>체험을 위해 이름만 잠시 저장합니다.
+            * 개인정보 수집 및 동의 과정 없이<br>주문 처리를 위해 이름만 잠시 저장합니다.
           </div>
         </div>
       </div>
@@ -201,7 +201,7 @@
     <!-- 푸터 버튼 -->
     <footer class="kiosk-footer" style="display: flex; gap: 12px;">
       <button class="btn btn-gray" id="btn-back" style="flex: 1; min-height: 64px; font-size: 20px;">이전으로</button>
-      <button class="btn btn-secondary" id="btn-start" style="flex: 2; min-height: 64px; font-size: 22px; display: none;">체험 시작하기</button>
+      <button class="btn btn-secondary" id="btn-start" style="flex: 2; min-height: 64px; font-size: 22px; display: none;">주문 시작하기</button>
     </footer>
   </div>
 
@@ -236,6 +236,7 @@
       let isGuestOpen = false;
       let welcomeTitle = '배달왔삼에 오신 것을 환영합니다 😊';
       let welcomeSubtitle = '오늘의 간식을 주문해보세요!';
+      let allowMultipleOrders = true;
 
       // 운영 상태 확인
       try {
@@ -252,7 +253,9 @@
 
           renderTodayDeliveryTeam(settingsRes);
           
-          if (!settingsRes.guestAllowMultipleOrders) {
+          allowMultipleOrders = settingsRes.guestAllowMultipleOrders !== false;
+
+          if (!allowMultipleOrders) {
             const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
             const hasActiveOrder = guestOrders.some(o => !['제공완료', '배달완료', '취소', '관리자취소', 'Y', 'C'].includes(String(o.status).trim()));
             if (hasActiveOrder) {
@@ -457,6 +460,17 @@
           AppState.vibrate([100, 100]);
           return;
         }
+
+        if (!allowMultipleOrders) {
+          const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
+          const hasActiveOrder = guestOrders.some(o => !['제공완료', '배달완료', '취소', '관리자취소', 'Y', 'C'].includes(String(o.status).trim()));
+          if (hasActiveOrder) {
+            AppState.vibrate([200, 50, 200]);
+            alert('진행 중인 주문이 있습니다.\n주문이 완료되거나 취소된 후 다시 주문할 수 있어요.');
+            return;
+          }
+        }
+
         showStep('input');
       });
 
@@ -515,7 +529,7 @@
         });
 
         AppState.vibrate(60);
-        AppState.speak(`${guestName} 님, 맛있는 체험을 시작합니다.`);
+        AppState.speak(`${guestName} 님, 맛있는 간식 주문을 시작합니다.`);
         
         // 이동
         window.location.href = 'menu.html';
@@ -654,7 +668,7 @@
 
       function maskGuestName(name) {
         if (!name) return '게스트';
-        const clean = name.replace(' (체험)', '').trim();
+        const clean = name.replace(/ \((체험|비회원)\)/g, '').trim();
         if (clean.length <= 1) return clean;
         if (clean.length === 2) return clean[0] + '*';
         return clean[0] + '*'.repeat(clean.length - 2) + clean[clean.length - 1];

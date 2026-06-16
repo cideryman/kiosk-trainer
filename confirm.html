@@ -324,7 +324,7 @@
         submitBtn.disabled = true;
         submitBtn.textContent = '크레딧 부족';
         errorBox.textContent = isGuest
-          ? '⚠️ 체험용 동전(배달비 포함)보다 주문 금액이 커서 주문할 수 없습니다.'
+          ? '⚠️ 보유 동전(배달비 포함)보다 주문 금액이 커서 주문할 수 없습니다.'
           : '⚠️ 보유한 크레딧보다 주문 금액이 커서 주문할 수 없습니다.';
         errorBox.style.display = 'block';
       } else {
@@ -558,7 +558,7 @@
 
       const isGuest = (user.userId === 'guest');
       document.getElementById('user-badge-container').innerHTML =
-        `<span class="user-badge">${AppState.escapeHtml(user.nickname)}${isGuest ? ' (체험)' : ' 님'}</span>`;
+        `<span class="user-badge">${AppState.escapeHtml(user.nickname)}${isGuest ? ' (비회원)' : ' 님'}</span>`;
       
       // 보유 크레딧 숫자만 업데이트 (HTML 구조에 🪙 아이콘 포함)
       // 게스트일 경우 sessionStorage에서 서버 설정값 적용
@@ -574,7 +574,7 @@
       if (isGuest) {
         const firstRowSpan = document.querySelector('.bill-row span');
         if (firstRowSpan) {
-          firstRowSpan.textContent = '체험 동전';
+          firstRowSpan.textContent = '크레딧';
         }
 
         // 게스트일 경우 수령방식 박스 노출 및 바인딩

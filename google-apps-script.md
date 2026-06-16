@@ -413,7 +413,7 @@ function placeOrder(data) {
         }
       }
 
-      nickname = (data.guestName || '게스트') + ' (체험)';
+      nickname = (data.guestName || '게스트') + ' (비회원)';
       currentCredit = gSettings.guestBaseCredit;
       guestFee = gSettings.guestDeliveryFee;
     } else {
@@ -736,7 +736,7 @@ function getGuestOrdersToday(guestName) {
       if (userId !== 'guest') return false;
 
       const nickname = String(row[3]);
-      // nickname은 "이름 (체험)" 형식임
+      // nickname은 "이름 (비회원)" 형식임
       return nickname.indexOf(searchName) !== -1;
     })
     .map(row => ({
