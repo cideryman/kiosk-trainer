@@ -1732,7 +1732,7 @@
     async function executeCancelOrder(orderNo, reason, detail) {
       try {
         const payload = withAdminToken({ orderId: orderNo, cancelReason: reason, cancelReasonDetail: detail });
-        console.log("Canceling order:", payload);
+        console.log("Canceling order requested");
         const res = await fetchAPI('cancelOrder', {
           method: 'POST',
           body: payload

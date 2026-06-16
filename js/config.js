@@ -11,8 +11,15 @@ const GUEST_DELIVERY_FEE = 3;
 // - true: 항상 로컬 Mock 데이터를 사용하여 동작 테스트 및 검증 진행
 const USE_MOCK = false;
 
-console.log("API_URL:", API_URL);
-console.log("USE_MOCK:", USE_MOCK);
+const DEBUG = false;
+
+function safeLog(...args) {
+  if (!DEBUG) return;
+  console.log(...args);
+}
+
+safeLog("API_URL:", API_URL);
+safeLog("USE_MOCK:", USE_MOCK);
 
 // 로컬 테스트 및 API 오류 대응을 위한 Mock 데이터
 const MOCK_DATA = {
@@ -131,13 +138,13 @@ async function fetchAPI(action, options = {}) {
   }
 
   try {
-    console.log("API Request", { url, options: fetchOptions });
+    safeLog("API Request", { url, options: fetchOptions });
     const response = await fetch(url, fetchOptions);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();
-    console.log("API Response", data);
+    safeLog("API Response", data);
 
     // 구글 드라이브 이미지 URL 변환 처리
     if (data && data.success) {
