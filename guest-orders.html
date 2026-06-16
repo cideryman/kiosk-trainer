@@ -273,22 +273,16 @@
         <div id="local-orders-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
       </div>
 
-      <!-- 이름으로 주문 검색 -->
-      <div class="section-title">🔍 이름으로 오늘 주문 조회</div>
-      <div class="search-box">
-        <div class="search-row">
-          <input type="text" id="search-name-input" class="search-input" placeholder="주문 시 입력한 이름" maxlength="10" autocomplete="off">
-          <button class="btn btn-secondary btn-search" id="btn-search-submit">🔍 주문 조회하기</button>
-        </div>
-        <div style="font-size: 14px; font-weight: 700; color: var(--text-muted); text-align: center;">
-          * 오늘 주문한 주문내역을 실시간으로 가져옵니다.
-        </div>
+      <!-- 안내 문구 -->
+      <div style="font-size: 15px; font-weight: 700; color: var(--text-muted); text-align: center; margin-bottom: 10px; background-color: #F8F9FA; padding: 12px; border-radius: var(--radius-sm); border: 2px solid var(--border-color);">
+        * 본 기기에서 주문한 최근 내역만 표시됩니다.<br>
+        * 다른 기기에서 한 주문이나 과거 내역은 관리자에게 문의해주세요.
       </div>
-
-      <!-- 검색 결과 목록 -->
-      <div id="search-results-section" style="display: none; flex-direction: column; gap: 12px; width: 100%; margin-top: 10px;">
-        <div class="section-title">✨ 실시간 검색 결과</div>
-        <div id="search-orders-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
+      
+      <!-- 최근 주문 내역 (서버 갱신) -->
+      <div id="local-orders-section" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
+        <div class="section-title">🕒 내 주문 내역</div>
+        <div id="local-orders-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
       </div>
     </main>
 
@@ -365,28 +359,94 @@
     window.addEventListener('DOMContentLoaded', () => {
       const localSection = document.getElementById('local-orders-section');
       const localList = document.getElementById('local-orders-list');
-      const searchSection = document.getElementById('search-results-section');
-      const searchList = document.getElementById('search-orders-list');
+      const localSection = document.getElementById('local-orders-section');
+      const localList = document.getElementById('local-orders-list');
       
-      const searchInput = document.getElementById('search-name-input');
-      const btnSearch = document.getElementById('btn-search-submit');
       const btnBack = document.getElementById('btn-back');
       const loadingOverlay = document.getElementById('loading-overlay');
 
-      // 1. 로컬 저장 주문 로드
-      function loadLocalOrders() {
+      // 1. 주문 로드 및 서버 갱신
+      async function loadOrders() {
         const localOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
-        if (localOrders.length > 0) {
-          localSection.style.display = 'flex';
-          localList.innerHTML = '';
+        if (localOrders.length === 0) {
+          localList.innerHTML = `<div class="empty-state">최근 주문한 기록이 없습니다. 😢</div>`;
+          return;
+        }
+
+        const tokens = localOrders.map(o => o.orderToken).filter(t => t);
+        if (tokens.length === 0) {
+          localList.innerHTML = `<div class="empty-state">토큰 정보가 없는 과거 주문입니다. 관리자에게 문의해주세요.</div>`;
+          return;
+        }
+
+        loadingOverlay.style.display = 'flex';
+
+        try {
+          const response = await fetchAPI('getGuestOrderByToken', {
+            method: 'POST',
+            body: { tokens: tokens }
+          });
+
+          loadingOverlay.style.display = 'none';
+
+          if (response && response.success && Array.isArray(response.orders) && response.orders.length > 0) {
+            const orderGroups = {};
+            response.orders.forEach(o => {
+              if (!orderGroups[o.orderNo]) {
+                orderGroups[o.orderNo] = {
+                  orderNo: o.orderNo,
+                  orderToken: o.orderToken,
+                  nickname: o.nickname,
+                  timestamp: o.timestamp,
+                  status: o.servedYn,
+                  deliveryType: o.deliveryType || 'pickup',
+                  deliveryPlace: o.deliveryPlace || '',
+                  reviewed: o.reviewed,
+                  cancelReason: o.cancelReason || '',
+                  items: []
+                };
+              }
+              orderGroups[o.orderNo].items.push({
+                name: o.snackName,
+                quantity: o.quantity,
+                point: o.point / (o.quantity || 1)
+              });
+            });
+
+            const mergedOrders = Object.values(orderGroups);
+            
+            // 로컬 스토리지 동기화
+            const updatedLocal = localOrders.map(lo => {
+              const serverData = mergedOrders.find(mo => mo.orderToken === lo.orderToken);
+              if (serverData) {
+                return { ...lo, ...serverData, status: serverData.status };
+              }
+              return lo;
+            });
+            localStorage.setItem('guestOrders', JSON.stringify(updatedLocal));
+
+            // 정렬 (최신순)
+            mergedOrders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            localList.innerHTML = '';
+            mergedOrders.forEach(order => {
+              localList.appendChild(createOrderCard(order, false));
+            });
+            AppState.vibrate(60);
+          } else {
+            // 서버에 데이터가 없거나 에러
+            localList.innerHTML = `<div class="empty-state">서버에서 주문을 찾을 수 없습니다.</div>`;
+          }
+        } catch (error) {
+          console.error('주문 조회 실패:', error);
+          loadingOverlay.style.display = 'none';
           
-          // 최신순 정렬 (역순)
+          // 오프라인/에러 시 로컬 데이터라도 표시
+          localList.innerHTML = '';
           const sorted = [...localOrders].reverse();
           sorted.forEach(order => {
             localList.appendChild(createOrderCard(order, true));
           });
-        } else {
-          localSection.style.display = 'none';
         }
       }
 
@@ -573,7 +633,7 @@
               if (res && res.success) {
                 AppState.vibrate([100, 50, 100]);
                 alert('주문이 정상적으로 취소되었습니다.');
-                performSearch(); // 목록 새로고침
+                loadOrders(); // 목록 새로고침
               } else {
                 alert('취소 실패: ' + (res?.message || '알 수 없는 오류'));
                 cancelBtn.disabled = false;
@@ -592,81 +652,6 @@
 
         return card;
       }
-
-      // 6. 이름 검색 실행
-      async function performSearch() {
-        const guestName = searchInput.value.trim();
-        if (!guestName) {
-          alert('검색할 이름을 입력해 주세요!');
-          searchInput.focus();
-          AppState.vibrate([100, 100]);
-          return;
-        }
-
-        loadingOverlay.style.display = 'flex';
-        searchSection.style.display = 'none';
-        searchList.innerHTML = '';
-
-        try {
-          const response = await fetchAPI('getGuestOrdersToday', {
-            params: { guestName }
-          });
-
-          loadingOverlay.style.display = 'none';
-          searchSection.style.display = 'flex';
-
-          if (response && response.success && Array.isArray(response.orders) && response.orders.length > 0) {
-            // 주문번호 별로 그룹화 (동일 주문번호 다중 아이템 병합)
-            const orderGroups = {};
-            response.orders.forEach(o => {
-              if (!orderGroups[o.orderNo]) {
-                orderGroups[o.orderNo] = {
-                  orderNo: o.orderNo,
-                  orderToken: o.orderToken,
-                  nickname: o.nickname,
-                  timestamp: o.timestamp,
-                  status: o.servedYn,
-                  deliveryType: o.deliveryType || 'pickup',
-                  deliveryPlace: o.deliveryPlace || '',
-                  reviewed: o.reviewed,
-                  items: []
-                };
-              }
-              orderGroups[o.orderNo].items.push({
-                name: o.snackName,
-                quantity: o.quantity,
-                point: o.point / o.quantity
-              });
-            });
-
-            const mergedOrders = Object.values(orderGroups);
-            mergedOrders.forEach(order => {
-              searchList.appendChild(createOrderCard(order, false));
-            });
-            AppState.vibrate(60);
-          } else {
-            searchList.innerHTML = `<div class="empty-state">오늘 주문한 기록을 찾을 수 없습니다. 😢</div>`;
-            AppState.vibrate([100, 100]);
-          }
-        } catch (error) {
-          console.error('주문 검색 실패:', error);
-          loadingOverlay.style.display = 'none';
-          searchSection.style.display = 'flex';
-          searchList.innerHTML = `<div class="empty-state">네트워크 통신 중 오류가 발생했습니다.</div>`;
-          AppState.vibrate([100, 100]);
-        }
-      }
-
-      // 이벤트 바인딩
-      AppState.bindCardTap(btnSearch, () => {
-        performSearch();
-      });
-
-      searchInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          performSearch();
-        }
-      });
 
       AppState.bindCardTap(btnBack, () => {
         window.location.href = 'guest.html';
@@ -784,11 +769,7 @@
               } catch(e) {}
 
               // 화면 갱신
-              loadLocalOrders();
-              const guestNameInputVal = searchInput.value.trim();
-              if (guestNameInputVal) {
-                performSearch();
-              }
+              loadOrders();
             } else {
               alert('후기 제출에 실패했습니다: ' + (res.message || '오류'));
               btnSubmitReview.disabled = false;
@@ -804,7 +785,7 @@
       }
 
       // 초기 실행
-      loadLocalOrders();
+      loadOrders();
 
       // 외부에서 후기 작성 요청(openReview=true)으로 들어왔을 때 가장 최근 미작성 주문에 대해 모달 자동 띄우기
       const urlParams = new URLSearchParams(window.location.search);

@@ -138,6 +138,8 @@ function doGet(e) {
 
   if (action === 'getGuestOrdersToday') {
     return jsonResponse(getGuestOrdersToday(e.parameter.guestName));
+  } else if (action === 'getGuestOrderByToken') {
+    return jsonResponse(getGuestOrderByToken(data));
   }
 
   if (action === 'getGuestSettings') {
@@ -805,6 +807,68 @@ function getGuestOrdersToday(guestName) {
       deliveryFee: Number(row[12] || 0),
       totalCredit: Number(row[13] || 0),
       reviewed: row[14] === true || String(row[14]).toUpperCase() === 'TRUE' || String(row[14]).toUpperCase() === 'Y',
+      deliveryPlace: row[15] || '',
+      cancelReason: row[16] || '',
+      cancelReasonDetail: row[17] || ''
+    }));
+
+  return {
+    success: true,
+    orders,
+  };
+}
+
+/**
+ * 8.7. 게스트 본인의 주문 토큰 목록으로 조회 API
+ */
+function getGuestOrderByToken(data) {
+  ensureOrderHeaders();
+  const tokens = data.tokens;
+  if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
+    return {
+      success: false,
+      message: '조회할 토큰이 없습니다.'
+    };
+  }
+
+  const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET.ORDERS);
+  if (!sheet) {
+    return {
+      success: false,
+      message: '주문내역 시트를 찾을 수 없습니다.'
+    };
+  }
+
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0] || [];
+  const rows = values.slice(1);
+  
+  const reviewedIdx = headers.indexOf('reviewed');
+  const tokenIdx = headers.indexOf('orderToken');
+  const rIdx = reviewedIdx !== -1 ? reviewedIdx : 14;
+  const tIdx = tokenIdx !== -1 ? tokenIdx : 10;
+
+  const orders = rows
+    .filter(row => {
+      const rowToken = String(row[tIdx] || '');
+      return rowToken && tokens.includes(rowToken);
+    })
+    .map(row => ({
+      timestamp: row[0],
+      orderNo: row[1],
+      userId: row[2],
+      nickname: row[3],
+      snackId: row[4],
+      snackName: row[5],
+      quantity: Number(row[6]),
+      point: Number(row[7]),
+      servedYn: row[8] || 'N',
+      cancelTimestamp: row[9] || '',
+      orderToken: row[10] || '',
+      deliveryType: row[11] || 'pickup',
+      deliveryFee: Number(row[12] || 0),
+      totalCredit: Number(row[13] || 0),
+      reviewed: row[rIdx] === true || String(row[rIdx]).toUpperCase() === 'TRUE' || String(row[rIdx]).toUpperCase() === 'Y',
       deliveryPlace: row[15] || '',
       cancelReason: row[16] || '',
       cancelReasonDetail: row[17] || ''
