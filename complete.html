@@ -995,7 +995,7 @@
 
           const res = await fetchAPI('userCancelOrder', {
             method: 'POST',
-            body: { orderId: orderIdentifier }
+            body: { orderId: summaryData.orderNo || orderIdentifier, orderToken: summaryData.orderToken }
           });
 
           if (res && res.success) {

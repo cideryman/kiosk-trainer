@@ -996,6 +996,7 @@ function cancelOrder(data) {
 function userCancelOrder(data) {
   ensureOrderHeaders();
   const orderId = data.orderId;
+  const requestToken = data.orderToken;
 
   if (!orderId) {
     return { success: false, message: '주문 식별자가 누락되었습니다.' };
@@ -1031,11 +1032,18 @@ function userCancelOrder(data) {
 
     for (let i = 1; i < orderValues.length; i++) {
       const rowOrderId = String(orderValues[i][1]); // B열: orderNo
-      const rowOrderToken = String(orderValues[i][10]); // K열: orderToken
+      const rowOrderToken = String(orderValues[i][10] || ''); // K열: orderToken
       const servedYn = orderValues[i][8] || 'N';
 
       // orderId가 orderNo(회원) 또는 orderToken(게스트)와 일치하는 경우
       if (rowOrderId === String(orderId) || rowOrderToken === String(orderId)) {
+        
+        if (requestToken && rowOrderToken) {
+          if (rowOrderToken !== String(requestToken)) {
+            return { success: false, message: '주문 확인 정보가 일치하지 않습니다.' };
+          }
+        }
+
         if (servedYn === 'C') continue; // 이미 취소된 항목 무시
         
         if (servedYn !== 'N') {

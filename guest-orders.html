@@ -568,7 +568,7 @@
             try {
               const res = await fetchAPI('userCancelOrder', {
                 method: 'POST',
-                body: { orderId: order.orderToken }
+                body: { orderId: order.orderNo || order.orderToken, orderToken: order.orderToken }
               });
               if (res && res.success) {
                 AppState.vibrate([100, 50, 100]);
