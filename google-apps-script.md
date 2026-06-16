@@ -1700,6 +1700,7 @@ function updateGuestSettings(data) {
 function submitReview(data) {
   ensureOrderHeaders();
   const orderId = data.orderId;
+  const requestToken = data.orderToken;
   const guestName = data.guestName;
   const stamp = data.stamp || '';
   const tags = data.tags || '';
@@ -1757,11 +1758,20 @@ function submitReview(data) {
     const orderNoIdx = headers.indexOf('주문번호');
     const servedYnIdx = headers.indexOf('제공여부');
     const statusIdx = headers.indexOf('상태');
+    const orderTokenIdx = headers.indexOf('orderToken');
     
     let targetIndices = [];
     
     for (let i = 1; i < orderValues.length; i++) {
-      if (String(orderValues[i][orderNoIdx !== -1 ? orderNoIdx : 1]) === String(orderId)) {
+      const rowOrderId = String(orderValues[i][orderNoIdx !== -1 ? orderNoIdx : 1]);
+      const rowOrderToken = String(orderValues[i][orderTokenIdx !== -1 ? orderTokenIdx : 10] || '');
+      
+      if (rowOrderId === String(orderId)) {
+        if (requestToken && rowOrderToken) {
+          if (rowOrderToken !== String(requestToken)) {
+            return { success: false, message: '주문 확인 정보가 일치하지 않습니다.' };
+          }
+        }
         targetIndices.push(i);
       }
     }

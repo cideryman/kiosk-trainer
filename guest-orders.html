@@ -545,7 +545,7 @@
         if (reviewBtn) {
           reviewBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            openReviewModalFor(order.orderNo, guestName);
+            openReviewModalFor(order.orderNo, guestName, order.orderToken);
           });
           reviewBtn.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
@@ -683,9 +683,10 @@
       const stampButtons = document.querySelectorAll('#stamp-select-group .stamp-btn');
       const tagCapsules = document.querySelectorAll('#tags-select-group .tag-capsule');
 
-      window.openReviewModalFor = function(orderNo, guestName) {
+      window.openReviewModalFor = function(orderNo, guestName, orderToken) {
         currentReviewOrderId = orderNo;
         currentReviewGuestName = guestName;
+        currentReviewOrderToken = orderToken;
         
         // 입력 필드 초기화
         stampButtons.forEach((b, idx) => {
@@ -756,6 +757,7 @@
               method: 'POST',
               body: {
                 orderId: currentReviewOrderId,
+                orderToken: currentReviewOrderToken,
                 guestName: currentReviewGuestName,
                 stamp: stamp,
                 tags: tags,
@@ -821,7 +823,7 @@
             
             // 화면 렌더링 후 모달 팝업
             setTimeout(() => {
-              openReviewModalFor(targetOrder.orderNo, guestName);
+              openReviewModalFor(targetOrder.orderNo, guestName, targetOrder.orderToken);
             }, 300);
           }
         } catch (e) {}
