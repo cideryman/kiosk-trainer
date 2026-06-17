@@ -363,13 +363,6 @@
             itemDiv.style.gap = '8px';
             itemDiv.style.whiteSpace = 'nowrap';
 
-            const nameSpan = document.createElement('span');
-            nameSpan.style.fontWeight = '850';
-            nameSpan.style.fontSize = '18px';
-            nameSpan.style.color = 'var(--text-main)';
-            nameSpan.textContent = name;
-            itemDiv.appendChild(nameSpan);
-
             if (role) {
               const roleSpan = document.createElement('span');
               roleSpan.style.backgroundColor = '#FFF3E0';
@@ -382,6 +375,13 @@
               roleSpan.textContent = role;
               itemDiv.appendChild(roleSpan);
             }
+
+            const nameSpan = document.createElement('span');
+            nameSpan.style.fontWeight = '850';
+            nameSpan.style.fontSize = '18px';
+            nameSpan.style.color = 'var(--text-main)';
+            nameSpan.textContent = name;
+            itemDiv.appendChild(nameSpan);
 
             membersContainer.appendChild(itemDiv);
           });
