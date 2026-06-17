@@ -213,21 +213,6 @@
       // 혹시 있을 상태 초기화
       AppState.resetAll();
 
-      // 과거(오늘 이전)에 남아있는 미완료 캐시 주문 정리 (구글 챗 인앱 브라우저 등에서 이전 주문이 막는 현상 방지)
-      try {
-        const todayStr = new Date().toLocaleDateString();
-        let guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
-        if (guestOrders.length > 0) {
-          // 오늘 주문만 남기고 다 삭제
-          const filteredOrders = guestOrders.filter(o => o.date === todayStr);
-          if (filteredOrders.length !== guestOrders.length) {
-            localStorage.setItem('guestOrders', JSON.stringify(filteredOrders));
-          }
-        }
-      } catch (e) {
-        console.warn('과거 주문 캐시 정리 실패:', e);
-      }
-
       const viewSelect = document.getElementById('view-select');
       const viewInput = document.getElementById('view-input');
       const input = document.getElementById('guest-name-input');
@@ -271,8 +256,9 @@
           allowMultipleOrders = settingsRes.guestAllowMultipleOrders !== false;
 
           if (!allowMultipleOrders) {
+            const todayStr = new Date().toLocaleDateString();
             const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
-            const hasActiveOrder = guestOrders.some(o => !['제공완료', '배달완료', '취소', '관리자취소', 'Y', 'C'].includes(String(o.status).trim()));
+            const hasActiveOrder = guestOrders.some(o => o.date === todayStr && !['제공완료', '배달완료', '취소', '관리자취소', 'Y', 'C'].includes(String(o.status).trim()));
             if (hasActiveOrder) {
               const multipleNotice = document.getElementById('multiple-orders-notice');
               if (multipleNotice) multipleNotice.style.display = 'block';
@@ -497,8 +483,9 @@
         }
 
         if (!allowMultipleOrders) {
+          const todayStr = new Date().toLocaleDateString();
           const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
-          const hasActiveOrder = guestOrders.some(o => !['제공완료', '배달완료', '취소', '관리자취소', 'Y', 'C'].includes(String(o.status).trim()));
+          const hasActiveOrder = guestOrders.some(o => o.date === todayStr && !['제공완료', '배달완료', '취소', '관리자취소', 'Y', 'C'].includes(String(o.status).trim()));
           if (hasActiveOrder) {
             AppState.vibrate([200, 50, 200]);
             alert('진행 중인 주문이 있습니다.\n주문이 완료되거나 취소된 후 다시 주문할 수 있어요.');
