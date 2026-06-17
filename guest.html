@@ -349,13 +349,32 @@
             return;
           }
 
-          membersList.forEach(memberItem => {
-            const parts = memberItem.split('|').map(p => p.trim());
-            const name = parts[0] || '';
-            const role = parts.length > 1 ? parts[1] : '';
+          let currentRole = '';
+          const parsedMembers = [];
+          for (let i = membersList.length - 1; i >= 0; i--) {
+            const parts = membersList[i].split('|').map(p => p.trim());
+            if (parts.length > 1) {
+              currentRole = parts[1];
+            }
+            if (parts[0]) {
+              parsedMembers.unshift({ name: parts[0], role: currentRole });
+            }
+          }
 
-            if (!name) return;
+          const groupedMembers = {};
+          // Maintain order of roles
+          const rolesOrder = [];
+          parsedMembers.forEach(m => {
+            const roleKey = m.role || '';
+            if (!groupedMembers[roleKey]) {
+              groupedMembers[roleKey] = [];
+              rolesOrder.push(roleKey);
+            }
+            groupedMembers[roleKey].push(m.name);
+          });
 
+          rolesOrder.forEach(role => {
+            const names = groupedMembers[role];
             const itemDiv = document.createElement('div');
             itemDiv.style.display = 'flex';
             itemDiv.style.alignItems = 'center';
@@ -380,7 +399,7 @@
             nameSpan.style.fontWeight = '850';
             nameSpan.style.fontSize = '18px';
             nameSpan.style.color = 'var(--text-main)';
-            nameSpan.textContent = name;
+            nameSpan.textContent = names.join(', ');
             itemDiv.appendChild(nameSpan);
 
             membersContainer.appendChild(itemDiv);
