@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>배달왔삼 - 오늘 주문 빌지 인쇄</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* 기본 인쇄 스타일 */
+    @page {
+      size: A4;
+      margin: 10mm;
+    }
+    
+    body {
+      background-color: #E2E8F0;
+      margin: 0;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    .action-bar {
+      max-width: 210mm;
+      margin: 0 auto 20px auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .btn-print {
+      background-color: var(--primary-color, #ED8936);
+      color: white;
+      border: none;
+      padding: 10px 24px;
+      font-size: 18px;
+      font-weight: 800;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .print-container {
+      max-width: 210mm; /* A4 폭에 맞춤 */
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10mm 15mm; /* 행 간격, 열 간격 */
+      background: transparent;
+    }
+
+    /* 빌지 카드 */
+    .bill-card {
+      background: white;
+      border: 2px dashed #9ca3af; /* 자르기 쉬운 점선 */
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+      page-break-inside: avoid; /* 카드 중간에 잘리지 않도록 */
+      height: 100%;
+    }
+
+    /* 상단 브랜드 헤더 (guest.html 느낌) */
+    .bill-header {
+      padding: 15px 10px;
+      border-bottom: 2px solid #e5e5e5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      background-color: #ffffff;
+    }
+    
+    .brand-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 24px;
+      font-weight: 850;
+      color: #2b2d42; /* secondary-hover 대체 */
+    }
+
+    .brand-title-wrap img {
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      object-fit: contain;
+    }
+
+    .brand-title-wrap span.accent {
+      color: var(--primary-color, #ED8936);
+    }
+
+    .brand-desc {
+      font-size: 13px;
+      font-weight: 700;
+      color: #6c757d;
+      text-align: center;
+    }
+
+    /* 카드 본문 */
+    .bill-body {
+      padding: 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      font-size: 14px;
+      line-height: 1.3;
+    }
+
+    .info-label {
+      font-weight: 800;
+      color: #6b7280;
+      width: 75px;
+      flex-shrink: 0;
+    }
+
+    .info-value {
+      font-weight: 800;
+      color: #111827;
+      text-align: right;
+      word-break: break-all;
+    }
+
+    /* 메뉴 영역 */
+    .menu-box {
+      margin: 8px 0;
+      padding: 12px;
+      background-color: #f8f9fa;
+      border: 2px solid #e5e7eb;
+      border-radius: 6px;
+    }
+
+    .menu-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 16px;
+      font-weight: 900;
+      color: #1f2937;
+      margin-bottom: 6px;
+    }
+
+    .menu-item:last-child {
+      margin-bottom: 0;
+    }
+
+    /* 하단 고정 영역 */
+    .bill-footer {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .delivery-person {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 800;
+      color: #4b5563;
+    }
+
+    .delivery-person-line {
+      flex: 1;
+      border-bottom: 1px solid #9ca3af;
+      height: 16px;
+    }
+
+    .checklist {
+      display: flex;
+      justify-content: space-between;
+      border-top: 2px dashed #e5e7eb;
+      padding-top: 12px;
+      font-size: 14px;
+      font-weight: 800;
+      color: #111827;
+    }
+
+    .status-badge {
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 800;
+      color: white;
+    }
+
+    @media print {
+      body {
+        background-color: white;
+        padding: 0;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-container {
+        gap: 5mm; /* 인쇄 시 여백 최적화 */
+      }
+      .bill-card {
+        border-color: #666; /* 흑백 인쇄 시 더 잘 보이게 */
+      }
+      .menu-box {
+        border-color: #ccc;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="action-bar no-print">
+    <div style="font-size: 20px; font-weight: 850; color: #2d3748;">🖨️ 오늘 주문 빌지 인쇄</div>
+    <div style="font-size: 14px; color: #718096; margin-right: auto; margin-left: 16px;">
+      취소된 주문은 제외됩니다. A4 용지 인쇄에 최적화되어 있습니다.
+    </div>
+    <button class="btn-print" onclick="window.print()">인쇄하기</button>
+  </div>
+
+  <div class="print-container" id="bills-container">
+    <div style="grid-column: 1 / -1; text-align: center; padding: 40px; font-size: 18px; font-weight: 700; color: #718096;">
+      주문 데이터를 불러오는 중...
+    </div>
+  </div>
+
+  <!-- 스크립트 참조 -->
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    // ISO 시간 -> HH:MM 형식 변환
+    function formatSimpleTime(isoString) {
+      if (!isoString) return "-";
+      try {
+        const date = new Date(isoString);
+        if (isNaN(date.getTime())) return isoString;
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+      } catch (e) {
+        return isoString;
+      }
+    }
+
+    function getStatusLabel(status) {
+      if (status === 'C') return '취소됨';
+      if (status === 'Y') return '제공완료';
+      if (status === 'R') return '준비완료';
+      if (status === 'P') return '준비중';
+      return '접수중';
+    }
+
+    function getStatusColor(status) {
+      if (status === 'C') return '#ef4444'; // red
+      if (status === 'Y') return '#10b981'; // green
+      if (status === 'R') return '#059669'; // dark green
+      if (status === 'P') return '#f59e0b'; // orange
+      return '#3b82f6'; // blue
+    }
+
+    async function loadBills() {
+      const container = document.getElementById('bills-container');
+      try {
+        const res = await fetchAPI('getOrdersToday');
+        
+        if (res && res.success && Array.isArray(res.orders)) {
+          const orders = res.orders;
+          
+          // 취소된 주문 제외
+          const validOrders = orders.filter(o => o.servedYn !== 'C');
+
+          if (validOrders.length === 0) {
+            container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; font-size: 18px; font-weight: 700;">오늘 처리할 주문이 없습니다.</div>';
+            return;
+          }
+
+          // 주문번호(orderNo)로 그룹화
+          const ordersByNo = {};
+          validOrders.forEach((o, idx) => {
+            const orderNo = o.orderNo || `${o.timestamp || idx}_${o.nickname || 'unknown'}`;
+            if (!ordersByNo[orderNo]) {
+              ordersByNo[orderNo] = {
+                orderNo: orderNo,
+                nickname: o.nickname,
+                timestamp: o.timestamp,
+                servedYn: o.servedYn || 'N',
+                deliveryType: o.deliveryType || 'pickup',
+                deliveryPlace: o.deliveryPlace || '',
+                deliveryFee: Number(o.deliveryFee || 0),
+                items: [],
+                totalPoint: 0
+              };
+            }
+            ordersByNo[orderNo].items.push(o);
+            ordersByNo[orderNo].totalPoint += Number(o.point || 0);
+          });
+
+          // 주문 시간순 정렬 (오래된 주문이 먼저)
+          const sortedGroups = Object.values(ordersByNo).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+          container.innerHTML = '';
+
+          sortedGroups.forEach(group => {
+            // 배달비 포함 총 차감 크레딧
+            const totalCredit = group.totalPoint + group.deliveryFee;
+            
+            // 메뉴 목록 HTML 생성
+            const menusHtml = group.items.map(item => `
+              <div class="menu-item">
+                <span>${AppState.escapeHtml(item.snackName)}</span>
+                <span>${Number(item.quantity || 1)}개</span>
+              </div>
+            `).join('');
+
+            // 주문번호 파싱 (예: ORD-20231010-001 -> 001)
+            const parts = String(group.orderNo).split('-');
+            const shortOrderNo = parts.length >= 3 ? parts[2] : group.orderNo;
+
+            // 상태 배지
+            const statusLabel = getStatusLabel(group.servedYn);
+            const statusColor = getStatusColor(group.servedYn);
+            const statusBadge = `<span class="status-badge" style="background-color: ${statusColor};">${statusLabel}</span>`;
+
+            // 수령 방식
+            const isDelivery = group.deliveryType === 'delivery';
+            const deliveryTypeStr = isDelivery ? '배달' : '포장';
+
+            const card = document.createElement('div');
+            card.className = 'bill-card';
+            
+            card.innerHTML = `
+              <div class="bill-header">
+                <div class="brand-title-wrap">
+                  <img src="icons/guest-192.png" alt="logo" onerror="this.style.display='none'"> 
+                  <span>배달왔<span class="accent">삼</span></span>
+                </div>
+                <div class="brand-desc">삼각지 카페 배달 서비스</div>
+              </div>
+
+              <div class="bill-body">
+                <div class="info-row">
+                  <span class="info-label">주문번호</span>
+                  <span class="info-value" style="font-size: 16px;">[${AppState.escapeHtml(shortOrderNo)}]</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">주문자</span>
+                  <span class="info-value">${AppState.escapeHtml(group.nickname)} 님</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">주문시간</span>
+                  <span class="info-value">${formatSimpleTime(group.timestamp)}</span>
+                </div>
+
+                <div class="menu-box">
+                  ${menusHtml}
+                </div>
+
+                <div class="info-row">
+                  <span class="info-label">수령방식</span>
+                  <span class="info-value">${deliveryTypeStr}</span>
+                </div>
+                ${isDelivery && group.deliveryPlace ? `
+                <div class="info-row" style="color: #e53e3e;">
+                  <span class="info-label" style="color: #e53e3e;">배송지</span>
+                  <span class="info-value">${AppState.escapeHtml(group.deliveryPlace)}</span>
+                </div>
+                ` : ''}
+                <div class="info-row">
+                  <span class="info-label">차감크레딧</span>
+                  <span class="info-value">${AppState.formatPoint(totalCredit)} (배달비 ${group.deliveryFee} 포함)</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">주문상태</span>
+                  <span class="info-value">${statusBadge}</span>
+                </div>
+
+                <div class="bill-footer">
+                  <div class="delivery-person">
+                    <span>배달담당:</span>
+                    <div class="delivery-person-line"></div>
+                  </div>
+                  <div class="checklist">
+                    <span>□ 주문확인</span>
+                    <span>□ 준비완료</span>
+                    <span>□ 전달완료</span>
+                  </div>
+                </div>
+              </div>
+            `;
+            container.appendChild(card);
+          });
+        } else {
+          container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; font-size: 18px; font-weight: 700; color: #e53e3e;">주문 데이터를 불러오지 못했습니다.</div>';
+        }
+      } catch (err) {
+        console.error('빌지 로드 에러:', err);
+        container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; font-size: 18px; font-weight: 700; color: #e53e3e;">오류가 발생했습니다. 관리자에게 문의하세요.</div>';
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadBills();
+    });
+  </script>
+</body>
+</html>
