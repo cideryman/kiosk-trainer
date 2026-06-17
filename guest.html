@@ -256,9 +256,14 @@
           allowMultipleOrders = settingsRes.guestAllowMultipleOrders !== false;
 
           if (!allowMultipleOrders) {
-            const todayStr = new Date().toLocaleDateString();
+            const now = new Date();
+            const todayStr = now.getFullYear() + '-' + now.getMonth() + '-' + now.getDate();
             const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
-            const hasActiveOrder = guestOrders.some(o => o.date === todayStr && !['제공완료', '배달완료', '취소', '관리자취소', 'Y', 'C'].includes(String(o.status).trim()));
+            const hasActiveOrder = guestOrders.some(o => {
+              const orderDate = new Date(o.createdAt || o.timestamp);
+              const orderDateStr = orderDate.getFullYear() + '-' + orderDate.getMonth() + '-' + orderDate.getDate();
+              return orderDateStr === todayStr && !['제공완료', '배달완료', '취소', '관리자취소', 'Y', 'C'].includes(String(o.status).trim());
+            });
             if (hasActiveOrder) {
               const multipleNotice = document.getElementById('multiple-orders-notice');
               if (multipleNotice) multipleNotice.style.display = 'block';
@@ -483,9 +488,14 @@
         }
 
         if (!allowMultipleOrders) {
-          const todayStr = new Date().toLocaleDateString();
+          const now = new Date();
+          const todayStr = now.getFullYear() + '-' + now.getMonth() + '-' + now.getDate();
           const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
-          const hasActiveOrder = guestOrders.some(o => o.date === todayStr && !['제공완료', '배달완료', '취소', '관리자취소', 'Y', 'C'].includes(String(o.status).trim()));
+          const hasActiveOrder = guestOrders.some(o => {
+            const orderDate = new Date(o.createdAt || o.timestamp);
+            const orderDateStr = orderDate.getFullYear() + '-' + orderDate.getMonth() + '-' + orderDate.getDate();
+            return orderDateStr === todayStr && !['제공완료', '배달완료', '취소', '관리자취소', 'Y', 'C'].includes(String(o.status).trim());
+          });
           if (hasActiveOrder) {
             AppState.vibrate([200, 50, 200]);
             alert('진행 중인 주문이 있습니다.\n주문이 완료되거나 취소된 후 다시 주문할 수 있어요.');
