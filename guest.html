@@ -213,6 +213,21 @@
       // 혹시 있을 상태 초기화
       AppState.resetAll();
 
+      // 과거(오늘 이전)에 남아있는 미완료 캐시 주문 정리 (구글 챗 인앱 브라우저 등에서 이전 주문이 막는 현상 방지)
+      try {
+        const todayStr = new Date().toLocaleDateString();
+        let guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
+        if (guestOrders.length > 0) {
+          // 오늘 주문만 남기고 다 삭제
+          const filteredOrders = guestOrders.filter(o => o.date === todayStr);
+          if (filteredOrders.length !== guestOrders.length) {
+            localStorage.setItem('guestOrders', JSON.stringify(filteredOrders));
+          }
+        }
+      } catch (e) {
+        console.warn('과거 주문 캐시 정리 실패:', e);
+      }
+
       const viewSelect = document.getElementById('view-select');
       const viewInput = document.getElementById('view-input');
       const input = document.getElementById('guest-name-input');
