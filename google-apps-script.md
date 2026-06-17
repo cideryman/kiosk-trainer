@@ -60,6 +60,7 @@ const SHEET = {
 // Google Drive 폴더 ID 상수 정의
 const USER_IMAGE_FOLDER_ID = '1uykUeSeuwxtJvVVK_J7t-3JHY7yq0q_o';
 const SNACK_IMAGE_FOLDER_ID = '1kUibvC9O7PeOTZ5r7D4EJTVZ8KhCO6ur';
+const REVIEW_IMAGE_FOLDER_ID = '1uykUeSeuwxtJvVVK_J7t-3JHY7yq0q_o'; // 기본적으로 이용자 폴더를 같이 쓰거나 새로 만들어서 기입
 
 // 게스트 최대 가상 크레딧
 const GUEST_MAX_CREDIT = 10;
@@ -1485,6 +1486,8 @@ function uploadImage(data) {
       folderId = USER_IMAGE_FOLDER_ID;
     } else if (type === 'snack') {
       folderId = SNACK_IMAGE_FOLDER_ID;
+    } else if (type === 'review') {
+      folderId = REVIEW_IMAGE_FOLDER_ID;
     } else {
       return { success: false, message: '올바르지 않은 이미지 타입입니다.' };
     }
@@ -1498,7 +1501,12 @@ function uploadImage(data) {
     const file = folder.createFile(blob);
     
     // 링크가 있는 누구나 볼 수 있도록 공개 보기 권한 설정
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (sharingError) {
+      Logger.log("Sharing permission set failed (Workspace policy): " + sharingError.toString());
+      // 워크스페이스 정책상 setSharing이 제한되더라도, 상위 폴더 권한 상속을 통해 누구나 뷰어로 볼 수 있으므로 무시하고 진행합니다.
+    }
 
     const fileId = file.getId();
     const imageUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
@@ -1877,11 +1885,14 @@ function submitReview(data) {
     let reviewSheet = ss.getSheetByName(SHEET.REVIEWS);
     if (!reviewSheet) {
       reviewSheet = ss.insertSheet(SHEET.REVIEWS);
-      reviewSheet.appendRow(['createdAt', 'orderId', 'guestName', 'stamp', 'tags', 'comment', 'isPublic']);
+      reviewSheet.appendRow(['createdAt', 'orderId', 'guestName', 'stamp', 'tags', 'comment', 'isPublic', 'imageUrl']);
     } else {
       const reviewHeaders = reviewSheet.getDataRange().getValues()[0] || [];
       if (reviewHeaders.length === 0) {
-        reviewSheet.appendRow(['createdAt', 'orderId', 'guestName', 'stamp', 'tags', 'comment', 'isPublic']);
+        reviewSheet.appendRow(['createdAt', 'orderId', 'guestName', 'stamp', 'tags', 'comment', 'isPublic', 'imageUrl']);
+      } else if (reviewHeaders.indexOf('imageUrl') === -1) {
+        // H열에 imageUrl 헤더 추가
+        reviewSheet.getRange(1, 8).setValue('imageUrl');
       }
     }
 
@@ -1893,7 +1904,8 @@ function submitReview(data) {
       stamp,
       tags,
       comment,
-      isPublic
+      isPublic,
+      data.imageUrl || ''
     ]);
 
     // 4. 주문내역 시트에서 reviewed 상태 업데이트
@@ -1940,7 +1952,8 @@ function getRecentReviews() {
       guestName: row[2],
       stamp: row[3],
       tags: row[4],
-      comment: row[5]
+      comment: row[5],
+      imageUrl: row[7] || ''
     }))
     .reverse() // 최신 작성순
     .slice(0, 10); // 최대 10개만 반환
@@ -1972,7 +1985,8 @@ function getReviewsForAdmin() {
       stamp: row[3],
       tags: row[4],
       comment: row[5],
-      isPublic: row[6]
+      isPublic: row[6],
+      imageUrl: row[7] || ''
     }))
     .reverse(); // 최신순
 

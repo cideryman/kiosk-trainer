@@ -32,6 +32,7 @@ const SHEET = {
 // Google Drive 폴더 ID 상수 정의
 const USER_IMAGE_FOLDER_ID = '1uykUeSeuwxtJvVVK_J7t-3JHY7yq0q_o';
 const SNACK_IMAGE_FOLDER_ID = '1kUibvC9O7PeOTZ5r7D4EJTVZ8KhCO6ur';
+const REVIEW_IMAGE_FOLDER_ID = '1uykUeSeuwxtJvVVK_J7t-3JHY7yq0q_o'; // 기본적으로 이용자 폴더를 같이 쓰거나 새로 만들어서 기입
 
 // 게스트 최대 가상 크레딧
 const GUEST_MAX_CREDIT = 10;
@@ -52,7 +53,8 @@ const ADMIN_ACTIONS = [
   'uploadImage',
   'updateGuestSettings',
   'archiveOldOrders',
-  'getReviewsForAdmin'
+  'getReviewsForAdmin',
+  'autoFillEmptySnackIds'
 ];
 
 /**
@@ -179,6 +181,10 @@ function doPost(e) {
     return jsonResponse(getReviewsForAdmin());
   } else if (action === 'ensureOrderHeaders') {
     return jsonResponse({ success: true, message: ensureOrderHeaders() });
+  } else if (action === 'autoFillEmptySnackIds') {
+    return jsonResponse(autoFillEmptySnackIds());
+  } else if (action === 'getGuestOrderByToken') {
+    return jsonResponse(getGuestOrderByToken(data));
   }
   
   return jsonResponse({
@@ -311,6 +317,49 @@ function getSnacks(includeHidden, mode) {
   };
 }
 
+function isActiveValue(value) {
+  const v = String(value || '').trim().toUpperCase();
+  return v === 'Y' || v === 'TRUE' || v === '활성' || v === '판매' || v === 'O' || v === '예';
+}
+
+function canOrderSnack(snackRow, mode) {
+  if (!isActiveValue(snackRow[4])) {
+    return false;
+  }
+
+  const target = String(snackRow[7] || 'user').trim().toLowerCase();
+
+  if (mode === 'guest') {
+    return target === 'all' || target === 'both' || target === 'guest';
+  }
+
+  if (mode === 'user' || mode === 'kiosk') {
+    return target === 'all' || target === 'both' || target === 'user' || target === 'kiosk';
+  }
+
+  return false;
+}
+
+function isSameKoreaDate(dateValue, now) {
+  if (!dateValue) return false;
+  try {
+    const tz = 'Asia/Seoul';
+    const d1 = Utilities.formatDate(new Date(dateValue), tz, 'yyyy-MM-dd');
+    const d2 = Utilities.formatDate(now || new Date(), tz, 'yyyy-MM-dd');
+    return d1 === d2;
+  } catch(e) {
+    return false;
+  }
+}
+
+function isClosedOrderStatus(status) {
+  const s = String(status || '').trim().toLowerCase();
+  return [
+    'cancelled', 'canceled', '취소', '관리자취소', 
+    '제공완료', '배달완료', '완료', 'completed', 'done', 'y', 'c'
+  ].includes(s);
+}
+
 /**
  * 7. 주문 접수 및 크레딧/재고 자동 계산 처리
  */
@@ -346,6 +395,10 @@ function placeOrder(data) {
     let userRowIndex = -1;
     const isGuest = (String(userId) === 'guest');
     let guestFee = 0;
+    
+    ensureOrderHeaders();
+    const headers = orderSheet.getDataRange().getValues()[0] || [];
+    const deviceIdIdx = headers.indexOf('guestDeviceId');
 
     if (isGuest) {
       const gSettings = getGuestSettings();
@@ -355,7 +408,32 @@ function placeOrder(data) {
           message: gSettings.message || '게스트 주문이 마감되었습니다.',
         };
       }
-      nickname = (data.guestName || '게스트') + ' (체험)';
+      
+      if (!gSettings.guestAllowMultipleOrders && data.guestDeviceId) {
+        const orderValues = orderSheet.getDataRange().getValues();
+        const servedYnIdx = headers.indexOf('제공여부');
+        let hasActiveOrder = false;
+        const nowTime = new Date();
+        for (let i = 1; i < orderValues.length; i++) {
+          const row = orderValues[i];
+          if (deviceIdIdx !== -1 && String(row[deviceIdIdx]) === String(data.guestDeviceId)) {
+            const orderTime = row[0];
+            const status = String(row[servedYnIdx !== -1 ? servedYnIdx : 8]).trim();
+            if (isSameKoreaDate(orderTime, nowTime) && !isClosedOrderStatus(status)) {
+              hasActiveOrder = true;
+              break;
+            }
+          }
+        }
+        if (hasActiveOrder) {
+          return {
+            success: false,
+            message: '현재 진행 중인 주문이 있습니다. 주문 완료 후 다시 주문해주세요.'
+          };
+        }
+      }
+
+      nickname = (data.guestName || '게스트') + ' (비회원)';
       currentCredit = gSettings.guestBaseCredit;
       guestFee = gSettings.guestDeliveryFee;
     } else {
@@ -394,6 +472,11 @@ function placeOrder(data) {
       const point = Number(snack[2]);
       const quantity = Number(item.quantity);
       const stock = Number(snack[5] || 0);
+
+      const mode = isGuest ? 'guest' : 'user';
+      if (!canOrderSnack(snack, mode)) {
+        throw new Error(`'${snackName}' 은(는) 현재 주문할 수 없는 간식입니다.`);
+      }
 
       if (quantity <= 0) {
         throw new Error('수량이 올바르지 않습니다.');
@@ -455,7 +538,7 @@ function placeOrder(data) {
 
     orderItems.forEach(item => {
       // 주문내역 마지막 열에 제공 여부 기본값 'N' 명시적 입력
-      orderSheet.appendRow([
+      const newRow = [
         now, // A: 주문시간
         orderNo, // B: 주문번호
         userId, // C: 이용자ID
@@ -474,7 +557,16 @@ function placeOrder(data) {
         deliveryPlace, // P: deliveryAddress
         '', // Q: cancelReason
         '' // R: cancelReasonDetail
-      ]);
+      ];
+      
+      while (newRow.length <= deviceIdIdx) {
+        newRow.push('');
+      }
+      if (deviceIdIdx !== -1) {
+        newRow[deviceIdIdx] = data.guestDeviceId || '';
+      }
+      
+      orderSheet.appendRow(newRow);
 
       // 간식 재고 차감 반영
       snackSheet
@@ -498,6 +590,11 @@ function placeOrder(data) {
       beforeCredit: currentCredit,
       afterCredit: newCredit,
       items: orderItems,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.message || '주문 처리 중 오류가 발생했습니다.'
     };
   } finally {
     lock.releaseLock();
@@ -669,7 +766,7 @@ function getGuestOrdersToday(guestName) {
       if (userId !== 'guest') return false;
 
       const nickname = String(row[3]);
-      // nickname은 "이름 (체험)" 형식임
+      // nickname은 "이름 (비회원)" 형식임
       return nickname.indexOf(searchName) !== -1;
     })
     .map(row => ({
@@ -688,6 +785,68 @@ function getGuestOrdersToday(guestName) {
       deliveryFee: Number(row[12] || 0),
       totalCredit: Number(row[13] || 0),
       reviewed: row[14] === true || String(row[14]).toUpperCase() === 'TRUE' || String(row[14]).toUpperCase() === 'Y',
+      deliveryPlace: row[15] || '',
+      cancelReason: row[16] || '',
+      cancelReasonDetail: row[17] || ''
+    }));
+
+  return {
+    success: true,
+    orders,
+  };
+}
+
+/**
+ * 8.7. 게스트 본인의 주문 토큰 목록으로 조회 API
+ */
+function getGuestOrderByToken(data) {
+  ensureOrderHeaders();
+  const tokens = data.tokens;
+  if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
+    return {
+      success: false,
+      message: '조회할 토큰이 없습니다.'
+    };
+  }
+
+  const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET.ORDERS);
+  if (!sheet) {
+    return {
+      success: false,
+      message: '주문내역 시트를 찾을 수 없습니다.'
+    };
+  }
+
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0] || [];
+  const rows = values.slice(1);
+  
+  const reviewedIdx = headers.indexOf('reviewed');
+  const tokenIdx = headers.indexOf('orderToken');
+  const rIdx = reviewedIdx !== -1 ? reviewedIdx : 14;
+  const tIdx = tokenIdx !== -1 ? tokenIdx : 10;
+
+  const orders = rows
+    .filter(row => {
+      const rowToken = String(row[tIdx] || '');
+      return rowToken && tokens.includes(rowToken);
+    })
+    .map(row => ({
+      timestamp: row[0],
+      orderNo: row[1],
+      userId: row[2],
+      nickname: row[3],
+      snackId: row[4],
+      snackName: row[5],
+      quantity: Number(row[6]),
+      point: Number(row[7]),
+      servedYn: row[8] || 'N',
+      cancelTimestamp: row[9] || '',
+      orderToken: row[10] || '',
+      deliveryType: row[11] || 'pickup',
+      deliveryFee: Number(row[12] || 0),
+      totalCredit: Number(row[13] || 0),
+      reviewed: row[rIdx] === true || String(row[rIdx]).toUpperCase() === 'TRUE' || String(row[rIdx]).toUpperCase() === 'Y',
       deliveryPlace: row[15] || '',
       cancelReason: row[16] || '',
       cancelReasonDetail: row[17] || ''
@@ -879,6 +1038,7 @@ function cancelOrder(data) {
 function userCancelOrder(data) {
   ensureOrderHeaders();
   const orderId = data.orderId;
+  const requestToken = data.orderToken;
 
   if (!orderId) {
     return { success: false, message: '주문 식별자가 누락되었습니다.' };
@@ -914,11 +1074,18 @@ function userCancelOrder(data) {
 
     for (let i = 1; i < orderValues.length; i++) {
       const rowOrderId = String(orderValues[i][1]); // B열: orderNo
-      const rowOrderToken = String(orderValues[i][10]); // K열: orderToken
+      const rowOrderToken = String(orderValues[i][10] || ''); // K열: orderToken
       const servedYn = orderValues[i][8] || 'N';
 
       // orderId가 orderNo(회원) 또는 orderToken(게스트)와 일치하는 경우
       if (rowOrderId === String(orderId) || rowOrderToken === String(orderId)) {
+        
+        if (requestToken && rowOrderToken) {
+          if (rowOrderToken !== String(requestToken)) {
+            return { success: false, message: '주문 확인 정보가 일치하지 않습니다.' };
+          }
+        }
+
         if (servedYn === 'C') continue; // 이미 취소된 항목 무시
         
         if (servedYn !== 'N') {
@@ -1291,6 +1458,8 @@ function uploadImage(data) {
       folderId = USER_IMAGE_FOLDER_ID;
     } else if (type === 'snack') {
       folderId = SNACK_IMAGE_FOLDER_ID;
+    } else if (type === 'review') {
+      folderId = REVIEW_IMAGE_FOLDER_ID;
     } else {
       return { success: false, message: '올바르지 않은 이미지 타입입니다.' };
     }
@@ -1304,7 +1473,12 @@ function uploadImage(data) {
     const file = folder.createFile(blob);
     
     // 링크가 있는 누구나 볼 수 있도록 공개 보기 권한 설정
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (sharingError) {
+      Logger.log("Sharing permission set failed (Workspace policy): " + sharingError.toString());
+      // 워크스페이스 정책상 setSharing이 제한되더라도, 상위 폴더 권한 상속을 통해 누구나 뷰어로 볼 수 있으므로 무시하고 진행합니다.
+    }
 
     const fileId = file.getId();
     const imageUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
@@ -1345,7 +1519,8 @@ function getGuestSettings() {
     todayDeliveryTeamMembers: '김○○|배달 담당, 박○○|상품 준비 담당',
     todayDeliveryTeamMessage: '맛있게 준비해서 배달하겠습니다!',
     welcomeTitle: '배달왔삼에 오신 것을 환영합니다 😊',
-    welcomeSubtitle: '오늘의 간식을 주문해보세요!'
+    welcomeSubtitle: '오늘의 간식을 주문해보세요!',
+    guestAllowMultipleOrders: 'FALSE'
   };
 
   const existingKeys = [];
@@ -1369,7 +1544,8 @@ function getGuestSettings() {
     todayDeliveryTeamMembers: '김○○|배달 담당, 박○○|상품 준비 담당',
     todayDeliveryTeamMessage: '맛있게 준비해서 배달하겠습니다!',
     welcomeTitle: '배달왔삼에 오신 것을 환영합니다 😊',
-    welcomeSubtitle: '오늘의 간식을 주문해보세요!'
+    welcomeSubtitle: '오늘의 간식을 주문해보세요!',
+    guestAllowMultipleOrders: 'FALSE'
   };
 
   for (const key in defaultSettings) {
@@ -1415,6 +1591,7 @@ function getGuestSettings() {
     todayDeliveryTeamTitle: settings.todayDeliveryTeamTitle || '📦 오늘의 배달팀',
     todayDeliveryTeamMembers: settings.todayDeliveryTeamMembers || '',
     todayDeliveryTeamMessage: settings.todayDeliveryTeamMessage || '',
+    guestAllowMultipleOrders: String(settings.guestAllowMultipleOrders || 'FALSE').toUpperCase() === 'TRUE',
     isGuestOpenNow,
     remainingSeconds,
     message
@@ -1460,6 +1637,7 @@ function updateGuestSettings(data) {
     const todayDeliveryTeamTitle = data.todayDeliveryTeamTitle || '📦 오늘의 배달팀';
     const todayDeliveryTeamMembers = data.todayDeliveryTeamMembers || '';
     const todayDeliveryTeamMessage = data.todayDeliveryTeamMessage || '';
+    const guestAllowMultipleOrders = data.guestAllowMultipleOrders !== undefined ? (data.guestAllowMultipleOrders ? 'TRUE' : 'FALSE') : undefined;
     
     const values = sheet.getDataRange().getValues();
     let rowCredit = -1;
@@ -1469,6 +1647,7 @@ function updateGuestSettings(data) {
     let rowTeamTitle = -1;
     let rowTeamMembers = -1;
     let rowTeamMessage = -1;
+    let rowAllowMultiple = -1;
     for (let i = 1; i < values.length; i++) {
       const key = String(values[i][0]).trim();
       if (key === 'guestBaseCredit') rowCredit = i + 1;
@@ -1478,6 +1657,7 @@ function updateGuestSettings(data) {
       if (key === 'todayDeliveryTeamTitle') rowTeamTitle = i + 1;
       if (key === 'todayDeliveryTeamMembers') rowTeamMembers = i + 1;
       if (key === 'todayDeliveryTeamMessage') rowTeamMessage = i + 1;
+      if (key === 'guestAllowMultipleOrders') rowAllowMultiple = i + 1;
     }
     
     if (rowCredit > 0) {
@@ -1522,6 +1702,14 @@ function updateGuestSettings(data) {
       sheet.appendRow(['todayDeliveryTeamMessage', todayDeliveryTeamMessage]);
     }
     
+    if (guestAllowMultipleOrders !== undefined) {
+      if (rowAllowMultiple > 0) {
+        sheet.getRange(rowAllowMultiple, 2).setValue(guestAllowMultipleOrders);
+      } else {
+        sheet.appendRow(['guestAllowMultipleOrders', guestAllowMultipleOrders]);
+      }
+    }
+    
     appendAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `크레딧:${guestBaseCredit}, 배달비:${guestDeliveryFee}, 기본배달지:${guestDefaultDeliveryPlace}`, data.adminMemo);
     return { success: true, message: '게스트 설정이 저장되었습니다.' };
   } else {
@@ -1561,6 +1749,7 @@ function updateGuestSettings(data) {
 function submitReview(data) {
   ensureOrderHeaders();
   const orderId = data.orderId;
+  const requestToken = data.orderToken;
   const guestName = data.guestName;
   const stamp = data.stamp || '';
   const tags = data.tags || '';
@@ -1618,11 +1807,20 @@ function submitReview(data) {
     const orderNoIdx = headers.indexOf('주문번호');
     const servedYnIdx = headers.indexOf('제공여부');
     const statusIdx = headers.indexOf('상태');
+    const orderTokenIdx = headers.indexOf('orderToken');
     
     let targetIndices = [];
     
     for (let i = 1; i < orderValues.length; i++) {
-      if (String(orderValues[i][orderNoIdx !== -1 ? orderNoIdx : 1]) === String(orderId)) {
+      const rowOrderId = String(orderValues[i][orderNoIdx !== -1 ? orderNoIdx : 1]);
+      const rowOrderToken = String(orderValues[i][orderTokenIdx !== -1 ? orderTokenIdx : 10] || '');
+      
+      if (rowOrderId === String(orderId)) {
+        if (requestToken && rowOrderToken) {
+          if (rowOrderToken !== String(requestToken)) {
+            return { success: false, message: '주문 확인 정보가 일치하지 않습니다.' };
+          }
+        }
         targetIndices.push(i);
       }
     }
@@ -1659,11 +1857,14 @@ function submitReview(data) {
     let reviewSheet = ss.getSheetByName(SHEET.REVIEWS);
     if (!reviewSheet) {
       reviewSheet = ss.insertSheet(SHEET.REVIEWS);
-      reviewSheet.appendRow(['createdAt', 'orderId', 'guestName', 'stamp', 'tags', 'comment', 'isPublic']);
+      reviewSheet.appendRow(['createdAt', 'orderId', 'guestName', 'stamp', 'tags', 'comment', 'isPublic', 'imageUrl']);
     } else {
       const reviewHeaders = reviewSheet.getDataRange().getValues()[0] || [];
       if (reviewHeaders.length === 0) {
-        reviewSheet.appendRow(['createdAt', 'orderId', 'guestName', 'stamp', 'tags', 'comment', 'isPublic']);
+        reviewSheet.appendRow(['createdAt', 'orderId', 'guestName', 'stamp', 'tags', 'comment', 'isPublic', 'imageUrl']);
+      } else if (reviewHeaders.indexOf('imageUrl') === -1) {
+        // H열에 imageUrl 헤더 추가
+        reviewSheet.getRange(1, 8).setValue('imageUrl');
       }
     }
 
@@ -1675,7 +1876,8 @@ function submitReview(data) {
       stamp,
       tags,
       comment,
-      isPublic
+      isPublic,
+      data.imageUrl || ''
     ]);
 
     // 4. 주문내역 시트에서 reviewed 상태 업데이트
@@ -1722,7 +1924,8 @@ function getRecentReviews() {
       guestName: row[2],
       stamp: row[3],
       tags: row[4],
-      comment: row[5]
+      comment: row[5],
+      imageUrl: row[7] || ''
     }))
     .reverse() // 최신 작성순
     .slice(0, 10); // 최대 10개만 반환
@@ -1754,7 +1957,8 @@ function getReviewsForAdmin() {
       stamp: row[3],
       tags: row[4],
       comment: row[5],
-      isPublic: row[6]
+      isPublic: row[6],
+      imageUrl: row[7] || ''
     }))
     .reverse(); // 최신순
 
@@ -1902,13 +2106,132 @@ function ensureOrderHeaders() {
     orderSheet.insertColumnsAfter(orderSheet.getMaxColumns(), REQUIRED_COLS - orderSheet.getMaxColumns());
   }
 
-  const newHeaders = [
+  const currentHeaders = orderSheet.getDataRange().getValues()[0] || [];
+  let headers = currentHeaders.filter(h => h !== '');
+
+  const defaultHeaders = [
     '주문시간', '주문번호', '이용자ID', '별명', '간식ID', '간식명', '수량',
     '차감포인트', '제공여부', 'cancelTimestamp', 'orderToken', 'deliveryType', 
-    'deliveryFee', 'totalCredit', 'reviewed', 'deliveryAddress', 'cancelReason', 'cancelReasonDetail'
+    'deliveryFee', 'totalCredit', 'reviewed', 'deliveryPlace', 'cancelReason', 'cancelReasonDetail'
   ];
 
-  orderSheet.getRange(1, 1, 1, REQUIRED_COLS).setValues([newHeaders]);
+  let modified = false;
+  defaultHeaders.forEach(dh => {
+    if (headers.indexOf(dh) === -1) {
+      headers.push(dh);
+      modified = true;
+    }
+  });
+
+  if (headers.indexOf('guestDeviceId') === -1) {
+    headers.push('guestDeviceId');
+    modified = true;
+  }
+
+  if (modified) {
+    if (orderSheet.getMaxColumns() < headers.length) {
+      orderSheet.insertColumnsAfter(orderSheet.getMaxColumns(), headers.length - orderSheet.getMaxColumns());
+    }
+    orderSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
   return '헤더 보정이 완료되었습니다.';
 }
 
+/**
+ * 27. 빈 간식ID 자동 채우기 기능
+ * 비어 있는 간식ID를 기존 가장 높은 숫자 ID부터 순차적으로 채웁니다.
+ * 중복되거나 숫자가 아닌 ID가 발견될 경우 경고를 반환합니다.
+ */
+function autoFillEmptySnackIds() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    return { success: false, message: '다른 작업이 진행 중입니다.', hasError: true };
+  }
+  
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET.SNACKS);
+    if (!sheet) {
+      return { success: false, message: '간식목록 시트를 찾을 수 없습니다.', hasError: true };
+    }
+
+    const range = sheet.getDataRange();
+    const values = range.getValues();
+    if (values.length <= 1) {
+      return { success: true, filledCount: 0, message: '간식 데이터가 없습니다.' };
+    }
+
+    const rows = values.slice(1);
+    const existingIds = [];
+    const emptyRowsIndexes = [];
+    
+    // 1. 유효성 검사 및 데이터 수집
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const snackId = row[0];
+      const snackName = row[1];
+      
+      // 이름도 없고 ID도 없으면 빈 줄로 간주
+      if (!snackId && !snackName) continue;
+      
+      if (!snackId) {
+        emptyRowsIndexes.push(i + 1); // 데이터 행 인덱스 (sheet rows is i + 2)
+      } else {
+        existingIds.push(String(snackId).trim());
+      }
+    }
+
+    // 빈 ID가 없다면 조기 종료
+    if (emptyRowsIndexes.length === 0) {
+      return { success: true, filledCount: 0, message: '모든 간식ID가 정상입니다.' };
+    }
+
+    // 2. 숫자가 아닌 ID나 중복 ID 검사 (오류 시 자동 수정 중단)
+    const idCounts = {};
+    let hasInvalid = false;
+    let hasDuplicate = false;
+    
+    existingIds.forEach(id => {
+      if (isNaN(Number(id)) || id === '') {
+        hasInvalid = true;
+      }
+      idCounts[id] = (idCounts[id] || 0) + 1;
+      if (idCounts[id] > 1) {
+        hasDuplicate = true;
+      }
+    });
+
+    if (hasInvalid || hasDuplicate) {
+      return { 
+        success: false, 
+        message: '경고: 간식 목록에 숫자가 아닌 ID나 중복된 ID가 존재합니다. 시트를 직접 확인해주세요.',
+        hasError: true 
+      };
+    }
+
+    // 3. 가장 큰 ID 찾기 및 빈 ID 채우기
+    let maxId = 0;
+    existingIds.forEach(id => {
+      const num = Number(id);
+      if (num > maxId) maxId = num;
+    });
+
+    let currentId = maxId;
+    let filledCount = 0;
+
+    emptyRowsIndexes.forEach(rowIndex => {
+      currentId++;
+      // sheet index는 1-based, 헤더 고려하여 +1
+      sheet.getRange(rowIndex + 1, 1).setValue(currentId);
+      filledCount++;
+    });
+
+    return { 
+      success: true, 
+      filledCount: filledCount, 
+      message: `${filledCount}개의 빈 간식ID를 자동으로 채웠습니다.` 
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}

@@ -699,6 +699,12 @@
             tagsHtml = tagsList.map(t => `<span style="background-color: #E0F2F1; border: 1.5px solid var(--secondary-color); padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #00796B; margin-left: 4px;">#${AppState.escapeHtml(t)}</span>`).join('');
           }
 
+          const photoHtml = review.imageUrl
+            ? `<div style="margin-top: 6px; border-radius: var(--radius-sm); overflow: hidden; border: 1.5px solid var(--border-color); max-height: 200px; display: flex; align-items: center; justify-content: center; background-color: #F8F9FA;">
+                 <img src="${AppState.escapeAttr(AppState.convertDriveImageUrl(review.imageUrl))}" style="width: 100%; max-height: 200px; object-fit: cover;" onerror="this.parentElement.style.display='none';">
+               </div>`
+            : '';
+
           card.innerHTML = `
             <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
               <span style="font-weight: 850; font-size: 15px; color: var(--secondary-hover);">👤 ${AppState.escapeHtml(recipientName)} 님에게</span>
@@ -709,6 +715,7 @@
             <div style="font-size: 15px; font-weight: 700; color: var(--text-main); line-height: 1.4; word-break: break-all; margin: 4px 0;">
               "${AppState.escapeHtml(review.comment || '응원합니다!')}"
             </div>
+            ${photoHtml}
             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 700; color: var(--text-muted); margin-top: 4px;">
               <div style="display: flex; flex-wrap: wrap; gap: 4px;">${tagsHtml}</div>
               <span>작성자: ${AppState.escapeHtml(maskedGuest)} 님</span>

@@ -124,6 +124,14 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 * **PWA Service Worker Cache Busting**:
   - Bumped the service worker version in [service-worker.js](file:///c:/Users/user/Desktop/키오스크/service-worker.js) to `kiosk-cache-v46` to force-update client browsers and bypass stale local HTML caches.
 
+### 7) Guest Double-Order Prevention & Cache Issue Resolution
+* **Guest Double-Order Prevention**:
+  - Implemented client-side detection in `guest.html`: Checks `localStorage` (`guestOrders`) for active orders matching today's date (formatted as `YYYY-M-D`). Shows a warning notice if an active order exists.
+  - Implemented server-side check in `placeOrder` (GAS): Uses `guestDeviceId` to scan the active orders list and blocks new orders if there is an active order for the same day.
+* **Cache/Past Orders Limit Fix**:
+  - Solved issues where cached orders from previous days blocked today's orders.
+  - Strictly limited the active order check to the current date (`isSameKoreaDate` on server, local date string comparison on client), ensuring yesterday's or past cached orders do not restrict new orders.
+
 ---
 
 ## 6. Implementation Notes & Cautions
