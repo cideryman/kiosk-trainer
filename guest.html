@@ -127,7 +127,7 @@
             📦 오늘의 배달팀
           </div>
           
-          <div id="delivery-team-members" style="display: flex; flex-direction: column; gap: 12px;">
+          <div id="delivery-team-members" style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px 24px;">
             <!-- 동적 렌더링 -->
           </div>
 
@@ -361,6 +361,7 @@
             itemDiv.style.alignItems = 'center';
             itemDiv.style.justifyContent = 'center';
             itemDiv.style.gap = '8px';
+            itemDiv.style.whiteSpace = 'nowrap';
 
             const nameSpan = document.createElement('span');
             nameSpan.style.fontWeight = '850';
