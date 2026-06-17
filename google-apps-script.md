@@ -60,7 +60,7 @@ const SHEET = {
 // Google Drive 폴더 ID 상수 정의
 const USER_IMAGE_FOLDER_ID = '1uykUeSeuwxtJvVVK_J7t-3JHY7yq0q_o';
 const SNACK_IMAGE_FOLDER_ID = '1kUibvC9O7PeOTZ5r7D4EJTVZ8KhCO6ur';
-const REVIEW_IMAGE_FOLDER_ID = '1uykUeSeuwxtJvVVK_J7t-3JHY7yq0q_o'; // 기본적으로 이용자 폴더를 같이 쓰거나 새로 만들어서 기입
+const REVIEW_IMAGE_FOLDER_ID = '1ZK_IuzqynOBv5ihxVbZUR1zaIsuCd_jo';
 
 // 게스트 최대 가상 크레딧
 const GUEST_MAX_CREDIT = 10;
@@ -78,7 +78,7 @@ const ADMIN_ACTIONS = [
   'updateSnack',
   'cancelOrder',
   'updateSnacksOrder',
-  'uploadImage',
+  // 'uploadImage', // 게스트 후기 사진 업로드를 위해 허용 (함수 내에서 개별 보안 검증 수행)
   'updateGuestSettings',
   'archiveOldOrders',
   'getReviewsForAdmin',
@@ -1468,6 +1468,14 @@ function uploadImage(data) {
         success: false,
         message: '필수 매개변수(base64Data, fileName, type)가 누락되었습니다.'
       };
+    }
+
+    // 보안 검증: 이용자 및 간식 이미지 등록은 관리자 권한이 필요합니다.
+    if (type === 'user' || type === 'snack') {
+      const auth = verifyAdminToken(data);
+      if (!auth.success) {
+        return auth;
+      }
     }
 
     // base64 헤더 제거 및 바이너리 디코딩

@@ -872,7 +872,12 @@
               if (uploadRes && uploadRes.success && uploadRes.imageUrl) {
                 imageUrl = uploadRes.imageUrl;
               } else {
-                console.warn('사진 업로드 실패 (텍스트만 제출):', uploadRes);
+                const errMsg = (uploadRes && uploadRes.message) ? uploadRes.message : '네트워크 오류 또는 서버 응답 실패';
+                if (!confirm(`⚠️ 후기 사진 업로드에 실패했습니다.\n\n[오류 내용]\n${errMsg}\n\n사진 없이 후기 텍스트만 등록하시겠습니까?`)) {
+                  btnSubmitReview.disabled = false;
+                  btnSubmitReview.textContent = '보내기';
+                  return;
+                }
               }
             }
 

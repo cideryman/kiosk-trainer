@@ -249,14 +249,14 @@
     @media (min-width: 768px) {
       .snack-add-form-grid {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: 2fr 1fr 3.5fr 1.2fr 1.5fr;
         gap: 12px;
         align-items: end;
       }
 
       .user-add-form-grid {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: 1fr 1fr 2fr;
         gap: 12px;
         align-items: end;
       }
@@ -864,8 +864,9 @@
           <div>
             <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">🪙 이용자 크레딧 관리</div>
             <div id="user-api-warning" class="error-box" style="display: none; margin-bottom: 16px; font-size: 16px;"></div>
-            <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
-              <input type="text" id="search-user-input" placeholder="🔍 이용자 별명을 입력해 찾으세요..." class="search-input" style="flex: 1; padding: 12px; font-size: 18px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); font-weight: 700;">
+            <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+              <input type="text" id="search-user-input" placeholder="🔍 이용자 별명을 입력해 찾으세요..." class="search-input" style="flex: 1; min-width: 280px; padding: 12px; font-size: 18px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); font-weight: 700; margin: 0;">
+              <button class="btn btn-secondary" onclick="openAddUserModal()" style="min-height: 52px; font-size: 18px; font-weight: 800; margin: 0; width: auto; padding: 0 20px; box-shadow: var(--shadow-btn-sec); white-space: nowrap;">➕ 신규 이용자 등록</button>
             </div>
             <div class="table-responsive">
               <table class="admin-table">
@@ -886,30 +887,7 @@
             </div>
           </div>
 
-          <div>
-            <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">➕ 신규 이용자 추가</div>
-            <div class="form-panel" id="new-user-panel">
-              <div class="user-add-form-grid">
-                <div class="form-field">
-                  <label for="new-user-nickname">별명</label>
-                  <input type="text" id="new-user-nickname" placeholder="예: 이니">
-                </div>
-                <div class="form-field">
-                  <label for="new-user-credit">초기 크레딧</label>
-                  <input type="number" id="new-user-credit" min="0" value="10">
-                </div>
-                <div class="form-field">
-                  <label for="new-user-image">사진 등록</label>
-                  <div style="display: flex; gap: 8px; align-items: center;">
-                    <input type="text" id="new-user-image" placeholder="구글 드라이브 링크 (선택)" style="flex: 1;">
-                    <input type="file" id="new-user-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'new-user-image', 'new-user-nickname', 'user')">
-                    <button type="button" class="btn btn-gray" style="min-height: 44px; margin: 0; font-size: 14px; font-weight: 800; border: 2px solid var(--border-color); background-color: #F8F9FA; padding: 0 12px; white-space: nowrap;" onclick="document.getElementById('new-user-file').click()">사진 선택</button>
-                  </div>
-                </div>
-              </div>
-              <button class="btn btn-secondary" onclick="addNewUserAction()" style="margin-top: 12px; width: 100%;">이용자 등록</button>
-            </div>
-          </div>
+
 
           <div>
             <div class="admin-section-title" style="color: var(--text-muted); border-left-color: var(--border-color);">🔐 관리자 변경 설정</div>
@@ -951,7 +929,10 @@
           </div>
 
           <div>
-            <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color);">🍪 간식 목록 및 재고 관리</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+              <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color); margin-bottom: 0;">🍪 간식 목록 및 재고 관리</div>
+              <button class="btn btn-secondary" onclick="openAddSnackModal()" style="min-height: 52px; font-size: 18px; font-weight: 800; margin: 0; width: auto; padding: 0 20px; box-shadow: var(--shadow-btn-sec); white-space: nowrap;">➕ 신규 간식 등록</button>
+            </div>
             <div class="table-responsive">
               <table class="admin-table">
                 <thead>
@@ -971,42 +952,7 @@
             </div>
           </div>
 
-          <div>
-            <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">➕ 신규 간식 추가</div>
-            <div class="form-panel" style="margin-bottom: 8px;">
-              <div class="snack-add-form-grid">
-                <div style="display: flex; flex-direction: column; gap: 6px;">
-                  <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">간식 이름</label>
-                  <input type="text" id="new-snack-name" placeholder="예: 초코쿠키" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 6px;">
-                  <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">가격 (크레딧)</label>
-                  <input type="number" id="new-snack-point" min="1" value="1" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 6px;">
-                  <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">이미지 등록 (구글 드라이브 또는 공백)</label>
-                  <div style="display: flex; gap: 8px; align-items: center;">
-                    <input type="text" id="new-snack-image" placeholder="공유용 이미지 링크 (선택)" style="flex: 1; padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700; margin: 0;">
-                    <input type="file" id="new-snack-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'new-snack-image', 'new-snack-name', 'snack')">
-                    <button type="button" class="btn btn-gray" style="min-height: 44px; margin: 0; font-size: 14px; font-weight: 800; border: 2px solid var(--border-color); background-color: #F8F9FA; padding: 0 12px; white-space: nowrap;" onclick="document.getElementById('new-snack-file').click()">사진 선택</button>
-                  </div>
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 6px;">
-                  <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">초기 입고 재고량</label>
-                  <input type="number" id="new-snack-stock" min="0" value="10" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 6px;">
-                  <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">판매 대상</label>
-                  <select id="new-snack-target" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
-                    <option value="user">일반 이용자만</option>
-                    <option value="guest">게스트만</option>
-                    <option value="both">둘 다 표시</option>
-                  </select>
-                </div>
-              </div>
-              <button class="btn btn-secondary" onclick="addNewSnackAction()" style="margin-top: 12px; width: 100%;">등록하기</button>
-            </div>
-          </div>
+
         </div>
       </div>
 
@@ -1025,6 +971,7 @@
                     <th>칭찬 스탬프</th>
                     <th>태그</th>
                     <th>한마디 응원</th>
+                    <th style="text-align: center;">후기 사진</th>
                     <th style="text-align: center;">공개 여부</th>
                   </tr>
                 </thead>
@@ -1047,6 +994,78 @@
     </footer>
   </div>
 
+  <!-- 신규 이용자 추가 모달 -->
+  <div class="admin-modal" id="modal-add-user">
+    <div class="admin-modal-content">
+      <div class="admin-modal-header">
+        <h2 class="admin-modal-title">➕ 신규 이용자 등록</h2>
+        <button class="admin-modal-close" onclick="closeAddUserModal()">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <div class="form-field">
+          <label for="new-user-nickname">별명</label>
+          <input type="text" id="new-user-nickname" placeholder="예: 이니">
+        </div>
+        <div class="form-field">
+          <label for="new-user-credit">초기 크레딧</label>
+          <input type="number" id="new-user-credit" min="0" value="10">
+        </div>
+        <div class="form-field">
+          <label for="new-user-image">사진 등록</label>
+          <input type="text" id="new-user-image" placeholder="구글 드라이브 링크 (선택)" style="width: 100%; margin-bottom: 6px;">
+          <input type="file" id="new-user-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'new-user-image', 'new-user-nickname', 'user')">
+          <button type="button" class="btn btn-gray" style="min-height: 40px; margin: 0; font-size: 14px; font-weight: 800; border: 2px solid var(--border-color); background-color: #F8F9FA; width: 100%;" onclick="document.getElementById('new-user-file').click()">📷 기기에서 사진 선택하여 업로드</button>
+        </div>
+      </div>
+      <div class="admin-modal-footer">
+        <button class="btn btn-gray" onclick="closeAddUserModal()" style="flex: 1; min-height: 48px; font-size: 16px;">취소</button>
+        <button class="btn btn-secondary" onclick="addNewUserAction()" style="flex: 1; min-height: 48px; font-size: 16px; margin: 0;">등록하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 신규 간식 추가 모달 -->
+  <div class="admin-modal" id="modal-add-snack">
+    <div class="admin-modal-content">
+      <div class="admin-modal-header">
+        <h2 class="admin-modal-title">➕ 신규 간식 등록</h2>
+        <button class="admin-modal-close" onclick="closeAddSnackModal()">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <div class="form-field">
+          <label for="new-snack-name">간식 이름</label>
+          <input type="text" id="new-snack-name" placeholder="예: 초코쿠키">
+        </div>
+        <div class="form-field">
+          <label for="new-snack-point">가격 (크레딧)</label>
+          <input type="number" id="new-snack-point" min="1" value="1">
+        </div>
+        <div class="form-field">
+          <label for="new-snack-image">이미지 등록 (구글 드라이브 또는 공백)</label>
+          <input type="text" id="new-snack-image" placeholder="공유용 이미지 링크 (선택)" style="width: 100%; margin-bottom: 6px;">
+          <input type="file" id="new-snack-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'new-snack-image', 'new-snack-name', 'snack')">
+          <button type="button" class="btn btn-gray" style="min-height: 40px; margin: 0; font-size: 14px; font-weight: 800; border: 2px solid var(--border-color); background-color: #F8F9FA; width: 100%;" onclick="document.getElementById('new-snack-file').click()">📷 기기에서 이미지 선택하여 업로드</button>
+        </div>
+        <div class="form-field">
+          <label for="new-snack-stock">초기 입고 재고량</label>
+          <input type="number" id="new-snack-stock" min="0" value="10">
+        </div>
+        <div class="form-field">
+          <label for="new-snack-target">판매 대상</label>
+          <select id="new-snack-target" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
+            <option value="user">일반 이용자만</option>
+            <option value="guest">게스트만</option>
+            <option value="both">둘 다 표시</option>
+          </select>
+        </div>
+      </div>
+      <div class="admin-modal-footer">
+        <button class="btn btn-gray" onclick="closeAddSnackModal()" style="flex: 1; min-height: 48px; font-size: 16px;">취소</button>
+        <button class="btn btn-secondary" onclick="addNewSnackAction()" style="flex: 1; min-height: 48px; font-size: 16px; margin: 0;">등록하기</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 이용자 정보 수정 모달 -->
   <div class="admin-modal" id="modal-edit-user">
     <div class="admin-modal-content">
@@ -1066,11 +1085,9 @@
         </div>
         <div class="form-field">
           <label for="edit-user-image">사진 등록 (구글 드라이브 등)</label>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="text" id="edit-user-image" style="flex: 1;">
-            <input type="file" id="edit-user-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'edit-user-image', 'edit-user-nickname', 'user')">
-            <button type="button" class="btn btn-gray" style="min-height: 44px; margin: 0; font-size: 14px; font-weight: 800; border: 2px solid var(--border-color); background-color: #F8F9FA; padding: 0 12px; white-space: nowrap;" onclick="document.getElementById('edit-user-file').click()">사진 선택</button>
-          </div>
+          <input type="text" id="edit-user-image" style="width: 100%; margin-bottom: 6px;" placeholder="구글 드라이브 링크">
+          <input type="file" id="edit-user-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'edit-user-image', 'edit-user-nickname', 'user')">
+          <button type="button" class="btn btn-gray" style="min-height: 40px; margin: 0; font-size: 14px; font-weight: 800; border: 2px solid var(--border-color); background-color: #F8F9FA; width: 100%;" onclick="document.getElementById('edit-user-file').click()">📷 기기에서 사진 선택하여 업로드</button>
         </div>
         <div class="form-field">
           <label>활성 상태</label>
@@ -1110,11 +1127,9 @@
         </div>
         <div class="form-field">
           <label for="edit-snack-image">이미지 등록 (구글 드라이브 등)</label>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="text" id="edit-snack-image" style="flex: 1;">
-            <input type="file" id="edit-snack-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'edit-snack-image', 'edit-snack-name', 'snack')">
-            <button type="button" class="btn btn-gray" style="min-height: 44px; margin: 0; font-size: 14px; font-weight: 800; border: 2px solid var(--border-color); background-color: #F8F9FA; padding: 0 12px; white-space: nowrap;" onclick="document.getElementById('edit-snack-file').click()">사진 선택</button>
-          </div>
+          <input type="text" id="edit-snack-image" style="width: 100%; margin-bottom: 6px;" placeholder="구글 드라이브 링크">
+          <input type="file" id="edit-snack-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'edit-snack-image', 'edit-snack-name', 'snack')">
+          <button type="button" class="btn btn-gray" style="min-height: 40px; margin: 0; font-size: 14px; font-weight: 800; border: 2px solid var(--border-color); background-color: #F8F9FA; width: 100%;" onclick="document.getElementById('edit-snack-file').click()">📷 기기에서 이미지 선택하여 업로드</button>
         </div>
         <div class="form-field">
           <label for="edit-snack-stock">재고 수량</label>
@@ -1529,7 +1544,7 @@
       tbody.innerHTML = '';
       
       if (reviews.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">등록된 후기가 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">등록된 후기가 없습니다.</td></tr>';
         return;
       }
       
@@ -1545,6 +1560,12 @@
           formattedDate = `${rawDate.toLocaleDateString()} ${String(rawDate.getHours()).padStart(2, '0')}:${String(rawDate.getMinutes()).padStart(2, '0')}`;
         }
         
+        const photoHtml = review.imageUrl
+          ? `<a href="${AppState.escapeAttr(review.imageUrl)}" target="_blank" title="원본 이미지 보기" style="display: inline-block;">
+               <img src="${AppState.escapeAttr(AppState.convertDriveImageUrl(review.imageUrl))}" style="width: 44px; height: 44px; object-fit: cover; border-radius: var(--radius-xs); border: 1.5px solid var(--border-color); display: block;" onerror="this.parentElement.style.display='none';">
+             </a>`
+          : '-';
+
         tr.innerHTML = `
           <td><strong>${esc(formattedDate)}</strong></td>
           <td><span style="font-family: monospace;">${esc(review.orderId)}</span></td>
@@ -1552,7 +1573,8 @@
           <td><span style="background-color: #FFF3E0; border: 1.5px solid var(--primary-color); padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #E65100;">${esc(review.stamp)}</span></td>
           <td>${esc(review.tags || '-')}</td>
           <td style="max-width: 250px; word-break: break-all;">${esc(review.comment || '-')}</td>
-          <td style="text-align: center;"><span class="status-badge ${pubClass}">${pubLabel}</span></td>
+          <td style="text-align: center; vertical-align: middle;">${photoHtml}</td>
+          <td style="text-align: center; vertical-align: middle;"><span class="status-badge ${pubClass}">${pubLabel}</span></td>
         `;
         tbody.appendChild(tr);
       });
@@ -1967,7 +1989,7 @@
       }
 
       // 중복 방지를 위한 버튼 비활성화 처리
-      const submitBtn = document.querySelector('#new-user-panel button[onclick="addNewUserAction()"]');
+      const submitBtn = document.querySelector('#modal-add-user button[onclick="addNewUserAction()"]');
       if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.textContent = '등록 중...';
@@ -1984,6 +2006,7 @@
           nicknameInput.value = '';
           creditInput.value = '10';
           imageInput.value = '';
+          closeAddUserModal();
           AppState.vibrate(80);
           AppState.playClickSound();
           await loadAdminData();
@@ -1997,7 +2020,7 @@
       } finally {
         if (submitBtn) {
           submitBtn.disabled = false;
-          submitBtn.textContent = '이용자 등록';
+          submitBtn.textContent = '등록하기';
         }
       }
     }
@@ -2376,7 +2399,7 @@
       }
 
       // 중복 방지를 위한 버튼 비활성화 처리
-      const submitBtn = document.querySelector('#tab-snacks button[onclick="addNewSnackAction()"]');
+      const submitBtn = document.querySelector('#modal-add-snack button[onclick="addNewSnackAction()"]');
       if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.textContent = '등록 중...';
@@ -2395,7 +2418,7 @@
           imageInput.value = '';
           stockInput.value = '10';
           if (targetInput) targetInput.value = 'user';
-          
+          closeAddSnackModal();
           AppState.vibrate(80);
           AppState.playClickSound();
           await loadAdminData();
@@ -2838,6 +2861,50 @@
       }
       resetRefreshTimer();
       AppState.vibrate(40);
+    }
+
+    // --- 신규 이용자 등록 모달 제어 ---
+    function openAddUserModal() {
+      document.getElementById('new-user-nickname').value = '';
+      document.getElementById('new-user-credit').value = '10';
+      document.getElementById('new-user-image').value = '';
+      
+      document.getElementById('modal-add-user').style.display = 'flex';
+      AppState.vibrate(40);
+      
+      isModalOpen = true;
+      resetRefreshTimer();
+    }
+
+    function closeAddUserModal() {
+      document.getElementById('modal-add-user').style.display = 'none';
+      AppState.vibrate(30);
+      
+      isModalOpen = false;
+      resetRefreshTimer();
+    }
+
+    // --- 신규 간식 등록 모달 제어 ---
+    function openAddSnackModal() {
+      document.getElementById('new-snack-name').value = '';
+      document.getElementById('new-snack-point').value = '1';
+      document.getElementById('new-snack-image').value = '';
+      document.getElementById('new-snack-stock').value = '10';
+      document.getElementById('new-snack-target').value = 'user';
+      
+      document.getElementById('modal-add-snack').style.display = 'flex';
+      AppState.vibrate(40);
+      
+      isModalOpen = true;
+      resetRefreshTimer();
+    }
+
+    function closeAddSnackModal() {
+      document.getElementById('modal-add-snack').style.display = 'none';
+      AppState.vibrate(30);
+      
+      isModalOpen = false;
+      resetRefreshTimer();
     }
 
     // --- 이용자 수정 모달 제어 및 API 호출 ---

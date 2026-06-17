@@ -439,6 +439,20 @@
           </div>
         </div>
 
+        <!-- 사진 첨부 -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">사진 추가 (선택)</label>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="file" id="review-photo-input" accept="image/*" style="display: none;" onchange="handleReviewPhotoSelected(this)">
+            <button type="button" class="btn btn-gray" id="btn-add-review-photo" style="min-height: 44px; font-size: 15px; font-weight: 800; margin: 0; width: auto; padding: 0 16px; border: 2.5px solid var(--border-color); background-color: #F8F9FA;" onclick="document.getElementById('review-photo-input').click()">📷 사진 올리기</button>
+            <span id="review-photo-status" style="font-size: 14px; font-weight: 700; color: var(--text-muted);">선택된 사진 없음</span>
+          </div>
+          <div style="position: relative; display: inline-block; max-width: 150px; margin-top: 4px;">
+            <img id="review-photo-preview" style="display: none; width: 100%; max-height: 150px; object-fit: cover; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color);">
+            <button type="button" id="btn-remove-review-photo" style="display: none; position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; border-radius: 50%; background-color: var(--danger-color); color: white; border: none; font-size: 14px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; box-shadow: var(--shadow-sm); z-index: 15;" onclick="removeReviewPhoto()">&times;</button>
+          </div>
+        </div>
+
         <!-- 공개 여부 토글 -->
         <div style="display: flex; align-items: center; gap: 8px;">
           <input type="checkbox" id="review-is-public" checked style="width: 22px; height: 22px; cursor: pointer; accent-color: var(--secondary-color);">
@@ -856,6 +870,91 @@
       }, 1000);
     }
 
+    // 후기 사진 첨부 관련 상태 및 헬퍼 함수
+    let selectedReviewPhotoFile = null;
+
+    window.handleReviewPhotoSelected = function(fileInput) {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      selectedReviewPhotoFile = file;
+
+      const preview = document.getElementById('review-photo-preview');
+      const status = document.getElementById('review-photo-status');
+      const removeBtn = document.getElementById('btn-remove-review-photo');
+
+      if (status) status.textContent = file.name;
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (preview) {
+          preview.src = e.target.result;
+          preview.style.display = 'block';
+        }
+        if (removeBtn) {
+          removeBtn.style.display = 'flex';
+        }
+      };
+      reader.readAsDataURL(file);
+      AppState.vibrate(30);
+    };
+
+    window.removeReviewPhoto = function() {
+      selectedReviewPhotoFile = null;
+      const input = document.getElementById('review-photo-input');
+      const preview = document.getElementById('review-photo-preview');
+      const status = document.getElementById('review-photo-status');
+      const removeBtn = document.getElementById('btn-remove-review-photo');
+
+      if (input) input.value = '';
+      if (preview) {
+        preview.src = '';
+        preview.style.display = 'none';
+      }
+      if (status) status.textContent = '선택된 사진 없음';
+      if (removeBtn) removeBtn.style.display = 'none';
+      AppState.vibrate(20);
+    };
+
+    function compressImage(file, maxWidth, maxHeight, quality) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+          const img = new Image();
+          img.src = event.target.result;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+              }
+            } else {
+              if (height > maxHeight) {
+                width = Math.round((width * maxHeight) / height);
+                height = maxHeight;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const dataUrl = canvas.toDataURL('image/jpeg', quality);
+            resolve(dataUrl);
+          };
+          img.onerror = (err) => reject(err);
+        };
+        reader.onerror = (err) => reject(err);
+      });
+    }
+
     // 바인딩
     window.addEventListener('DOMContentLoaded', () => {
       initView();
@@ -889,6 +988,7 @@
 
       function closeReviewModal() {
         if (reviewModal) reviewModal.style.display = 'none';
+        removeReviewPhoto();
         // 5초 타이머 재개
         startRedirectTimer(5);
       }
@@ -944,6 +1044,40 @@
           btnSubmitReview.textContent = '제출 중...';
 
           try {
+            let imageUrl = '';
+            if (selectedReviewPhotoFile) {
+              btnSubmitReview.textContent = '사진 업로드 중...';
+              
+              // 1. 이미지 압축 (최대 600px, 0.7 퀄리티)
+              const base64Data = await compressImage(selectedReviewPhotoFile, 600, 600, 0.7);
+              
+              const timestamp = Math.floor(Date.now() / 1000);
+              const extension = selectedReviewPhotoFile.name.split('.').pop() || 'jpg';
+              const fileName = `review_${summaryData.orderNo}_${timestamp}.${extension}`;
+              
+              // 2. 이미지 업로드 API 호출
+              const uploadRes = await fetchAPI('uploadImage', {
+                method: 'POST',
+                body: {
+                  base64Data: base64Data,
+                  fileName: fileName,
+                  type: 'review'
+                }
+              });
+              
+              if (uploadRes && uploadRes.success && uploadRes.imageUrl) {
+                imageUrl = uploadRes.imageUrl;
+              } else {
+                const errMsg = (uploadRes && uploadRes.message) ? uploadRes.message : '네트워크 오류 또는 서버 응답 실패';
+                if (!confirm(`⚠️ 후기 사진 업로드에 실패했습니다.\n\n[오류 내용]\n${errMsg}\n\n사진 없이 후기 텍스트만 등록하시겠습니까?`)) {
+                  btnSubmitReview.disabled = false;
+                  btnSubmitReview.textContent = '보내기';
+                  return;
+                }
+              }
+            }
+
+            btnSubmitReview.textContent = '후기 제출 중...';
             const res = await fetchAPI('submitReview', {
               method: 'POST',
               body: {
@@ -953,7 +1087,8 @@
                 stamp: stamp,
                 tags: tags,
                 comment: comment,
-                isPublic: isPublic
+                isPublic: isPublic,
+                imageUrl: imageUrl
               }
             });
 
