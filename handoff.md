@@ -132,6 +132,19 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - Solved issues where cached orders from previous days blocked today's orders.
   - Strictly limited the active order check to the current date (`isSameKoreaDate` on server, local date string comparison on client), ensuring yesterday's or past cached orders do not restrict new orders.
 
+### 8) Guest Review Photo Upload & Admin Photo Moderation (Latest)
+* **GAS Permission Bug Fix**:
+  - Removed `uploadImage` from the global `ADMIN_ACTIONS` block (which strictly required an admin token).
+  - Moved token validation inside `uploadImage` to run only when `type` is `'user'` or `'snack'`, permitting guest review photo uploads (`type === 'review'`) without credentials.
+* **Frontend Error Handlers**:
+  - Added user-facing confirm dialog popups for image upload errors in `complete.html` and `guest-orders.html` to prevent silent upload failures.
+* **Admin Layout & Moderation Panel**:
+  - Redesigned image input layout in `admin.html` (for both add and edit modals) by stacking text URL fields and file selection buttons vertically, resolving the squished oval layout bug.
+  - Added a "후기 사진" (Review Photo) column in the admin reviews management table in `admin.html`, letting administrators inspect thumbnails and click to open full-resolution images.
+* **Guest Review Scroll Optimizations**:
+  - Expanded `.review-list` scroll container max-height in `guest.html` from `320px` to `520px` to display photo cards comfortably.
+  - Integrated momentum scrolling (`-webkit-overflow-scrolling: touch`) and custom styled scrollbars for a modern mobile feel.
+
 ---
 
 ## 6. Implementation Notes & Cautions
@@ -140,3 +153,14 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 * **Touch Jitter (Double-Click Prevention)**: Users with motor control challenges might trigger duplicate clicks. Use `AppState.bindCardTap(el, callback)` instead of standard click handlers for critical buttons in user-facing views to check coordinates delta and timing.
 * **Haptic Feedbacks**: Sounds are created using the Web Audio API synthesizer dynamically. Do not rely on external MP3 files for general interaction sounds.
 * **Google Apps Script Deployments**: If you modify the backend API routes or settings, copy code from [google-apps-script.md](file:///c:/Users/user/Desktop/키오스크/google-apps-script.md) into the Google Sheet Script Editor, save, and trigger **[New Deployment]** (Web App, executing as Me, accessible by Anyone). Update `API_URL` in [js/config.js](file:///c:/Users/user/Desktop/키오스크/js/config.js) to match the new address.
+
+---
+
+## 7. Future Roadmaps & Considerations (다음 작업 고려 목록)
+
+### 1) Administrative Dashboard Separation (관리자 화면 분리 개편)
+* **Goal**: Extract operational features out of `admin.html` to simplify screens and secure sensitive databases.
+* **Proposed Modules**:
+  * **주문 현황 및 실시간 접수 (Live Order Board)**: Extract Tab 1 into a dedicated page (e.g., `serving.html` or `kitchen.html`). Kitchen staff/trainees can view preparing orders and toggle "제공 완료" (Served) status on kitchen tablets without accessing sensitive admin databases.
+  * **후기 내역 (Review Moderation)**: Separate reviews into their own screen for clean reading and simple toggling of public display states.
+  * **핵심 관리자 화면 (Admin Dashboard)**: Keep `admin.html` focused strictly on database modifications (User addition/edits, Credit controls, Snack addition/edits, Stock levels, and System settings).
