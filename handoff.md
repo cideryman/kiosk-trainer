@@ -132,7 +132,7 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - Solved issues where cached orders from previous days blocked today's orders.
   - Strictly limited the active order check to the current date (`isSameKoreaDate` on server, local date string comparison on client), ensuring yesterday's or past cached orders do not restrict new orders.
 
-### 8) Guest Review Photo Upload & Admin Photo Moderation (Latest)
+### 8) Guest Review Photo Upload & Admin Photo Moderation
 * **GAS Permission Bug Fix**:
   - Removed `uploadImage` from the global `ADMIN_ACTIONS` block (which strictly required an admin token).
   - Moved token validation inside `uploadImage` to run only when `type` is `'user'` or `'snack'`, permitting guest review photo uploads (`type === 'review'`) without credentials.
@@ -144,6 +144,17 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 * **Guest Review Scroll Optimizations**:
   - Expanded `.review-list` scroll container max-height in `guest.html` from `320px` to `520px` to display photo cards comfortably.
   - Integrated momentum scrolling (`-webkit-overflow-scrolling: touch`) and custom styled scrollbars for a modern mobile feel.
+
+### 9) Dashboard Separation & Guest Review Viewer (Latest)
+* **Administrative Dashboard Separation**:
+  - Extracted the live order board from `admin.html` into a dedicated `kitchen.html` (주방 및 접수 화면). Kitchen staff can now manage orders without accessing sensitive admin databases.
+  - Added a delivery method filter (Pickup vs Delivery) in `kitchen.html` to help staff quickly filter and process incoming orders.
+  - Extracted the review moderation board into a dedicated `reviews.html` (후기 관리 화면) for clean reading and toggling public/private states.
+* **Guest Review Viewer Modal**:
+  - Added a mobile-optimized modal to `guest.html` that allows guests to click on recent reviews to see them in a larger view.
+  - Displays full-resolution photos without cropping, along with messages, tags, and stamps.
+  - Includes "Previous" and "Next" navigation buttons to seamlessly browse through all loaded reviews without closing the modal.
+  - Stripped out admin-only features (e.g., visibility toggles) to serve as a pure viewer for guests.
 
 ---
 
@@ -158,9 +169,4 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 
 ## 7. Future Roadmaps & Considerations (다음 작업 고려 목록)
 
-### 1) Administrative Dashboard Separation (관리자 화면 분리 개편)
-* **Goal**: Extract operational features out of `admin.html` to simplify screens and secure sensitive databases.
-* **Proposed Modules**:
-  * **주문 현황 및 실시간 접수 (Live Order Board)**: Extract Tab 1 into a dedicated page (e.g., `serving.html` or `kitchen.html`). Kitchen staff/trainees can view preparing orders and toggle "제공 완료" (Served) status on kitchen tablets without accessing sensitive admin databases.
-  * **후기 내역 (Review Moderation)**: Separate reviews into their own screen for clean reading and simple toggling of public display states.
-  * **핵심 관리자 화면 (Admin Dashboard)**: Keep `admin.html` focused strictly on database modifications (User addition/edits, Credit controls, Snack addition/edits, Stock levels, and System settings).
+*(현재 진행 예정인 주요 마일스톤이 없습니다. 추가 기능 요청 시 여기에 기록됩니다.)*
