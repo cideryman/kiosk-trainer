@@ -3095,19 +3095,28 @@
       loadGuestOpsPanel();
 
       // 수동 새로고침 버튼
-      document.getElementById('btn-manual-refresh').addEventListener('click', () => {
-        loadAdminData();
-        loadGuestOpsPanel();
-        AppState.vibrate(50);
-      });
+      const btnManualRefresh = document.getElementById('btn-manual-refresh');
+      if (btnManualRefresh) {
+        btnManualRefresh.addEventListener('click', () => {
+          loadAdminData();
+          loadGuestOpsPanel();
+          AppState.vibrate(50);
+        });
+      }
 
-      document.getElementById('btn-toggle-refresh').addEventListener('click', () => {
-        toggleRefreshPause();
-      });
+      const btnToggleRefresh = document.getElementById('btn-toggle-refresh');
+      if (btnToggleRefresh) {
+        btnToggleRefresh.addEventListener('click', () => {
+          toggleRefreshPause();
+        });
+      }
 
-      document.getElementById('btn-download-csv').addEventListener('click', () => {
-        downloadTodayOrdersCsv();
-      });
+      const btnDownloadCsv = document.getElementById('btn-download-csv');
+      if (btnDownloadCsv) {
+        btnDownloadCsv.addEventListener('click', () => {
+          downloadTodayOrdersCsv();
+        });
+      }
 
       // 지난 주문 보관 버튼 바인딩
       const btnArchive = document.getElementById('btn-archive-old-orders');
@@ -3163,17 +3172,28 @@
       }
 
       // 게스트 운영 관리 버튼 바인딩
-      document.getElementById('btn-guest-open20').addEventListener('click', () => {
-        handleGuestOpsAction('open20');
-      });
-      document.getElementById('btn-guest-open30').addEventListener('click', () => {
-        handleGuestOpsAction('open30');
-      });
-      document.getElementById('btn-guest-close').addEventListener('click', () => {
-        if (confirm('게스트 주문을 즉시 마감하시겠습니까?')) {
-          handleGuestOpsAction('closeNow');
-        }
-      });
+      const btnGuestOpen20 = document.getElementById('btn-guest-open20');
+      if (btnGuestOpen20) {
+        btnGuestOpen20.addEventListener('click', () => {
+          handleGuestOpsAction('open20');
+        });
+      }
+      
+      const btnGuestOpen30 = document.getElementById('btn-guest-open30');
+      if (btnGuestOpen30) {
+        btnGuestOpen30.addEventListener('click', () => {
+          handleGuestOpsAction('open30');
+        });
+      }
+      
+      const btnGuestClose = document.getElementById('btn-guest-close');
+      if (btnGuestClose) {
+        btnGuestClose.addEventListener('click', () => {
+          if (confirm('게스트 주문을 즉시 마감하시겠습니까?')) {
+            handleGuestOpsAction('closeNow');
+          }
+        });
+      }
 
       const btnEnableSound = document.getElementById('btnEnableSound');
       if (btnEnableSound) {

@@ -370,7 +370,7 @@
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>
   <script>
-    window.addEventListener('DOMContentLoaded', async () => {
+    window.addEventListener('DOMContentLoaded', () => {
       // 혹시 있을 상태 초기화
       AppState.resetAll();
 
@@ -400,91 +400,103 @@
       let allowMultipleOrders = true;
 
       // 운영 상태 확인
-      try {
-        const settingsRes = await fetchAPI('getGuestSettings');
-        if (settingsRes && settingsRes.success) {
-          isGuestOpen = settingsRes.isGuestOpenNow;
-          guestBaseCredit = settingsRes.guestBaseCredit ?? GUEST_DEFAULT_CREDIT;
-          guestDeliveryFee = settingsRes.guestDeliveryFee ?? GUEST_DELIVERY_FEE;
-          welcomeTitle = settingsRes.welcomeTitle || welcomeTitle;
-          welcomeSubtitle = settingsRes.welcomeSubtitle || welcomeSubtitle;
+      async function loadSettings() {
+        try {
+          const settingsRes = await fetchAPI('getGuestSettings');
+          if (settingsRes && settingsRes.success) {
+            isGuestOpen = settingsRes.isGuestOpenNow;
+            guestBaseCredit = settingsRes.guestBaseCredit ?? GUEST_DEFAULT_CREDIT;
+            guestDeliveryFee = settingsRes.guestDeliveryFee ?? GUEST_DELIVERY_FEE;
+            welcomeTitle = settingsRes.welcomeTitle || welcomeTitle;
+            welcomeSubtitle = settingsRes.welcomeSubtitle || welcomeSubtitle;
 
-          // 초기 문구 렌더링
-          guideText.innerHTML = `${welcomeTitle}<br><span>${welcomeSubtitle}</span>`;
+            // 초기 문구 렌더링
+            guideText.innerHTML = `${welcomeTitle}<br><span>${welcomeSubtitle}</span>`;
 
-          renderTodayDeliveryTeam(settingsRes);
-          
-          allowMultipleOrders = settingsRes.guestAllowMultipleOrders !== false;
+            renderTodayDeliveryTeam(settingsRes);
+            
+            allowMultipleOrders = settingsRes.guestAllowMultipleOrders !== false;
 
-          if (!allowMultipleOrders) {
-            const now = new Date();
-            const todayStr = now.getFullYear() + '-' + now.getMonth() + '-' + now.getDate();
-            const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
-            const hasActiveOrder = guestOrders.some(o => {
-              const orderDate = new Date(o.createdAt || o.timestamp);
-              const orderDateStr = orderDate.getFullYear() + '-' + orderDate.getMonth() + '-' + orderDate.getDate();
-              return orderDateStr === todayStr && !['제공완료', '배달완료', '취소', '관리자취소', 'Y', 'C'].includes(String(o.status).trim());
-            });
-            if (hasActiveOrder) {
-              const multipleNotice = document.getElementById('multiple-orders-notice');
-              if (multipleNotice) multipleNotice.style.display = 'block';
+            if (!allowMultipleOrders) {
+              const now = new Date();
+              const todayStr = now.getFullYear() + '-' + now.getMonth() + '-' + now.getDate();
+              const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
+              const hasActiveOrder = guestOrders.some(o => {
+                const orderDate = new Date(o.createdAt || o.timestamp);
+                const orderDateStr = orderDate.getFullYear() + '-' + orderDate.getMonth() + '-' + orderDate.getDate();
+                return orderDateStr === todayStr && !['제공완료', '배달완료', '취소', '관리자취소', 'Y', 'C'].includes(String(o.status).trim());
+              });
+              if (hasActiveOrder) {
+                const multipleNotice = document.getElementById('multiple-orders-notice');
+                if (multipleNotice) multipleNotice.style.display = 'block';
+              }
             }
-          }
 
-          // sessionStorage에 설정값 캐시 (다음 화면에서 사용)
-          sessionStorage.setItem('guestBaseCredit', String(guestBaseCredit));
-          sessionStorage.setItem('guestDeliveryFee', String(guestDeliveryFee));
-          sessionStorage.setItem('guestDefaultDeliveryPlace', settingsRes.guestDefaultDeliveryPlace ?? '사무실 원탁');
+            // sessionStorage에 설정값 캐시 (다음 화면에서 사용)
+            sessionStorage.setItem('guestBaseCredit', String(guestBaseCredit));
+            sessionStorage.setItem('guestDeliveryFee', String(guestDeliveryFee));
+            sessionStorage.setItem('guestDefaultDeliveryPlace', settingsRes.guestDefaultDeliveryPlace ?? '사무실 원탁');
 
-          if (!isGuestOpen) {
-            // 마감 상태
+            // 크레딧 배지 적용
+            if (guestCreditBadge) {
+              guestCreditBadge.textContent = `🎫 신규 방문 크레딧 ${guestBaseCredit}개 지급`;
+            }
+
+            if (!isGuestOpen) {
+              // 마감 상태
+              closedNotice.style.display = 'block';
+              closedNoticeText.textContent = settingsRes.message || '게스트 주문이 마감되었습니다.';
+              btnNewOrder.disabled = true;
+              btnNewOrder.style.opacity = '0.4';
+              btnNewOrder.style.cursor = 'not-allowed';
+              guideText.innerHTML = `${welcomeTitle}<br><span style="color: var(--danger-color); font-size: 18px;">현재 주문이 마감된 상태입니다.</span>`;
+            } else {
+              // 운영 중 - 남은 시간 표시
+              if (settingsRes.remainingSeconds > 0) {
+                remainingTimeBox.style.display = 'block';
+                let remaining = settingsRes.remainingSeconds;
+                updateTimerDisplay(remaining);
+                if (remainingCountdown) clearInterval(remainingCountdown);
+                remainingCountdown = setInterval(() => {
+                  remaining--;
+                  if (remaining <= 0) {
+                    clearInterval(remainingCountdown);
+                    // 시간 만료 - 마감 상태로 전환
+                    isGuestOpen = false;
+                    remainingTimeBox.style.display = 'none';
+                    closedNotice.style.display = 'block';
+                    closedNoticeText.textContent = '게스트 주문 운영 시간이 종료되었습니다.';
+                    btnNewOrder.disabled = true;
+                    btnNewOrder.style.opacity = '0.4';
+                    btnNewOrder.style.cursor = 'not-allowed';
+                    guideText.innerHTML = `${welcomeTitle}<br><span style="color: var(--danger-color); font-size: 18px;">현재 주문이 마감된 상태입니다.</span>`;
+                    return;
+                  }
+                  updateTimerDisplay(remaining);
+                }, 1000);
+              }
+            }
+          } else {
+            console.warn('게스트 운영 설정 API 응답 실패:', settingsRes);
+            isGuestOpen = false;
             closedNotice.style.display = 'block';
-            closedNoticeText.textContent = settingsRes.message || '게스트 주문이 마감되었습니다.';
+            closedNoticeText.textContent = (settingsRes && settingsRes.message) || '운영 상태를 확인할 수 없어 잠시 주문을 받을 수 없습니다.';
             btnNewOrder.disabled = true;
             btnNewOrder.style.opacity = '0.4';
             btnNewOrder.style.cursor = 'not-allowed';
-            guideText.innerHTML = `${welcomeTitle}<br><span style="color: var(--danger-color); font-size: 18px;">현재 주문이 마감된 상태입니다.</span>`;
-          } else {
-            // 운영 중 - 남은 시간 표시
-            if (settingsRes.remainingSeconds > 0) {
-              remainingTimeBox.style.display = 'block';
-              let remaining = settingsRes.remainingSeconds;
-              updateTimerDisplay(remaining);
-              remainingCountdown = setInterval(() => {
-                remaining--;
-                if (remaining <= 0) {
-                  clearInterval(remainingCountdown);
-                  // 시간 만료 - 마감 상태로 전환
-                  isGuestOpen = false;
-                  remainingTimeBox.style.display = 'none';
-                  closedNotice.style.display = 'block';
-                  closedNoticeText.textContent = '게스트 주문 운영 시간이 종료되었습니다.';
-                  btnNewOrder.disabled = true;
-                  btnNewOrder.style.opacity = '0.4';
-                  btnNewOrder.style.cursor = 'not-allowed';
-                  guideText.innerHTML = `${welcomeTitle}<br><span style="color: var(--danger-color); font-size: 18px;">현재 주문이 마감된 상태입니다.</span>`;
-                  return;
-                }
-                updateTimerDisplay(remaining);
-              }, 1000);
-            }
+            guideText.innerHTML = `${welcomeTitle}<br><span style="color: var(--danger-color); font-size: 18px;">상태 확인이 불가하여 주문이 제한되었습니다.</span>`;
           }
+        } catch (e) {
+          console.warn('게스트 운영 설정 조회 실패:', e);
+          // API 실패 시 운영 보호를 위해 새 주문 차단 (내 주문 확인하기는 가능)
+          isGuestOpen = false;
+          closedNotice.style.display = 'block';
+          closedNoticeText.textContent = '운영 상태를 확인할 수 없어 잠시 주문을 받을 수 없습니다.';
+          btnNewOrder.disabled = true;
+          btnNewOrder.style.opacity = '0.4';
+          btnNewOrder.style.cursor = 'not-allowed';
+          guideText.innerHTML = `${welcomeTitle}<br><span style="color: var(--danger-color); font-size: 18px;">상태 확인이 불가하여 주문이 제한되었습니다.</span>`;
         }
-      } catch (e) {
-        console.warn('게스트 운영 설정 조회 실패:', e);
-        // API 실패 시 운영 보호를 위해 새 주문 차단 (내 주문 확인하기는 가능)
-        isGuestOpen = false;
-        closedNotice.style.display = 'block';
-        closedNoticeText.textContent = '운영 상태를 확인할 수 없어 잠시 주문을 받을 수 없습니다.';
-        btnNewOrder.disabled = true;
-        btnNewOrder.style.opacity = '0.4';
-        btnNewOrder.style.cursor = 'not-allowed';
-        guideText.innerHTML = `${welcomeTitle}<br><span style="color: var(--danger-color); font-size: 18px;">상태 확인이 불가하여 주문이 제한되었습니다.</span>`;
-      }
-
-      // 크레딧 배지 적용
-      if (guestCreditBadge) {
-        guestCreditBadge.textContent = `🎫 신규 방문 크레딧 ${guestBaseCredit}개 지급`;
       }
 
       function renderTodayDeliveryTeam(settingsRes) {
@@ -720,7 +732,7 @@
           console.warn('동기화 실패:', e);
         }
       }
-      syncGuestOrders();
+      // syncGuestOrders() invocation moved to the end of DOMContentLoaded to run in parallel
 
       const btnWriteReview = document.getElementById('btn-write-review');
       if (btnWriteReview) {
@@ -862,7 +874,7 @@
 
           const photoHtml = review.imageUrl
             ? `<div style="margin-top: 6px; border-radius: var(--radius-sm); overflow: hidden; border: 1.5px solid var(--border-color); max-height: 200px; display: flex; align-items: center; justify-content: center; background-color: #F8F9FA;">
-                 <img src="${AppState.escapeAttr(AppState.convertDriveImageUrl(review.imageUrl))}" style="width: 100%; max-height: 200px; object-fit: cover;" onerror="this.parentElement.style.display='none';">
+                 <img src="${AppState.escapeAttr(AppState.convertDriveImageUrl(review.imageUrl))}" style="width: 100%; max-height: 200px; object-fit: cover;" onerror="this.parentElement.style.display='none';" loading="lazy">
                </div>`
             : '';
 
@@ -941,7 +953,7 @@
         const rawDate = review.createdAt ? new Date(review.createdAt) : null;
         let formattedDate = review.createdAt || '-';
         if (rawDate && !isNaN(rawDate.getTime())) {
-          formattedDate = \`\${rawDate.toLocaleDateString()} \${String(rawDate.getHours()).padStart(2, '0')}:\${String(rawDate.getMinutes()).padStart(2, '0')}\`;
+          formattedDate = `${rawDate.toLocaleDateString()} ${String(rawDate.getHours()).padStart(2, '0')}:${String(rawDate.getMinutes()).padStart(2, '0')}`;
         }
 
         const maskedGuest = maskGuestName(review.guestName);
@@ -959,7 +971,7 @@
         const tagsEl = document.getElementById('gm-tags');
         if (review.tags) {
           const tagsList = String(review.tags).split(',').map(t => t.trim()).filter(Boolean);
-          tagsEl.innerHTML = tagsList.map(t => \`<span style="background-color: #E0F2F1; border: 1.5px solid var(--secondary-color); padding: 2px 8px; border-radius: 999px; font-size: 14px; font-weight: 800; color: #00796B;">#\${AppState.escapeHtml(t)}</span>\`).join(' ');
+          tagsEl.innerHTML = tagsList.map(t => `<span style="background-color: #E0F2F1; border: 1.5px solid var(--secondary-color); padding: 2px 8px; border-radius: 999px; font-size: 14px; font-weight: 800; color: #00796B;">#${AppState.escapeHtml(t)}</span>`).join(' ');
           tagsEl.style.display = 'flex';
         } else {
           tagsEl.style.display = 'none';
@@ -1028,7 +1040,10 @@
       });
 
       showStep('select');
+      // 비동기 작업들을 병렬 실행하여 로딩 속도 극대화 (Non-blocking / Parallel Loading)
+      loadSettings();
       loadRecentReviews();
+      syncGuestOrders();
     });
   </script>
 </body>

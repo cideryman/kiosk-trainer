@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kiosk-cache-v59';
+const CACHE_NAME = 'kiosk-cache-v61';
 const urlsToCache = [
   'index.html',
   'menu.html',
@@ -78,7 +78,11 @@ self.addEventListener('fetch', (event) => {
 
   // 구글 Apps Script API 요청은 캐시하지 않고, 서비스 워커가 개입하지 않고 브라우저가 직접 처리하도록 반환합니다.
   // (CORS 및 리다이렉트 이슈 방지)
-  if (requestUrl.href.includes('script.google.com') || requestUrl.searchParams.has('action')) {
+  if (
+    requestUrl.href.includes('script.google.com') ||
+    requestUrl.href.includes('script.googleusercontent.com') ||
+    requestUrl.searchParams.has('action')
+  ) {
     return;
   }
 

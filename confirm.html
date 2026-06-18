@@ -465,7 +465,7 @@
         let imgHTML = '';
         if (itemImgUrl && itemImgUrl.trim() !== '') {
           imgHTML = `<img src="${safeImgUrl}" alt="${safeName}" class="order-item-img"
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`;
+                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" loading="lazy">`;
         }
         const emojiHTML = `<div class="order-item-emoji-fallback" style="${itemImgUrl ? 'display:none;' : 'display:flex;'}">${safeEmoji}</div>`;
 

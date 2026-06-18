@@ -220,7 +220,7 @@
         }
         let imgHTML = '';
         if (imgUrl && imgUrl.trim() !== '') {
-          imgHTML = `<img src="${safeImgUrl}" alt="${safeSnackName}" class="snack-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`;
+          imgHTML = `<img src="${safeImgUrl}" alt="${safeSnackName}" class="snack-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" loading="lazy">`;
         }
         
         // 이미지 Fallback으로 항상 대형 이모지 컨테이너 대기

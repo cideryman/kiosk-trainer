@@ -118,6 +118,14 @@ async function fetchAPI(action, options = {}) {
     redirect: 'follow', // GAS Web App Redirect 필수 처리
   };
 
+  // 10초 타임아웃 제어 설정 (네트워크 및 SW 프리징 대비)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    console.warn(`[API Timeout] ${action} 요청이 10초 동안 응답이 없어 강제 중단합니다.`);
+    controller.abort();
+  }, 10000);
+  fetchOptions.signal = controller.signal;
+
   // POST 요청 설정
   if (method === 'POST') {
     // GAS가 JSON을 잘 파싱할 수 있게 text/plain으로 보내거나 standard json으로 보냄.
@@ -140,6 +148,8 @@ async function fetchAPI(action, options = {}) {
   try {
     safeLog("API Request", { url, options: fetchOptions });
     const response = await fetch(url, fetchOptions);
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -164,13 +174,14 @@ async function fetchAPI(action, options = {}) {
 
     return data;
   } catch (error) {
+    clearTimeout(timeoutId);
     console.error("API Error", error);
     console.warn(`[API Warning] 실제 API 호출 실패 혹은 CORS 발생. Mock 데이터를 사용합니다. Action: ${action}`, error);
     // 에러 발생 시 사용자 경험 중단을 막기 위해 Mock 데이터로 폴백 제공
     return {
-  success: false,
-  message: '구글시트 연결에 실패했습니다.',
-  error: String(error)
+      success: false,
+      message: '구글시트 연결에 실패했습니다.',
+      error: String(error)
     };
   }
 }
@@ -640,7 +651,7 @@ function getMockFallback(action, options) {
       success: true,
       message: "이용자 정보를 수정했습니다."
     };
-  } else if (action === 'cancelOrder') {
+  } else if (action === 'cancelOrder' || action === 'userCancelOrder') {
     const orderId = options.body?.orderId;
     let updated = false;
     let refundLogs = [];
@@ -674,10 +685,10 @@ function getMockFallback(action, options) {
     // 1) Update local mockOrders in localStorage
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
     const updatedLocalOrders = localOrders.map(o => {
-      if (o.orderNo === orderId && o.servedYn !== 'C') {
+      if ((o.orderNo === orderId || o.orderToken === orderId) && o.servedYn !== 'C') {
         updated = true;
         processItemRefund(o);
-        appendMockAdminLog('cancelOrder', 'order', orderId, o.nickname, o.servedYn || 'N', 'C', options.body?.adminMemo);
+        appendMockAdminLog(action, 'order', orderId, o.nickname, o.servedYn || 'N', 'C', options.body?.adminMemo);
         return { ...o, servedYn: 'C', cancelTimestamp: new Date().toISOString() };
       }
       return o;
@@ -688,10 +699,10 @@ function getMockFallback(action, options) {
 
     // 2) Update MOCK_DATA.getOrdersToday in memory
     MOCK_DATA.getOrdersToday.orders.forEach(o => {
-      if (o.orderNo === orderId && o.servedYn !== 'C') {
+      if ((o.orderNo === orderId || o.orderToken === orderId) && o.servedYn !== 'C') {
         updated = true;
         processItemRefund(o);
-        appendMockAdminLog('cancelOrder', 'order', orderId, o.nickname, o.servedYn || 'N', 'C', options.body?.adminMemo);
+        appendMockAdminLog(action, 'order', orderId, o.nickname, o.servedYn || 'N', 'C', options.body?.adminMemo);
         o.servedYn = 'C';
         o.cancelTimestamp = new Date().toISOString();
       }
@@ -722,6 +733,7 @@ function getMockFallback(action, options) {
     const tags = options.body?.tags || '';
     const comment = options.body?.comment || '';
     const isPublic = options.body?.isPublic !== false && options.body?.isPublic !== 'false';
+    const imageUrl = options.body?.imageUrl || '';
 
     if (!orderId || !guestName) {
       res = { success: false, message: '필수 매개변수가 누락되었습니다.' };
@@ -738,7 +750,8 @@ function getMockFallback(action, options) {
           stamp,
           tags,
           comment,
-          isPublic
+          isPublic,
+          imageUrl
         });
         localStorage.setItem('mockReviews', JSON.stringify(mockReviews));
 
@@ -772,7 +785,8 @@ function getMockFallback(action, options) {
         guestName: r.guestName,
         stamp: r.stamp,
         tags: r.tags,
-        comment: r.comment
+        comment: r.comment,
+        imageUrl: r.imageUrl || ''
       }))
       .reverse()
       .slice(0, 10);
@@ -782,6 +796,62 @@ function getMockFallback(action, options) {
     const mockReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
     const sortedReviews = [...mockReviews].reverse();
     res = { success: true, reviews: sortedReviews };
+  } else if (action === 'toggleReviewVisibility') {
+    const createdAt = options.body?.createdAt;
+    const isPublic = options.body?.isPublic;
+    const mockReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
+    const matched = mockReviews.find(r => String(r.createdAt) === String(createdAt));
+    if (matched) {
+      matched.isPublic = isPublic;
+      localStorage.setItem('mockReviews', JSON.stringify(mockReviews));
+      res = { success: true, message: '후기 공개 상태가 변경되었습니다.' };
+    } else {
+      res = { success: false, message: '해당 후기를 찾을 수 없습니다.' };
+    }
+  } else if (action === 'getGuestOrderByToken') {
+    const tokens = options.body?.tokens || [];
+    const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
+    const allMockOrders = [...localOrders, ...MOCK_DATA.getOrdersToday.orders];
+    const matchedOrders = allMockOrders.filter(o => o.orderToken && tokens.includes(o.orderToken));
+    res = {
+      success: true,
+      orders: matchedOrders.map(o => ({
+        timestamp: o.timestamp,
+        orderNo: o.orderNo,
+        userId: 'guest',
+        nickname: o.nickname,
+        snackId: o.snackId || 1,
+        snackName: o.snackName,
+        quantity: o.quantity,
+        point: o.point,
+        servedYn: o.servedYn || 'N',
+        cancelTimestamp: o.cancelTimestamp || '',
+        orderToken: o.orderToken || '',
+        deliveryType: o.deliveryType || 'pickup',
+        deliveryFee: o.deliveryFee || 0,
+        totalCredit: o.totalCredit || 0,
+        reviewed: o.reviewed || false,
+        deliveryPlace: o.deliveryPlace || '',
+        cancelReason: o.cancelReason || '',
+        cancelReasonDetail: o.cancelReasonDetail || ''
+      }))
+    };
+  } else if (action === 'updateSnacksOrder') {
+    const items = options.body?.items || [];
+    const snacks = getMockSnacks();
+    items.forEach(item => {
+      const snack = snacks.find(s => String(s.snackId) === String(item.snackId));
+      if (snack) {
+        snack.displayOrder = Number(item.displayOrder);
+      }
+    });
+    snacks.sort((a, b) => {
+      const oA = typeof a.displayOrder !== 'undefined' ? a.displayOrder : 9999;
+      const oB = typeof b.displayOrder !== 'undefined' ? b.displayOrder : 9999;
+      return oA - oB;
+    });
+    saveMockSnacks(snacks);
+    res = { success: true, message: '표시 순서를 저장했습니다.' };
   } else if (action === 'archiveOldOrders') {
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
     const todayStr = new Date().toISOString().slice(2, 10).replace(/-/g, '');
