@@ -197,18 +197,24 @@
     }
 
     /* 후기 작성 모달 스타일 */
+    html.modal-open,
+    body.modal-open {
+      overflow: hidden;
+      height: 100%;
+      touch-action: none;
+    }
+
     .admin-modal {
       display: none;
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      inset: 0;
       background-color: rgba(0, 0, 0, 0.5);
-      z-index: 1000;
+      z-index: 9999;
       justify-content: center;
       align-items: center;
-      padding: 20px;
+      padding: 16px;
+      box-sizing: border-box;
+      overflow: hidden;
     }
     
     .admin-modal-content {
@@ -216,12 +222,14 @@
       border-radius: var(--radius-md);
       width: 100%;
       max-width: 500px;
-      padding: 24px;
+      max-height: 90dvh;
       box-shadow: var(--shadow-lg);
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      overflow: hidden;
+      box-sizing: border-box;
       animation: modalFadeIn 0.2s ease-out;
+      border: 3px solid var(--border-color);
     }
     
     @keyframes modalFadeIn {
@@ -234,13 +242,15 @@
       justify-content: space-between;
       align-items: center;
       border-bottom: 2px solid var(--border-color);
-      padding-bottom: 12px;
+      padding: 16px 20px;
+      flex-shrink: 0;
     }
     
     .admin-modal-title {
       font-size: 22px;
       font-weight: 800;
-      color: var(--text-main);
+      color: var(--secondary-hover);
+      margin: 0;
     }
     
     .admin-modal-close {
@@ -257,12 +267,44 @@
       display: flex;
       flex-direction: column;
       gap: 14px;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      padding: 16px 20px;
     }
     
     .admin-modal-footer {
       display: flex;
+      flex-direction: column;
       gap: 12px;
-      margin-top: 10px;
+      padding: 12px 20px;
+      flex-shrink: 0;
+      position: sticky;
+      bottom: 0;
+      background: #fff;
+      z-index: 2;
+    }
+
+    #review-photo-preview {
+      max-width: 100%;
+      max-height: 180px;
+      object-fit: contain;
+      border-radius: 12px;
+    }
+
+    @media (max-width: 480px) {
+      .admin-modal {
+        align-items: stretch;
+        padding: 12px;
+      }
+      .admin-modal-content {
+        max-height: 92dvh;
+      }
+      #review-photo-preview {
+        max-height: 150px;
+      }
     }
   </style>
 </head>
@@ -396,13 +438,13 @@
   </div>
 
   <!-- 후기 작성 모달 -->
-  <div class="admin-modal" id="modal-write-review" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center; padding: 20px;">
-    <div class="admin-modal-content" style="background-color: white; border-radius: var(--radius-md); width: 100%; max-width: 500px; padding: 24px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 16px; border: 3px solid var(--border-color);">
-      <div class="admin-modal-header" style="border-bottom: 2px solid var(--border-color); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-        <h2 class="admin-modal-title" style="color: var(--secondary-hover); font-size: 22px; margin: 0;">💌 칭찬과 응원 보내기</h2>
-        <button class="admin-modal-close" id="btn-close-review-modal" style="font-size: 28px; background: none; border: none; cursor: pointer; color: var(--text-muted);">&times;</button>
+  <div class="admin-modal" id="modal-write-review" style="display: none;">
+    <div class="admin-modal-content">
+      <div class="admin-modal-header">
+        <h2 class="admin-modal-title">💌 칭찬과 응원 보내기</h2>
+        <button class="admin-modal-close" id="btn-close-review-modal">&times;</button>
       </div>
-      <div class="admin-modal-body" style="display: flex; flex-direction: column; gap: 16px; margin-top: 10px;">
+      <div class="admin-modal-body">
         <div style="font-size: 15px; font-weight: 700; color: var(--primary-color); text-align: center; line-height: 1.4; word-break: keep-all; background-color: #FFF9E6; border: 1.5px solid #FFE0B2; padding: 12px; border-radius: var(--radius-sm);">
           "남겨주신 응원은 이용자들의 다음 활동에 큰 힘이 됩니다."
         </div>
@@ -459,7 +501,7 @@
           <label for="review-is-public" style="font-size: 15px; font-weight: 700; color: var(--text-muted); cursor: pointer; user-select: none;">칭찬 보드에 공개하기</label>
         </div>
       </div>
-      <div class="admin-modal-footer" style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">
+      <div class="admin-modal-footer">
         <button class="btn btn-secondary" id="btn-submit-review" style="width: 100%; min-height: 54px; font-size: 18px; font-weight: 800; margin: 0;">보내기</button>
         <button class="btn btn-gray" id="btn-cancel-review" style="width: 100%; min-height: 54px; font-size: 18px; font-weight: 800;">취소</button>
       </div>
@@ -981,6 +1023,8 @@
           if (countdownTextEl) countdownTextEl.style.display = 'none';
           
           if (reviewModal) reviewModal.style.display = 'flex';
+          document.documentElement.classList.add('modal-open');
+          document.body.classList.add('modal-open');
           AppState.vibrate(50);
           AppState.playClickSound();
         });
@@ -988,6 +1032,8 @@
 
       function closeReviewModal() {
         if (reviewModal) reviewModal.style.display = 'none';
+        document.documentElement.classList.remove('modal-open');
+        document.body.classList.remove('modal-open');
         removeReviewPhoto();
         // 5초 타이머 재개
         startRedirectTimer(5);
