@@ -663,11 +663,16 @@
     <!-- 관리자 헤더 -->
     <header class="kiosk-header admin-header">
       <div class="kiosk-header-top">
-        <h1 style="font-size: 26px;">📊 오늘 주문 현황 (관리자)</h1>
+        <div>
+          <h1 style="font-size: 26px;">🍳 오늘 주문 운영</h1>
+          <p style="font-size: 14px; margin: 4px 0 0 0; color: #E2E8F0;">오늘 접수된 주문을 확인하고 준비, 배달, 제공 완료까지 처리합니다.</p>
+        </div>
         <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
           <button class="btn-small-action" id="btnEnableSound" style="min-height: 48px; background-color: #38A169; color: white; border: none;">🔊 음성 알림 활성화</button>
-          <button class="btn-small-action" onclick="window.open('board.html', '_blank')" style="min-height: 48px; background-color: #7C3AED; color: white; border: none;">🖥️ 호출 전광판</button>
-          <button class="btn-small-action" onclick="window.open('print-bills.html', '_blank')" style="min-height: 48px; background-color: #ED8936; color: white; border: none;">🖨️ 오늘 주문 빌지 인쇄</button>
+          <button class="btn-small-action" onclick="window.location.href='admin.html'" style="min-height: 48px; background-color: #3182CE; color: white; border: none;">⚙️ 관리자 설정</button>
+          <button class="btn-small-action" onclick="window.location.href='reviews.html'" style="min-height: 48px; background-color: #38A169; color: white; border: none;">💬 후기 관리</button>
+          <button class="btn-small-action" onclick="window.open('print-bills.html', '_blank')" style="min-height: 48px; background-color: #ED8936; color: white; border: none;">🖨️ 빌지 인쇄</button>
+          <button class="btn-small-action" onclick="window.open('board.html', '_blank')" style="min-height: 48px; background-color: #7C3AED; color: white; border: none;">🖥️ 전광판 보기</button>
           <button class="btn-small-action" id="btn-download-csv" style="min-height: 48px;">CSV 다운로드</button>
           <button class="btn-small-action" id="btn-archive-old-orders" style="min-height: 48px; background-color: #4A5568; color: white; border: none;">지난 주문 보관 📁</button>
           <button class="btn-small-action" id="btn-toggle-refresh" style="min-height: 48px;">일시정지</button>
@@ -712,49 +717,6 @@
         <div id="guest-ops-info" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; font-size: 16px; font-weight: 700; color: var(--text-muted);">
           <div>⏰ 마감 예정: <span id="guest-ops-close-time">-</span></div>
           <div>⏳ 남은 시간: <span id="guest-ops-remaining">-</span></div>
-          <div style="display: flex; gap: 12px; align-items: center; margin-top: 4px; flex-wrap: wrap;">
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span>🪙 기본 크레딧:</span>
-              <input type="number" id="input-guest-credit" class="admin-inline-input" value="10" min="0" style="width: 70px;">
-            </div>
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span>배달비:</span>
-              <input type="number" id="input-guest-fee" class="admin-inline-input" value="3" min="0" style="width: 70px;">
-            </div>
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span>기본 배달지:</span>
-              <input type="text" id="input-guest-delivery-place" class="admin-inline-input" value="사무실 원탁" style="width: 140px; text-align: left; padding: 6px 10px;">
-            </div>
-          </div>
-          <div style="display: flex; gap: 12px; align-items: center; margin-top: 8px; flex-wrap: wrap;">
-            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 800; color: #E65100;">
-              <input type="checkbox" id="input-guest-allow-multiple" style="width: 18px; height: 18px; accent-color: var(--secondary-color);"> 진행 중 주문이 있어도 추가 주문 허용
-            </label>
-          </div>
-          <!-- 오늘의 배달팀 설정 추가 -->
-          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 2px dashed var(--border-color);">
-            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-              <div style="font-size: 16px; font-weight: 800; color: var(--text-main);">📦 오늘의 배달팀 설정</div>
-              <button class="btn-small-action" onclick="saveGuestSettings()" style="background-color: var(--secondary-color); min-height: 38px;">설정 저장</button>
-            </div>
-            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 700;">
-                <input type="checkbox" id="input-team-enabled" style="width: 18px; height: 18px; accent-color: var(--secondary-color);"> 표시하기
-              </label>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <span>타이틀:</span>
-                <input type="text" id="input-team-title" class="admin-inline-input" style="width: 160px; text-align: left; padding: 6px 10px;" placeholder="📦 오늘의 배달팀">
-              </div>
-            </div>
-            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-              <span>멤버:</span>
-              <input type="text" id="input-team-members" class="admin-inline-input" style="flex: 1; min-width: 200px; text-align: left; padding: 6px 10px;" placeholder="김○○|배달 담당, 박○○|상품 준비 담당">
-            </div>
-            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-              <span>한마디:</span>
-              <input type="text" id="input-team-message" class="admin-inline-input" style="flex: 1; min-width: 200px; text-align: left; padding: 6px 10px;" placeholder="맛있게 준비해서 배달하겠습니다!">
-            </div>
-          </div>
         </div>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           <button class="btn-small-action" id="btn-guest-open20" style="flex: 1; min-height: 48px; font-size: 16px; background-color: #38A169; white-space: nowrap;">⏱ 20분 열기</button>
@@ -1111,22 +1073,18 @@
       }
 
       try {
-        const [ordersRes, snacksRes, usersRes, reviewsRes] = await Promise.all([
+        const [ordersRes, usersRes] = await Promise.all([
           fetchAPI('getOrdersToday'),
-          fetchAPI('getSnacks', { params: { includeHidden: 'Y' } }),
-          fetchAPI('getUsers', { params: { includeInactive: 'Y' } }),
-          fetchAPI('getReviewsForAdmin', { method: 'POST', body: withAdminToken({}) })
+          fetchAPI('getUsers', { params: { includeInactive: 'Y' } })
         ]);
         
         // 1. 유저 이미지 매핑 데이터 생성
         userImageMap = {};
         if (usersRes && usersRes.success && Array.isArray(usersRes.users)) {
           currentUsers = usersRes.users;
-          showUserApiWarningIfNeeded(currentUsers);
           usersRes.users.forEach(u => {
             userImageMap[u.nickname] = u.imageUrl || '';
           });
-          renderUsersManagement(currentUsers);
         }
 
         // 2. 주문 내역 데이터 처리
@@ -1137,87 +1095,9 @@
           throw new Error('주문 API 응답 결과가 올바르지 않습니다.');
         }
 
-        // 3. 간식 재고 데이터 처리
-        if (snacksRes && snacksRes.success && Array.isArray(snacksRes.snacks)) {
-          currentSnacks = snacksRes.snacks;
-          
-          // --- 간식 ID 자동 채우기 보완 검사 로직 ---
-          const snackWarningEl = document.getElementById('snack-api-warning');
-          if (snackWarningEl) snackWarningEl.style.display = 'none';
+        // 3. 간식 재고 데이터 처리 (kitchen.html에서는 제거됨)
 
-          let hasEmptyId = false;
-          let hasInvalidOrDuplicate = false;
-          const idSet = new Set();
-
-          for (const s of currentSnacks) {
-            if (!s.snackId && s.snackId !== 0) {
-              hasEmptyId = true;
-            } else {
-              if (isNaN(Number(s.snackId)) || String(s.snackId).trim() === '') {
-                hasInvalidOrDuplicate = true;
-              }
-              if (idSet.has(String(s.snackId))) {
-                hasInvalidOrDuplicate = true;
-              }
-              idSet.add(String(s.snackId));
-            }
-          }
-
-          if (hasInvalidOrDuplicate) {
-            if (snackWarningEl) {
-              snackWarningEl.style.display = 'block';
-              snackWarningEl.style.color = '#9B2C2C';
-              snackWarningEl.style.backgroundColor = '#FFF5F5';
-              snackWarningEl.style.borderColor = '#FEB2B2';
-              snackWarningEl.innerHTML = '⚠️ <b>경고:</b> 간식 목록에 <b>숫자가 아닌 ID</b>나 <b>중복된 ID</b>가 존재합니다. 시트를 직접 확인해주세요.';
-            }
-          } else if (hasEmptyId) {
-            // 빈 ID가 존재하고, 유효성 오류가 없으면 자동 채우기 API 호출
-            try {
-              const adminToken = getAdminToken();
-              const autoFillRes = await fetchAPI('autoFillEmptySnackIds', {
-                method: 'POST',
-                body: { adminToken, adminMemo: '빈 간식ID 자동 채우기' }
-              });
-              
-              if (autoFillRes && autoFillRes.success && autoFillRes.filledCount > 0) {
-                if (snackWarningEl) {
-                  snackWarningEl.style.display = 'block';
-                  snackWarningEl.style.color = '#22543D';
-                  snackWarningEl.style.backgroundColor = '#F0FFF4';
-                  snackWarningEl.style.borderColor = '#9AE6B4';
-                  snackWarningEl.innerHTML = `✅ <b>알림:</b> ${autoFillRes.filledCount}개의 빈 간식ID를 자동으로 채웠습니다.`;
-                }
-                // 간식 목록 다시 불러오기
-                const reSnacksRes = await fetchAPI('getSnacks', { params: { includeHidden: 'Y' } });
-                if (reSnacksRes && reSnacksRes.success && Array.isArray(reSnacksRes.snacks)) {
-                  currentSnacks = reSnacksRes.snacks;
-                }
-              } else if (autoFillRes && autoFillRes.hasError) {
-                if (snackWarningEl) {
-                  snackWarningEl.style.display = 'block';
-                  snackWarningEl.style.color = '#9B2C2C';
-                  snackWarningEl.style.backgroundColor = '#FFF5F5';
-                  snackWarningEl.style.borderColor = '#FEB2B2';
-                  snackWarningEl.innerHTML = `⚠️ <b>경고:</b> ${autoFillRes.message}`;
-                }
-              }
-            } catch (e) {
-              console.error("간식 ID 자동 채우기 중 오류:", e);
-            }
-          }
-          // ---------------------------------------------
-
-          renderSnacksStock(currentSnacks);
-          renderSnacksManagement(currentSnacks);
-        } else {
-          throw new Error('간식 API 응답 결과가 올바르지 않습니다.');
-        }
-
-        // 4. 후기 데이터 처리
-        if (reviewsRes && reviewsRes.success && Array.isArray(reviewsRes.reviews)) {
-          renderReviews(reviewsRes.reviews);
-        }
+        // 4. 후기 데이터 처리 (kitchen.html에서는 제거됨)
 
         // 5. 게스트 운영 설정 갱신
         loadGuestOpsPanel();
@@ -3005,19 +2885,28 @@
       loadGuestOpsPanel();
 
       // 수동 새로고침 버튼
-      document.getElementById('btn-manual-refresh').addEventListener('click', () => {
-        loadAdminData();
-        loadGuestOpsPanel();
-        AppState.vibrate(50);
-      });
+      const btnManualRefresh = document.getElementById('btn-manual-refresh');
+      if (btnManualRefresh) {
+        btnManualRefresh.addEventListener('click', () => {
+          loadAdminData();
+          loadGuestOpsPanel();
+          AppState.vibrate(50);
+        });
+      }
 
-      document.getElementById('btn-toggle-refresh').addEventListener('click', () => {
-        toggleRefreshPause();
-      });
+      const btnToggleRefresh = document.getElementById('btn-toggle-refresh');
+      if (btnToggleRefresh) {
+        btnToggleRefresh.addEventListener('click', () => {
+          toggleRefreshPause();
+        });
+      }
 
-      document.getElementById('btn-download-csv').addEventListener('click', () => {
-        downloadTodayOrdersCsv();
-      });
+      const btnDownloadCsv = document.getElementById('btn-download-csv');
+      if (btnDownloadCsv) {
+        btnDownloadCsv.addEventListener('click', () => {
+          downloadTodayOrdersCsv();
+        });
+      }
 
       // 지난 주문 보관 버튼 바인딩
       const btnArchive = document.getElementById('btn-archive-old-orders');
@@ -3073,17 +2962,28 @@
       }
 
       // 게스트 운영 관리 버튼 바인딩
-      document.getElementById('btn-guest-open20').addEventListener('click', () => {
-        handleGuestOpsAction('open20');
-      });
-      document.getElementById('btn-guest-open30').addEventListener('click', () => {
-        handleGuestOpsAction('open30');
-      });
-      document.getElementById('btn-guest-close').addEventListener('click', () => {
-        if (confirm('게스트 주문을 즉시 마감하시겠습니까?')) {
-          handleGuestOpsAction('closeNow');
-        }
-      });
+      const btnGuestOpen20 = document.getElementById('btn-guest-open20');
+      if (btnGuestOpen20) {
+        btnGuestOpen20.addEventListener('click', () => {
+          handleGuestOpsAction('open20');
+        });
+      }
+      
+      const btnGuestOpen30 = document.getElementById('btn-guest-open30');
+      if (btnGuestOpen30) {
+        btnGuestOpen30.addEventListener('click', () => {
+          handleGuestOpsAction('open30');
+        });
+      }
+      
+      const btnGuestClose = document.getElementById('btn-guest-close');
+      if (btnGuestClose) {
+        btnGuestClose.addEventListener('click', () => {
+          if (confirm('게스트 주문을 즉시 마감하시겠습니까?')) {
+            handleGuestOpsAction('closeNow');
+          }
+        });
+      }
 
       const btnEnableSound = document.getElementById('btnEnableSound');
       if (btnEnableSound) {

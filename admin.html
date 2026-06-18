@@ -663,14 +663,15 @@
     <!-- 관리자 헤더 -->
     <header class="kiosk-header admin-header">
       <div class="kiosk-header-top">
-        <h1 style="font-size: 26px;">📊 오늘 주문 현황 (관리자)</h1>
+        <div>
+          <h1 style="font-size: 26px;">⚙️ 주간매점 관리자 설정</h1>
+          <p style="font-size: 14px; margin: 4px 0 0 0; color: #E2E8F0;">이용자 정보, 크레딧, 간식 메뉴, 재고 등 기본 데이터를 관리합니다.</p>
+        </div>
         <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
-          <button class="btn-small-action" id="btnEnableSound" style="min-height: 48px; background-color: #38A169; color: white; border: none;">🔊 음성 알림 활성화</button>
-          <button class="btn-small-action" onclick="window.open('board.html', '_blank')" style="min-height: 48px; background-color: #7C3AED; color: white; border: none;">🖥️ 호출 전광판</button>
-          <button class="btn-small-action" onclick="window.open('print-bills.html', '_blank')" style="min-height: 48px; background-color: #ED8936; color: white; border: none;">🖨️ 오늘 주문 빌지 인쇄</button>
-          <button class="btn-small-action" id="btn-download-csv" style="min-height: 48px;">CSV 다운로드</button>
-          <button class="btn-small-action" id="btn-archive-old-orders" style="min-height: 48px; background-color: #4A5568; color: white; border: none;">지난 주문 보관 📁</button>
-          <button class="btn-small-action" id="btn-toggle-refresh" style="min-height: 48px;">일시정지</button>
+          <button class="btn-small-action" onclick="window.location.href='kitchen.html'" style="min-height: 48px; background-color: #3182CE; color: white; border: none;">🍳 오늘 주문 운영</button>
+          <button class="btn-small-action" onclick="window.location.href='reviews.html'" style="min-height: 48px; background-color: #38A169; color: white; border: none;">💬 후기 관리</button>
+          <button class="btn-small-action" onclick="window.open('print-bills.html', '_blank')" style="min-height: 48px; background-color: #ED8936; color: white; border: none;">🖨️ 빌지 인쇄</button>
+          <button class="btn-small-action" onclick="window.open('board.html', '_blank')" style="min-height: 48px; background-color: #7C3AED; color: white; border: none;">🖥️ 전광판 보기</button>
           <button class="btn btn-primary" id="btn-manual-refresh" style="min-height: 48px; font-size: 16px; width: auto; padding: 0 16px; margin: 0;">
             🔄 지금 새로고침
           </button>
@@ -689,27 +690,13 @@
 
     <!-- 바디 -->
     <main class="kiosk-body">
-      <!-- 상단 요약 카드 (총 매출 크레딧, 총 주문 건수) -->
-      <div class="summary-grid" style="margin-bottom: 10px;">
-        <div class="summary-card" style="border-left: 5px solid var(--primary-color);">
-          <div class="summary-card-title">오늘 누적 사용 크레딧</div>
-          <div class="summary-card-value" id="stat-total-points">0 크레딧</div>
-        </div>
-        <div class="summary-card" style="border-left: 5px solid var(--secondary-color);">
-          <div class="summary-card-title">오늘 총 주문 건수</div>
-          <div class="summary-card-value" id="stat-total-orders">0건</div>
-        </div>
-      </div>
-
-      <!-- 게스트 운영 관리 패널 제거됨 (kitchen.html로 분리) -->
-
+      <!-- 상단 요약 카드 제거됨 -->
+      
       <!-- 탭 메뉴 -->
-      <div class="admin-tabs">
+      <div class="admin-tabs" style="margin-top: 10px;">
         <button class="admin-tab-btn active" id="btn-tab-users" onclick="switchTab('tab-users')">🪙 이용자 크레딧 관리</button>
         <button class="admin-tab-btn" id="btn-tab-snacks" onclick="switchTab('tab-snacks')">🍪 간식 및 재고 관리</button>
       </div>
-
-      <!-- 주문 처리 현황 탭 제거됨 (kitchen.html로 분리) -->
 
       <!-- Tab 2: 이용자 크레딧 관리 -->
       <div id="tab-users" class="admin-tab-content active">
@@ -1185,25 +1172,15 @@
         resetRefreshTimer();
       }
 
-      const pendingContainer = document.getElementById('pending-orders-group');
-      if (pendingContainer) {
-        pendingContainer.innerHTML = '<div style="padding: 20px; text-align: center; font-weight: 700;">대기 목록 불러오는 중...</div>';
-      }
-
-      const tbody = document.getElementById('order-table-body');
-      if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px; font-weight: 700;">데이터를 불러오는 중...</td></tr>';
-
       const stockListEl = document.getElementById('snack-stock-list');
       if (stockListEl) {
         stockListEl.innerHTML = '<div style="padding: 10px; text-align: center; font-weight: 700;">불러오는 중...</div>';
       }
 
       try {
-        const [ordersRes, snacksRes, usersRes, reviewsRes] = await Promise.all([
-          fetchAPI('getOrdersToday'),
+        const [snacksRes, usersRes] = await Promise.all([
           fetchAPI('getSnacks', { params: { includeHidden: 'Y' } }),
-          fetchAPI('getUsers', { params: { includeInactive: 'Y' } }),
-          fetchAPI('getReviewsForAdmin', { method: 'POST', body: withAdminToken({}) })
+          fetchAPI('getUsers', { params: { includeInactive: 'Y' } })
         ]);
         
         // 1. 유저 이미지 매핑 데이터 생성
@@ -1217,13 +1194,7 @@
           renderUsersManagement(currentUsers);
         }
 
-        // 2. 주문 내역 데이터 처리
-        if (ordersRes && ordersRes.success && Array.isArray(ordersRes.orders)) {
-          currentOrders = ordersRes.orders;
-          renderData(currentOrders);
-        } else {
-          throw new Error('주문 API 응답 결과가 올바르지 않습니다.');
-        }
+        // 2. 주문 내역 데이터 처리 (admin.html에서는 제거됨)
 
         // 3. 간식 재고 데이터 처리
         if (snacksRes && snacksRes.success && Array.isArray(snacksRes.snacks)) {
@@ -1302,10 +1273,7 @@
           throw new Error('간식 API 응답 결과가 올바르지 않습니다.');
         }
 
-        // 4. 후기 데이터 처리
-        if (reviewsRes && reviewsRes.success && Array.isArray(reviewsRes.reviews)) {
-          renderReviews(reviewsRes.reviews);
-        }
+        // 4. 후기 데이터 처리 (admin.html에서는 제거됨)
 
         // 5. 게스트 운영 설정 갱신
         loadGuestOpsPanel();

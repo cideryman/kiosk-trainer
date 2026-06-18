@@ -145,11 +145,15 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - Expanded `.review-list` scroll container max-height in `guest.html` from `320px` to `520px` to display photo cards comfortably.
   - Integrated momentum scrolling (`-webkit-overflow-scrolling: touch`) and custom styled scrollbars for a modern mobile feel.
 
-### 9) Dashboard Separation & Guest Review Viewer (Latest)
-* **Administrative Dashboard Separation**:
-  - Extracted the live order board from `admin.html` into a dedicated `kitchen.html` (주방 및 접수 화면). Kitchen staff can now manage orders without accessing sensitive admin databases.
-  - Added a delivery method filter (Pickup vs Delivery) in `kitchen.html` to help staff quickly filter and process incoming orders.
-  - Extracted the review moderation board into a dedicated `reviews.html` (후기 관리 화면) for clean reading and toggling public/private states.
+### 9) Dashboard Separation & Admin Stability Improvements (Latest)
+* **Administrative Dashboard Full Separation**:
+  - Extracted the live order board from `admin.html` into a dedicated `kitchen.html` (오늘 주문 운영).
+  - Extracted the review moderation board into a dedicated `reviews.html` (후기 관리 화면).
+  - `admin.html` (주간매점 관리자 설정) now only handles foundational data like users and snacks.
+* **Performance & Stability Optimization**:
+  - Fully isolated API calls for each specialized file to prevent freezing: `admin.html` no longer fetches orders or reviews, `kitchen.html` no longer fetches snacks or reviews, etc.
+  - Hardened JavaScript execution by adding `null` existence checks (`if (document.getElementById(...))`) before binding `addEventListener` across all admin-facing files, preventing runtime crashes when specific UI panels are absent.
+  - Added header navigation buttons across `admin.html`, `kitchen.html`, and `reviews.html` to allow seamless switching between administrative views.
 * **Guest Review Viewer Modal**:
   - Added a mobile-optimized modal to `guest.html` that allows guests to click on recent reviews to see them in a larger view.
   - Displays full-resolution photos without cropping, along with messages, tags, and stamps.
