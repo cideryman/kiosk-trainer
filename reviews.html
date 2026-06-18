@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>간식 키오스크 - 관리자 페이지</title>
+  <title>간식 키오스크 - 후기 관리 화면</title>
   <link rel="stylesheet" href="css/style.css">
   <!-- PWA 설정 -->
-  <link rel="manifest" href="manifest-admin.json">
+  <link rel="manifest" href="manifest-reviews.json">
   <meta name="theme-color" content="#2B2D42">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -663,14 +663,8 @@
     <!-- 관리자 헤더 -->
     <header class="kiosk-header admin-header">
       <div class="kiosk-header-top">
-        <h1 style="font-size: 26px;">📊 오늘 주문 현황 (관리자)</h1>
+        <h1 style="font-size: 26px;">💬 후기 관리 화면</h1>
         <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
-          <button class="btn-small-action" id="btnEnableSound" style="min-height: 48px; background-color: #38A169; color: white; border: none;">🔊 음성 알림 활성화</button>
-          <button class="btn-small-action" onclick="window.open('board.html', '_blank')" style="min-height: 48px; background-color: #7C3AED; color: white; border: none;">🖥️ 호출 전광판</button>
-          <button class="btn-small-action" onclick="window.open('print-bills.html', '_blank')" style="min-height: 48px; background-color: #ED8936; color: white; border: none;">🖨️ 오늘 주문 빌지 인쇄</button>
-          <button class="btn-small-action" id="btn-download-csv" style="min-height: 48px;">CSV 다운로드</button>
-          <button class="btn-small-action" id="btn-archive-old-orders" style="min-height: 48px; background-color: #4A5568; color: white; border: none;">지난 주문 보관 📁</button>
-          <button class="btn-small-action" id="btn-toggle-refresh" style="min-height: 48px;">일시정지</button>
           <button class="btn btn-primary" id="btn-manual-refresh" style="min-height: 48px; font-size: 16px; width: auto; padding: 0 16px; margin: 0;">
             🔄 지금 새로고침
           </button>
@@ -689,127 +683,35 @@
 
     <!-- 바디 -->
     <main class="kiosk-body">
-      <!-- 상단 요약 카드 (총 매출 크레딧, 총 주문 건수) -->
-      <div class="summary-grid" style="margin-bottom: 10px;">
-        <div class="summary-card" style="border-left: 5px solid var(--primary-color);">
-          <div class="summary-card-title">오늘 누적 사용 크레딧</div>
-          <div class="summary-card-value" id="stat-total-points">0 크레딧</div>
-        </div>
-        <div class="summary-card" style="border-left: 5px solid var(--secondary-color);">
-          <div class="summary-card-title">오늘 총 주문 건수</div>
-          <div class="summary-card-value" id="stat-total-orders">0건</div>
-        </div>
-      </div>
+      <!-- 다른 영역 제거됨 -->
 
-      <!-- 게스트 운영 관리 패널 제거됨 (kitchen.html로 분리) -->
-
-      <!-- 탭 메뉴 -->
-      <div class="admin-tabs">
-        <button class="admin-tab-btn active" id="btn-tab-users" onclick="switchTab('tab-users')">🪙 이용자 크레딧 관리</button>
-        <button class="admin-tab-btn" id="btn-tab-snacks" onclick="switchTab('tab-snacks')">🍪 간식 및 재고 관리</button>
-      </div>
-
-      <!-- 주문 처리 현황 탭 제거됨 (kitchen.html로 분리) -->
-
-      <!-- Tab 2: 이용자 크레딧 관리 -->
-      <div id="tab-users" class="admin-tab-content active" style="display: block;">
+      <!-- Tab 4: 후기 관리 -->
+      <div id="tab-reviews" class="admin-tab-content active" style="display: block;">
         <div class="snack-admin-layout">
           <div>
-            <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">🪙 이용자 크레딧 관리</div>
-            <div id="user-api-warning" class="error-box" style="display: none; margin-bottom: 16px; font-size: 16px;"></div>
-            <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-              <input type="text" id="search-user-input" placeholder="🔍 이용자 별명을 입력해 찾으세요..." class="search-input" style="flex: 1; min-width: 280px; padding: 12px; font-size: 18px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); font-weight: 700; margin: 0;">
-              <button class="btn btn-secondary" onclick="openAddUserModal()" style="min-height: 52px; font-size: 18px; font-weight: 800; margin: 0; width: auto; padding: 0 20px; box-shadow: var(--shadow-btn-sec); white-space: nowrap;">➕ 신규 이용자 등록</button>
-            </div>
+            <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color);">💬 게스트 후기 및 응원 내역</div>
             <div class="table-responsive">
               <table class="admin-table">
                 <thead>
                   <tr>
-                    <th>이용자</th>
-                    <th style="text-align: center;">상태</th>
-                    <th>보유 크레딧</th>
-                    <th style="text-align: center;">증감 조정</th>
-                    <th style="text-align: center;">목표 크레딧</th>
-                    <th style="text-align: center;">관리</th>
+                    <th>작성 시간</th>
+                    <th>주문 번호</th>
+                    <th>게스트명</th>
+                    <th>칭찬 스탬프</th>
+                    <th>태그</th>
+                    <th>한마디 응원</th>
+                    <th style="text-align: center;">후기 사진</th>
+                    <th style="text-align: center;">공개 여부</th>
                   </tr>
                 </thead>
-                <tbody id="user-management-body">
+                <tbody id="review-table-body">
                   <!-- JS 동적 생성 -->
                 </tbody>
               </table>
             </div>
           </div>
-
-
-
-          <div>
-            <div class="admin-section-title" style="color: var(--text-muted); border-left-color: var(--border-color);">🔐 관리자 변경 설정</div>
-            <div class="form-panel">
-              <div class="token-status" id="admin-token-status">관리자 비밀번호 상태 확인 중</div>
-              <div class="form-field">
-                <label for="admin-change-memo">다음 관리자 변경 로그에 남길 메모</label>
-                <input type="text" id="admin-change-memo" placeholder="예: 월초 충전, 테스트 조정">
-              </div>
-              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <button class="btn-small-action" onclick="setAdminTokenManually()">비밀번호 다시 입력</button>
-                <button class="btn-danger-action" onclick="clearAdminTokenManual()">저장된 비밀번호 지우기</button>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
-
-      <!-- Tab 3: 간식 및 재고 관리 -->
-      <div id="tab-snacks" class="admin-tab-content">
-        <div class="snack-admin-layout">
-          <div id="snack-api-warning" class="error-box" style="display: none; margin-bottom: 0px; font-size: 16px; font-weight: 700; padding: 12px; border-radius: var(--radius-sm); border: 2px solid;"></div>
-
-          <!-- ★ 표시 순서 편집 패널 -->
-          <div>
-            <div class="admin-section-title" style="color: #7C3AED; border-left-color: #7C3AED;">
-              🔢 간식 표시 순서
-              <span style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-left: 8px;">↑↓ 버튼 또는 드래그로 순서를 바꾸세요</span>
-            </div>
-            <div class="form-panel" style="background: linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%); border-color: #C4B5FD;">
-              <div class="snack-order-list" id="snack-order-list">
-                <!-- JS 동적 생성 -->
-              </div>
-              <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; align-items: center;">
-                <button class="btn-small-action" onclick="resetSnackOrder()" style="background-color: #6B7280; font-size: 13px; padding: 6px 12px;">기본 순서로 초기화</button>
-                <span style="font-size: 13px; font-weight: 700; color: #7C3AED;">✅ 변경 즉시 이용자 화면에 반영됩니다</span>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
-              <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color); margin-bottom: 0;">🍪 간식 목록 및 재고 관리</div>
-              <button class="btn btn-secondary" onclick="openAddSnackModal()" style="min-height: 52px; font-size: 18px; font-weight: 800; margin: 0; width: auto; padding: 0 20px; box-shadow: var(--shadow-btn-sec); white-space: nowrap;">➕ 신규 간식 등록</button>
-            </div>
-            <div class="table-responsive">
-              <table class="admin-table">
-                <thead>
-                  <tr>
-                    <th>간식명</th>
-                    <th style="text-align: center;">판매대상</th>
-                    <th style="text-align: center;">상태</th>
-                    <th>가격</th>
-                    <th style="text-align: center;">현재 재고</th>
-                    <th style="text-align: center;">재고 조정</th>
-                  </tr>
-                </thead>
-                <tbody id="snack-management-body">
-                  <!-- JS 동적 생성 -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-
-        </div>
-      </div>
-
-      <!-- Tab 4: 후기 관리 제거됨 (reviews.html로 분리) -->
 
     </main>
 
@@ -821,171 +723,7 @@
     </footer>
   </div>
 
-  <!-- 신규 이용자 추가 모달 -->
-  <div class="admin-modal" id="modal-add-user">
-    <div class="admin-modal-content">
-      <div class="admin-modal-header">
-        <h2 class="admin-modal-title">➕ 신규 이용자 등록</h2>
-        <button class="admin-modal-close" onclick="closeAddUserModal()">&times;</button>
-      </div>
-      <div class="admin-modal-body">
-        <div class="form-field">
-          <label for="new-user-nickname">별명</label>
-          <input type="text" id="new-user-nickname" placeholder="예: 이니">
-        </div>
-        <div class="form-field">
-          <label for="new-user-credit">초기 크레딧</label>
-          <input type="number" id="new-user-credit" min="0" value="10">
-        </div>
-        <div class="form-field">
-          <label for="new-user-image">사진 등록</label>
-          <input type="text" id="new-user-image" placeholder="구글 드라이브 링크 (선택)" style="width: 100%; margin-bottom: 6px;">
-          <input type="file" id="new-user-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'new-user-image', 'new-user-nickname', 'user')">
-          <button type="button" class="btn btn-gray" style="min-height: 40px; margin: 0; font-size: 14px; font-weight: 800; border: 2px solid var(--border-color); background-color: #F8F9FA; width: 100%;" onclick="document.getElementById('new-user-file').click()">📷 기기에서 사진 선택하여 업로드</button>
-        </div>
-      </div>
-      <div class="admin-modal-footer">
-        <button class="btn btn-gray" onclick="closeAddUserModal()" style="flex: 1; min-height: 48px; font-size: 16px;">취소</button>
-        <button class="btn btn-secondary" onclick="addNewUserAction()" style="flex: 1; min-height: 48px; font-size: 16px; margin: 0;">등록하기</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 신규 간식 추가 모달 -->
-  <div class="admin-modal" id="modal-add-snack">
-    <div class="admin-modal-content">
-      <div class="admin-modal-header">
-        <h2 class="admin-modal-title">➕ 신규 간식 등록</h2>
-        <button class="admin-modal-close" onclick="closeAddSnackModal()">&times;</button>
-      </div>
-      <div class="admin-modal-body">
-        <div class="form-field">
-          <label for="new-snack-name">간식 이름</label>
-          <input type="text" id="new-snack-name" placeholder="예: 초코쿠키">
-        </div>
-        <div class="form-field">
-          <label for="new-snack-point">가격 (크레딧)</label>
-          <input type="number" id="new-snack-point" min="1" value="1">
-        </div>
-        <div class="form-field">
-          <label for="new-snack-image">이미지 등록 (구글 드라이브 또는 공백)</label>
-          <input type="text" id="new-snack-image" placeholder="공유용 이미지 링크 (선택)" style="width: 100%; margin-bottom: 6px;">
-          <input type="file" id="new-snack-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'new-snack-image', 'new-snack-name', 'snack')">
-          <button type="button" class="btn btn-gray" style="min-height: 40px; margin: 0; font-size: 14px; font-weight: 800; border: 2px solid var(--border-color); background-color: #F8F9FA; width: 100%;" onclick="document.getElementById('new-snack-file').click()">📷 기기에서 이미지 선택하여 업로드</button>
-        </div>
-        <div class="form-field">
-          <label for="new-snack-stock">초기 입고 재고량</label>
-          <input type="number" id="new-snack-stock" min="0" value="10">
-        </div>
-        <div class="form-field">
-          <label for="new-snack-target">판매 대상</label>
-          <select id="new-snack-target" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
-            <option value="user">일반 이용자만</option>
-            <option value="guest">게스트만</option>
-            <option value="both">둘 다 표시</option>
-          </select>
-        </div>
-      </div>
-      <div class="admin-modal-footer">
-        <button class="btn btn-gray" onclick="closeAddSnackModal()" style="flex: 1; min-height: 48px; font-size: 16px;">취소</button>
-        <button class="btn btn-secondary" onclick="addNewSnackAction()" style="flex: 1; min-height: 48px; font-size: 16px; margin: 0;">등록하기</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 이용자 정보 수정 모달 -->
-  <div class="admin-modal" id="modal-edit-user">
-    <div class="admin-modal-content">
-      <div class="admin-modal-header">
-        <h2 class="admin-modal-title">🪙 이용자 정보 수정</h2>
-        <button class="admin-modal-close" onclick="closeEditUserModal()">&times;</button>
-      </div>
-      <div class="admin-modal-body">
-        <input type="hidden" id="edit-user-id">
-        <div class="form-field">
-          <label for="edit-user-nickname">별명</label>
-          <input type="text" id="edit-user-nickname">
-        </div>
-        <div class="form-field">
-          <label for="edit-user-credit">크레딧</label>
-          <input type="number" id="edit-user-credit" min="0">
-        </div>
-        <div class="form-field">
-          <label for="edit-user-image">사진 등록 (구글 드라이브 등)</label>
-          <input type="text" id="edit-user-image" style="width: 100%; margin-bottom: 6px;" placeholder="구글 드라이브 링크">
-          <input type="file" id="edit-user-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'edit-user-image', 'edit-user-nickname', 'user')">
-          <button type="button" class="btn btn-gray" style="min-height: 40px; margin: 0; font-size: 14px; font-weight: 800; border: 2px solid var(--border-color); background-color: #F8F9FA; width: 100%;" onclick="document.getElementById('edit-user-file').click()">📷 기기에서 사진 선택하여 업로드</button>
-        </div>
-        <div class="form-field">
-          <label>활성 상태</label>
-          <div style="display: flex; gap: 20px; align-items: center; margin-top: 4px; padding: 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background: #F8FAFC;">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 16px; font-weight: 800; color: #22543D;">
-              <input type="radio" name="edit-user-active" value="Y" style="width: 20px; height: 20px; accent-color: #38A169;"> 🟢 활성
-            </label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 16px; font-weight: 800; color: #742A2A;">
-              <input type="radio" name="edit-user-active" value="N" style="width: 20px; height: 20px; accent-color: #E53E3E;"> 🔴 비활성
-            </label>
-          </div>
-        </div>
-      </div>
-      <div class="admin-modal-footer">
-        <button class="btn btn-gray" onclick="closeEditUserModal()" style="flex: 1; min-height: 48px; font-size: 16px;">취소</button>
-        <button class="btn btn-secondary" onclick="updateUserAction()" style="flex: 1; min-height: 48px; font-size: 16px; margin: 0;">저장하기</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 간식 정보 수정 모달 -->
-  <div class="admin-modal" id="modal-edit-snack">
-    <div class="admin-modal-content">
-      <div class="admin-modal-header">
-        <h2 class="admin-modal-title">🍪 간식 정보 수정</h2>
-        <button class="admin-modal-close" onclick="closeEditSnackModal()">&times;</button>
-      </div>
-      <div class="admin-modal-body">
-        <input type="hidden" id="edit-snack-id">
-        <div class="form-field">
-          <label for="edit-snack-name">간식 이름</label>
-          <input type="text" id="edit-snack-name">
-        </div>
-        <div class="form-field">
-          <label for="edit-snack-point">가격 (크레딧)</label>
-          <input type="number" id="edit-snack-point" min="1">
-        </div>
-        <div class="form-field">
-          <label for="edit-snack-image">이미지 등록 (구글 드라이브 등)</label>
-          <input type="text" id="edit-snack-image" style="width: 100%; margin-bottom: 6px;" placeholder="구글 드라이브 링크">
-          <input type="file" id="edit-snack-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'edit-snack-image', 'edit-snack-name', 'snack')">
-          <button type="button" class="btn btn-gray" style="min-height: 40px; margin: 0; font-size: 14px; font-weight: 800; border: 2px solid var(--border-color); background-color: #F8F9FA; width: 100%;" onclick="document.getElementById('edit-snack-file').click()">📷 기기에서 이미지 선택하여 업로드</button>
-        </div>
-        <div class="form-field">
-          <label for="edit-snack-stock">재고 수량</label>
-          <input type="number" id="edit-snack-stock" min="0">
-        </div>
-        <div class="form-field">
-          <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">판매 상태</label>
-          <select id="edit-snack-sale" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
-            <option value="Y">판매중</option>
-            <option value="N">숨김</option>
-          </select>
-        </div>
-        <div class="form-field">
-          <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">판매 대상</label>
-          <select id="edit-snack-target" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
-            <option value="user">일반 이용자만</option>
-            <option value="guest">게스트만</option>
-            <option value="both">둘 다 표시</option>
-          </select>
-        </div>
-      </div>
-      <div class="admin-modal-footer">
-        <button class="btn btn-gray" onclick="closeEditSnackModal()" style="flex: 1; min-height: 48px; font-size: 16px;">취소</button>
-        <button class="btn btn-secondary" onclick="updateSnackAction()" style="flex: 1; min-height: 48px; font-size: 16px; margin: 0;">저장하기</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 주문 취소 사유 모달 제거됨 -->
+  <!-- 다른 모달 제거됨 -->
 
   <!-- 스크립트 참조 -->
   <script src="js/config.js"></script>

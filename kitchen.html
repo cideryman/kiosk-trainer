@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>간식 키오스크 - 관리자 페이지</title>
+  <title>간식 키오스크 - 주방 및 접수 화면</title>
   <link rel="stylesheet" href="css/style.css">
   <!-- PWA 설정 -->
-  <link rel="manifest" href="manifest-admin.json">
+  <link rel="manifest" href="manifest-kitchen.json">
   <meta name="theme-color" content="#2B2D42">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -701,115 +701,158 @@
         </div>
       </div>
 
-      <!-- 게스트 운영 관리 패널 제거됨 (kitchen.html로 분리) -->
-
-      <!-- 탭 메뉴 -->
-      <div class="admin-tabs">
-        <button class="admin-tab-btn active" id="btn-tab-users" onclick="switchTab('tab-users')">🪙 이용자 크레딧 관리</button>
-        <button class="admin-tab-btn" id="btn-tab-snacks" onclick="switchTab('tab-snacks')">🍪 간식 및 재고 관리</button>
-      </div>
-
-      <!-- 주문 처리 현황 탭 제거됨 (kitchen.html로 분리) -->
-
-      <!-- Tab 2: 이용자 크레딧 관리 -->
-      <div id="tab-users" class="admin-tab-content active" style="display: block;">
-        <div class="snack-admin-layout">
-          <div>
-            <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">🪙 이용자 크레딧 관리</div>
-            <div id="user-api-warning" class="error-box" style="display: none; margin-bottom: 16px; font-size: 16px;"></div>
-            <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-              <input type="text" id="search-user-input" placeholder="🔍 이용자 별명을 입력해 찾으세요..." class="search-input" style="flex: 1; min-width: 280px; padding: 12px; font-size: 18px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); font-weight: 700; margin: 0;">
-              <button class="btn btn-secondary" onclick="openAddUserModal()" style="min-height: 52px; font-size: 18px; font-weight: 800; margin: 0; width: auto; padding: 0 20px; box-shadow: var(--shadow-btn-sec); white-space: nowrap;">➕ 신규 이용자 등록</button>
+      <!-- 게스트 운영 관리 패널 -->
+      <div id="guest-ops-panel" style="margin-bottom: 16px; background-color: var(--card-bg); border: 3px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; box-shadow: var(--shadow-sm);">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 14px;">
+          <div style="font-size: 20px; font-weight: 850; color: var(--text-main);">🎫 게스트 주문 운영</div>
+          <div id="guest-ops-status-badge" style="padding: 6px 14px; border-radius: 999px; font-size: 15px; font-weight: 900; border: 2px solid #CED4DA; background-color: #F8F9FA; color: var(--text-muted);">
+            로딩 중...
+          </div>
+        </div>
+        <div id="guest-ops-info" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; font-size: 16px; font-weight: 700; color: var(--text-muted);">
+          <div>⏰ 마감 예정: <span id="guest-ops-close-time">-</span></div>
+          <div>⏳ 남은 시간: <span id="guest-ops-remaining">-</span></div>
+          <div style="display: flex; gap: 12px; align-items: center; margin-top: 4px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span>🪙 기본 크레딧:</span>
+              <input type="number" id="input-guest-credit" class="admin-inline-input" value="10" min="0" style="width: 70px;">
             </div>
-            <div class="table-responsive">
-              <table class="admin-table">
-                <thead>
-                  <tr>
-                    <th>이용자</th>
-                    <th style="text-align: center;">상태</th>
-                    <th>보유 크레딧</th>
-                    <th style="text-align: center;">증감 조정</th>
-                    <th style="text-align: center;">목표 크레딧</th>
-                    <th style="text-align: center;">관리</th>
-                  </tr>
-                </thead>
-                <tbody id="user-management-body">
-                  <!-- JS 동적 생성 -->
-                </tbody>
-              </table>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span>배달비:</span>
+              <input type="number" id="input-guest-fee" class="admin-inline-input" value="3" min="0" style="width: 70px;">
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span>기본 배달지:</span>
+              <input type="text" id="input-guest-delivery-place" class="admin-inline-input" value="사무실 원탁" style="width: 140px; text-align: left; padding: 6px 10px;">
             </div>
           </div>
-
-
-
-          <div>
-            <div class="admin-section-title" style="color: var(--text-muted); border-left-color: var(--border-color);">🔐 관리자 변경 설정</div>
-            <div class="form-panel">
-              <div class="token-status" id="admin-token-status">관리자 비밀번호 상태 확인 중</div>
-              <div class="form-field">
-                <label for="admin-change-memo">다음 관리자 변경 로그에 남길 메모</label>
-                <input type="text" id="admin-change-memo" placeholder="예: 월초 충전, 테스트 조정">
+          <div style="display: flex; gap: 12px; align-items: center; margin-top: 8px; flex-wrap: wrap;">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 800; color: #E65100;">
+              <input type="checkbox" id="input-guest-allow-multiple" style="width: 18px; height: 18px; accent-color: var(--secondary-color);"> 진행 중 주문이 있어도 추가 주문 허용
+            </label>
+          </div>
+          <!-- 오늘의 배달팀 설정 추가 -->
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 2px dashed var(--border-color);">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+              <div style="font-size: 16px; font-weight: 800; color: var(--text-main);">📦 오늘의 배달팀 설정</div>
+              <button class="btn-small-action" onclick="saveGuestSettings()" style="background-color: var(--secondary-color); min-height: 38px;">설정 저장</button>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 700;">
+                <input type="checkbox" id="input-team-enabled" style="width: 18px; height: 18px; accent-color: var(--secondary-color);"> 표시하기
+              </label>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span>타이틀:</span>
+                <input type="text" id="input-team-title" class="admin-inline-input" style="width: 160px; text-align: left; padding: 6px 10px;" placeholder="📦 오늘의 배달팀">
               </div>
-              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <button class="btn-small-action" onclick="setAdminTokenManually()">비밀번호 다시 입력</button>
-                <button class="btn-danger-action" onclick="clearAdminTokenManual()">저장된 비밀번호 지우기</button>
-              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <span>멤버:</span>
+              <input type="text" id="input-team-members" class="admin-inline-input" style="flex: 1; min-width: 200px; text-align: left; padding: 6px 10px;" placeholder="김○○|배달 담당, 박○○|상품 준비 담당">
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <span>한마디:</span>
+              <input type="text" id="input-team-message" class="admin-inline-input" style="flex: 1; min-width: 200px; text-align: left; padding: 6px 10px;" placeholder="맛있게 준비해서 배달하겠습니다!">
             </div>
           </div>
         </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button class="btn-small-action" id="btn-guest-open20" style="flex: 1; min-height: 48px; font-size: 16px; background-color: #38A169; white-space: nowrap;">⏱ 20분 열기</button>
+          <button class="btn-small-action" id="btn-guest-open30" style="flex: 1; min-height: 48px; font-size: 16px; background-color: #2B6CB0; white-space: nowrap;">⏱ 30분 열기</button>
+          <button class="btn-danger-action" id="btn-guest-close" style="flex: 1; min-height: 48px; font-size: 16px; white-space: nowrap;">🛑 지금 마감</button>
+        </div>
       </div>
 
-      <!-- Tab 3: 간식 및 재고 관리 -->
-      <div id="tab-snacks" class="admin-tab-content">
-        <div class="snack-admin-layout">
-          <div id="snack-api-warning" class="error-box" style="display: none; margin-bottom: 0px; font-size: 16px; font-weight: 700; padding: 12px; border-radius: var(--radius-sm); border: 2px solid;"></div>
+      <!-- 탭 메뉴 제거됨 (단일 페이지 화면) -->
 
-          <!-- ★ 표시 순서 편집 패널 -->
-          <div>
-            <div class="admin-section-title" style="color: #7C3AED; border-left-color: #7C3AED;">
-              🔢 간식 표시 순서
-              <span style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-left: 8px;">↑↓ 버튼 또는 드래그로 순서를 바꾸세요</span>
+      <!-- Tab 1: 주문 처리 현황 -->
+      <div id="tab-orders" class="admin-tab-content active">
+        <!-- 양단 레이아웃 (PC에서는 2열, 모바일은 1열 종종배치) -->
+        <div class="admin-layout">
+          <!-- 메인: 주문 상세 및 대시보드 제어 -->
+          <div class="admin-main">
+            <!-- 미제공 간식 총량 집계 보드 -->
+            <div class="admin-summary-board" id="admin-summary-board" style="display: none; margin-bottom: 20px;">
+              <!-- JS 동적 생성 -->
             </div>
-            <div class="form-panel" style="background: linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%); border-color: #C4B5FD;">
-              <div class="snack-order-list" id="snack-order-list">
+
+            <!-- 대기 중인 주문 카드 목록 -->
+            <div style="margin-bottom: 25px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 10px;">
+                <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color); margin-bottom: 0;">⏳ 간식 챙겨주기 (제공 대기)</div>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                  <label for="delivery-filter" style="font-size: 15px; font-weight: 800; color: var(--text-muted);">수령방식:</label>
+                  <select id="delivery-filter" onchange="filterDeliveryOrders()" style="padding: 6px 12px; font-size: 15px; font-weight: 700; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;">
+                    <option value="all">전체보기</option>
+                    <option value="pickup">포장만 보기</option>
+                    <option value="delivery">배달만 보기</option>
+                  </select>
+                </div>
+              </div>
+              <!-- 일괄 처리 컨트롤 바 (대기 주문 있을 때만 표시) -->
+              <div class="bulk-action-bar" id="bulk-action-bar" style="display: none;">
+                <span class="bulk-count" id="bulk-count-text">선택된 주문: 0건</span>
+                <button class="btn-bulk-selected" id="btn-bulk-selected" onclick="completeSelectedOrders()" disabled>✅ 선택 제공</button>
+                <button class="btn-bulk-all" id="btn-bulk-all" onclick="completeAllOrders()">🚀 모두 제공</button>
+              </div>
+              <div id="pending-orders-group" class="pending-group-container">
                 <!-- JS 동적 생성 -->
               </div>
-              <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; align-items: center;">
-                <button class="btn-small-action" onclick="resetSnackOrder()" style="background-color: #6B7280; font-size: 13px; padding: 6px 12px;">기본 순서로 초기화</button>
-                <span style="font-size: 13px; font-weight: 700; color: #7C3AED;">✅ 변경 즉시 이용자 화면에 반영됩니다</span>
+            </div>
+
+            <!-- 제공 완료 목록 -->
+            <div>
+              <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color);">✅ 제공 완료 목록 (오늘)</div>
+              <div class="table-responsive">
+                <table class="admin-table">
+                  <thead>
+                    <tr>
+                      <th>주문 시간</th>
+                      <th>이용자</th>
+                      <th>간식명</th>
+                      <th style="text-align: center;">수량</th>
+                      <th style="text-align: right;">사용포인트</th>
+                      <th style="text-align: center;">작업</th>
+                    </tr>
+                  </thead>
+                  <tbody id="order-table-body">
+                    <!-- JS 동적 생성 -->
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
 
-          <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
-              <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color); margin-bottom: 0;">🍪 간식 목록 및 재고 관리</div>
-              <button class="btn btn-secondary" onclick="openAddSnackModal()" style="min-height: 52px; font-size: 18px; font-weight: 800; margin: 0; width: auto; padding: 0 20px; box-shadow: var(--shadow-btn-sec); white-space: nowrap;">➕ 신규 간식 등록</button>
+          <!-- 사이드: 집계 정보 -->
+          <div class="admin-side">
+            <!-- 1. 간식별 집계 -->
+            <div>
+              <div class="admin-section-title">간식별 집계 (인기순)</div>
+              <div class="stat-list" id="snack-stats">
+                <!-- JS 동적 생성 -->
+              </div>
             </div>
-            <div class="table-responsive">
-              <table class="admin-table">
-                <thead>
-                  <tr>
-                    <th>간식명</th>
-                    <th style="text-align: center;">판매대상</th>
-                    <th style="text-align: center;">상태</th>
-                    <th>가격</th>
-                    <th style="text-align: center;">현재 재고</th>
-                    <th style="text-align: center;">재고 조정</th>
-                  </tr>
-                </thead>
-                <tbody id="snack-management-body">
-                  <!-- JS 동적 생성 -->
-                </tbody>
-              </table>
+
+            <!-- 2. 이용자별 집계 -->
+            <div style="margin-top: 10px;">
+              <div class="admin-section-title">이용자별 주문 건수</div>
+              <div class="stat-list" id="user-stats">
+                <!-- JS 동적 생성 -->
+              </div>
+            </div>
+
+            <!-- 3. 현재 간식 재고 현황 -->
+            <div style="margin-top: 20px;">
+              <div class="admin-section-title">현재 간식 재고 현황</div>
+              <div class="stat-list" id="snack-stock-list">
+                <!-- JS 동적 생성 -->
+              </div>
             </div>
           </div>
-
-
         </div>
       </div>
 
-      <!-- Tab 4: 후기 관리 제거됨 (reviews.html로 분리) -->
+      <!-- 기타 탭 제거됨 -->
 
     </main>
 
@@ -821,171 +864,40 @@
     </footer>
   </div>
 
-  <!-- 신규 이용자 추가 모달 -->
-  <div class="admin-modal" id="modal-add-user">
-    <div class="admin-modal-content">
-      <div class="admin-modal-header">
-        <h2 class="admin-modal-title">➕ 신규 이용자 등록</h2>
-        <button class="admin-modal-close" onclick="closeAddUserModal()">&times;</button>
-      </div>
-      <div class="admin-modal-body">
-        <div class="form-field">
-          <label for="new-user-nickname">별명</label>
-          <input type="text" id="new-user-nickname" placeholder="예: 이니">
-        </div>
-        <div class="form-field">
-          <label for="new-user-credit">초기 크레딧</label>
-          <input type="number" id="new-user-credit" min="0" value="10">
-        </div>
-        <div class="form-field">
-          <label for="new-user-image">사진 등록</label>
-          <input type="text" id="new-user-image" placeholder="구글 드라이브 링크 (선택)" style="width: 100%; margin-bottom: 6px;">
-          <input type="file" id="new-user-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'new-user-image', 'new-user-nickname', 'user')">
-          <button type="button" class="btn btn-gray" style="min-height: 40px; margin: 0; font-size: 14px; font-weight: 800; border: 2px solid var(--border-color); background-color: #F8F9FA; width: 100%;" onclick="document.getElementById('new-user-file').click()">📷 기기에서 사진 선택하여 업로드</button>
-        </div>
-      </div>
-      <div class="admin-modal-footer">
-        <button class="btn btn-gray" onclick="closeAddUserModal()" style="flex: 1; min-height: 48px; font-size: 16px;">취소</button>
-        <button class="btn btn-secondary" onclick="addNewUserAction()" style="flex: 1; min-height: 48px; font-size: 16px; margin: 0;">등록하기</button>
-      </div>
-    </div>
-  </div>
+  <!-- 무관한 모달 제거됨 -->
 
-  <!-- 신규 간식 추가 모달 -->
-  <div class="admin-modal" id="modal-add-snack">
-    <div class="admin-modal-content">
+  <!-- 주문 취소 사유 모달 -->
+  <div class="admin-modal" id="modal-cancel-reason">
+    <div class="admin-modal-content" style="max-width: 400px;">
       <div class="admin-modal-header">
-        <h2 class="admin-modal-title">➕ 신규 간식 등록</h2>
-        <button class="admin-modal-close" onclick="closeAddSnackModal()">&times;</button>
+        <h2 class="admin-modal-title">🚫 주문 취소</h2>
+        <button class="admin-modal-close" onclick="closeCancelReasonModal()">&times;</button>
       </div>
       <div class="admin-modal-body">
+        <p id="cancel-modal-desc" style="font-size: 15px; color: var(--text-main); margin-bottom: 16px; font-weight: 700;"></p>
         <div class="form-field">
-          <label for="new-snack-name">간식 이름</label>
-          <input type="text" id="new-snack-name" placeholder="예: 초코쿠키">
-        </div>
-        <div class="form-field">
-          <label for="new-snack-point">가격 (크레딧)</label>
-          <input type="number" id="new-snack-point" min="1" value="1">
-        </div>
-        <div class="form-field">
-          <label for="new-snack-image">이미지 등록 (구글 드라이브 또는 공백)</label>
-          <input type="text" id="new-snack-image" placeholder="공유용 이미지 링크 (선택)" style="width: 100%; margin-bottom: 6px;">
-          <input type="file" id="new-snack-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'new-snack-image', 'new-snack-name', 'snack')">
-          <button type="button" class="btn btn-gray" style="min-height: 40px; margin: 0; font-size: 14px; font-weight: 800; border: 2px solid var(--border-color); background-color: #F8F9FA; width: 100%;" onclick="document.getElementById('new-snack-file').click()">📷 기기에서 이미지 선택하여 업로드</button>
-        </div>
-        <div class="form-field">
-          <label for="new-snack-stock">초기 입고 재고량</label>
-          <input type="number" id="new-snack-stock" min="0" value="10">
-        </div>
-        <div class="form-field">
-          <label for="new-snack-target">판매 대상</label>
-          <select id="new-snack-target" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
-            <option value="user">일반 이용자만</option>
-            <option value="guest">게스트만</option>
-            <option value="both">둘 다 표시</option>
+          <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">취소 사유 선택 <span style="color: var(--danger-color);">*</span></label>
+          <select id="cancel-reason-select" style="padding: 12px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;" onchange="toggleCancelReasonDetail()">
+            <option value="">사유를 선택해주세요</option>
+            <option value="재고 부족">재고 부족</option>
+            <option value="주문자 요청">주문자 요청</option>
+            <option value="중복 주문">중복 주문</option>
+            <option value="운영 마감">운영 마감</option>
+            <option value="배달 불가">배달 불가</option>
+            <option value="기타">기타 (직접 입력)</option>
           </select>
         </div>
-      </div>
-      <div class="admin-modal-footer">
-        <button class="btn btn-gray" onclick="closeAddSnackModal()" style="flex: 1; min-height: 48px; font-size: 16px;">취소</button>
-        <button class="btn btn-secondary" onclick="addNewSnackAction()" style="flex: 1; min-height: 48px; font-size: 16px; margin: 0;">등록하기</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 이용자 정보 수정 모달 -->
-  <div class="admin-modal" id="modal-edit-user">
-    <div class="admin-modal-content">
-      <div class="admin-modal-header">
-        <h2 class="admin-modal-title">🪙 이용자 정보 수정</h2>
-        <button class="admin-modal-close" onclick="closeEditUserModal()">&times;</button>
-      </div>
-      <div class="admin-modal-body">
-        <input type="hidden" id="edit-user-id">
-        <div class="form-field">
-          <label for="edit-user-nickname">별명</label>
-          <input type="text" id="edit-user-nickname">
-        </div>
-        <div class="form-field">
-          <label for="edit-user-credit">크레딧</label>
-          <input type="number" id="edit-user-credit" min="0">
-        </div>
-        <div class="form-field">
-          <label for="edit-user-image">사진 등록 (구글 드라이브 등)</label>
-          <input type="text" id="edit-user-image" style="width: 100%; margin-bottom: 6px;" placeholder="구글 드라이브 링크">
-          <input type="file" id="edit-user-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'edit-user-image', 'edit-user-nickname', 'user')">
-          <button type="button" class="btn btn-gray" style="min-height: 40px; margin: 0; font-size: 14px; font-weight: 800; border: 2px solid var(--border-color); background-color: #F8F9FA; width: 100%;" onclick="document.getElementById('edit-user-file').click()">📷 기기에서 사진 선택하여 업로드</button>
-        </div>
-        <div class="form-field">
-          <label>활성 상태</label>
-          <div style="display: flex; gap: 20px; align-items: center; margin-top: 4px; padding: 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background: #F8FAFC;">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 16px; font-weight: 800; color: #22543D;">
-              <input type="radio" name="edit-user-active" value="Y" style="width: 20px; height: 20px; accent-color: #38A169;"> 🟢 활성
-            </label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 16px; font-weight: 800; color: #742A2A;">
-              <input type="radio" name="edit-user-active" value="N" style="width: 20px; height: 20px; accent-color: #E53E3E;"> 🔴 비활성
-            </label>
-          </div>
+        <div class="form-field" id="cancel-reason-detail-container" style="display: none;">
+          <label for="cancel-reason-detail" style="font-size: 16px; font-weight: 800; color: var(--text-main);">상세 사유 입력 <span style="color: var(--danger-color);">*</span></label>
+          <input type="text" id="cancel-reason-detail" placeholder="취소 사유를 입력해 주세요." style="padding: 12px; font-size: 16px;">
         </div>
       </div>
       <div class="admin-modal-footer">
-        <button class="btn btn-gray" onclick="closeEditUserModal()" style="flex: 1; min-height: 48px; font-size: 16px;">취소</button>
-        <button class="btn btn-secondary" onclick="updateUserAction()" style="flex: 1; min-height: 48px; font-size: 16px; margin: 0;">저장하기</button>
+        <button class="btn btn-gray" onclick="closeCancelReasonModal()" style="flex: 1; min-height: 48px; font-size: 16px;">닫기</button>
+        <button class="btn btn-secondary" onclick="submitCancelOrder()" style="flex: 1; min-height: 48px; font-size: 16px; margin: 0; background-color: var(--danger-color); border-color: var(--danger-color);">취소 처리</button>
       </div>
     </div>
   </div>
-
-  <!-- 간식 정보 수정 모달 -->
-  <div class="admin-modal" id="modal-edit-snack">
-    <div class="admin-modal-content">
-      <div class="admin-modal-header">
-        <h2 class="admin-modal-title">🍪 간식 정보 수정</h2>
-        <button class="admin-modal-close" onclick="closeEditSnackModal()">&times;</button>
-      </div>
-      <div class="admin-modal-body">
-        <input type="hidden" id="edit-snack-id">
-        <div class="form-field">
-          <label for="edit-snack-name">간식 이름</label>
-          <input type="text" id="edit-snack-name">
-        </div>
-        <div class="form-field">
-          <label for="edit-snack-point">가격 (크레딧)</label>
-          <input type="number" id="edit-snack-point" min="1">
-        </div>
-        <div class="form-field">
-          <label for="edit-snack-image">이미지 등록 (구글 드라이브 등)</label>
-          <input type="text" id="edit-snack-image" style="width: 100%; margin-bottom: 6px;" placeholder="구글 드라이브 링크">
-          <input type="file" id="edit-snack-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'edit-snack-image', 'edit-snack-name', 'snack')">
-          <button type="button" class="btn btn-gray" style="min-height: 40px; margin: 0; font-size: 14px; font-weight: 800; border: 2px solid var(--border-color); background-color: #F8F9FA; width: 100%;" onclick="document.getElementById('edit-snack-file').click()">📷 기기에서 이미지 선택하여 업로드</button>
-        </div>
-        <div class="form-field">
-          <label for="edit-snack-stock">재고 수량</label>
-          <input type="number" id="edit-snack-stock" min="0">
-        </div>
-        <div class="form-field">
-          <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">판매 상태</label>
-          <select id="edit-snack-sale" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
-            <option value="Y">판매중</option>
-            <option value="N">숨김</option>
-          </select>
-        </div>
-        <div class="form-field">
-          <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">판매 대상</label>
-          <select id="edit-snack-target" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
-            <option value="user">일반 이용자만</option>
-            <option value="guest">게스트만</option>
-            <option value="both">둘 다 표시</option>
-          </select>
-        </div>
-      </div>
-      <div class="admin-modal-footer">
-        <button class="btn btn-gray" onclick="closeEditSnackModal()" style="flex: 1; min-height: 48px; font-size: 16px;">취소</button>
-        <button class="btn btn-secondary" onclick="updateSnackAction()" style="flex: 1; min-height: 48px; font-size: 16px; margin: 0;">저장하기</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 주문 취소 사유 모달 제거됨 -->
 
   <!-- 스크립트 참조 -->
   <script src="js/config.js"></script>

@@ -1,10 +1,12 @@
-const CACHE_NAME = 'kiosk-cache-v56';
+const CACHE_NAME = 'kiosk-cache-v57';
 const urlsToCache = [
   'index.html',
   'menu.html',
   'confirm.html',
   'complete.html',
   'admin.html',
+  'kitchen.html',
+  'reviews.html',
   'guest.html',
   'guest-orders.html',
   'board.html',
@@ -13,6 +15,8 @@ const urlsToCache = [
   'js/config.js',
   'manifest-kiosk.json',
   'manifest-admin.json',
+  'manifest-kitchen.json',
+  'manifest-reviews.json',
   'manifest-board.json',
   'manifest-guest.json',
   'icons/kiosk-192.png',
