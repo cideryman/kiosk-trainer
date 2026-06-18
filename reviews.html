@@ -929,7 +929,7 @@
       }
 
       const tbody = document.getElementById('order-table-body');
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px; font-weight: 700;">데이터를 불러오는 중...</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px; font-weight: 700;">데이터를 불러오는 중...</td></tr>';
 
       const stockListEl = document.getElementById('snack-stock-list');
       if (stockListEl) {
@@ -937,123 +937,24 @@
       }
 
       try {
-        const [ordersRes, snacksRes, usersRes, reviewsRes] = await Promise.all([
-          fetchAPI('getOrdersToday'),
-          fetchAPI('getSnacks', { params: { includeHidden: 'Y' } }),
-          fetchAPI('getUsers', { params: { includeInactive: 'Y' } }),
-          fetchAPI('getReviewsForAdmin', { method: 'POST', body: withAdminToken({}) })
-        ]);
+        const reviewsRes = await fetchAPI('getReviewsForAdmin', { method: 'POST', body: withAdminToken({}) });
         
-        // 1. 유저 이미지 매핑 데이터 생성
-        userImageMap = {};
-        if (usersRes && usersRes.success && Array.isArray(usersRes.users)) {
-          currentUsers = usersRes.users;
-          showUserApiWarningIfNeeded(currentUsers);
-          usersRes.users.forEach(u => {
-            userImageMap[u.nickname] = u.imageUrl || '';
-          });
-          renderUsersManagement(currentUsers);
-        }
-
-        // 2. 주문 내역 데이터 처리
-        if (ordersRes && ordersRes.success && Array.isArray(ordersRes.orders)) {
-          currentOrders = ordersRes.orders;
-          renderData(currentOrders);
-        } else {
-          throw new Error('주문 API 응답 결과가 올바르지 않습니다.');
-        }
-
-        // 3. 간식 재고 데이터 처리
-        if (snacksRes && snacksRes.success && Array.isArray(snacksRes.snacks)) {
-          currentSnacks = snacksRes.snacks;
-          
-          // --- 간식 ID 자동 채우기 보완 검사 로직 ---
-          const snackWarningEl = document.getElementById('snack-api-warning');
-          if (snackWarningEl) snackWarningEl.style.display = 'none';
-
-          let hasEmptyId = false;
-          let hasInvalidOrDuplicate = false;
-          const idSet = new Set();
-
-          for (const s of currentSnacks) {
-            if (!s.snackId && s.snackId !== 0) {
-              hasEmptyId = true;
-            } else {
-              if (isNaN(Number(s.snackId)) || String(s.snackId).trim() === '') {
-                hasInvalidOrDuplicate = true;
-              }
-              if (idSet.has(String(s.snackId))) {
-                hasInvalidOrDuplicate = true;
-              }
-              idSet.add(String(s.snackId));
-            }
-          }
-
-          if (hasInvalidOrDuplicate) {
-            if (snackWarningEl) {
-              snackWarningEl.style.display = 'block';
-              snackWarningEl.style.color = '#9B2C2C';
-              snackWarningEl.style.backgroundColor = '#FFF5F5';
-              snackWarningEl.style.borderColor = '#FEB2B2';
-              snackWarningEl.innerHTML = '⚠️ <b>경고:</b> 간식 목록에 <b>숫자가 아닌 ID</b>나 <b>중복된 ID</b>가 존재합니다. 시트를 직접 확인해주세요.';
-            }
-          } else if (hasEmptyId) {
-            // 빈 ID가 존재하고, 유효성 오류가 없으면 자동 채우기 API 호출
-            try {
-              const adminToken = getAdminToken();
-              const autoFillRes = await fetchAPI('autoFillEmptySnackIds', {
-                method: 'POST',
-                body: { adminToken, adminMemo: '빈 간식ID 자동 채우기' }
-              });
-              
-              if (autoFillRes && autoFillRes.success && autoFillRes.filledCount > 0) {
-                if (snackWarningEl) {
-                  snackWarningEl.style.display = 'block';
-                  snackWarningEl.style.color = '#22543D';
-                  snackWarningEl.style.backgroundColor = '#F0FFF4';
-                  snackWarningEl.style.borderColor = '#9AE6B4';
-                  snackWarningEl.innerHTML = `✅ <b>알림:</b> ${autoFillRes.filledCount}개의 빈 간식ID를 자동으로 채웠습니다.`;
-                }
-                // 간식 목록 다시 불러오기
-                const reSnacksRes = await fetchAPI('getSnacks', { params: { includeHidden: 'Y' } });
-                if (reSnacksRes && reSnacksRes.success && Array.isArray(reSnacksRes.snacks)) {
-                  currentSnacks = reSnacksRes.snacks;
-                }
-              } else if (autoFillRes && autoFillRes.hasError) {
-                if (snackWarningEl) {
-                  snackWarningEl.style.display = 'block';
-                  snackWarningEl.style.color = '#9B2C2C';
-                  snackWarningEl.style.backgroundColor = '#FFF5F5';
-                  snackWarningEl.style.borderColor = '#FEB2B2';
-                  snackWarningEl.innerHTML = `⚠️ <b>경고:</b> ${autoFillRes.message}`;
-                }
-              }
-            } catch (e) {
-              console.error("간식 ID 자동 채우기 중 오류:", e);
-            }
-          }
-          // ---------------------------------------------
-
-          renderSnacksStock(currentSnacks);
-          renderSnacksManagement(currentSnacks);
-        } else {
-          throw new Error('간식 API 응답 결과가 올바르지 않습니다.');
-        }
-
         // 4. 후기 데이터 처리
         if (reviewsRes && reviewsRes.success && Array.isArray(reviewsRes.reviews)) {
           renderReviews(reviewsRes.reviews);
+        } else {
+          throw new Error('후기 API 응답 결과가 올바르지 않습니다.');
         }
 
         // 5. 게스트 운영 설정 갱신
         loadGuestOpsPanel();
       } catch (error) {
         console.error('관리자 데이터 조회 실패:', error);
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 30px; color: var(--danger-color); font-weight: 700;">
-          데이터를 불러오지 못했습니다.<br>(${error.message || '인터넷 연결 끊김'})
-        </td></tr>`;
-        if (stockListEl) {
-          stockListEl.innerHTML = `<div style="padding: 10px; text-align: center; color: var(--danger-color); font-weight: 700;">불러오기 실패</div>`;
+        const reviewTbody = document.getElementById('review-table-body');
+        if (reviewTbody) {
+          reviewTbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 30px; color: var(--danger-color); font-weight: 700;">
+            데이터를 불러오지 못했습니다.<br>(${error.message || '인터넷 연결 끊김'})
+          </td></tr>`;
         }
       }
     }

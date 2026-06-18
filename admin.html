@@ -1191,7 +1191,7 @@
       }
 
       const tbody = document.getElementById('order-table-body');
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px; font-weight: 700;">데이터를 불러오는 중...</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px; font-weight: 700;">데이터를 불러오는 중...</td></tr>';
 
       const stockListEl = document.getElementById('snack-stock-list');
       if (stockListEl) {
@@ -2235,6 +2235,7 @@
 
     // 데이터 렌더링 및 집계 계산
     function renderData(rawOrders) {
+      if (!document.getElementById('order-table-body')) return;
       // 각 주문마다 고유 식별자가 없을 경우 생성 (timestamp와 nickname을 조합하여 같은 주문건으로 묶이게 함)
       const orders = rawOrders.map((o, idx) => ({
         ...o,
@@ -2927,6 +2928,7 @@
 
     function updateGuestOpsUI(data) {
       const badge = document.getElementById('guest-ops-status-badge');
+      if (!badge) return;
       const closeTimeEl = document.getElementById('guest-ops-close-time');
       const remainingEl = document.getElementById('guest-ops-remaining');
       const creditEl = document.getElementById('input-guest-credit');
