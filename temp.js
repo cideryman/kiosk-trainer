@@ -179,6 +179,8 @@ function doPost(e) {
     return jsonResponse(archiveOldOrders(data));
   } else if (action === 'getReviewsForAdmin') {
     return jsonResponse(getReviewsForAdmin());
+  } else if (action === 'toggleReviewVisibility') {
+    return jsonResponse(toggleReviewVisibility(data));
   } else if (action === 'ensureOrderHeaders') {
     return jsonResponse({ success: true, message: ensureOrderHeaders() });
   } else if (action === 'autoFillEmptySnackIds') {
@@ -1974,6 +1976,61 @@ function getReviewsForAdmin() {
     success: true,
     reviews
   };
+}
+
+/**
+ * 24.5 후기 공개/비공개 토글 API
+ */
+function toggleReviewVisibility(data) {
+  const adminResult = verifyAdmin(data.adminToken, data.adminMemo);
+  if (!adminResult.success) {
+    return adminResult;
+  }
+
+  const { createdAt, isPublic } = data;
+  if (!createdAt) {
+    return { success: false, message: '후기 식별 정보(createdAt)가 누락되었습니다.' };
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    return { success: false, message: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' };
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const reviewSheet = ss.getSheetByName(SHEET.REVIEWS);
+    if (!reviewSheet) {
+      return { success: false, message: '후기 시트를 찾을 수 없습니다.' };
+    }
+
+    const values = reviewSheet.getDataRange().getValues();
+    const rows = values.slice(1);
+    
+    let rowIndex = -1;
+    for (let i = 0; i < rows.length; i++) {
+      if (String(rows[i][0]) === String(createdAt)) {
+        rowIndex = i + 2; // header is row 1
+        break;
+      }
+    }
+
+    if (rowIndex === -1) {
+      return { success: false, message: '해당 후기를 찾을 수 없습니다.' };
+    }
+
+    // 7번째 열이 isPublic
+    reviewSheet.getRange(rowIndex, 7).setValue(isPublic ? 'Y' : 'N');
+
+    return {
+      success: true,
+      message: '후기 공개 상태가 변경되었습니다.'
+    };
+  } catch (e) {
+    return { success: false, message: '후기 상태 변경 중 오류: ' + e.message };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /**

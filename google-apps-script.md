@@ -1,31 +1,4 @@
-# 구글 앱스 스크립트 (Google Apps Script) 참고 가이드
-
-이 문서는 간식 키오스크 프로젝트의 백엔드 데이터베이스 역할을 수행하는 구글 스프레드시트의 **Apps Script** 최종 코드입니다.
-
----
-
-## 1. 적용 방법
-
-1. 구글 스프레드시트를 엽니다.
-2. 상단 메뉴에서 **[확장 프로그램] > [Apps Script]**를 클릭합니다.
-3. 기존 편집기 창에 있는 코드 전체를 지우고 아래 **최종 코드** 내용으로 전체 덮어쓰기(붙여넣기) 합니다.
-4. 상단의 **[저장 (디스크 아이콘)]**을 클릭합니다.
-5. 좌측 메뉴의 **[프로젝트 설정]**을 열고 **스크립트 속성**에 아래 값을 추가합니다:
-   - **속성**: `ADMIN_TOKEN`
-   - **값**: 관리자만 아는 비밀번호/토큰 값 (예: 센터 내부 관리자 비밀번호)
-6. 우측 상단의 **[배포] > [새 배포]**를 선택합니다.
-7. 배포 유형이 **[웹앱]**인지 확인하고 아래 항목들을 설정합니다:
-   - **설명**: `v3 - 이용자 관리 추가` (임의 기입)
-   - **웹앱을 실행할 사용자**: `나 (본인 이메일)`
-   - **액세스할 수 있는 사용자**: `모든 사용자 (Anyone)` (중요!)
-8. **[배포]**를 클릭하고, 최초 1회 구글 계정 액세스 권한 승인 창이 뜨면 권한 승인을 완료합니다.
-9. 발급되는 **웹앱 URL(API URL)** 주소를 복사하여 프론트엔드의 `js/config.js` 내 `API_URL` 값에 붙여넣습니다.
-
----
-
-## 2. 최종 소스코드 (Code.gs)
-
-```javascript
+\\javascript
 /**
  * 1. 이미지 주소 변환 및 가공 함수
  * 구글 드라이브 주소를 받아 썸네일/보기 주소 포맷으로 자동 정규화합니다.
@@ -60,7 +33,7 @@ const SHEET = {
 // Google Drive 폴더 ID 상수 정의
 const USER_IMAGE_FOLDER_ID = '1uykUeSeuwxtJvVVK_J7t-3JHY7yq0q_o';
 const SNACK_IMAGE_FOLDER_ID = '1kUibvC9O7PeOTZ5r7D4EJTVZ8KhCO6ur';
-const REVIEW_IMAGE_FOLDER_ID = '1ZK_IuzqynOBv5ihxVbZUR1zaIsuCd_jo';
+const REVIEW_IMAGE_FOLDER_ID = '1uykUeSeuwxtJvVVK_J7t-3JHY7yq0q_o'; // 기본적으로 이용자 폴더를 같이 쓰거나 새로 만들어서 기입
 
 // 게스트 최대 가상 크레딧
 const GUEST_MAX_CREDIT = 10;
@@ -207,6 +180,8 @@ function doPost(e) {
     return jsonResponse(archiveOldOrders(data));
   } else if (action === 'getReviewsForAdmin') {
     return jsonResponse(getReviewsForAdmin());
+  } else if (action === 'toggleReviewVisibility') {
+    return jsonResponse(toggleReviewVisibility(data));
   } else if (action === 'ensureOrderHeaders') {
     return jsonResponse({ success: true, message: ensureOrderHeaders() });
   } else if (action === 'autoFillEmptySnackIds') {
@@ -2005,6 +1980,61 @@ function getReviewsForAdmin() {
 }
 
 /**
+ * 24.5 후기 공개/비공개 토글 API
+ */
+function toggleReviewVisibility(data) {
+  const adminResult = verifyAdmin(data.adminToken, data.adminMemo);
+  if (!adminResult.success) {
+    return adminResult;
+  }
+
+  const { createdAt, isPublic } = data;
+  if (!createdAt) {
+    return { success: false, message: '후기 식별 정보(createdAt)가 누락되었습니다.' };
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    return { success: false, message: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' };
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const reviewSheet = ss.getSheetByName(SHEET.REVIEWS);
+    if (!reviewSheet) {
+      return { success: false, message: '후기 시트를 찾을 수 없습니다.' };
+    }
+
+    const values = reviewSheet.getDataRange().getValues();
+    const rows = values.slice(1);
+    
+    let rowIndex = -1;
+    for (let i = 0; i < rows.length; i++) {
+      if (String(rows[i][0]) === String(createdAt)) {
+        rowIndex = i + 2; // header is row 1
+        break;
+      }
+    }
+
+    if (rowIndex === -1) {
+      return { success: false, message: '해당 후기를 찾을 수 없습니다.' };
+    }
+
+    // 7번째 열이 isPublic
+    reviewSheet.getRange(rowIndex, 7).setValue(isPublic ? 'Y' : 'N');
+
+    return {
+      success: true,
+      message: '후기 공개 상태가 변경되었습니다.'
+    };
+  } catch (e) {
+    return { success: false, message: '후기 상태 변경 중 오류: ' + e.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
  * 25. 지난 주문 보관 (아카이빙) API
  */
 function archiveOldOrders(data) {
@@ -2271,4 +2301,5 @@ function autoFillEmptySnackIds() {
     lock.releaseLock();
   }
 }
-```
+
+\\n
