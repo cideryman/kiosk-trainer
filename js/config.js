@@ -292,6 +292,15 @@ function getMockFallback(action, options) {
       settings.guestOpen = 'Y';
       settings.guestCloseAt = new Date(now.getTime() + 30 * 60 * 1000).toISOString();
       appendMockAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', 'N', 'Y (30분)', options.body?.adminMemo);
+    } else if (settingsAction === 'open60') {
+      settings.guestOpen = 'Y';
+      settings.guestCloseAt = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+      appendMockAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', 'N', 'Y (60분)', options.body?.adminMemo);
+    } else if (settingsAction === 'openCustom') {
+      const minutes = Number(options.body?.minutes || 10);
+      settings.guestOpen = 'Y';
+      settings.guestCloseAt = new Date(now.getTime() + minutes * 60 * 1000).toISOString();
+      appendMockAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', 'N', 'Y (' + minutes + '분)', options.body?.adminMemo);
     } else if (settingsAction === 'closeNow') {
       settings.guestOpen = 'N';
       appendMockAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', 'Y', 'N (즉시 마감)', options.body?.adminMemo);

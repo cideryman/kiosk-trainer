@@ -761,10 +761,18 @@
             </div>
           </div>
         </div>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px;">
           <button class="btn-small-action" id="btn-guest-open20" style="flex: 1; min-height: 48px; font-size: 16px; background-color: #38A169; white-space: nowrap;">⏱ 20분 열기</button>
           <button class="btn-small-action" id="btn-guest-open30" style="flex: 1; min-height: 48px; font-size: 16px; background-color: #2B6CB0; white-space: nowrap;">⏱ 30분 열기</button>
+          <button class="btn-small-action" id="btn-guest-open60" style="flex: 1; min-height: 48px; font-size: 16px; background-color: #7C3AED; color: white; border: none; white-space: nowrap;">⏱ 1시간 열기</button>
           <button class="btn-danger-action" id="btn-guest-close" style="flex: 1; min-height: 48px; font-size: 16px; white-space: nowrap;">🛑 지금 마감</button>
+        </div>
+        <!-- 직접 입력 열기 추가 -->
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 10px; border-top: 1px dashed var(--border-color); font-size: 15px; font-weight: 700; color: var(--text-main);">
+          <span>⏱ 직접 입력 열기:</span>
+          <input type="number" id="input-custom-minutes" class="admin-inline-input" value="10" min="1" style="width: 80px; text-align: center; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;">
+          <span>분 동안</span>
+          <button class="btn-small-action" id="btn-guest-open-custom" style="background-color: var(--secondary-color); color: white; border: none; min-height: 38px; padding: 0 16px;">열기</button>
         </div>
       </div>
 
@@ -3016,6 +3024,26 @@
       if (btnGuestOpen30) {
         btnGuestOpen30.addEventListener('click', () => {
           handleGuestOpsAction('open30');
+        });
+      }
+
+      const btnGuestOpen60 = document.getElementById('btn-guest-open60');
+      if (btnGuestOpen60) {
+        btnGuestOpen60.addEventListener('click', () => {
+          handleGuestOpsAction('open60');
+        });
+      }
+
+      const btnGuestOpenCustom = document.getElementById('btn-guest-open-custom');
+      if (btnGuestOpenCustom) {
+        btnGuestOpenCustom.addEventListener('click', () => {
+          const inputEl = document.getElementById('input-custom-minutes');
+          const minutes = inputEl ? Number(inputEl.value) : 10;
+          if (isNaN(minutes) || minutes <= 0) {
+            alert('올바른 시간을 분 단위로 입력해 주세요.');
+            return;
+          }
+          handleGuestOpsAction('openCustom', minutes);
         });
       }
       

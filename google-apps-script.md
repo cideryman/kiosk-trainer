@@ -1642,6 +1642,15 @@ function updateGuestSettings(data) {
     guestOpen = 'Y';
     guestCloseAt = new Date(now.getTime() + 30 * 60 * 1000).toISOString();
     logAfter = 'Y (30분)';
+  } else if (action === 'open60') {
+    guestOpen = 'Y';
+    guestCloseAt = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+    logAfter = 'Y (60분)';
+  } else if (action === 'openCustom') {
+    const minutes = Number(data.minutes || 10);
+    guestOpen = 'Y';
+    guestCloseAt = new Date(now.getTime() + minutes * 60 * 1000).toISOString();
+    logAfter = 'Y (' + minutes + '분)';
   } else if (action === 'closeNow') {
     guestOpen = 'N';
     logBefore = 'Y';
