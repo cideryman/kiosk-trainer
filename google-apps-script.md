@@ -55,7 +55,8 @@ const ADMIN_ACTIONS = [
   'updateGuestSettings',
   'archiveOldOrders',
   'getReviewsForAdmin',
-  'autoFillEmptySnackIds'
+  'autoFillEmptySnackIds',
+  'toggleReviewVisibility'
 ];
 
 /**
@@ -1988,7 +1989,7 @@ function getReviewsForAdmin() {
  * 24.5 후기 공개/비공개 토글 API
  */
 function toggleReviewVisibility(data) {
-  const adminResult = verifyAdmin(data.adminToken, data.adminMemo);
+  const adminResult = verifyAdminToken(data);
   if (!adminResult.success) {
     return adminResult;
   }

@@ -175,6 +175,7 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 
 * **API Calls & Mocks**: While developing locally, you can switch between mock database and live spreadsheet database in [js/config.js](file:///c:/Users/user/Desktop/키오스크/js/config.js) using the `USE_MOCK` boolean value.
 * **Touch Jitter (Double-Click Prevention)**: Users with motor control challenges might trigger duplicate clicks. Use `AppState.bindCardTap(el, callback)` instead of standard click handlers for critical buttons in user-facing views to check coordinates delta and timing.
+* **Debugging Frontend Errors**: In case of screen freezing, non-responsive buttons, or general UI errors, do not debug blindly. Ask the user to check the developer console (F12) and share the console error log/stack trace. This is the fastest way to identify the exact line of syntax or runtime errors.
 * **Haptic Feedbacks**: Sounds are created using the Web Audio API synthesizer dynamically. Do not rely on external MP3 files for general interaction sounds.
 * **Google Apps Script Deployments**: If you modify the backend API routes or settings, copy code from [google-apps-script.md](file:///c:/Users/user/Desktop/키오스크/google-apps-script.md) into the Google Sheet Script Editor, save, and trigger **[New Deployment]** (Web App, executing as Me, accessible by Anyone). Update `API_URL` in [js/config.js](file:///c:/Users/user/Desktop/키오스크/js/config.js) to match the new address.
 
@@ -182,6 +183,7 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 
 ## 7. Future Roadmaps & Considerations (다음 작업 고려 목록)
 
-* **Review Visibility Toggle Error**:
-  - **Problem**: Clicking the public/private visibility toggle on the review moderation page (`reviews.html`) triggers a "구글시트 연결에 실패했습니다" (failed to connect to google sheet) popup error.
-  - **Debugging Direction**: Need to inspect the payload sent to the `toggleReviewVisibility` API action (e.g. check if `adminToken` is attached or properties are aligned) and verify the handler signature in the GAS backend code.
+* **[RESOLVED] Review Visibility Toggle Error**:
+  - **Problem**: Clicking the public/private visibility toggle on the review moderation page (`reviews.html`) triggered a "구글시트 연결에 실패했습니다" (failed to connect to google sheet) popup error.
+  - **Resolution**: Fixed in [google-apps-script.md](file:///c:/Users/주간보호/OneDrive/Desktop/새 폴더/kiosk-trainer/google-apps-script.md) by correcting the backend typo where it called `verifyAdmin` instead of `verifyAdminToken(data)`, and added `'toggleReviewVisibility'` to the `ADMIN_ACTIONS` routing whitelist array.
+
