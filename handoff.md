@@ -122,7 +122,7 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - Added a global `isModalOpen` state flag in `admin.html` to temporarily pause the 30-second auto-refresh timer when administrative modals are open. 
   - Prevents form data loss and modal closure while editing user credits or snack details. Re-initiates the countdown immediately once modals are dismissed.
 * **PWA Service Worker Cache Busting**:
-  - Bumped the service worker version in [service-worker.js](file:///c:/Users/user/Desktop/키오스크/service-worker.js) to `kiosk-cache-v46` to force-update client browsers and bypass stale local HTML caches.
+  - Bumped the service worker version in [service-worker.js](file:///c:/Users/user/Desktop/키오스크/service-worker.js) to `kiosk-cache-v62` to force-update client browsers and bypass stale local HTML caches.
 
 ### 7) Guest Double-Order Prevention & Cache Issue Resolution
 * **Guest Double-Order Prevention**:

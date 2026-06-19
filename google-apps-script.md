@@ -1997,8 +1997,39 @@ function isSameDateTime(val1, val2) {
   function parseDateSafely(val) {
     if (val instanceof Date) return val;
     let s = String(val).trim();
-    s = s.replace(/오전/g, 'AM').replace(/오후/g, 'PM');
-    s = s.replace(/\./g, '-');
+    
+    // 한국어 날짜 형식 파싱 예: "2026. 6. 19. 오전 9:48:00"
+    const match = s.match(/(\d{4})[-\.\/\s]+(\d{1,2})[-\.\/\s]+(\d{1,2})[-\.\/\s]+(오전|오후|AM|PM)\s*(\d{1,2}):(\d{1,2}):(\d{1,2})/i);
+    if (match) {
+      const year = parseInt(match[1], 10);
+      const month = parseInt(match[2], 10) - 1;
+      const day = parseInt(match[3], 10);
+      const isPM = (match[4] === '오후' || match[4].toUpperCase() === 'PM');
+      let hour = parseInt(match[5], 10);
+      const minute = parseInt(match[6], 10);
+      const second = parseInt(match[7], 10);
+      
+      if (isPM && hour < 12) hour += 12;
+      if (!isPM && hour === 12) hour = 0;
+      
+      return new Date(year, month, day, hour, minute, second);
+    }
+    
+    const matchNoSec = s.match(/(\d{4})[-\.\/\s]+(\d{1,2})[-\.\/\s]+(\d{1,2})[-\.\/\s]+(오전|오후|AM|PM)\s*(\d{1,2}):(\d{1,2})/i);
+    if (matchNoSec) {
+      const year = parseInt(matchNoSec[1], 10);
+      const month = parseInt(matchNoSec[2], 10) - 1;
+      const day = parseInt(matchNoSec[3], 10);
+      const isPM = (matchNoSec[4] === '오후' || matchNoSec[4].toUpperCase() === 'PM');
+      let hour = parseInt(matchNoSec[5], 10);
+      const minute = parseInt(matchNoSec[6], 10);
+      
+      if (isPM && hour < 12) hour += 12;
+      if (!isPM && hour === 12) hour = 0;
+      
+      return new Date(year, month, day, hour, minute, 0);
+    }
+
     return new Date(s);
   }
   
@@ -2047,9 +2078,9 @@ function toggleReviewVisibility(data) {
       const rowCreatedAt = rows[i][0];
       const rowOrderId = String(rows[i][1]).trim();
       
-      // 1. 만약 orderId가 주어졌다면, orderId와 createdAt 교차 확인
+      // 1. 만약 orderId가 주어졌다면, orderId 매칭 우선 처리 (날짜 파싱 에러 방지)
       if (orderId && String(orderId).trim()) {
-        if (rowOrderId === String(orderId).trim() && isSameDateTime(rowCreatedAt, createdAt)) {
+        if (rowOrderId === String(orderId).trim()) {
           rowIndex = i + 2;
           break;
         }
