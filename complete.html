@@ -306,6 +306,21 @@
         max-height: 150px;
       }
     }
+    
+    /* 취소 버튼 흔들림 애니메이션 */
+    .wobble-cancel-btn {
+      animation: wobblePlay 1.2s infinite ease-in-out;
+      border: 3.5px solid #feb2b2 !important;
+      box-shadow: 0 0 15px rgba(254, 178, 178, 0.6) !important;
+      transition: all 0.2s ease;
+      color: #9b2c2c !important;
+      background-color: #fff5f5 !important;
+    }
+    @keyframes wobblePlay {
+      0%, 100% { transform: scale(1); }
+      25% { transform: scale(1.02) rotate(-1deg); }
+      75% { transform: scale(1.02) rotate(1deg); }
+    }
   </style>
 </head>
 <body>
@@ -318,7 +333,7 @@
     </header>
 
     <!-- 바디 -->
-    <main class="kiosk-body" id="main-content" style="justify-content: center; gap: 30px;">
+    <main class="kiosk-body" id="main-content" style="justify-content: flex-start; gap: 20px;">
       
       <!-- 일반 완료 화면 영역 -->
       <div id="normal-complete-view" style="display: flex; flex-direction: column; gap: 20px; width: 100%;">
@@ -617,8 +632,8 @@
       AppState.speak(ttsText);
       AppState.vibrate([100, 50, 100, 50, 200]);
       
-      // 5초 카운트다운 시작
-      startRedirectTimer(5);
+      // 8초 카운트다운 시작
+      startRedirectTimer(8);
     }
 
     // 게스트 모드 실시간 주문 추적 UI 구성
@@ -900,10 +915,24 @@
         timerSecEl.textContent = secondsLeft;
       }
       
+      // 취소 버튼 스타일 및 타이머 표시 초기 설정
+      const btnNormalCancel = document.getElementById('btn-normal-cancel-order');
+      if (btnNormalCancel) {
+        btnNormalCancel.classList.add('wobble-cancel-btn');
+        btnNormalCancel.style.minHeight = '64px';
+        btnNormalCancel.style.fontSize = '20px';
+        btnNormalCancel.style.fontWeight = '800';
+        btnNormalCancel.textContent = `앗! 잘못 주문했나요? 취소하기 ⏳ ${secondsLeft}초`;
+      }
+      
       countdownInterval = setInterval(() => {
         secondsLeft--;
         if (timerSecEl) {
           timerSecEl.textContent = secondsLeft;
+        }
+        
+        if (btnNormalCancel) {
+          btnNormalCancel.textContent = `앗! 잘못 주문했나요? 취소하기 ⏳ ${secondsLeft}초`;
         }
 
         if (secondsLeft <= 0) {
