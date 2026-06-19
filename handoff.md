@@ -145,7 +145,7 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - Expanded `.review-list` scroll container max-height in `guest.html` from `320px` to `520px` to display photo cards comfortably.
   - Integrated momentum scrolling (`-webkit-overflow-scrolling: touch`) and custom styled scrollbars for a modern mobile feel.
 
-### 9) Dashboard Separation & Admin Stability Improvements (Latest)
+### 9) Dashboard Separation & Admin Stability Improvements
 * **Administrative Dashboard Full Separation**:
   - Extracted the live order board from `admin.html` into a dedicated `kitchen.html` (오늘 주문 운영).
   - Extracted the review moderation board into a dedicated `reviews.html` (후기 관리 화면).
@@ -160,6 +160,15 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - Includes "Previous" and "Next" navigation buttons to seamlessly browse through all loaded reviews without closing the modal.
   - Stripped out admin-only features (e.g., visibility toggles) to serve as a pure viewer for guests.
 
+### 10) Snack Order Split & "both" Target Removal (Latest)
+* **Rationale**: Split user/guest display order configuration to support different marketing/price policies for members and guests, and simplified target management by removing the `both` option.
+* **Resolution**:
+  - **Tabs Restructuring**: Created a dedicated `tab-snack-order` tab inside [admin.html](file:///c:/Users/주간보호/OneDrive/Desktop/새 폴더/kiosk-trainer/admin.html) to separate "🛒 일반 키오스크 간식 순서" and "🛵 게스트/배달왔삼 간식 순서" views.
+  - **Generalized Order Helpers**: Rewrote display order JS utility functions (`renderSnackOrderPanel`, `moveSnackOrder`, `saveSnackOrderToServer`, `resetSnackOrder`) to accept `target` parameters and route the state updates to the correct list container and database keys.
+  - **Admin Table Sub-Grouping**: Grouped snacks in the administrative table into four categories: Active User, Active Guest, Hidden User, and Hidden Guest.
+  - **Simplification of Targets**: Removed the `both` option from snack addition and modification modals, default-treating anything non-guest as `user` ("일반").
+  - **GAS API Simplification**: Updated `getSnacks`, `canOrderSnack`, `addSnack`, and `updateSnack` inside [google-apps-script.md](file:///c:/Users/주간보호/OneDrive/Desktop/새 폴더/kiosk-trainer/google-apps-script.md) to restrict database target fields exclusively to either `user` or `guest`, avoiding logical overlap.
+
 ---
 
 ## 6. Implementation Notes & Cautions
@@ -173,4 +182,6 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 
 ## 7. Future Roadmaps & Considerations (다음 작업 고려 목록)
 
-*(현재 진행 예정인 주요 마일스톤이 없습니다. 추가 기능 요청 시 여기에 기록됩니다.)*
+* **Review Visibility Toggle Error**:
+  - **Problem**: Clicking the public/private visibility toggle on the review moderation page (`reviews.html`) triggers a "구글시트 연결에 실패했습니다" (failed to connect to google sheet) popup error.
+  - **Debugging Direction**: Need to inspect the payload sent to the `toggleReviewVisibility` API action (e.g. check if `adminToken` is attached or properties are aligned) and verify the handler signature in the GAS backend code.
