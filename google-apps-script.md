@@ -1986,6 +1986,34 @@ function getReviewsForAdmin() {
 }
 
 /**
+ * 날짜 객체 또는 날짜 문자열의 동등성을 안전하게 비교하는 헬퍼 함수
+ */
+function isSameDateTime(val1, val2) {
+  if (!val1 || !val2) return false;
+  const str1 = String(val1).trim();
+  const str2 = String(val2).trim();
+  if (str1 === str2) return true;
+  
+  function parseDateSafely(val) {
+    if (val instanceof Date) return val;
+    let s = String(val).trim();
+    s = s.replace(/오전/g, 'AM').replace(/오후/g, 'PM');
+    s = s.replace(/\./g, '-');
+    return new Date(s);
+  }
+  
+  const d1 = parseDateSafely(val1);
+  const d2 = parseDateSafely(val2);
+  const t1 = d1.getTime();
+  const t2 = d2.getTime();
+  
+  if (!isNaN(t1) && !isNaN(t2)) {
+    return Math.floor(t1 / 1000) === Math.floor(t2 / 1000);
+  }
+  return false;
+}
+
+/**
  * 24.5 후기 공개/비공개 토글 API
  */
 function toggleReviewVisibility(data) {
@@ -1994,7 +2022,7 @@ function toggleReviewVisibility(data) {
     return adminResult;
   }
 
-  const { createdAt, isPublic } = data;
+  const { createdAt, orderId, isPublic } = data;
   if (!createdAt) {
     return { success: false, message: '후기 식별 정보(createdAt)가 누락되었습니다.' };
   }
@@ -2016,9 +2044,21 @@ function toggleReviewVisibility(data) {
     
     let rowIndex = -1;
     for (let i = 0; i < rows.length; i++) {
-      if (String(rows[i][0]) === String(createdAt)) {
-        rowIndex = i + 2; // header is row 1
-        break;
+      const rowCreatedAt = rows[i][0];
+      const rowOrderId = String(rows[i][1]).trim();
+      
+      // 1. 만약 orderId가 주어졌다면, orderId와 createdAt 교차 확인
+      if (orderId && String(orderId).trim()) {
+        if (rowOrderId === String(orderId).trim() && isSameDateTime(rowCreatedAt, createdAt)) {
+          rowIndex = i + 2;
+          break;
+        }
+      } else {
+        // 2. 백패드 호환성을 위해 createdAt 만으로 확인
+        if (isSameDateTime(rowCreatedAt, createdAt)) {
+          rowIndex = i + 2;
+          break;
+        }
       }
     }
 

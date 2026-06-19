@@ -2564,6 +2564,7 @@
 
     function updateGuestOpsUI(data) {
       const badge = document.getElementById('guest-ops-status-badge');
+      if (!badge) return;
       const closeTimeEl = document.getElementById('guest-ops-close-time');
       const remainingEl = document.getElementById('guest-ops-remaining');
       const creditEl = document.getElementById('input-guest-credit');
@@ -2923,6 +2924,7 @@
           method: 'POST',
           body: withAdminToken({
             createdAt: review.createdAt,
+            orderId: review.orderId,
             isPublic: targetState
           })
         });
