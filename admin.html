@@ -694,8 +694,9 @@
       
       <!-- 탭 메뉴 -->
       <div class="admin-tabs" style="margin-top: 10px;">
-        <button class="admin-tab-btn active" id="btn-tab-users" onclick="switchTab('tab-users')">🪙 이용자 크레딧 관리</button>
-        <button class="admin-tab-btn" id="btn-tab-snacks" onclick="switchTab('tab-snacks')">🍪 간식 및 재고 관리</button>
+        <button class="admin-tab-btn active" id="btn-tab-users" onclick="switchTab('tab-users')">🪙 이용자 관리</button>
+        <button class="admin-tab-btn" id="btn-tab-snacks" onclick="switchTab('tab-snacks')">🍪 간식 관리</button>
+        <button class="admin-tab-btn" id="btn-tab-snack-order" onclick="switchTab('tab-snack-order')">🔢 간식 순서</button>
       </div>
 
       <!-- Tab 2: 이용자 크레딧 관리 -->
@@ -751,23 +752,6 @@
         <div class="snack-admin-layout">
           <div id="snack-api-warning" class="error-box" style="display: none; margin-bottom: 0px; font-size: 16px; font-weight: 700; padding: 12px; border-radius: var(--radius-sm); border: 2px solid;"></div>
 
-          <!-- ★ 표시 순서 편집 패널 -->
-          <div>
-            <div class="admin-section-title" style="color: #7C3AED; border-left-color: #7C3AED;">
-              🔢 간식 표시 순서
-              <span style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-left: 8px;">↑↓ 버튼 또는 드래그로 순서를 바꾸세요</span>
-            </div>
-            <div class="form-panel" style="background: linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%); border-color: #C4B5FD;">
-              <div class="snack-order-list" id="snack-order-list">
-                <!-- JS 동적 생성 -->
-              </div>
-              <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; align-items: center;">
-                <button class="btn-small-action" onclick="resetSnackOrder()" style="background-color: #6B7280; font-size: 13px; padding: 6px 12px;">기본 순서로 초기화</button>
-                <span style="font-size: 13px; font-weight: 700; color: #7C3AED;">✅ 변경 즉시 이용자 화면에 반영됩니다</span>
-              </div>
-            </div>
-          </div>
-
           <div>
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
               <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color); margin-bottom: 0;">🍪 간식 목록 및 재고 관리</div>
@@ -793,6 +777,43 @@
           </div>
 
 
+        </div>
+      </div>
+
+      <!-- Tab 4: 간식 표시 순서 관리 -->
+      <div id="tab-snack-order" class="admin-tab-content">
+        <div class="snack-admin-layout">
+          <div>
+            <div class="admin-section-title" style="color: #7C3AED; border-left-color: #7C3AED;">
+              🛒 일반 키오스크 간식 순서
+              <span style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-left: 8px;">일반 이용자 화면에 표시되는 간식 순서입니다. (↑↓ 버튼 또는 드래그)</span>
+            </div>
+            <div class="form-panel" style="background: linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%); border-color: #C4B5FD;">
+              <div class="snack-order-list" id="user-snack-order-list">
+                <!-- JS 동적 생성 -->
+              </div>
+              <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; align-items: center;">
+                <button class="btn-small-action" onclick="resetSnackOrder('user')" style="background-color: #6B7280; font-size: 13px; padding: 6px 12px;">기본 순서로 초기화</button>
+                <span style="font-size: 13px; font-weight: 700; color: #7C3AED;">✅ 변경 즉시 이용자 화면에 반영됩니다</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 20px;">
+            <div class="admin-section-title" style="color: #ED8936; border-left-color: #ED8936;">
+              🛵 게스트/배달왔삼 간식 순서
+              <span style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-left: 8px;">게스트 주문 화면에 표시되는 간식 순서입니다. (↑↓ 버튼 또는 드래그)</span>
+            </div>
+            <div class="form-panel" style="background: linear-gradient(135deg, #FFF5F5 0%, #FED7D7 100%); border-color: #FEB2B2;">
+              <div class="snack-order-list" id="guest-snack-order-list">
+                <!-- JS 동적 생성 -->
+              </div>
+              <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; align-items: center;">
+                <button class="btn-small-action" onclick="resetSnackOrder('guest')" style="background-color: #6B7280; font-size: 13px; padding: 6px 12px;">기본 순서로 초기화</button>
+                <span style="font-size: 13px; font-weight: 700; color: #ED8936;">✅ 변경 즉시 게스트 화면에 반영됩니다</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -869,7 +890,6 @@
           <select id="new-snack-target" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
             <option value="user">일반 이용자만</option>
             <option value="guest">게스트만</option>
-            <option value="both">둘 다 표시</option>
           </select>
         </div>
       </div>
@@ -961,7 +981,6 @@
           <select id="edit-snack-target" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
             <option value="user">일반 이용자만</option>
             <option value="guest">게스트만</option>
-            <option value="both">둘 다 표시</option>
           </select>
         </div>
       </div>
@@ -1807,7 +1826,7 @@
     }
 
     /** 현재 패널 순서를 서버에 저장 */
-    async function saveSnackOrderToServer(orderedIdList) {
+    async function saveSnackOrderToServer(orderedIdList, target) {
       // orderedIdList: [snackId, snackId, ...] 배열 (1-based 순번을 displayOrder로 사용)
       const items = orderedIdList.map((snackId, idx) => ({
         snackId: snackId,
@@ -1836,19 +1855,19 @@
       }
     }
 
-    async function resetSnackOrder() {
-      if (!confirm('표시 순서를 초기화(모두 0)할까요? 스프레드시트 등록 순서로 돌아갑니다.')) return;
-      // 모든 판매중 간식의 displayOrder를 0으로 초기화
-      const activeSnacks = currentSnacks.filter(s => isSnackActive(s));
-      const items = activeSnacks.map(s => ({ snackId: s.snackId, displayOrder: 0 }));
+    async function resetSnackOrder(target) {
+      if (!confirm(`[${target === 'guest' ? '게스트' : '일반'}] 표시 순서를 초기화(모두 0)할까요? 스프레드시트 등록 순서로 돌아갑니다.`)) return;
+      // 해당 타깃의 판매중 간식만 displayOrder를 0으로 초기화
+      const targetSnacks = currentSnacks.filter(s => isSnackActive(s) && (target === 'guest' ? s.target === 'guest' : s.target !== 'guest'));
+      const items = targetSnacks.map(s => ({ snackId: s.snackId, displayOrder: 0 }));
       try {
         const res = await fetchAPI('updateSnacksOrder', {
           method: 'POST',
           body: withAdminToken({ items })
         });
         if (res && res.success) {
-          activeSnacks.forEach(s => { s.displayOrder = 0; });
-          renderSnackOrderPanel(currentSnacks);
+          targetSnacks.forEach(s => { s.displayOrder = 0; });
+          renderSnackOrderPanel(currentSnacks, target);
           AppState.vibrate(40);
           AppState.playClickSound();
         } else {
@@ -1861,13 +1880,13 @@
     }
 
     /** 순서 편집 패널 렌더링 — 판매중 간식만 표시 */
-    function renderSnackOrderPanel(snacks) {
-      const listEl = document.getElementById('snack-order-list');
+    function renderSnackOrderPanel(snacks, target) {
+      const listEl = document.getElementById(`${target}-snack-order-list`);
       if (!listEl) return;
 
-      // ★ 판매중 간식만 필터링
-      const activeSnacks = snacks.filter(s => isSnackActive(s));
-      const sorted = applySnackOrder(activeSnacks);
+      // ★ 해당 타깃의 판매중 간식만 필터링
+      const targetSnacks = snacks.filter(s => isSnackActive(s) && (target === 'guest' ? s.target === 'guest' : s.target !== 'guest'));
+      const sorted = applySnackOrder(targetSnacks);
       listEl.innerHTML = '';
 
       if (sorted.length === 0) {
@@ -1887,8 +1906,8 @@
           <span style="font-size: 20px;">${esc(emoji)}</span>
           <span class="snack-order-name">${esc(snack.name)}</span>
           <div class="snack-order-btns">
-            <button class="snack-order-btn" title="위로" onclick="moveSnackOrder(this, -1)">▲</button>
-            <button class="snack-order-btn" title="아래로" onclick="moveSnackOrder(this, 1)">▼</button>
+            <button class="snack-order-btn" title="위로" onclick="moveSnackOrder(this, -1, '${target}')">▲</button>
+            <button class="snack-order-btn" title="아래로" onclick="moveSnackOrder(this, 1, '${target}')">▼</button>
           </div>
         `;
 
@@ -1916,8 +1935,8 @@
 
           ids.splice(fromIdx, 1);
           ids.splice(toIdx, 0, String(fromId));
-          renderSnackOrderPanelFromIds(ids);
-          await saveSnackOrderToServer(ids);
+          renderSnackOrderPanelFromIds(ids, target);
+          await saveSnackOrderToServer(ids, target);
         });
 
         listEl.appendChild(item);
@@ -1925,11 +1944,11 @@
     }
 
     /** id 배열 순서대로 패널을 즉시 재렌더 (서버 저장 전 미리보기) */
-    function renderSnackOrderPanelFromIds(ids) {
+    function renderSnackOrderPanelFromIds(ids, target) {
       const snackMap = {};
       currentSnacks.forEach(s => { snackMap[String(s.snackId)] = s; });
       const reordered = ids.map(id => snackMap[id]).filter(Boolean);
-      const listEl = document.getElementById('snack-order-list');
+      const listEl = document.getElementById(`${target}-snack-order-list`);
       if (!listEl) return;
       listEl.innerHTML = '';
       reordered.forEach((snack, idx) => {
@@ -1944,15 +1963,17 @@
           <span style="font-size: 20px;">${esc(emoji)}</span>
           <span class="snack-order-name">${esc(snack.name)}</span>
           <div class="snack-order-btns">
-            <button class="snack-order-btn" onclick="moveSnackOrder(this, -1)">▲</button>
-            <button class="snack-order-btn" onclick="moveSnackOrder(this, 1)">▼</button>
+            <button class="snack-order-btn" onclick="moveSnackOrder(this, -1, '${target}')">▲</button>
+            <button class="snack-order-btn" onclick="moveSnackOrder(this, 1, '${target}')">▼</button>
           </div>
         `;
+        
+        // 드래그&드롭 리스너는 여기서도 필요할 시 구성하나, moveSnackOrder 이후 renderSnackOrderPanel로 갱신되므로 기본 뼈대만 유지합니다.
         listEl.appendChild(item);
       });
     }
 
-    async function moveSnackOrder(btn, dir) {
+    async function moveSnackOrder(btn, dir, target) {
       const item = btn.closest('.snack-order-item');
       const listEl = item.parentElement;
       const items = [...listEl.querySelectorAll('.snack-order-item')];
@@ -1961,14 +1982,15 @@
       const newIdx = idx + dir;
       if (newIdx < 0 || newIdx >= ids.length) return;
       [ids[idx], ids[newIdx]] = [ids[newIdx], ids[idx]];
-      renderSnackOrderPanelFromIds(ids);
-      await saveSnackOrderToServer(ids);
+      renderSnackOrderPanelFromIds(ids, target);
+      await saveSnackOrderToServer(ids, target);
       AppState.playClickSound();
     }
 
     function renderSnacksManagement(snacks) {
       // 순서 편집 패널 갱신
-      renderSnackOrderPanel(snacks);
+      renderSnackOrderPanel(snacks, 'user');
+      renderSnackOrderPanel(snacks, 'guest');
 
       const tbody = document.getElementById('snack-management-body');
       if (!tbody) return;
@@ -1982,10 +2004,15 @@
 
       // 재고 관리 테이블도 displayOrder 기준으로 정렬
       const sorted = applySnackOrder(snacks);
-      const activeSnacks = sorted.filter(snack => isSnackActive(snack));
-      const hiddenSnacks = sorted.filter(snack => !isSnackActive(snack));
-      appendSnackGroupRows(tbody, '판매중 간식', activeSnacks);
-      appendSnackGroupRows(tbody, '숨김 간식', hiddenSnacks);
+      const activeUser = sorted.filter(s => isSnackActive(s) && s.target !== 'guest');
+      const activeGuest = sorted.filter(s => isSnackActive(s) && s.target === 'guest');
+      const hiddenUser = sorted.filter(s => !isSnackActive(s) && s.target !== 'guest');
+      const hiddenGuest = sorted.filter(s => !isSnackActive(s) && s.target === 'guest');
+
+      appendSnackGroupRows(tbody, '판매중 일반 간식', activeUser);
+      appendSnackGroupRows(tbody, '판매중 게스트 간식', activeGuest);
+      appendSnackGroupRows(tbody, '숨김 일반 간식', hiddenUser);
+      appendSnackGroupRows(tbody, '숨김 게스트 간식', hiddenGuest);
     }
 
 
@@ -2036,9 +2063,6 @@
         if (targetVal === 'guest') {
           targetLabel = '게스트';
           targetClass = 'target-guest';
-        } else if (targetVal === 'both') {
-          targetLabel = '모두';
-          targetClass = 'target-both';
         }
 
         tr.innerHTML = `

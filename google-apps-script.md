@@ -289,7 +289,8 @@ function getSnacks(includeHidden, mode) {
     })
     .map(row => {
       const stock = Number(row[5] || 0);
-      const target = row[7] ? String(row[7]).trim().toLowerCase() : 'user';
+      const rawTarget = row[7] ? String(row[7]).trim().toLowerCase() : 'user';
+      const target = rawTarget === 'guest' ? 'guest' : 'user';
 
       return {
         snackId: row[0],
@@ -307,10 +308,10 @@ function getSnacks(includeHidden, mode) {
 
   if (mode) {
     const cleanedMode = String(mode).trim().toLowerCase();
-    if (cleanedMode === 'user') {
-      snacks = snacks.filter(s => s.target === 'user' || s.target === 'both');
-    } else if (cleanedMode === 'guest') {
-      snacks = snacks.filter(s => s.target === 'guest' || s.target === 'both');
+    if (cleanedMode === 'guest') {
+      snacks = snacks.filter(s => s.target === 'guest');
+    } else if (cleanedMode === 'user' || cleanedMode === 'kiosk') {
+      snacks = snacks.filter(s => s.target === 'user');
     }
   }
 
@@ -330,14 +331,15 @@ function canOrderSnack(snackRow, mode) {
     return false;
   }
 
-  const target = String(snackRow[7] || 'user').trim().toLowerCase();
+  const rawTarget = String(snackRow[7] || 'user').trim().toLowerCase();
+  const target = rawTarget === 'guest' ? 'guest' : 'user';
 
   if (mode === 'guest') {
-    return target === 'all' || target === 'both' || target === 'guest';
+    return target === 'guest';
   }
 
   if (mode === 'user' || mode === 'kiosk') {
-    return target === 'all' || target === 'both' || target === 'user' || target === 'kiosk';
+    return target === 'user';
   }
 
   return false;
@@ -1291,7 +1293,8 @@ function addSnack(data) {
     if (id > maxId) maxId = id;
   }
   var newSnackId = maxId + 1;
-  var target = String(data.target || 'user').trim().toLowerCase();
+  var rawTarget = String(data.target || 'user').trim().toLowerCase();
+  var target = rawTarget === 'guest' ? 'guest' : 'user';
   
   var newRow = [
     newSnackId,
@@ -1363,7 +1366,8 @@ function updateSnack(data) {
   var imageUrl = String(data.imageUrl || '').trim();
   var stock = Number(data.stock);
   var saleYn = String(data.saleYn || 'Y').toUpperCase() === 'Y' ? 'Y' : 'N';
-  var target = String(data.target || 'user').trim().toLowerCase();
+  var rawTarget = String(data.target || 'user').trim().toLowerCase();
+  var target = rawTarget === 'guest' ? 'guest' : 'user';
 
   if (!snackId) {
     return { success: false, message: '간식 ID가 필요합니다.' };
@@ -1379,7 +1383,8 @@ function updateSnack(data) {
       var beforeImageUrl = rows[i][3];
       var beforeSaleYn = rows[i][4];
       var beforeStock = rows[i][5];
-      var beforeTarget = rows[i][7] ? String(rows[i][7]).trim().toLowerCase() : 'user';
+      var beforeRawTarget = rows[i][7] ? String(rows[i][7]).trim().toLowerCase() : 'user';
+      var beforeTarget = beforeRawTarget === 'guest' ? 'guest' : 'user';
 
       sheet.getRange(i + 1, 2).setValue(name);
       sheet.getRange(i + 1, 3).setValue(point);
