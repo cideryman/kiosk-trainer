@@ -734,6 +734,9 @@
     window.addEventListener('DOMContentLoaded', () => {
       initData();
 
+      // 유휴 시간 자동 로그아웃 초기화 (70초 유휴 + 10초 경고)
+      AppState.initIdleTimeout(70000, 10000);
+
       AppState.bindCardTap(document.getElementById('btn-prev'), () => {
         window.location.href = 'menu.html';
       });

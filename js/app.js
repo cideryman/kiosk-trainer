@@ -244,6 +244,135 @@ const AppState = {
     element.addEventListener('pointercancel', () => {
       isPointerDown = false;
     });
+  },
+
+  initIdleTimeout(timeoutMs = 70000, warningMs = 10000) {
+    const self = this;
+    let idleTimer = null;
+    let countdownTimer = null;
+    let countdownSec = 10;
+    let isWarningActive = false;
+
+    // 경고 오버레이 생성 (최초 1회 레이지 로딩)
+    let overlay = document.getElementById('idle-timeout-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'idle-timeout-overlay';
+      overlay.className = 'idle-timeout-overlay';
+      overlay.innerHTML = `
+        <div class="idle-timeout-box">
+          <div class="idle-timeout-emoji">⏰</div>
+          <div class="idle-timeout-title">주문을 계속하시겠습니까?</div>
+          <div class="idle-timeout-desc">
+            <span id="idle-countdown-sec" class="idle-timeout-countdown">10</span>초 후에<br>처음 화면으로 돌아갑니다.
+          </div>
+          <div class="idle-timeout-footer">
+            화면을 터치하면 계속 주문할 수 있어요!
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      // 오버레이 터치 시 유휴 리셋 및 복귀
+      overlay.addEventListener('click', (e) => {
+        e.stopPropagation();
+        resetIdleAndDismissWarning();
+      });
+    }
+
+    function startIdleTimer() {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(showWarning, timeoutMs);
+    }
+
+    function resetIdleAndDismissWarning() {
+      if (isWarningActive) {
+        isWarningActive = false;
+        overlay.style.display = 'none';
+        clearInterval(countdownTimer);
+
+        // 촉각/청각 피드백
+        self.playClickSound();
+        self.vibrate(50);
+
+        // 기존 안내 멈추고 주문 연장 안내 재생
+        try {
+          window.speechSynthesis.cancel();
+        } catch (e) {}
+        self.speak("주문을 계속합니다.");
+      }
+      startIdleTimer();
+    }
+
+    function showWarning() {
+      isWarningActive = true;
+      overlay.style.display = 'flex';
+      countdownSec = warningMs / 1000;
+      const countEl = document.getElementById('idle-countdown-sec');
+      if (countEl) countEl.textContent = countdownSec;
+
+      // 경고 진동 및 음향
+      self.playWarningSound();
+      self.vibrate([100, 50, 100]);
+
+      // TTS 경고 방송
+      self.speak("장시간 입력이 없어 10초 후에 처음 화면으로 돌아갑니다. 화면을 터치하면 계속 주문할 수 있습니다.");
+
+      clearInterval(countdownTimer);
+      countdownTimer = setInterval(() => {
+        countdownSec--;
+        if (countdownSec <= 0) {
+          clearInterval(countdownTimer);
+          handleTimeout();
+        } else {
+          if (countEl) countEl.textContent = countdownSec;
+          
+          // 마지막 3초인 경우 짧은 진동 및 비프음 틱 연출
+          if (countdownSec <= 3) {
+            self.vibrate(30);
+            try {
+              const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+              const osc = audioCtx.createOscillator();
+              const gain = audioCtx.createGain();
+              osc.connect(gain);
+              gain.connect(audioCtx.destination);
+              osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+              gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+              gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+              osc.start();
+              osc.stop(audioCtx.currentTime + 0.08);
+            } catch (e) {}
+          }
+        }
+      }, 1000);
+    }
+
+    function handleTimeout() {
+      overlay.style.display = 'none';
+      const currentUser = self.getSelectedUser();
+      const isGuest = currentUser && currentUser.userId === 'guest';
+
+      self.resetAll();
+
+      if (isGuest) {
+        window.location.href = 'guest.html';
+      } else {
+        window.location.href = 'index.html';
+      }
+    }
+
+    // 터치, 마우스, 스크롤, 키 입력 등 사용자 활동 리스너 결합
+    const resetEvents = ['pointerdown', 'keydown', 'scroll', 'click'];
+    resetEvents.forEach(evt => {
+      window.addEventListener(evt, () => {
+        if (!isWarningActive) {
+          startIdleTimer();
+        }
+      }, { passive: true });
+    });
+
+    // 최초 타이머 시작
+    startIdleTimer();
   }
 };
 
