@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kiosk-cache-v63';
+const CACHE_NAME = 'kiosk-cache-v64';
 const urlsToCache = [
   'index.html',
   'menu.html',
@@ -75,6 +75,11 @@ self.addEventListener('activate', (event) => {
 // 요청 가로채기 및 캐싱 전략 적용
 self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
+
+  // HTTP/HTTPS 프로토콜만 캐싱을 처리하도록 필터링 (chrome-extension 등 오류 방지)
+  if (!requestUrl.protocol.startsWith('http')) {
+    return;
+  }
 
   // 구글 Apps Script API 요청은 캐시하지 않고, 서비스 워커가 개입하지 않고 브라우저가 직접 처리하도록 반환합니다.
   // (CORS 및 리다이렉트 이슈 방지)

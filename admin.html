@@ -3005,16 +3005,20 @@
         `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
     }
 
-    async function handleGuestOpsAction(settingsAction) {
+    async function handleGuestOpsAction(settingsAction, minutes) {
       try {
         const adminToken = getAdminToken();
+        const body = {
+          settingsAction,
+          adminToken,
+          adminMemo: getAdminMemo()
+        };
+        if (settingsAction === 'openCustom') {
+          body.minutes = minutes;
+        }
         const res = await fetchAPI('updateGuestSettings', {
           method: 'POST',
-          body: {
-            settingsAction,
-            adminToken,
-            adminMemo: getAdminMemo()
-          }
+          body: body
         });
         if (res && res.success) {
           alert(res.message || '설정이 변경되었습니다.');
