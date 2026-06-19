@@ -2797,10 +2797,13 @@
       }
 
       // 키오스크 모드로 돌아가기
-      document.getElementById('btn-goto-kiosk').addEventListener('click', () => {
-        clearInterval(refreshTimer);
-        window.location.href = 'index.html';
-      });
+      const btnGotoKiosk = document.getElementById('btn-goto-kiosk');
+      if (btnGotoKiosk) {
+        btnGotoKiosk.addEventListener('click', () => {
+          clearInterval(refreshTimer);
+          window.location.href = 'index.html';
+        });
+      }
 
       // 이용자 검색 바인딩
       const searchInput = document.getElementById('search-user-input');
@@ -2959,17 +2962,27 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       // 모달 이벤트 리스너 추가
-      document.getElementById('btn-close-review-modal').addEventListener('click', closeReviewDetail);
-      document.getElementById('btn-prev-review').addEventListener('click', () => navigateReview(-1));
-      document.getElementById('btn-next-review').addEventListener('click', () => navigateReview(1));
-      document.getElementById('btn-toggle-review-visibility').addEventListener('click', toggleCurrentReviewVisibility);
+      const btnClose = document.getElementById('btn-close-review-modal');
+      if (btnClose) btnClose.addEventListener('click', closeReviewDetail);
+      
+      const btnPrev = document.getElementById('btn-prev-review');
+      if (btnPrev) btnPrev.addEventListener('click', () => navigateReview(-1));
+      
+      const btnNext = document.getElementById('btn-next-review');
+      if (btnNext) btnNext.addEventListener('click', () => navigateReview(1));
+      
+      const btnToggle = document.getElementById('btn-toggle-review-visibility');
+      if (btnToggle) btnToggle.addEventListener('click', toggleCurrentReviewVisibility);
 
       // 배경 클릭 시 모달 닫기
-      document.getElementById('review-detail-modal').addEventListener('click', (e) => {
-        if (e.target.id === 'review-detail-modal') {
-          closeReviewDetail();
-        }
-      });
+      const reviewModal = document.getElementById('review-detail-modal');
+      if (reviewModal) {
+        reviewModal.addEventListener('click', (e) => {
+          if (e.target.id === 'review-detail-modal') {
+            closeReviewDetail();
+          }
+        });
+      }
     });
 
     // ESC 키로 닫기 및 화살표 키로 이동
