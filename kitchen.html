@@ -717,6 +717,49 @@
         <div id="guest-ops-info" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; font-size: 16px; font-weight: 700; color: var(--text-muted);">
           <div>⏰ 마감 예정: <span id="guest-ops-close-time">-</span></div>
           <div>⏳ 남은 시간: <span id="guest-ops-remaining">-</span></div>
+          
+          <div style="display: flex; gap: 12px; align-items: center; margin-top: 4px; flex-wrap: wrap; font-size: 15px; font-weight: 700; color: var(--text-main);">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span>🪙 기본 크레딧:</span>
+              <input type="number" id="input-guest-credit" class="admin-inline-input" value="10" min="0" style="width: 70px; text-align: center; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;">
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span>배달비:</span>
+              <input type="number" id="input-guest-fee" class="admin-inline-input" value="3" min="0" style="width: 70px; text-align: center; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;">
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span>기본 배달지:</span>
+              <input type="text" id="input-guest-delivery-place" class="admin-inline-input" value="사무실 원탁" style="width: 140px; text-align: left; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;">
+            </div>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 700;">
+              <input type="checkbox" id="input-guest-allow-multiple" style="width: 18px; height: 18px; accent-color: var(--secondary-color);"> 중복 주문 허용
+            </label>
+          </div>
+          
+          <!-- 오늘의 배달팀 설정 추가 -->
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 2px dashed var(--border-color);">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+              <div style="font-size: 16px; font-weight: 800; color: var(--text-main);">📦 오늘의 배달팀 설정</div>
+              <button class="btn-small-action" onclick="saveGuestSettings()" style="background-color: var(--secondary-color); color: white; border: none; min-height: 38px;">설정 저장</button>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 15px; font-weight: 700; color: var(--text-main);">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 700;">
+                <input type="checkbox" id="input-team-enabled" style="width: 18px; height: 18px; accent-color: var(--secondary-color);"> 표시하기
+              </label>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span>타이틀:</span>
+                <input type="text" id="input-team-title" class="admin-inline-input" style="width: 160px; text-align: left; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;" placeholder="📦 오늘의 배달팀">
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 15px; font-weight: 700; color: var(--text-main);">
+              <span>멤버:</span>
+              <input type="text" id="input-team-members" class="admin-inline-input" style="flex: 1; min-width: 200px; text-align: left; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;" placeholder="김○○|배달 담당, 박○○|상품 준비 담당">
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 15px; font-weight: 700; color: var(--text-main);">
+              <span>한마디:</span>
+              <input type="text" id="input-team-message" class="admin-inline-input" style="flex: 1; min-width: 200px; text-align: left; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;" placeholder="맛있게 준비해서 배달하겠습니다!">
+            </div>
+          </div>
         </div>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           <button class="btn-small-action" id="btn-guest-open20" style="flex: 1; min-height: 48px; font-size: 16px; background-color: #38A169; white-space: nowrap;">⏱ 20분 열기</button>
