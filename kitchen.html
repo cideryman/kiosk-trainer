@@ -2471,9 +2471,16 @@
         // 주문 시간 순 정렬 (선입선출)
         const sortedOrderGroups = Object.values(ordersByNo).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-        const kioskGroups = sortedOrderGroups.filter(g => g.items[0] && g.items[0].userId !== 'guest');
-        const pickupGroups = sortedOrderGroups.filter(g => g.items[0] && g.items[0].userId === 'guest' && g.deliveryType === 'pickup');
-        const deliveryGroups = sortedOrderGroups.filter(g => g.items[0] && g.items[0].userId === 'guest' && g.deliveryType === 'delivery');
+        // 게스트 주문 판단 (userId가 'guest'이거나, deliveryType이 pickup/delivery인 경우)
+        const isGuestOrder = (g) => {
+          const item = g.items[0];
+          if (!item) return false;
+          return item.userId === 'guest' || g.deliveryType === 'pickup' || g.deliveryType === 'delivery';
+        };
+
+        const kioskGroups = sortedOrderGroups.filter(g => !isGuestOrder(g));
+        const pickupGroups = sortedOrderGroups.filter(g => isGuestOrder(g) && g.deliveryType === 'pickup');
+        const deliveryGroups = sortedOrderGroups.filter(g => isGuestOrder(g) && g.deliveryType === 'delivery');
 
         if (kioskBadge) kioskBadge.textContent = `${kioskGroups.length}건`;
         if (pickupBadge) pickupBadge.textContent = `${pickupGroups.length}건`;
