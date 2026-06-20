@@ -402,69 +402,57 @@ window.addEventListener('DOMContentLoaded', () => {
   initOfflineDetector();
 });
 
-// 실시간 인터넷 연결 상태 감지 배너 연동
+// 실시간 인터넷 연결 상태 감지 전면 팝업 연동
 function initOfflineDetector() {
-  const bannerId = 'global-offline-warning-banner';
+  const overlayId = 'global-offline-overlay';
   
-  function showOfflineBanner() {
-    let banner = document.getElementById(bannerId);
-    if (!banner) {
-      banner = document.createElement('div');
-      banner.id = bannerId;
-      banner.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        background-color: #FF5A5F;
-        color: white;
-        text-align: center;
-        font-size: 18px;
-        font-weight: 850;
-        padding: 14px 20px;
-        z-index: 99999;
-        box-shadow: 0 4px 15px rgba(255, 90, 95, 0.4);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        animation: offlineSlideDown 0.25s ease-out forwards;
+  function showOfflineOverlay() {
+    let overlay = document.getElementById(overlayId);
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = overlayId;
+      overlay.className = 'offline-full-overlay';
+      overlay.innerHTML = `
+        <div class="offline-full-box">
+          <img class="offline-illustration" src="assets/offline.png" alt="인터넷 연결 끊김 안내">
+          <div class="offline-title">인터넷 연결이 끊겼어요</div>
+          <div class="offline-desc">인터넷이 다시 연결되기를 기다리고 있습니다.</div>
+          <div class="offline-footer">
+            <span class="offline-loading-spinner"></span>
+            연결 확인 중...
+          </div>
+        </div>
       `;
-      
-      if (!document.getElementById('offline-animation-style')) {
-        const style = document.createElement('style');
-        style.id = 'offline-animation-style';
-        style.textContent = `
-          @keyframes offlineSlideDown {
-            from { transform: translateY(-100%); }
-            to { transform: translateY(0); }
-          }
-        `;
-        document.head.appendChild(style);
-      }
-      
-      banner.innerHTML = `⚠️ 현재 인터넷 연결이 불안정합니다. 연결 상태를 확인해 주세요. 🔌`;
-      document.body.appendChild(banner);
+      document.body.appendChild(overlay);
       
       AppState.playWarningSound();
       AppState.vibrate([100, 100, 100]);
+      AppState.speak("인터넷 연결이 끊겼습니다. 다시 연결되기를 기다리고 있으니 잠시만 기다려 주세요.");
     }
   }
   
-  function hideOfflineBanner() {
-    const banner = document.getElementById(bannerId);
-    if (banner) {
-      banner.remove();
+  function hideOfflineOverlay() {
+    const overlay = document.getElementById(overlayId);
+    if (overlay) {
+      overlay.style.transition = 'opacity 0.25s ease-out';
+      overlay.style.opacity = '0';
+      setTimeout(() => {
+        if (overlay.parentNode) {
+          overlay.remove();
+        }
+      }, 250);
+      
       AppState.playClickSound();
       AppState.vibrate(50);
+      AppState.speak("인터넷이 다시 연결되었습니다. 주문을 계속해 주세요!");
     }
   }
   
-  window.addEventListener('offline', showOfflineBanner);
-  window.addEventListener('online', hideOfflineBanner);
+  window.addEventListener('offline', showOfflineOverlay);
+  window.addEventListener('online', hideOfflineOverlay);
   
   if (!navigator.onLine) {
-    showOfflineBanner();
+    showOfflineOverlay();
   }
 }
 

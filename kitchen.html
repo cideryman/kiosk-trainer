@@ -656,6 +656,22 @@
       border-color: var(--secondary-color);
       background-color: #F0FFFE;
     }
+    .orders-split-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+      margin-top: 12px;
+    }
+    @media (min-width: 1024px) {
+      .orders-split-layout {
+        grid-template-columns: 1fr 1fr 1fr !important;
+      }
+    }
+    @media (min-width: 768px) and (max-width: 1023px) {
+      .orders-split-layout {
+        grid-template-columns: 1fr 1fr !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -671,6 +687,7 @@
           <button class="btn-small-action" id="btnEnableSound" style="min-height: 48px; background-color: #38A169; color: white; border: none;">🔊 음성 알림 활성화</button>
           <button class="btn-small-action" onclick="window.location.href='admin.html'" style="min-height: 48px; background-color: #3182CE; color: white; border: none;">⚙️ 관리자 설정</button>
           <button class="btn-small-action" onclick="window.location.href='reviews.html'" style="min-height: 48px; background-color: #38A169; color: white; border: none;">💬 후기 관리</button>
+          <button class="btn-small-action" onclick="openTodaySummaryModal()" style="min-height: 48px; background-color: #D97706; color: white; border: none;">📊 오늘의 운영 결과</button>
           <button class="btn-small-action" onclick="window.open('print-bills.html', '_blank')" style="min-height: 48px; background-color: #ED8936; color: white; border: none;">🖨️ 빌지 인쇄</button>
           <button class="btn-small-action" onclick="window.open('board.html', '_blank')" style="min-height: 48px; background-color: #7C3AED; color: white; border: none;">🖥️ 전광판 보기</button>
           <button class="btn-small-action" id="btn-download-csv" style="min-height: 48px;">CSV 다운로드</button>
@@ -802,12 +819,6 @@
                   </select>
                 </div>
               </div>
-              <!-- 일괄 처리 컨트롤 바 (대기 주문 있을 때만 표시) -->
-              <div class="bulk-action-bar" id="bulk-action-bar" style="display: none;">
-                <span class="bulk-count" id="bulk-count-text">선택된 주문: 0건</span>
-                <button class="btn-bulk-selected" id="btn-bulk-selected" onclick="completeSelectedOrders()" disabled>✅ 선택 제공</button>
-                <button class="btn-bulk-all" id="btn-bulk-all" onclick="completeAllOrders()">🚀 모두 제공</button>
-              </div>
               <div id="pending-orders-group" class="pending-group-container">
                 <!-- JS 동적 생성 -->
               </div>
@@ -908,6 +919,25 @@
       <div class="admin-modal-footer">
         <button class="btn btn-gray" onclick="closeCancelReasonModal()" style="flex: 1; min-height: 48px; font-size: 16px;">닫기</button>
         <button class="btn btn-secondary" onclick="submitCancelOrder()" style="flex: 1; min-height: 48px; font-size: 16px; margin: 0; background-color: var(--danger-color); border-color: var(--danger-color);">취소 처리</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 오늘의 운영 결과 요약 모달 -->
+  <div class="admin-modal" id="modal-today-summary">
+    <div class="admin-modal-content" style="max-width: 500px;">
+      <div class="admin-modal-header">
+        <h2 class="admin-modal-title">📊 오늘의 운영 결과 요약</h2>
+        <button class="admin-modal-close" onclick="closeTodaySummaryModal()">&times;</button>
+      </div>
+      <div class="admin-modal-body" id="today-summary-content" style="max-height: 70vh; overflow-y: auto;">
+        <div style="text-align: center; padding: 20px; font-weight: bold; color: var(--text-muted);">
+          데이터를 불러오고 있습니다...
+        </div>
+      </div>
+      <div class="admin-modal-footer">
+        <button class="btn btn-gray" onclick="closeTodaySummaryModal()" style="flex: 1; min-height: 48px; font-size: 16px;">닫기</button>
+        <button class="btn btn-secondary" id="btn-copy-summary" onclick="copyTodaySummaryText()" style="flex: 1; min-height: 48px; font-size: 16px; margin: 0; background-color: var(--secondary-color); border-color: var(--secondary-color);">📋 결과 복사하기</button>
       </div>
     </div>
   </div>
@@ -1258,37 +1288,59 @@
 
     // 일괄 처리 UI 갱신
     function updateBulkActionBar(hasPending) {
-      const bar = document.getElementById('bulk-action-bar');
-      if (!bar) return;
-      bar.style.display = hasPending ? 'flex' : 'none';
       updateBulkSelectionUI();
     }
 
-    // 선택 체크박스 상태에 따라 버튼/카운트 갱신
+    // 선택 체크박스 상태에 따라 버튼/카운트 갱신 (컬럼별)
     function updateBulkSelectionUI() {
-      const checkboxes = document.querySelectorAll('.pending-order-checkbox');
-      const checked = document.querySelectorAll('.pending-order-checkbox:checked');
-      const countEl = document.getElementById('bulk-count-text');
-      const btnSelected = document.getElementById('btn-bulk-selected');
-      const btnAll = document.getElementById('btn-bulk-all');
+      // 1. 키오스크
+      const kioskCbs = document.querySelectorAll('#pending-kiosk-group .pending-order-checkbox');
+      const kioskChecked = document.querySelectorAll('#pending-kiosk-group .pending-order-checkbox:checked');
+      const countKiosk = document.getElementById('bulk-count-kiosk');
+      const btnSelKiosk = document.getElementById('btn-bulk-selected-kiosk');
+      const btnAllKiosk = document.getElementById('btn-bulk-all-kiosk');
+      if (countKiosk) countKiosk.textContent = `선택: ${kioskChecked.length}건`;
+      if (btnSelKiosk) btnSelKiosk.disabled = kioskChecked.length === 0;
+      if (btnAllKiosk) btnAllKiosk.disabled = kioskCbs.length === 0;
 
-      if (countEl) countEl.textContent = `선택된 주문: ${checked.length}건 / 전체: ${checkboxes.length}건`;
-      if (btnSelected) btnSelected.disabled = checked.length === 0;
-      if (btnAll) btnAll.disabled = checkboxes.length === 0;
+      // 2. 포장
+      const pickupCbs = document.querySelectorAll('#pending-pickup-group .pending-order-checkbox');
+      const pickupChecked = document.querySelectorAll('#pending-pickup-group .pending-order-checkbox:checked');
+      const countPickup = document.getElementById('bulk-count-pickup');
+      const btnSelPickup = document.getElementById('btn-bulk-selected-pickup');
+      const btnAllPickup = document.getElementById('btn-bulk-all-pickup');
+      if (countPickup) countPickup.textContent = `선택: ${pickupChecked.length}건`;
+      if (btnSelPickup) btnSelPickup.disabled = pickupChecked.length === 0;
+      if (btnAllPickup) btnAllPickup.disabled = pickupCbs.length === 0;
+
+      // 3. 배달
+      const deliveryCbs = document.querySelectorAll('#pending-delivery-group .pending-order-checkbox');
+      const deliveryChecked = document.querySelectorAll('#pending-delivery-group .pending-order-checkbox:checked');
+      const countDelivery = document.getElementById('bulk-count-delivery');
+      const btnSelDelivery = document.getElementById('btn-bulk-selected-delivery');
+      const btnAllDelivery = document.getElementById('btn-bulk-all-delivery');
+      if (countDelivery) countDelivery.textContent = `선택: ${deliveryChecked.length}건`;
+      if (btnSelDelivery) btnSelDelivery.disabled = deliveryChecked.length === 0;
+      if (btnAllDelivery) btnAllDelivery.disabled = deliveryCbs.length === 0;
     }
 
-    // 선택된 주문만 일괄 제공 완료
-    async function completeSelectedOrders() {
-      const checked = document.querySelectorAll('.pending-order-checkbox:checked');
+    // 선택된 주문만 일괄 제공 완료 (컬럼별)
+    async function completeSelectedOrders(columnId) {
+      let queryStr = '.pending-order-checkbox:checked';
+      if (columnId === 'kiosk') queryStr = '#pending-kiosk-group .pending-order-checkbox:checked';
+      else if (columnId === 'pickup') queryStr = '#pending-pickup-group .pending-order-checkbox:checked';
+      else if (columnId === 'delivery') queryStr = '#pending-delivery-group .pending-order-checkbox:checked';
+
+      const checked = document.querySelectorAll(queryStr);
       if (checked.length === 0) return;
 
       const orderNos = Array.from(checked).map(cb => cb.getAttribute('data-order-no'));
       const ok = confirm(`선택한 ${orderNos.length}건의 주문을 모두 제공 완료 처리할까요?`);
       if (!ok) return;
 
-      const btnSelected = document.getElementById('btn-bulk-selected');
-      const btnAll = document.getElementById('btn-bulk-all');
-      if (btnSelected) btnSelected.disabled = true;
+      const btnSel = document.getElementById(`btn-bulk-selected-${columnId}`);
+      const btnAll = document.getElementById(`btn-bulk-all-${columnId}`);
+      if (btnSel) btnSel.disabled = true;
       if (btnAll) btnAll.disabled = true;
 
       let successCount = 0;
@@ -1319,9 +1371,14 @@
       await loadAdminData();
     }
 
-    // 모든 대기 주문 일괄 제공 완료
-    async function completeAllOrders() {
-      const checkboxes = document.querySelectorAll('.pending-order-checkbox');
+    // 모든 대기 주문 일괄 제공 완료 (컬럼별)
+    async function completeAllOrders(columnId) {
+      let queryStr = '.pending-order-checkbox';
+      if (columnId === 'kiosk') queryStr = '#pending-kiosk-group .pending-order-checkbox';
+      else if (columnId === 'pickup') queryStr = '#pending-pickup-group .pending-order-checkbox';
+      else if (columnId === 'delivery') queryStr = '#pending-delivery-group .pending-order-checkbox';
+
+      const checkboxes = document.querySelectorAll(queryStr);
       if (checkboxes.length === 0) return;
 
       const ok = confirm(`대기 중인 ${checkboxes.length}건의 주문을 모두 제공 완료 처리할까요?`);
@@ -1329,7 +1386,7 @@
 
       // 전체 선택 후 일괄 처리
       checkboxes.forEach(cb => { cb.checked = true; cb.dispatchEvent(new Event('change')); });
-      await completeSelectedOrders();
+      await completeSelectedOrders(columnId);
     }
 
     // 제공 완료 처리 (DB 상태 업데이트)
@@ -1380,6 +1437,178 @@
     function closeCancelReasonModal() {
       document.getElementById('modal-cancel-reason').style.display = 'none';
       isModalOpen = false;
+    }
+
+    // --- 오늘의 운영 결과 모달 집계 및 복사 기능 ---
+    let lastSummaryText = ''; // 복사용 텍스트 임시 보관
+
+    async function openTodaySummaryModal() {
+      const modal = document.getElementById('modal-today-summary');
+      const contentEl = document.getElementById('today-summary-content');
+      
+      modal.style.display = 'flex';
+      isModalOpen = true;
+      contentEl.innerHTML = `
+        <div style="text-align: center; padding: 30px; font-weight: bold; color: var(--text-muted);">
+          <span class="offline-loading-spinner" style="display:inline-block; margin-right:8px; vertical-align:middle; width:20px; height:20px;"></span>
+          오늘의 집계 데이터를 분석하고 있습니다...
+        </div>
+      `;
+
+      try {
+        // 1. 주문 데이터 기반 프론트엔드 집계
+        const orderGroups = {};
+        let totalItemsCount = 0;
+        
+        currentOrders.forEach((o, idx) => {
+          const orderNo = o.orderNo || `${o.timestamp || idx}_${o.nickname || 'unknown'}`;
+          if (!orderGroups[orderNo]) {
+            orderGroups[orderNo] = {
+              orderNo: orderNo,
+              servedYn: o.servedYn || 'N',
+              deliveryType: o.deliveryType || 'pickup',
+              deliveryPlace: o.deliveryPlace || '',
+              deliveryFee: Number(o.deliveryFee || 0),
+              userId: o.userId || '',
+              points: 0,
+              itemsCount: 0
+            };
+          }
+          orderGroups[orderNo].points += Number(o.point || 0);
+          orderGroups[orderNo].itemsCount += Number(o.quantity || 1);
+          totalItemsCount += Number(o.quantity || 1);
+        });
+
+        const orderList = Object.values(orderGroups);
+        const totalOrders = orderList.length;
+        const completedCount = orderList.filter(g => g.servedYn === 'Y').length;
+        const canceledCount = orderList.filter(g => g.servedYn === 'C').length;
+        const activeOrders = orderList.filter(g => g.servedYn !== 'C');
+        const kioskCount = activeOrders.filter(g => g.userId !== 'guest').length;
+        const guestPickupCount = activeOrders.filter(g => g.userId === 'guest' && g.deliveryType === 'pickup').length;
+        const guestDeliveryCount = activeOrders.filter(g => g.userId === 'guest' && g.deliveryType === 'delivery').length;
+
+        // 총 차감 크레딧 집계 (취소된 주문 제외)
+        let totalPoints = 0;
+        activeOrders.forEach(g => {
+          totalPoints += g.points + g.deliveryFee;
+        });
+
+        // 2. 후기 데이터 조회 및 오늘 날짜 기준 집계
+        let totalReviews = 0;
+        let photoReviews = 0;
+        let tagsText = '등록된 태그 없음';
+        let tagsHtml = '<span style="font-size:13px; color:var(--text-muted);">오늘 작성된 후기 태그가 없습니다.</span>';
+
+        const reviewsRes = await fetchAPI('getReviewsForAdmin');
+        if (reviewsRes && reviewsRes.success && Array.isArray(reviewsRes.reviews)) {
+          const todayStr = new Date().toDateString();
+          const todayReviews = reviewsRes.reviews.filter(r => {
+            const d = r.createdAt ? new Date(r.createdAt) : null;
+            return d && !isNaN(d.getTime()) && d.toDateString() === todayStr;
+          });
+
+          totalReviews = todayReviews.length;
+          photoReviews = todayReviews.filter(r => r.imageUrl && r.imageUrl.trim() !== '').length;
+
+          // 태그 집계
+          const tagCounts = {};
+          todayReviews.forEach(r => {
+            if (!r.tags) return;
+            const parts = r.tags.split(/[,,|]/);
+            parts.forEach(p => {
+              const cleaned = p.trim();
+              if (cleaned) {
+                tagCounts[cleaned] = (tagCounts[cleaned] || 0) + 1;
+              }
+            });
+          });
+
+          const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
+          if (sortedTags.length > 0) {
+            tagsText = sortedTags.map(([tag, count]) => `${tag} ${count}개`).join(' / ');
+            tagsHtml = sortedTags.map(([tag, count]) => `
+              <span style="background-color: #E6FFFA; border: 1.5px solid #81E6D9; padding: 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #234E52;">
+                ${esc(tag)} ${count}
+              </span>
+            `).join('');
+          }
+        }
+
+        // 3. 복사용 텍스트 포맷 생성
+        const todayFormatted = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+        lastSummaryText = `📢 [오늘의 운영 결과 요약]
+- 날짜: ${todayFormatted}
+- 총 주문: ${totalOrders}건 (키오스크: ${kioskCount}건 / 배달왔삼 포장: ${guestPickupCount}건 / 배달왔삼 배달: ${guestDeliveryCount}건)
+- 주문 상태: 완료 ${completedCount}건 / 취소 ${canceledCount}건
+- 총 차감 크레딧: ${totalPoints} 크레딧
+- 오늘 후기: ${totalReviews}건 (사진 후기: ${photoReviews}건)
+- 후기 태그: ${tagsText}`;
+
+        // 4. 모달 콘텐츠 적용
+        contentEl.innerHTML = `
+          <div style="display: flex; flex-direction: column; gap: 14px;">
+            <div style="font-size: 14px; color: var(--text-muted); font-weight: 700; text-align: right; margin-bottom: -4px;">
+              📅 ${esc(todayFormatted)} 기준
+            </div>
+            
+            <div style="background-color: #F8FAFC; border: 2.5px solid var(--border-color); border-radius: var(--radius-sm); padding: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; font-size: 16px; font-weight: 850; color: var(--text-main);">
+              <div style="grid-column: 1 / -1; font-size: 18px; border-bottom: 2px solid var(--border-color); padding-bottom: 8px; margin-bottom: 4px; color: var(--primary-color);">
+                🛍️ 주문 집계
+              </div>
+              <div>📝 총 주문 건수: <span style="font-size: 18px; font-weight: 900; color: var(--text-main);">${totalOrders}건</span></div>
+              <div>🪙 총 차감 크레딧: <span style="font-size: 18px; font-weight: 900; color: var(--primary-color);">${totalPoints}🪙</span></div>
+              <div>🥡 키오스크 주문: <span style="font-weight: 800;">${kioskCount}건</span></div>
+              <div>📱 배달왔삼 포장: <span style="font-weight: 800;">${guestPickupCount}건</span></div>
+              <div>🛵 배달왔삼 배달: <span style="font-weight: 800;">${guestDeliveryCount}건</span></div>
+              <div>✅ 제공 완료: <span style="color: var(--secondary-hover);">${completedCount}건</span></div>
+              <div>🚫 취소 주문: <span style="color: var(--danger-color);">${canceledCount}건</span></div>
+            </div>
+
+            <div style="background-color: #F0FFF4; border: 2.5px solid #9AE6B4; border-radius: var(--radius-sm); padding: 18px; font-size: 15px; font-weight: 800; color: #22543D;">
+              <div style="font-size: 18px; font-weight: 900; margin-bottom: 8px; border-bottom: 1.5px dashed #9AE6B4; padding-bottom: 8px; color: #276749;">
+                💬 후기 및 태그 요약
+              </div>
+              <div style="margin-bottom: 10px; font-size:16px;">
+                총 후기: <strong style="font-size:18px;">${totalReviews}건</strong> (사진: <strong>${photoReviews}건</strong>)
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
+                ${tagsHtml}
+              </div>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        console.error("운영 결과 모달 집계 오류:", err);
+        contentEl.innerHTML = `
+          <div style="text-align: center; padding: 20px; color: var(--danger-color); font-weight: bold;">
+            데이터 집계 도중 오류가 발생했습니다.<br>
+            <span style="font-size: 13px; font-weight: 500;">${esc(err.message)}</span>
+          </div>
+        `;
+      }
+    }
+
+    function closeTodaySummaryModal() {
+      document.getElementById('modal-today-summary').style.display = 'none';
+      isModalOpen = false;
+    }
+
+    function copyTodaySummaryText() {
+      if (!lastSummaryText) {
+        alert("복사할 데이터가 준비되지 않았습니다.");
+        return;
+      }
+      navigator.clipboard.writeText(lastSummaryText)
+        .then(() => {
+          AppState.vibrate(40);
+          AppState.playClickSound();
+          alert("오늘의 운영 결과 요약이 클립보드에 복사되었습니다!\n카카오톡 등에 편하게 붙여넣기(Ctrl+V) 하세요.");
+        })
+        .catch(err => {
+          console.error("클립보드 복사 실패:", err);
+          alert("클립보드 복사에 실패했습니다. 직접 복사해 주세요.");
+        });
     }
 
     function toggleCancelReasonDetail() {
@@ -2158,13 +2387,71 @@
         board.style.display = 'none';
         board.innerHTML = '';
       }
-
-      // 3. 대기 중인 주문 리스트 카드형 렌더링 (주문번호 기준 선입선출 큐)
+      // 3. 대기 중인 주문 리스트 카드형 렌더링 (주문번호 기준 선입선출 큐 - 키오스크 / 배달왔삼 포장 / 배달왔삼 배달 3열 분리)
       const pendingContainer = document.getElementById('pending-orders-group');
-      pendingContainer.innerHTML = '';
+      pendingContainer.className = 'orders-split-layout';
+      pendingContainer.innerHTML = `
+        <!-- 키오스크 주문 열 -->
+        <div class="orders-column">
+          <div class="admin-section-title" style="font-size: 18px; color: var(--primary-hover); border-left-color: var(--primary-color); margin-top: 0; padding-left: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+            <span>🥡 키오스크 주문</span>
+            <span id="kiosk-pending-count" class="status-badge" style="background-color: var(--primary-color); border-color: var(--primary-color); color: white; min-width: 30px; padding: 2px 6px;">0건</span>
+          </div>
+          <!-- 키오스크 전용 일괄 처리 바 -->
+          <div class="column-bulk-bar" id="bulk-bar-kiosk" style="display: flex; gap: 8px; align-items: center; background: #F8F9FA; padding: 8px 12px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); margin-bottom: 12px;">
+            <span style="font-size: 13px; font-weight: 800; color: var(--text-muted); flex: 1;" id="bulk-count-kiosk">선택: 0건</span>
+            <button class="btn-small-action" style="padding: 4px 8px; font-size: 13px; background-color: var(--secondary-color); color: white; border: none; min-height: auto;" id="btn-bulk-selected-kiosk" onclick="completeSelectedOrders('kiosk')" disabled>선택 제공</button>
+            <button class="btn-small-action" style="padding: 4px 8px; font-size: 13px; background-color: #3A86C8; color: white; border: none; min-height: auto;" id="btn-bulk-all-kiosk" onclick="completeAllOrders('kiosk')">모두 제공</button>
+          </div>
+          <div id="pending-kiosk-group" style="display: flex; flex-direction: column; gap: 16px;"></div>
+        </div>
+
+        <!-- 배달왔삼 포장 열 -->
+        <div class="orders-column">
+          <div class="admin-section-title" style="font-size: 18px; color: var(--secondary-hover); border-left-color: var(--secondary-color); margin-top: 0; padding-left: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+            <span>📱 배달왔삼 포장</span>
+            <span id="pickup-pending-count" class="status-badge" style="background-color: var(--secondary-color); border-color: var(--secondary-color); color: white; min-width: 30px; padding: 2px 6px;">0건</span>
+          </div>
+          <!-- 배달왔삼 포장 전용 일괄 처리 바 -->
+          <div class="column-bulk-bar" id="bulk-bar-pickup" style="display: flex; gap: 8px; align-items: center; background: #F8F9FA; padding: 8px 12px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); margin-bottom: 12px;">
+            <span style="font-size: 13px; font-weight: 800; color: var(--text-muted); flex: 1;" id="bulk-count-pickup">선택: 0건</span>
+            <button class="btn-small-action" style="padding: 4px 8px; font-size: 13px; background-color: var(--secondary-color); color: white; border: none; min-height: auto;" id="btn-bulk-selected-pickup" onclick="completeSelectedOrders('pickup')" disabled>선택 제공</button>
+            <button class="btn-small-action" style="padding: 4px 8px; font-size: 13px; background-color: #3A86C8; color: white; border: none; min-height: auto;" id="btn-bulk-all-pickup" onclick="completeAllOrders('pickup')">모두 제공</button>
+          </div>
+          <div id="pending-pickup-group" style="display: flex; flex-direction: column; gap: 16px;"></div>
+        </div>
+
+        <!-- 배달왔삼 배달 열 -->
+        <div class="orders-column">
+          <div class="admin-section-title" style="font-size: 18px; color: var(--danger-hover); border-left-color: var(--danger-color); margin-top: 0; padding-left: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+            <span>🛵 배달왔삼 배달</span>
+            <span id="delivery-pending-count" class="status-badge" style="background-color: var(--danger-color); border-color: var(--danger-color); color: white; min-width: 30px; padding: 2px 6px;">0건</span>
+          </div>
+          <!-- 배달왔삼 배달 전용 일괄 처리 바 -->
+          <div class="column-bulk-bar" id="bulk-bar-delivery" style="display: flex; gap: 8px; align-items: center; background: #F8F9FA; padding: 8px 12px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); margin-bottom: 12px;">
+            <span style="font-size: 13px; font-weight: 800; color: var(--text-muted); flex: 1;" id="bulk-count-delivery">선택: 0건</span>
+            <button class="btn-small-action" style="padding: 4px 8px; font-size: 13px; background-color: var(--secondary-color); color: white; border: none; min-height: auto;" id="btn-bulk-selected-delivery" onclick="completeSelectedOrders('delivery')" disabled>선택 제공</button>
+            <button class="btn-small-action" style="padding: 4px 8px; font-size: 13px; background-color: #3A86C8; color: white; border: none; min-height: auto;" id="btn-bulk-all-delivery" onclick="completeAllOrders('delivery')">모두 제공</button>
+          </div>
+          <div id="pending-delivery-group" style="display: flex; flex-direction: column; gap: 16px;"></div>
+        </div>
+      `;
+
+      const pendingKioskContainer = document.getElementById('pending-kiosk-group');
+      const pendingPickupContainer = document.getElementById('pending-pickup-group');
+      const pendingDeliveryContainer = document.getElementById('pending-delivery-group');
+      
+      const kioskBadge = document.getElementById('kiosk-pending-count');
+      const pickupBadge = document.getElementById('pickup-pending-count');
+      const deliveryBadge = document.getElementById('delivery-pending-count');
 
       if (pendingOrders.length === 0) {
-        pendingContainer.innerHTML = '<div class="empty-text">대기 중인 이용자가 없습니다. ⏳</div>';
+        if (pendingKioskContainer) pendingKioskContainer.innerHTML = '<div class="empty-text" style="padding:15px; font-size:15px;">대기 중인 키오스크 주문이 없습니다. ⏳</div>';
+        if (pendingPickupContainer) pendingPickupContainer.innerHTML = '<div class="empty-text" style="padding:15px; font-size:15px;">대기 중인 포장 주문이 없습니다. ⏳</div>';
+        if (pendingDeliveryContainer) pendingDeliveryContainer.innerHTML = '<div class="empty-text" style="padding:15px; font-size:15px;">대기 중인 배달 주문이 없습니다. ⏳</div>';
+        if (kioskBadge) kioskBadge.textContent = '0건';
+        if (pickupBadge) pickupBadge.textContent = '0건';
+        if (deliveryBadge) deliveryBadge.textContent = '0건';
       } else {
         const ordersByNo = {};
         pendingOrders.forEach(order => {
@@ -2181,8 +2468,26 @@
           ordersByNo[order.orderNo].items.push(order);
         });
 
-        // 주문 시간 순 정렬 (오래된 대기가 가장 위에 오는 선입선출 정렬)
+        // 주문 시간 순 정렬 (선입선출)
         const sortedOrderGroups = Object.values(ordersByNo).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+        const kioskGroups = sortedOrderGroups.filter(g => g.items[0] && g.items[0].userId !== 'guest');
+        const pickupGroups = sortedOrderGroups.filter(g => g.items[0] && g.items[0].userId === 'guest' && g.deliveryType === 'pickup');
+        const deliveryGroups = sortedOrderGroups.filter(g => g.items[0] && g.items[0].userId === 'guest' && g.deliveryType === 'delivery');
+
+        if (kioskBadge) kioskBadge.textContent = `${kioskGroups.length}건`;
+        if (pickupBadge) pickupBadge.textContent = `${pickupGroups.length}건`;
+        if (deliveryBadge) deliveryBadge.textContent = `${deliveryGroups.length}건`;
+
+        if (kioskGroups.length === 0) {
+          if (pendingKioskContainer) pendingKioskContainer.innerHTML = '<div class="empty-text" style="padding:15px; font-size:15px;">대기 중인 키오스크 주문이 없습니다. ⏳</div>';
+        }
+        if (pickupGroups.length === 0) {
+          if (pendingPickupContainer) pendingPickupContainer.innerHTML = '<div class="empty-text" style="padding:15px; font-size:15px;">대기 중인 포장 주문이 없습니다. ⏳</div>';
+        }
+        if (deliveryGroups.length === 0) {
+          if (pendingDeliveryContainer) pendingDeliveryContainer.innerHTML = '<div class="empty-text" style="padding:15px; font-size:15px;">대기 중인 배달 주문이 없습니다. ⏳</div>';
+        }
 
         sortedOrderGroups.forEach(group => {
           const nickname = String(group.nickname || '');
@@ -2214,7 +2519,8 @@
             numberPrefix = `<span style="color: var(--primary-color); font-weight: 900; margin-right: 6px;">[${esc(parts[2])}]</span>`;
           }
 
-          const isDelivery = group.deliveryType === 'delivery';
+          const isKiosk = group.items[0] && group.items[0].userId !== 'guest';
+          const isDelivery = !isKiosk && group.deliveryType === 'delivery';
           
           const status = group.servedYn || 'N';
           let statusLabel = '접수중';
@@ -2234,13 +2540,21 @@
             actionBtnHtml = `<button class="btn-complete-action" style="flex: 1; margin-top: 0; background-color: #3A86C8; box-shadow: 0 6px 12px rgba(58, 134, 200, 0.25);" onclick="${callAttr(`updateStatusAction(${orderNoArg}, 'P')`)}">☕ 준비 시작</button>`;
           }
 
-          const deliveryBadgeHtml = isDelivery
-            ? `<span class="status-badge" style="background-color: var(--danger-color); border-color: var(--danger-color); color: white; margin-left: 8px; font-size: 13px; font-weight: 800;">배달</span>`
-            : `<span class="status-badge" style="background-color: var(--secondary-color); border-color: var(--secondary-color); color: white; margin-left: 8px; font-size: 13px; font-weight: 800;">포장</span>`;
+          const deliveryBadgeHtml = isKiosk
+            ? `<span class="status-badge" style="background-color: var(--primary-color); border-color: var(--primary-color); color: white; margin-left: 8px; font-size: 13px; font-weight: 800;">매점</span>`
+            : (isDelivery
+                ? `<span class="status-badge" style="background-color: var(--danger-color); border-color: var(--danger-color); color: white; margin-left: 8px; font-size: 13px; font-weight: 800;">배달</span>`
+                : `<span class="status-badge" style="background-color: var(--secondary-color); border-color: var(--secondary-color); color: white; margin-left: 8px; font-size: 13px; font-weight: 800;">포장</span>`);
 
-          const deliveryPlaceText = (isDelivery && group.items[0] && group.items[0].deliveryPlace)
-            ? `<div style="font-size: 16px; font-weight: 800; color: #E53935; margin-top: 4px;">📍 배달지: ${esc(group.items[0].deliveryPlace)}</div>`
-            : '';
+          const deliveryPlaceText = isKiosk
+            ? `<div style="font-size: 16px; font-weight: 800; color: var(--primary-hover); margin-top: 4px;">🥡 매점 수령</div>`
+            : (isDelivery
+                ? ((group.items[0] && group.items[0].deliveryPlace)
+                    ? `<div style="font-size: 16px; font-weight: 800; color: #E53935; margin-top: 4px;">📍 배달지: ${esc(group.items[0].deliveryPlace)}</div>`
+                    : `<div style="font-size: 16px; font-weight: 800; color: #E53935; margin-top: 4px;">📍 배송지 미입력</div>`)
+                : ((group.items[0] && group.items[0].deliveryPlace)
+                    ? `<div style="font-size: 16px; font-weight: 800; color: var(--secondary-hover); margin-top: 4px;">📍 수령장소: ${esc(group.items[0].deliveryPlace)}</div>`
+                    : `<div style="font-size: 16px; font-weight: 800; color: var(--secondary-hover); margin-top: 4px;">🥡 포장 수령</div>`));
 
           const safeOrderNo = attr(group.orderNo);
           const checkboxId = `chk-order-${encodeURIComponent(group.orderNo)}`;
@@ -2278,7 +2592,13 @@
             card.classList.toggle('selected', this.checked);
           });
 
-          pendingContainer.appendChild(card);
+          if (isKiosk) {
+            if (pendingKioskContainer) pendingKioskContainer.appendChild(card);
+          } else if (isDelivery) {
+            if (pendingDeliveryContainer) pendingDeliveryContainer.appendChild(card);
+          } else {
+            if (pendingPickupContainer) pendingPickupContainer.appendChild(card);
+          }
         });
       }
 

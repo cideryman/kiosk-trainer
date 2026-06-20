@@ -213,6 +213,82 @@
         border-color: #ccc;
       }
     }
+
+    /* 배송지별 배달 체크리스트 스타일 */
+    .checklist-print-section {
+      max-width: 210mm;
+      margin: 30px auto 0 auto;
+      background: white;
+      border: 3.5px solid #4b5563;
+      border-radius: 8px;
+      padding: 24px;
+      box-sizing: border-box;
+      page-break-before: always; /* 인쇄 시 항상 새 페이지 시작 */
+      break-before: page;
+    }
+
+    @media screen {
+      .checklist-print-section {
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      }
+    }
+
+    .checklist-title {
+      font-size: 24px;
+      font-weight: 900;
+      color: #1f2937;
+      border-bottom: 3.5px solid #1f2937;
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .place-group {
+      margin-bottom: 24px;
+    }
+
+    .place-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .place-name-header {
+      font-size: 18px;
+      font-weight: 850;
+      color: #e53e3e;
+      background-color: #fff5f5;
+      padding: 10px 16px;
+      border: 2px solid #feb2b2;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+
+    .checklist-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+    }
+
+    .checklist-table th, .checklist-table td {
+      border: 1.5px solid #cbd5e1;
+      padding: 10px 12px;
+      text-align: left;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .checklist-table th {
+      background-color: #f1f5f9;
+      color: #475569;
+      font-weight: 850;
+    }
+
+    .checklist-chbox {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -230,6 +306,9 @@
       주문 데이터를 불러오는 중...
     </div>
   </div>
+
+  <!-- 배송지별 배달 체크리스트 컨테이너 -->
+  <div id="checklist-container" class="checklist-print-section" style="display: none;"></div>
 
   <!-- 스크립트 참조 -->
   <script src="js/config.js"></script>
@@ -396,6 +475,10 @@
             `;
             container.appendChild(card);
           });
+
+          // 배송지별 배달 체크리스트 출력
+          renderDeliveryChecklist(sortedGroups);
+
         } else {
           container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; font-size: 18px; font-weight: 700; color: #e53e3e;">주문 데이터를 불러오지 못했습니다.</div>';
         }
@@ -403,6 +486,100 @@
         console.error('빌지 로드 에러:', err);
         container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; font-size: 18px; font-weight: 700; color: #e53e3e;">오류가 발생했습니다. 관리자에게 문의하세요.</div>';
       }
+    }
+
+    // 배달 주문만 필터링 후 배송지별로 그룹화 및 정렬하는 독립형 함수
+    function groupDeliveryOrdersByPlace(orderGroups) {
+      const deliveryGroups = {};
+      
+      orderGroups.forEach(group => {
+        // 배달 주문만 대상 (pickup 제외)
+        if (group.deliveryType !== 'delivery') return;
+        
+        const place = (group.deliveryPlace || '').trim() || '배송지 미입력';
+        if (!deliveryGroups[place]) {
+          deliveryGroups[place] = [];
+        }
+        deliveryGroups[place].push(group);
+      });
+      
+      // 배송지 이름 가나다순 정렬 (추후 동선 정렬 등 최적화 구현이 가능하도록 분리)
+      const sortedPlaces = Object.keys(deliveryGroups).sort();
+      
+      const sortedResult = {};
+      sortedPlaces.forEach(place => {
+        sortedResult[place] = deliveryGroups[place];
+      });
+      
+      return sortedResult;
+    }
+
+    // 체크리스트 렌더링 함수
+    function renderDeliveryChecklist(sortedGroups) {
+      const container = document.getElementById('checklist-container');
+      if (!container) return;
+      container.innerHTML = '';
+      
+      const grouped = groupDeliveryOrdersByPlace(sortedGroups);
+      const places = Object.keys(grouped);
+      
+      if (places.length === 0) {
+        container.style.display = 'none';
+        return;
+      }
+      
+      container.style.display = 'block';
+      
+      let html = `
+        <div class="checklist-title">
+          <span>📦 배송지별 배달 체크리스트 (총 ${places.length}개 배송지)</span>
+          <span style="font-size: 14px; font-weight: 700; color: #4b5563;" class="no-print">인쇄 시 새 A4 페이지에 단독으로 출력됩니다.</span>
+        </div>
+      `;
+      
+      places.forEach(place => {
+        const orderGroups = grouped[place];
+        
+        let rowsHtml = '';
+        orderGroups.forEach(group => {
+          const parts = String(group.orderNo).split('-');
+          const shortOrderNo = parts.length >= 3 ? parts[2] : group.orderNo;
+          
+          group.items.forEach((item, itemIdx) => {
+            rowsHtml += `
+              <tr>
+                <td style="text-align: center; width: 50px; vertical-align: middle;"><input type="checkbox" class="checklist-chbox"></td>
+                <td style="font-family: monospace; vertical-align: middle;">[${AppState.escapeHtml(shortOrderNo)}]</td>
+                <td style="vertical-align: middle;"><strong>${AppState.escapeHtml(group.nickname)} 님</strong></td>
+                <td style="vertical-align: middle;">${AppState.escapeHtml(item.snackName)}</td>
+                <td style="text-align: center; font-weight: 800; width: 80px; vertical-align: middle;">${Number(item.quantity || 1)}개</td>
+              </tr>
+            `;
+          });
+        });
+        
+        html += `
+          <div class="place-group">
+            <div class="place-name-header">📍 배송지: ${AppState.escapeHtml(place)} (총 ${orderGroups.length}건 주문)</div>
+            <table class="checklist-table">
+              <thead>
+                <tr>
+                  <th style="text-align: center; width: 50px;">체크</th>
+                  <th style="width: 120px;">주문번호</th>
+                  <th style="width: 140px;">주문자</th>
+                  <th>주문 메뉴</th>
+                  <th style="text-align: center; width: 80px;">수량</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+            </table>
+          </div>
+        `;
+      });
+      
+      container.innerHTML = html;
     }
 
     window.addEventListener('DOMContentLoaded', () => {

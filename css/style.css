@@ -1317,6 +1317,102 @@ input:checked + .tts-slider:before {
   word-break: keep-all;
 }
 
+/* 전면 오프라인 오버레이 스타일 (발달장애인 심리적 안정을 위한 디자인) */
+.offline-full-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(254, 243, 199, 0.9); /* 따뜻한 파스텔 옐로우/오렌지 반투명 배경 */
+  z-index: 9999999; /* 최상단 배치 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  backdrop-filter: blur(10px);
+  animation: fadeInOverlay 0.25s ease-out forwards;
+}
+
+.offline-full-box {
+  background: var(--card-bg);
+  border: 4px solid var(--primary-color);
+  border-radius: var(--radius-lg);
+  padding: 40px 30px;
+  max-width: 90%;
+  width: 440px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: var(--text-main);
+  animation: scaleInBox 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.offline-illustration {
+  width: 180px;
+  height: 180px;
+  object-fit: contain;
+  margin-bottom: 24px;
+  animation: bobbing 1.6s infinite alternate ease-in-out;
+}
+
+@keyframes bobbing {
+  from { transform: translateY(0); }
+  to { transform: translateY(-12px); }
+}
+
+.offline-title {
+  font-size: 28px;
+  font-weight: 900;
+  color: #D97706; /* 따뜻한 오렌지/브라운 톤 */
+  margin-bottom: 12px;
+  word-break: keep-all;
+  line-height: 1.3;
+}
+
+.offline-desc {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-muted);
+  line-height: 1.5;
+  word-break: keep-all;
+  margin-bottom: 24px;
+}
+
+.offline-loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 4px solid #F3F4F6;
+  border-top: 4px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.offline-footer {
+  font-size: 16px;
+  font-weight: 800;
+  color: #059669; /* 따뜻한 초록 */
+  border-top: 2.5px dashed var(--border-color);
+  padding-top: 20px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+
 
 
 
