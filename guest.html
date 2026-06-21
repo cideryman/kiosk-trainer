@@ -229,7 +229,9 @@
       <div id="view-select" style="display: flex; flex-direction: column; gap: 24px; width: 100%;">
         <!-- 마감 안내 (기본 숨김) -->
         <div id="guest-closed-notice" style="display: none; text-align: center; padding: 28px 20px; background-color: #FFF5F5; border: 3px solid #FEB2B2; border-radius: var(--radius-md); box-shadow: var(--shadow-sm);">
-          <div style="font-size: 48px; margin-bottom: 8px;">🔒</div>
+          <div style="margin-bottom: 12px; display: flex; justify-content: center; align-items: center;">
+            <img src="assets/closed-character.png" alt="마감 안내 캐릭터" style="width: 130px; height: 130px; object-fit: contain;">
+          </div>
           <div style="font-size: 22px; font-weight: 850; color: #9B2C2C; line-height: 1.4; word-break: keep-all;" id="closed-notice-text">게스트 주문이 마감되었습니다.</div>
           <div style="font-size: 16px; font-weight: 700; color: var(--text-muted); margin-top: 8px;">아래 버튼으로 기존 주문을 확인할 수 있습니다.</div>
         </div>
@@ -449,9 +451,13 @@
               btnNewOrder.disabled = true;
               btnNewOrder.style.opacity = '0.4';
               btnNewOrder.style.cursor = 'not-allowed';
-              guideText.innerHTML = `${welcomeTitle}<br><span style="color: var(--danger-color); font-size: 18px;">현재 주문이 마감된 상태입니다.</span>`;
+              guideText.style.display = 'none';
+              const teamSec = document.getElementById('today-delivery-team-section');
+              if (teamSec) teamSec.style.display = 'none';
             } else {
               // 운영 중 - 남은 시간 표시
+              closedNotice.style.display = 'none';
+              guideText.style.display = 'block';
               if (settingsRes.remainingSeconds > 0) {
                 remainingTimeBox.style.display = 'block';
                 let remaining = settingsRes.remainingSeconds;
@@ -469,7 +475,9 @@
                     btnNewOrder.disabled = true;
                     btnNewOrder.style.opacity = '0.4';
                     btnNewOrder.style.cursor = 'not-allowed';
-                    guideText.innerHTML = `${welcomeTitle}<br><span style="color: var(--danger-color); font-size: 18px;">현재 주문이 마감된 상태입니다.</span>`;
+                    guideText.style.display = 'none';
+                    const teamSec = document.getElementById('today-delivery-team-section');
+                    if (teamSec) teamSec.style.display = 'none';
                     return;
                   }
                   updateTimerDisplay(remaining);
@@ -484,7 +492,9 @@
             btnNewOrder.disabled = true;
             btnNewOrder.style.opacity = '0.4';
             btnNewOrder.style.cursor = 'not-allowed';
-            guideText.innerHTML = `${welcomeTitle}<br><span style="color: var(--danger-color); font-size: 18px;">상태 확인이 불가하여 주문이 제한되었습니다.</span>`;
+            guideText.style.display = 'none';
+            const teamSec = document.getElementById('today-delivery-team-section');
+            if (teamSec) teamSec.style.display = 'none';
           }
         } catch (e) {
           console.warn('게스트 운영 설정 조회 실패:', e);
@@ -495,7 +505,9 @@
           btnNewOrder.disabled = true;
           btnNewOrder.style.opacity = '0.4';
           btnNewOrder.style.cursor = 'not-allowed';
-          guideText.innerHTML = `${welcomeTitle}<br><span style="color: var(--danger-color); font-size: 18px;">상태 확인이 불가하여 주문이 제한되었습니다.</span>`;
+          guideText.style.display = 'none';
+          const teamSec = document.getElementById('today-delivery-team-section');
+          if (teamSec) teamSec.style.display = 'none';
         }
       }
 
