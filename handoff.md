@@ -204,12 +204,13 @@ These items are ordered by operational risk. Do not redo completed items unless 
   - **Problem**: Clicking the public/private visibility toggle on the review moderation page (`reviews.html`) triggered a "구글시트 연결에 실패했습니다" (failed to connect to google sheet) popup error.
   - **Resolution**: Fixed in [google-apps-script.md](file:///c:/Users/주간보호/OneDrive/Desktop/새 폴더/kiosk-trainer/google-apps-script.md) by correcting the backend typo where it called `verifyAdmin` instead of `verifyAdminToken(data)`, and added `'toggleReviewVisibility'` to the `ADMIN_ACTIONS` routing whitelist array.
 
-* **[RESOLVED & PENDING MANUAL VERIFICATION] 제안 2) 유휴 시간 감지 자동 로그아웃 (Idle Timeout)**:
+* **[RESOLVED] 제안 2) 유휴 시간 감지 자동 로그아웃 (Idle Timeout)**:
   - **내용**: `menu.html`, `confirm.html` 등에서 70초간 터치 이벤트가 없을 시 자동으로 카트와 유저 세션을 리셋하고 처음 화면(`index.html`/`guest.html`)으로 복귀하도록 유휴 타이머 적용. 10초 전 화면이 어두워지며 TTS 음성 경고 송출 및 3초 전 매초 비프/진동 피드백.
-  - **상태**: 구현 완료. 다음 주에 **수동 검증** 필요. 상세 가이드 및 검증용 체크리스트는 [walkthrough.md](file:///C:/Users/sec/.gemini/antigravity-ide/brain/1f8a4c8e-ae3e-4bea-abb0-7a270860dddb/walkthrough.md) 문서 참조.
+  - **상태**: 구현 및 검증 완료.
 
-* **[ROADMAP] 제안 3) 오프라인 상태 대응 전면 안내 팝업**:
+* **[RESOLVED] 제안 3) 오프라인 상태 대응 전면 안내 팝업**:
   - **내용**: `window.addEventListener('offline')` 연동. 인터넷이 일시 단절될 경우 브라우저 에러창이나 정지 대신 친근한 안내 팝업과 캐릭터 일러스트, 안내 TTS를 제공하여 발달장애 이용자의 심리적 불안 최소화. 복구 시 자동 복귀.
+  - **상태**: 구현 및 검증 완료.
 
 * **[IDEA] 제안 4) 게스트 모드(봉사자/후원자용) 카카오톡/네이버 소셜 로그인 연동**:
   - **내용**: 외부 봉사자나 후원자가 `guest.html`을 통해 주문할 때, 무작게 닉네임으로 인해 음료 미수령 및 주문자 식별 곤란 문제가 발생하는 상황을 해결하기 위한 아이디어입니다.
