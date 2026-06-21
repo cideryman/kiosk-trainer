@@ -181,6 +181,16 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 
 ---
 
+## 6.1 Active Stability Follow-Up (2026-06-21)
+
+These items are ordered by operational risk. Do not redo completed items unless a regression is observed.
+
+* **[DONE / DEPLOYED 2026-06-21] P1 - Backend error handling and copy-safe GAS source**: `google-apps-script.md` is raw JavaScript and can be copied with Ctrl+A directly into Apps Script. The deployed backend wraps `doPost` in a top-level failure response and routes admin audit writes through `safeAppendAdminLog`, so a logging failure does not make an already-applied admin change appear failed. Verification completed with `getUsers&includeInactive=Y`, `getSnacks&includeHidden=Y`, and a malformed no-op POST returning a JSON failure response.
+* **P2 - Admin/kitchen/reviews maintenance cleanup**: `admin.html`, `kitchen.html`, and `reviews.html` still contain some duplicated management helper code from the earlier all-in-one admin screen. This is a maintenance debt, not an urgent operating bug. Leave the current top-position "신규 이용자 등록" and "신규 간식 등록" buttons in `admin.html`; after the screen split, this placement is the preferred UX. Any future cleanup should be done only with browser smoke tests for all three admin-facing pages.
+* **P3 - Touch tolerance and local syntax helper**: `AppState.bindCardTap` has been tuned for users with less precise touch control. Real-device testing should check that scrolling the snack grid does not accidentally add items. `check_syntax.js` is a local helper for extracting/checking the GAS backup and is not part of the deployed kiosk runtime.
+
+---
+
 ## 7. Future Roadmaps & Considerations (다음 작업 고려 목록)
 
 * **[RESOLVED] Review Visibility Toggle Error**:

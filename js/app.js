@@ -1,5 +1,8 @@
 // 공통 앱 상태 관리 및 유틸리티
 const AppState = {
+  tapMoveTolerancePx: 40,
+  tapMaxDurationMs: 700,
+
   // 이용자 관련 스토리지 헬퍼
   getSelectedUser() {
     try {
@@ -235,8 +238,8 @@ const AppState = {
       const dist = Math.sqrt(diffX * diffX + diffY * diffY);
       const duration = Date.now() - startTime;
 
-      // 25px 이하 이동 및 500ms 이내 탭인 경우 처리
-      if (dist < 25 && duration < 500) {
+      // 손 떨림이 있는 이용자도 의도한 탭으로 인정되도록 약간 넉넉하게 판정합니다.
+      if (dist < this.tapMoveTolerancePx && duration < this.tapMaxDurationMs) {
         callback(e);
       }
     });

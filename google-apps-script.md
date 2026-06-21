@@ -1,4 +1,3 @@
-\\javascript
 /**
  * 1. 이미지 주소 변환 및 가공 함수
  * 구글 드라이브 주소를 받아 썸네일/보기 주소 포맷으로 자동 정규화합니다.
@@ -133,68 +132,76 @@ function doGet(e) {
  * 3. POST 요청 라우터 (데이터 변경/추가 API)
  */
 function doPost(e) {
-  var JSON_STRING = e.postData.contents;
-  Logger.log('doPost Request: ' + JSON_STRING);
-  var data = JSON.parse(JSON_STRING);
-  var action = data.action;
+  try {
+    var JSON_STRING = e && e.postData ? e.postData.contents : '{}';
+    Logger.log('doPost Request: ' + JSON_STRING);
+    var data = JSON.parse(JSON_STRING || '{}');
+    var action = data.action;
 
-  if (ADMIN_ACTIONS.indexOf(action) !== -1) {
-    const auth = verifyAdminToken(data);
-    if (!auth.success) {
-      return jsonResponse(auth);
+    if (ADMIN_ACTIONS.indexOf(action) !== -1) {
+      const auth = verifyAdminToken(data);
+      if (!auth.success) {
+        return jsonResponse(auth);
+      }
     }
+    
+    if (action === 'placeOrder') {
+      return jsonResponse(placeOrder(data));
+    } else if (action === 'updateOrderServed') {
+      return jsonResponse(updateOrderServed(data));
+    } else if (action === 'updateUserCredit') {
+      return jsonResponse(updateUserCredit(data));
+    } else if (action === 'addUser') {
+      return jsonResponse(addUser(data));
+    } else if (action === 'updateUserActive') {
+      return jsonResponse(updateUserActive(data));
+    } else if (action === 'updateSnackStock') {
+      return jsonResponse(updateSnackStock(data));
+    } else if (action === 'updateSnackSale') {
+      return jsonResponse(updateSnackSale(data));
+    } else if (action === 'addSnack') {
+      return jsonResponse(addSnack(data));
+    } else if (action === 'updateUser') {
+      return jsonResponse(updateUser(data));
+    } else if (action === 'updateSnack') {
+      return jsonResponse(updateSnack(data));
+    } else if (action === 'cancelOrder') {
+      return jsonResponse(cancelOrder(data));
+    } else if (action === 'userCancelOrder') {
+      return jsonResponse(userCancelOrder(data));
+    } else if (action === 'updateSnacksOrder') {
+      return jsonResponse(updateSnacksOrder(data));
+    } else if (action === 'uploadImage') {
+      return jsonResponse(uploadImage(data));
+    } else if (action === 'updateGuestSettings') {
+      return jsonResponse(updateGuestSettings(data));
+    } else if (action === 'submitReview') {
+      return jsonResponse(submitReview(data));
+    } else if (action === 'archiveOldOrders') {
+      return jsonResponse(archiveOldOrders(data));
+    } else if (action === 'getReviewsForAdmin') {
+      return jsonResponse(getReviewsForAdmin());
+    } else if (action === 'toggleReviewVisibility') {
+      return jsonResponse(toggleReviewVisibility(data));
+    } else if (action === 'ensureOrderHeaders') {
+      return jsonResponse({ success: true, message: ensureOrderHeaders() });
+    } else if (action === 'autoFillEmptySnackIds') {
+      return jsonResponse(autoFillEmptySnackIds());
+    } else if (action === 'getGuestOrderByToken') {
+      return jsonResponse(getGuestOrderByToken(data));
+    }
+    
+    return jsonResponse({
+      success: false, 
+      message: '알 수 없는 액션입니다.'
+    });
+  } catch (error) {
+    Logger.log('doPost Error: ' + (error && error.stack ? error.stack : error));
+    return jsonResponse({
+      success: false,
+      message: error && error.message ? error.message : '요청 처리 중 오류가 발생했습니다.',
+    });
   }
-  
-  if (action === 'placeOrder') {
-    return jsonResponse(placeOrder(data));
-  } else if (action === 'updateOrderServed') {
-    return jsonResponse(updateOrderServed(data));
-  } else if (action === 'updateUserCredit') {
-    return jsonResponse(updateUserCredit(data));
-  } else if (action === 'addUser') {
-    return jsonResponse(addUser(data));
-  } else if (action === 'updateUserActive') {
-    return jsonResponse(updateUserActive(data));
-  } else if (action === 'updateSnackStock') {
-    return jsonResponse(updateSnackStock(data));
-  } else if (action === 'updateSnackSale') {
-    return jsonResponse(updateSnackSale(data));
-  } else if (action === 'addSnack') {
-    return jsonResponse(addSnack(data));
-  } else if (action === 'updateUser') {
-    return jsonResponse(updateUser(data));
-  } else if (action === 'updateSnack') {
-    return jsonResponse(updateSnack(data));
-  } else if (action === 'cancelOrder') {
-    return jsonResponse(cancelOrder(data));
-  } else if (action === 'userCancelOrder') {
-    return jsonResponse(userCancelOrder(data));
-  } else if (action === 'updateSnacksOrder') {
-    return jsonResponse(updateSnacksOrder(data));
-  } else if (action === 'uploadImage') {
-    return jsonResponse(uploadImage(data));
-  } else if (action === 'updateGuestSettings') {
-    return jsonResponse(updateGuestSettings(data));
-  } else if (action === 'submitReview') {
-    return jsonResponse(submitReview(data));
-  } else if (action === 'archiveOldOrders') {
-    return jsonResponse(archiveOldOrders(data));
-  } else if (action === 'getReviewsForAdmin') {
-    return jsonResponse(getReviewsForAdmin());
-  } else if (action === 'toggleReviewVisibility') {
-    return jsonResponse(toggleReviewVisibility(data));
-  } else if (action === 'ensureOrderHeaders') {
-    return jsonResponse({ success: true, message: ensureOrderHeaders() });
-  } else if (action === 'autoFillEmptySnackIds') {
-    return jsonResponse(autoFillEmptySnackIds());
-  } else if (action === 'getGuestOrderByToken') {
-    return jsonResponse(getGuestOrderByToken(data));
-  }
-  
-  return jsonResponse({
-    success: false, 
-    message: '알 수 없는 액션입니다.'
-  });
 }
 
 /**
@@ -225,6 +232,14 @@ function appendAdminLog(action, targetType, targetId, targetName, beforeValue, a
     afterValue,
     memo || ''
   ]);
+}
+
+function safeAppendAdminLog(action, targetType, targetId, targetName, beforeValue, afterValue, memo) {
+  try {
+    appendAdminLog(action, targetType, targetId, targetName, beforeValue, afterValue, memo);
+  } catch (error) {
+    Logger.log('appendAdminLog failed: ' + (error && error.stack ? error.stack : error));
+  }
 }
 
 /**
@@ -899,7 +914,7 @@ function updateOrderServed(data) {
       orderSheet.getRange(i + 1, 9).setValue(servedYn); // I열 (9번째) 제공여부 수정
       updatedCount++;
       if (updatedCount === 1) {
-        appendAdminLog('updateOrderServed', 'order', orderId, values[i][3], beforeServedYn, servedYn, data.adminMemo);
+        safeAppendAdminLog('updateOrderServed', 'order', orderId, values[i][3], beforeServedYn, servedYn, data.adminMemo);
       }
     }
   }
@@ -1012,7 +1027,7 @@ function cancelOrder(data) {
         refundLogs.push(`${snackName} ${quantity}개 (${point} 크레딧)`);
         
         if (updatedCount === 1) {
-          appendAdminLog('cancelOrder', 'order', orderId, nickname, servedYn, 'C', data.adminMemo || '주문 취소 및 환불');
+          safeAppendAdminLog('cancelOrder', 'order', orderId, nickname, servedYn, 'C', data.adminMemo || '주문 취소 및 환불');
         }
       }
     }
@@ -1172,7 +1187,7 @@ function updateUserCredit(data) {
     if (String(rows[i][0]) === String(userId)) {
       var beforeCredit = Number(rows[i][2] || 0);
       sheet.getRange(i + 1, 3).setValue(newCredit);
-      appendAdminLog('updateUserCredit', 'user', userId, rows[i][1], beforeCredit, newCredit, data.adminMemo);
+      safeAppendAdminLog('updateUserCredit', 'user', userId, rows[i][1], beforeCredit, newCredit, data.adminMemo);
       return { success: true, message: '크레딧을 업데이트했습니다.' };
     }
   }
@@ -1209,7 +1224,7 @@ function addUser(data) {
     data.useYn || 'Y',
     data.imageUrl || ''
   ]);
-  appendAdminLog('addUser', 'user', newUserId, nickname, '', JSON.stringify({ credit: Number(data.credit || 0), useYn: data.useYn || 'Y' }), data.adminMemo);
+  safeAppendAdminLog('addUser', 'user', newUserId, nickname, '', JSON.stringify({ credit: Number(data.credit || 0), useYn: data.useYn || 'Y' }), data.adminMemo);
 
   return {
     success: true,
@@ -1232,7 +1247,7 @@ function updateUserActive(data) {
     if (String(rows[i][0]) === String(userId)) {
       var beforeUseYn = rows[i][3] || '';
       sheet.getRange(i + 1, 4).setValue(useYn);
-      appendAdminLog('updateUserActive', 'user', userId, rows[i][1], beforeUseYn, useYn, data.adminMemo);
+      safeAppendAdminLog('updateUserActive', 'user', userId, rows[i][1], beforeUseYn, useYn, data.adminMemo);
       return { success: true, message: '이용자 상태를 업데이트했습니다.', useYn: useYn };
     }
   }
@@ -1253,7 +1268,7 @@ function updateSnackStock(data) {
     if (Number(rows[i][0]) === snackId) {
       var beforeStock = Number(rows[i][5] || 0);
       sheet.getRange(i + 1, 6).setValue(newStock);
-      appendAdminLog('updateSnackStock', 'snack', snackId, rows[i][1], beforeStock, newStock, data.adminMemo);
+      safeAppendAdminLog('updateSnackStock', 'snack', snackId, rows[i][1], beforeStock, newStock, data.adminMemo);
       return { success: true, message: '재고를 업데이트했습니다.' };
     }
   }
@@ -1273,7 +1288,7 @@ function updateSnackSale(data) {
     if (Number(rows[i][0]) === snackId) {
       var beforeSaleYn = rows[i][4] || '';
       sheet.getRange(i + 1, 5).setValue(saleYn);
-      appendAdminLog('updateSnackSale', 'snack', snackId, rows[i][1], beforeSaleYn, saleYn, data.adminMemo);
+      safeAppendAdminLog('updateSnackSale', 'snack', snackId, rows[i][1], beforeSaleYn, saleYn, data.adminMemo);
       return { success: true, message: '간식 판매 상태를 업데이트했습니다.', saleYn: saleYn };
     }
   }
@@ -1309,7 +1324,7 @@ function addSnack(data) {
   ];
   
   sheet.appendRow(newRow);
-  appendAdminLog('addSnack', 'snack', newSnackId, data.name, '', JSON.stringify({ point: Number(data.point || 1), saleYn: data.saleYn || 'Y', stock: Number(data.stock || 0), target: target }), data.adminMemo);
+  safeAppendAdminLog('addSnack', 'snack', newSnackId, data.name, '', JSON.stringify({ point: Number(data.point || 1), saleYn: data.saleYn || 'Y', stock: Number(data.stock || 0), target: target }), data.adminMemo);
   return { success: true, message: '신규 간식을 등록했습니다.', snackId: newSnackId };
 }
 
@@ -1344,7 +1359,7 @@ function updateUser(data) {
       sheet.getRange(i + 1, 4).setValue(useYn);
       sheet.getRange(i + 1, 5).setValue(imageUrl);
 
-      appendAdminLog('updateUser', 'user', userId, nickname, 
+      safeAppendAdminLog('updateUser', 'user', userId, nickname, 
         JSON.stringify({ nickname: beforeNickname, credit: beforeCredit, useYn: beforeUseYn, imageUrl: beforeImageUrl }), 
         JSON.stringify({ nickname: nickname, credit: credit, useYn: useYn, imageUrl: imageUrl }), 
         data.adminMemo
@@ -1394,7 +1409,7 @@ function updateSnack(data) {
       sheet.getRange(i + 1, 6).setValue(stock);
       sheet.getRange(i + 1, 8).setValue(target);
 
-      appendAdminLog('updateSnack', 'snack', snackId, name, 
+      safeAppendAdminLog('updateSnack', 'snack', snackId, name, 
         JSON.stringify({ name: beforeName, point: beforePoint, imageUrl: beforeImageUrl, saleYn: beforeSaleYn, stock: beforeStock, target: beforeTarget }), 
         JSON.stringify({ name: name, point: point, imageUrl: imageUrl, saleYn: saleYn, stock: stock, target: target }), 
         data.adminMemo
@@ -1736,7 +1751,7 @@ function updateGuestSettings(data) {
       }
     }
     
-    appendAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `크레딧:${guestBaseCredit}, 배달비:${guestDeliveryFee}, 기본배달지:${guestDefaultDeliveryPlace}`, data.adminMemo);
+    safeAppendAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `크레딧:${guestBaseCredit}, 배달비:${guestDeliveryFee}, 기본배달지:${guestDefaultDeliveryPlace}`, data.adminMemo);
     return { success: true, message: '게스트 설정이 저장되었습니다.' };
   } else {
     return { success: false, message: '알 수 없는 설정 변경 요청입니다.' };
@@ -1764,7 +1779,7 @@ function updateGuestSettings(data) {
     sheet.appendRow(['guestCloseAt', guestCloseAt]);
   }
 
-  appendAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', logBefore, logAfter, data.adminMemo);
+  safeAppendAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', logBefore, logAfter, data.adminMemo);
 
   return { success: true, message: '게스트 운영 상태가 변경되었습니다.' };
 }
@@ -2210,7 +2225,7 @@ function archiveOldOrders(data) {
 
     orderSheet.getRange(1, 1, safeRowsToKeep.length, maxCols).setValues(safeRowsToKeep);
 
-    appendAdminLog('archiveOldOrders', 'orders', 'archive', '지난 주문 보관', '', `${rowsToArchive.length}건 보관 완료`, memo);
+    safeAppendAdminLog('archiveOldOrders', 'orders', 'archive', '지난 주문 보관', '', `${rowsToArchive.length}건 보관 완료`, memo);
 
     return {
       success: true,
@@ -2388,4 +2403,3 @@ function autoFillEmptySnackIds() {
   }
 }
 
-\\n

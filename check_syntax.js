@@ -1,20 +1,28 @@
 const fs = require('fs');
-const content = fs.readFileSync('google-apps-script.md', 'utf8');
-const lines = content.split('\n');
-let jsCode = '';
-let inCode = false;
-for (const line of lines) {
-  if (line.startsWith('```javascript')) {
-    inCode = true;
-    continue;
-  }
-  if (line.startsWith('```') && inCode) {
-    inCode = false;
-    break;
-  }
-  if (inCode) {
-    jsCode += line + '\n';
-  }
+const { spawnSync } = require('child_process');
+
+const sourcePath = 'google-apps-script.md';
+const tempPath = 'temp.js';
+
+let content = fs.readFileSync(sourcePath, 'utf8').replace(/^\uFEFF/, '');
+
+const fencedCode = content.match(/```(?:javascript|js)?\s*([\s\S]*?)```/i);
+let jsCode = fencedCode ? fencedCode[1] : content;
+
+jsCode = jsCode
+  .replace(/^\s*\\\\javascript\s*\r?\n/, '')
+  .replace(/^\s*\\javascript\s*\r?\n/, '');
+
+fs.writeFileSync(tempPath, jsCode);
+
+const result = spawnSync(process.execPath, ['--check', tempPath], {
+  encoding: 'utf8',
+});
+
+if (result.status !== 0) {
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
+  process.exit(result.status || 1);
 }
-fs.writeFileSync('temp.js', jsCode);
-console.log('Written to temp.js');
+
+console.log(`GAS syntax check passed. Extracted source written to ${tempPath}.`);
