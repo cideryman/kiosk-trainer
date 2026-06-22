@@ -401,8 +401,18 @@ function getMockFallback(action, options) {
       const oDateStr = o.timestamp.slice(2, 10).replace(/-/g, '');
       return oDateStr === todayStr;
     });
-    const uniqueMockOrderNos = Array.from(new Set(todayMockOrders.map(o => o.orderNo)));
-    const seq = uniqueMockOrderNos.length + 1;
+    let maxSeq = 0;
+    todayMockOrders.forEach(o => {
+      const orderNoStr = String(o.orderNo || '');
+      const parts = orderNoStr.split('-');
+      if (parts.length >= 3) {
+        const num = Number(parts[2]);
+        if (!isNaN(num) && num > maxSeq) {
+          maxSeq = num;
+        }
+      }
+    });
+    const seq = maxSeq + 1;
     const generatedOrderNo = `ORD-${todayStr}-${String(seq).padStart(3, '0')}`;
     let orderToken = '';
     if (isGuest) {

@@ -546,8 +546,18 @@ function placeOrder(data) {
         return false;
       }
     });
-    const uniqueOrderNos = Array.from(new Set(todayOrders.map(row => String(row[1] || ''))));
-    const seq = uniqueOrderNos.length + 1;
+    let maxSeq = 0;
+    todayOrders.forEach(row => {
+      const orderNoStr = String(row[1] || '');
+      const parts = orderNoStr.split('-');
+      if (parts.length >= 3) {
+        const num = Number(parts[2]);
+        if (!isNaN(num) && num > maxSeq) {
+          maxSeq = num;
+        }
+      }
+    });
+    const seq = maxSeq + 1;
     const orderNo = 'ORD-' + todayStr + '-' + String(seq).padStart(3, '0');
     const now = new Date();
 

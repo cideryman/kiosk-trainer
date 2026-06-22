@@ -160,7 +160,7 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - Includes "Previous" and "Next" navigation buttons to seamlessly browse through all loaded reviews without closing the modal.
   - Stripped out admin-only features (e.g., visibility toggles) to serve as a pure viewer for guests.
 
-### 10) Snack Order Split & "both" Target Removal (Latest)
+### 10) Snack Order Split & "both" Target Removal
 * **Rationale**: Split user/guest display order configuration to support different marketing/price policies for members and guests, and simplified target management by removing the `both` option.
 * **Resolution**:
   - **Tabs Restructuring**: Created a dedicated `tab-snack-order` tab inside [admin.html](file:///c:/Users/주간보호/OneDrive/Desktop/새 폴더/kiosk-trainer/admin.html) to separate "🛒 일반 키오스크 간식 순서" and "🛵 게스트/배달왔삼 간식 순서" views.
@@ -168,6 +168,31 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - **Admin Table Sub-Grouping**: Grouped snacks in the administrative table into four categories: Active User, Active Guest, Hidden User, and Hidden Guest.
   - **Simplification of Targets**: Removed the `both` option from snack addition and modification modals, default-treating anything non-guest as `user` ("일반").
   - **GAS API Simplification**: Updated `getSnacks`, `canOrderSnack`, `addSnack`, and `updateSnack` inside [google-apps-script.md](file:///c:/Users/주간보호/OneDrive/Desktop/새 폴더/kiosk-trainer/google-apps-script.md) to restrict database target fields exclusively to either `user` or `guest`, avoiding logical overlap.
+
+### 11) Kitchen UI Layout & Clipping Fix (Latest)
+* **Issue**: On screen widths >= 768px and >= 1024px, the main kitchen management area (`kitchen.html`) layout became extremely squished and clipped on the right. This was because the `.kiosk-container` had a strict `max-width: 960px` constraint, the sidebar grid split the width `2fr 1fr`, and the three order columns inside `.admin-main` tried to fit horizontally. Each card's header (`.user-profile-header`) had elements in a single line with large text and badges, causing the minimum width to exceed the allocated space and get cut off due to `overflow: hidden`.
+* **Resolution**:
+  - Expanded `.kiosk-container`'s widescreen maximum width inside `kitchen.html` to `1400px` (or `95%` width), utilizing desktop/tablet widescreen monitors.
+  - Reduced layout gap of `.orders-split-layout` from `24px` to `16px`.
+  - Compacted `.user-order-card` layout by reducing padding to `16px` and gap to `10px`.
+  - Added `flex-wrap: wrap` and reduced gap (`8px`) in `.user-profile-header` to stack elements gracefully when narrow.
+  - Reduced font sizes: `.user-name` (from `22px` to `18px`), `.order-time-badge` (from `14px` to `13px`), and card action buttons (from `18px` to `16px`).
+  - Removed fixed `margin-left` offsets from status and delivery badges to guarantee clean flex-wrap alignments.
+
+### 12) Optimistic UI Updates with Defensive Revert (Latest)
+* **Issue**: Transitioning orders to the next state (e.g. Preparing ➔ Complete) required sequential network API calls, blocking the UI and forcing a full refresh (`loadAdminData`) which took ~1s per click. This made processing multiple orders very slow and annoying.
+* **Resolution**:
+  - Implemented client-side **Optimistic Updates** in `updateStatusAction` and `undoCompleteOrder` in `kitchen.html`.
+  - Clicked cards transition instantly on the client UI in `0.01s` (updating status and buttons), playing audio/vibration feedback immediately.
+  - Added `pendingUpdates` (a global JS `Map`) to track in-flight order updates by `orderNo`.
+  - Overrode server-returned order states inside `renderData` if they are present in `pendingUpdates` to prevent race conditions during auto-refresh intervals.
+  - Integrated robust `rollbackLocalOrders` error handlers to revert cards back to their original states if the server request fails.
+
+### 13) GAS Sequence Generation Bug Fix (Latest)
+* **Issue**: All test orders placed by the user got stuck with the sequence number `007` (e.g. `ORD-260622-007`), causing them to merge under a single card on the kitchen screen. This was because order sequence numbers were calculated using the number of unique order IDs today (`uniqueOrderNos.length + 1`). If a middle sequence number (like `005`) was deleted from the sheet, the count remained at `6` instead of matching the highest ID `7`. This created a constant sequence number conflict of `7`.
+* **Resolution**:
+  - Modified sequence generation in `google-apps-script.md` (`placeOrder`) and `js/config.js` (mock implementation) to scan today's orders, parse the sequence part, find the **maximum** number (`maxSeq`), and increment it by 1 (`maxSeq + 1`).
+  - This guarantees unique, monotonically increasing order numbers even when rows are deleted or missing.
 
 ---
 

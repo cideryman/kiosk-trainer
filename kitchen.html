@@ -16,7 +16,8 @@
     /* 관리자 대시보드용 보완 스타일 (PC 넓은 화면 대응) */
     @media (min-width: 768px) {
       .kiosk-container {
-        max-width: 960px;
+        max-width: 1400px;
+        width: 95%;
         height: auto;
         min-height: 90vh;
         border-radius: var(--radius-md);
@@ -330,10 +331,10 @@
       background-color: var(--card-bg);
       border: 2.5px solid var(--border-color);
       border-radius: var(--radius-md);
-      padding: 20px;
+      padding: 16px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
       box-shadow: var(--shadow-sm);
       transition: all 0.2s ease-in-out;
     }
@@ -346,7 +347,8 @@
     .user-profile-header {
       display: flex;
       align-items: center;
-      gap: 12px;
+      flex-wrap: wrap;
+      gap: 8px;
       border-bottom: 2px solid var(--border-color);
       padding-bottom: 10px;
     }
@@ -373,13 +375,13 @@
     }
     
     .user-name {
-      font-size: 22px;
+      font-size: 18px;
       font-weight: 800;
       color: var(--text-main);
     }
     
     .order-time-badge {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
       color: var(--text-muted);
       margin-left: auto;
@@ -407,9 +409,9 @@
       color: white;
       border: none;
       border-radius: var(--radius-sm);
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 800;
-      padding: 12px;
+      padding: 10px 8px;
       cursor: pointer;
       width: 100%;
       box-shadow: var(--shadow-btn-sec);
@@ -427,9 +429,9 @@
       color: white;
       border: none;
       border-radius: var(--radius-sm);
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 800;
-      padding: 12px;
+      padding: 10px 8px;
       cursor: pointer;
       transition: all 0.15s ease-in-out;
     }
@@ -659,7 +661,7 @@
     .orders-split-layout {
       display: grid;
       grid-template-columns: 1fr;
-      gap: 24px;
+      gap: 16px;
       margin-top: 12px;
     }
     @media (min-width: 1024px) {
@@ -957,6 +959,7 @@
     let refreshPaused = false;
     let isModalOpen = false;
     const ADMIN_TOKEN_STORAGE_KEY = 'kioskAdminToken';
+    const pendingUpdates = new Map(); // 서버 통신 중인 주문 상태 추적
 
     function esc(value) {
       return AppState.escapeHtml(value);
@@ -1537,30 +1540,103 @@
       }
     }
 
+    // 로딩 메시지 없이 조용히 최신 데이터 갱신
+    async function silentRefreshAdminData() {
+      try {
+        const [ordersRes, usersRes] = await Promise.all([
+          fetchAPI('getOrdersToday'),
+          fetchAPI('getUsers', { params: { includeInactive: 'Y' } })
+        ]);
+        if (usersRes && usersRes.success && Array.isArray(usersRes.users)) {
+          currentUsers = usersRes.users;
+          usersRes.users.forEach(u => {
+            userImageMap[u.nickname] = u.imageUrl || '';
+          });
+        }
+        if (ordersRes && ordersRes.success && Array.isArray(ordersRes.orders)) {
+          currentOrders = ordersRes.orders;
+          renderData(currentOrders);
+        }
+      } catch (e) {
+        console.warn("백그라운드 새로고침 실패:", e);
+      }
+    }
+
+    // 로컬 카드 상태 롤백 처리
+    function rollbackLocalOrders(orderNo, originalStates) {
+      currentOrders.forEach(o => {
+        const itemNo = o.orderNo || `${o.timestamp}_${o.nickname}`;
+        if (itemNo === orderNo) {
+          const original = originalStates.find(orig => orig.id === (o.orderId || o.orderNo));
+          if (original) {
+            o.servedYn = original.servedYn;
+          }
+        }
+      });
+      renderData(currentOrders);
+    }
+
     // 제공 완료 취소 (되돌리기) 처리 (DB 상태 업데이트)
     async function undoCompleteOrder(orderNo) {
+      const originalStates = currentOrders
+        .filter(o => (o.orderNo || `${o.timestamp}_${o.nickname}`) === orderNo)
+        .map(o => ({ id: o.orderId || o.orderNo, servedYn: o.servedYn }));
+
+      currentOrders.forEach(o => {
+        const itemNo = o.orderNo || `${o.timestamp}_${o.nickname}`;
+        if (itemNo === orderNo) {
+          o.servedYn = 'R';
+        }
+      });
+
+      pendingUpdates.set(orderNo, 'R');
+
+      AppState.vibrate(50);
+      AppState.playClickSound();
+      renderData(currentOrders);
+
       try {
         const res = await fetchAPI('updateOrderServed', {
           method: 'POST',
-          body: withAdminToken({ orderId: orderNo, servedYn: 'R' }) // Revert to 'R' (준비완료)
+          body: withAdminToken({ orderId: orderNo, servedYn: 'R' })
         });
         
         if (res && res.success) {
-          AppState.vibrate(50);
-          AppState.playClickSound();
-          await loadAdminData(); // 데이터 재로드 및 렌더링
+          pendingUpdates.delete(orderNo);
+          silentRefreshAdminData();
         } else {
+          pendingUpdates.delete(orderNo);
+          rollbackLocalOrders(orderNo, originalStates);
           clearAdminTokenIfDenied(res);
           alert("되돌리기에 실패했습니다: " + (res?.message || "알 수 없는 오류"));
         }
       } catch (error) {
+        pendingUpdates.delete(orderNo);
+        rollbackLocalOrders(orderNo, originalStates);
         console.error("되돌리기 중 오류:", error);
-        alert("되돌리기 중 오류가 발생했습니다.");
+        alert("되돌리기 중 오류가 발생했습니다. 이전 상태로 되돌립니다.");
       }
     }
 
     // 단계별 상태 업그레이드 처리
     async function updateStatusAction(orderNo, nextStatus) {
+      const originalStates = currentOrders
+        .filter(o => (o.orderNo || `${o.timestamp}_${o.nickname}`) === orderNo)
+        .map(o => ({ id: o.orderId || o.orderNo, servedYn: o.servedYn }));
+
+      currentOrders.forEach(o => {
+        const itemNo = o.orderNo || `${o.timestamp}_${o.nickname}`;
+        if (itemNo === orderNo) {
+          o.servedYn = nextStatus;
+        }
+      });
+
+      pendingUpdates.set(orderNo, nextStatus);
+
+      AppState.vibrate(50);
+      AppState.playClickSound();
+      renderData(currentOrders);
+
       try {
         const res = await fetchAPI('updateOrderServed', {
           method: 'POST',
@@ -1568,16 +1644,19 @@
         });
         
         if (res && res.success) {
-          AppState.vibrate(50);
-          AppState.playClickSound();
-          await loadAdminData(); // 데이터 재로드 및 렌더링
+          pendingUpdates.delete(orderNo);
+          silentRefreshAdminData();
         } else {
+          pendingUpdates.delete(orderNo);
+          rollbackLocalOrders(orderNo, originalStates);
           clearAdminTokenIfDenied(res);
           alert("상태 변경에 실패했습니다: " + (res?.message || "오류"));
         }
       } catch (error) {
+        pendingUpdates.delete(orderNo);
+        rollbackLocalOrders(orderNo, originalStates);
         console.error("상태 변경 중 오류:", error);
-        alert("상태 변경 중 통신 오류가 발생했습니다.");
+        alert("상태 변경 중 통신 오류가 발생했습니다. 이전 상태로 되돌립니다.");
       }
     }
 
@@ -1586,10 +1665,18 @@
     // 데이터 렌더링 및 집계 계산
     function renderData(rawOrders) {
       // 각 주문마다 고유 식별자가 없을 경우 생성 (timestamp와 nickname을 조합하여 같은 주문건으로 묶이게 함)
-      const orders = rawOrders.map((o, idx) => ({
-        ...o,
-        orderNo: o.orderNo || `${o.timestamp || idx}_${o.nickname || 'unknown'}`
-      }));
+      const orders = rawOrders.map((o, idx) => {
+        const orderNo = o.orderNo || `${o.timestamp || idx}_${o.nickname || 'unknown'}`;
+        let servedYn = o.servedYn;
+        if (pendingUpdates.has(orderNo)) {
+          servedYn = pendingUpdates.get(orderNo);
+        }
+        return {
+          ...o,
+          orderNo,
+          servedYn
+        };
+      });
 
       // 1. 제공 완료 여부에 따른 목록 분리 (DB에서 받아온 servedYn 값 사용)
       const activeOrders = orders.filter(o => o.servedYn !== 'C');
@@ -1819,10 +1906,10 @@
           }
 
           const deliveryBadgeHtml = isKiosk
-            ? `<span class="status-badge" style="background-color: var(--primary-color); border-color: var(--primary-color); color: white; margin-left: 8px; font-size: 13px; font-weight: 800;">매점</span>`
+            ? `<span class="status-badge" style="background-color: var(--primary-color); border-color: var(--primary-color); color: white; font-size: 13px; font-weight: 800;">매점</span>`
             : (isDelivery
-                ? `<span class="status-badge" style="background-color: var(--danger-color); border-color: var(--danger-color); color: white; margin-left: 8px; font-size: 13px; font-weight: 800;">배달</span>`
-                : `<span class="status-badge" style="background-color: var(--secondary-color); border-color: var(--secondary-color); color: white; margin-left: 8px; font-size: 13px; font-weight: 800;">포장</span>`);
+                ? `<span class="status-badge" style="background-color: var(--danger-color); border-color: var(--danger-color); color: white; font-size: 13px; font-weight: 800;">배달</span>`
+                : `<span class="status-badge" style="background-color: var(--secondary-color); border-color: var(--secondary-color); color: white; font-size: 13px; font-weight: 800;">포장</span>`);
 
           const deliveryPlaceText = isKiosk
             ? `<div style="font-size: 16px; font-weight: 800; color: var(--primary-hover); margin-top: 4px;">🥡 매점 수령</div>`
@@ -1845,7 +1932,7 @@
               ${avatarHtml}
               <span class="user-name">${numberPrefix}${safeNickname} 님</span>
               ${deliveryBadgeHtml}
-              <span class="status-badge" style="background-color: ${statusColor}; border-color: ${statusColor}; color: white; margin-left: 8px; font-size: 13px; font-weight: 800;">${statusLabel}</span>
+              <span class="status-badge" style="background-color: ${statusColor}; border-color: ${statusColor}; color: white; font-size: 13px; font-weight: 800;">${statusLabel}</span>
               <span class="order-time-badge">${esc(formatTime(group.timestamp))}</span>
             </div>
             <ul class="user-order-items">
