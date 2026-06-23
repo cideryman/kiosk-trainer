@@ -237,6 +237,60 @@
     .control-btn.active {
       background-color: var(--primary-color);
     }
+
+    /* 콤팩트 스타일: 주문 개수가 5~8개일 때 */
+    .board-list.compact {
+      gap: 12px;
+      padding: 16px;
+    }
+    .board-list.compact .board-card {
+      padding: 12px 18px;
+      gap: 14px;
+    }
+    .board-list.compact .board-number-box {
+      min-width: 70px;
+      height: 70px;
+      font-size: 32px;
+    }
+    .board-list.compact .board-username {
+      font-size: 22px;
+    }
+    .board-list.compact .board-snacks-list {
+      font-size: 15px;
+    }
+    .board-list.compact .board-status-badge {
+      font-size: 14px;
+      padding: 4px 10px;
+    }
+
+    /* 초콤팩트/그리드 스타일: 주문 개수가 8개 초과일 때 2열 그리드로 전환 */
+    .board-list.super-compact {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-auto-rows: max-content;
+      gap: 10px;
+      padding: 12px;
+    }
+    .board-list.super-compact .board-card {
+      padding: 10px 14px;
+      gap: 10px;
+      border-width: 2.5px;
+    }
+    .board-list.super-compact .board-number-box {
+      min-width: 50px;
+      height: 50px;
+      font-size: 24px;
+    }
+    .board-list.super-compact .board-username {
+      font-size: 18px;
+    }
+    .board-list.super-compact .board-snacks-list {
+      font-size: 13px;
+    }
+    .board-list.super-compact .board-status-badge {
+      font-size: 12px;
+      padding: 3px 8px;
+    }
   </style>
 </head>
 <body>
@@ -434,6 +488,14 @@
       const container = document.getElementById(containerId);
       if (!container) return;
 
+      // 동적 크기 및 레이아웃 조절 클래스 적용
+      container.className = 'board-list';
+      if (list.length > 8) {
+        container.classList.add('super-compact');
+      } else if (list.length > 4) {
+        container.classList.add('compact');
+      }
+
       if (list.length === 0) {
         container.innerHTML = type === 'preparing' 
           ? '<div class="board-empty">대기 중인 주문이 없습니다. ⏳</div>'
@@ -444,6 +506,8 @@
       container.innerHTML = '';
       list.forEach(order => {
         const shortNo = getShortNo(order.orderNo);
+        // 번호가 너무 길어 원을 벗어나는 현상 방지 (뒤 4자리만 표시)
+        const displayNo = String(shortNo).length > 4 ? '...' + String(shortNo).slice(-4) : shortNo;
         const safeNickname = AppState.escapeHtml(order.nickname);
         const safeSnacksText = AppState.escapeHtml(
           order.snacks.map(s => `${s.name} ${s.quantity}개`).join(', ')
@@ -465,7 +529,7 @@
           : '';
 
         card.innerHTML = `
-          <div class="board-number-box">${shortNo}</div>
+          <div class="board-number-box">${displayNo}</div>
           <div class="board-info-box">
             <div class="board-username">${safeNickname} 님</div>
             <div class="board-snacks-list">${safeSnacksText}</div>
