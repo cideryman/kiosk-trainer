@@ -676,15 +676,6 @@
           </button>
         </div>
       </div>
-      <!-- 자동 새로고침 바 -->
-      <div class="refresh-indicator">
-        <span id="refresh-text">자동 새로고침 대기 중 (30초)</span>
-        <div style="flex: 1; margin-left: 12px;">
-          <div class="refresh-bar-container">
-            <div class="refresh-bar" id="timer-bar"></div>
-          </div>
-        </div>
-      </div>
     </header>
 
     <!-- 바디 -->
@@ -735,11 +726,6 @@
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>
   <script>
-    let refreshTimer = null;
-    let refreshSeconds = 30;
-    const MAX_REFRESH_TIME = 30;
-    let refreshPaused = false;
-    let isModalOpen = false;
     const ADMIN_TOKEN_STORAGE_KEY = 'kioskAdminToken';
 
     function esc(value) {
@@ -801,11 +787,6 @@
 
     // 주문 데이터 및 집계 로드
     async function loadAdminData() {
-      // 새로고침 관련 상태 초기화
-      if (!refreshPaused) {
-        resetRefreshTimer();
-      }
-
       try {
         const reviewsRes = await fetchAPI('getReviewsForAdmin', { method: 'POST', body: withAdminToken({}) });
         
@@ -879,52 +860,6 @@
 
     // 후기 전용 화면에서는 주문/이용자/간식 관리 렌더러를 사용하지 않습니다.
 
-    // 타이머 처리 (30초 -> 0초)
-    function startRefreshTimer() {
-      const timerBar = document.getElementById('timer-bar');
-      const refreshText = document.getElementById('refresh-text');
-      if (refreshPaused || isModalOpen) {
-        if (refreshText) {
-          refreshText.textContent = isModalOpen ? '정보 수정 중 (새로고침 일시중지)' : '자동 새로고침 일시정지 중';
-        }
-        if (timerBar) timerBar.style.width = '0%';
-        return;
-      }
-      
-      refreshTimer = setInterval(() => {
-        if (refreshPaused || isModalOpen) return;
-        refreshSeconds--;
-        
-        // 텍스트 및 프로그레스바 갱신
-        refreshText.textContent = `자동 새로고침 대기 중 (${refreshSeconds}초)`;
-        const percentage = ((MAX_REFRESH_TIME - refreshSeconds) / MAX_REFRESH_TIME) * 100;
-        timerBar.style.width = `${percentage}%`;
-
-        if (refreshSeconds <= 0) {
-          loadAdminData();
-        }
-      }, 1000);
-    }
-
-    function resetRefreshTimer() {
-      clearInterval(refreshTimer);
-      refreshSeconds = MAX_REFRESH_TIME;
-      
-      const timerBar = document.getElementById('timer-bar');
-      const refreshText = document.getElementById('refresh-text');
-      if (timerBar) timerBar.style.width = '0%';
-      if (refreshText) {
-        if (isModalOpen) {
-          refreshText.textContent = '정보 수정 중 (새로고침 일시중지)';
-        } else {
-          refreshText.textContent = refreshPaused ? '자동 새로고침 일시정지 중' : `자동 새로고침 대기 중 (${MAX_REFRESH_TIME}초)`;
-        }
-      }
-      
-      if (!refreshPaused && !isModalOpen) {
-        startRefreshTimer();
-      }
-    }
     // 후기 전용 화면에서는 이용자/간식 추가 및 수정 모달을 사용하지 않습니다.
 
     // 초기 이벤트 설정
@@ -943,7 +878,6 @@
       const btnGotoKiosk = document.getElementById('btn-goto-kiosk');
       if (btnGotoKiosk) {
         btnGotoKiosk.addEventListener('click', () => {
-          clearInterval(refreshTimer);
           window.location.href = 'index.html';
         });
       }
