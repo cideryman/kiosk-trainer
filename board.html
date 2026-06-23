@@ -19,6 +19,7 @@
       margin: 0;
       width: 100vw;
       height: 100vh;
+      overflow: hidden;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -58,6 +59,7 @@
 
     .board-layout {
       flex: 1;
+      min-height: 0;
       display: grid;
       grid-template-columns: 1fr 1.2fr; /* 준비완료 영역이 조금 더 넓게 */
       gap: 0;
@@ -69,6 +71,7 @@
       display: flex;
       flex-direction: column;
       height: 100%;
+      min-height: 0;
       overflow: hidden;
     }
 
@@ -95,7 +98,8 @@
 
     .board-list {
       flex: 1;
-      overflow-y: auto;
+      min-height: 0;
+      overflow: hidden;
       padding: 24px;
       display: flex;
       flex-direction: column;
@@ -114,6 +118,10 @@
       gap: 20px;
       box-shadow: var(--shadow-sm);
       transition: all 0.2s ease-in-out;
+      box-sizing: border-box;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
     }
 
     .board-card.ready-item {
@@ -155,18 +163,37 @@
       display: flex;
       flex-direction: column;
       gap: 4px;
+      min-width: 0;
+      overflow: hidden;
     }
 
     .board-username {
       font-size: 28px;
       font-weight: 850;
       color: var(--text-main);
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .board-snacks-list {
       font-size: 18px;
       font-weight: 700;
       color: var(--text-muted);
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .board-delivery-place {
+      font-size: 16px;
+      font-weight: 800;
+      color: #E53935;
+      margin-top: 4px;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
     }
 
     .board-status-badge {
@@ -238,58 +265,125 @@
       background-color: var(--primary-color);
     }
 
-    /* 콤팩트 스타일: 주문 개수가 5~8개일 때 */
-    .board-list.compact {
-      gap: 12px;
-      padding: 16px;
-    }
-    .board-list.compact .board-card {
-      padding: 12px 18px;
-      gap: 14px;
-    }
-    .board-list.compact .board-number-box {
-      min-width: 70px;
-      height: 70px;
-      font-size: 32px;
-    }
-    .board-list.compact .board-username {
-      font-size: 22px;
-    }
-    .board-list.compact .board-snacks-list {
-      font-size: 15px;
-    }
-    .board-list.compact .board-status-badge {
-      font-size: 14px;
-      padding: 4px 10px;
+    /* 주문이 많아질수록 스크롤 대신 한 화면에 들어오도록 단계적으로 압축 */
+    .board-list.fit-grid {
+      display: grid;
+      grid-template-columns: repeat(var(--board-cols, 2), minmax(0, 1fr));
+      grid-template-rows: repeat(var(--board-rows, 1), minmax(0, 1fr));
+      align-content: stretch;
+      overflow: hidden;
     }
 
-    /* 초콤팩트/그리드 스타일: 주문 개수가 8개 초과일 때 2열 그리드로 전환 */
-    .board-list.super-compact {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      grid-auto-rows: max-content;
-      gap: 10px;
+    .board-list.compact {
+      --board-gap: 10px;
+      gap: 12px;
       padding: 12px;
     }
-    .board-list.super-compact .board-card {
-      padding: 10px 14px;
+    .board-list.compact .board-card {
+      height: 100%;
+      padding: 10px 12px;
       gap: 10px;
-      border-width: 2.5px;
     }
-    .board-list.super-compact .board-number-box {
-      min-width: 50px;
-      height: 50px;
-      font-size: 24px;
+    .board-list.compact .board-number-box {
+      min-width: 56px;
+      height: 56px;
+      font-size: 26px;
     }
-    .board-list.super-compact .board-username {
-      font-size: 18px;
+    .board-list.compact .board-username {
+      font-size: 19px;
     }
-    .board-list.super-compact .board-snacks-list {
+    .board-list.compact .board-snacks-list {
       font-size: 13px;
+      -webkit-line-clamp: 1;
     }
-    .board-list.super-compact .board-status-badge {
-      font-size: 12px;
-      padding: 3px 8px;
+    .board-list.compact .board-status-badge {
+      display: none;
+    }
+
+    .board-list.dense,
+    .board-list.ultra {
+      gap: 8px;
+      padding: 10px;
+    }
+
+    .board-list.dense .board-card,
+    .board-list.ultra .board-card {
+      height: 100%;
+      padding: 6px 7px;
+      gap: 3px;
+      border-width: 2.5px;
+      flex-direction: column;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .board-list.dense .board-number-box,
+    .board-list.ultra .board-number-box {
+      min-width: 38px;
+      width: 38px;
+      height: 38px;
+      font-size: 19px;
+    }
+
+    .board-list.dense .board-info-box,
+    .board-list.ultra .board-info-box {
+      flex: 0 1 auto;
+      width: 100%;
+      align-items: center;
+      gap: 1px;
+    }
+
+    .board-list.dense .board-username,
+    .board-list.ultra .board-username {
+      width: 100%;
+      font-size: 13px;
+      line-height: 1.15;
+      white-space: normal;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .board-list.dense .board-snacks-list {
+      width: 100%;
+      font-size: 10px;
+      line-height: 1.15;
+      -webkit-line-clamp: 1;
+    }
+
+    .board-list.dense .board-delivery-place {
+      font-size: 10px;
+      line-height: 1.15;
+      margin-top: 1px;
+      -webkit-line-clamp: 1;
+    }
+
+    .board-list.dense .board-status-badge,
+    .board-list.ultra .board-status-badge {
+      display: none;
+    }
+
+    .board-list.ultra .board-card {
+      padding: 4px 5px;
+      gap: 2px;
+    }
+
+    .board-list.ultra .board-number-box {
+      min-width: 32px;
+      width: 32px;
+      height: 32px;
+      font-size: 16px;
+    }
+
+    .board-list.ultra .board-username {
+      font-size: 11px;
+      line-height: 1.1;
+      -webkit-line-clamp: 2;
+    }
+
+    .board-list.ultra .board-snacks-list,
+    .board-list.ultra .board-delivery-place {
+      display: none;
     }
   </style>
 </head>
@@ -462,12 +556,10 @@
       readyOrders.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
       // 3. 신규 준비완료 건 감지하여 차임 및 TTS 송출
-      let newArrival = false;
       const currentReadyNos = readyOrders.map(o => o.orderNo);
       
       readyOrders.forEach(order => {
         if (!knownReadyOrders.includes(order.orderNo)) {
-          newArrival = true;
           // 즉시 호출 방송 실행
           setTimeout(() => {
             playChimeSound();
@@ -490,10 +582,13 @@
 
       // 동적 크기 및 레이아웃 조절 클래스 적용
       container.className = 'board-list';
-      if (list.length > 8) {
-        container.classList.add('super-compact');
-      } else if (list.length > 4) {
-        container.classList.add('compact');
+      container.style.removeProperty('--board-cols');
+      container.style.removeProperty('--board-rows');
+      const layout = getBoardLayout(list.length);
+      if (layout.className) {
+        container.classList.add('fit-grid', layout.className);
+        container.style.setProperty('--board-cols', layout.cols);
+        container.style.setProperty('--board-rows', layout.rows);
       }
 
       if (list.length === 0) {
@@ -525,7 +620,7 @@
         }
 
         const deliveryPlaceHtml = (isDelivery && order.deliveryPlace)
-          ? `<div style="font-size: 16px; font-weight: 800; color: #E53935; margin-top: 4px;">📍 배달지: ${AppState.escapeHtml(order.deliveryPlace)}</div>`
+          ? `<div class="board-delivery-place">📍 배달지: ${AppState.escapeHtml(order.deliveryPlace)}</div>`
           : '';
 
         card.innerHTML = `
@@ -540,6 +635,19 @@
         
         container.appendChild(card);
       });
+    }
+
+    function getBoardLayout(count) {
+      if (count <= 4) {
+        return { className: '', cols: 1, rows: count || 1 };
+      }
+      if (count <= 8) {
+        return { className: 'compact', cols: 2, rows: Math.ceil(count / 2) };
+      }
+      if (count <= 18) {
+        return { className: 'dense', cols: 3, rows: Math.ceil(count / 3) };
+      }
+      return { className: 'ultra', cols: 4, rows: Math.ceil(count / 4) };
     }
 
     // 초기 이벤트 설정
