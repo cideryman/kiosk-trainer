@@ -197,6 +197,7 @@
 
     @media print {
       body {
+        display: block !important;
         background-color: white;
         padding: 0;
       }
@@ -545,17 +546,18 @@
           const parts = String(group.orderNo).split('-');
           const shortOrderNo = parts.length >= 3 ? parts[2] : group.orderNo;
           
-          group.items.forEach((item, itemIdx) => {
-            rowsHtml += `
-              <tr>
-                <td style="text-align: center; width: 50px; vertical-align: middle;"><input type="checkbox" class="checklist-chbox"></td>
-                <td style="font-family: monospace; vertical-align: middle;">[${AppState.escapeHtml(shortOrderNo)}]</td>
-                <td style="vertical-align: middle;"><strong>${AppState.escapeHtml(group.nickname)} 님</strong></td>
-                <td style="vertical-align: middle;">${AppState.escapeHtml(item.snackName)}</td>
-                <td style="text-align: center; font-weight: 800; width: 80px; vertical-align: middle;">${Number(item.quantity || 1)}개</td>
-              </tr>
-            `;
-          });
+          const snackNamesHtml = group.items.map(item => AppState.escapeHtml(item.snackName)).join('<br>');
+          const quantitiesHtml = group.items.map(item => `${Number(item.quantity || 1)}개`).join('<br>');
+          
+          rowsHtml += `
+            <tr>
+              <td style="text-align: center; width: 50px; vertical-align: middle;"><input type="checkbox" class="checklist-chbox"></td>
+              <td style="font-family: monospace; vertical-align: middle;">[${AppState.escapeHtml(shortOrderNo)}]</td>
+              <td style="vertical-align: middle;"><strong>${AppState.escapeHtml(group.nickname)} 님</strong></td>
+              <td style="vertical-align: middle;">${snackNamesHtml}</td>
+              <td style="text-align: center; font-weight: 800; width: 80px; vertical-align: middle;">${quantitiesHtml}</td>
+            </tr>
+          `;
         });
         
         html += `
