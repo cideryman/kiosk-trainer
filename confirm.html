@@ -300,6 +300,43 @@
       return Number(sessionStorage.getItem('guestDeliveryFee')) || GUEST_DELIVERY_FEE;
     }
 
+    async function refreshGuestCreditStatus() {
+      if (!user || user.userId !== 'guest') return null;
+
+      try {
+        const body = {
+          guestDeviceId: AppState.getGuestDeviceId()
+        };
+        if (user.authProvider === 'kakao' && user.guestKey) {
+          body.authProvider = 'kakao';
+          body.guestKey = user.guestKey;
+        }
+
+        const res = await fetchAPI('getGuestCreditStatus', {
+          method: 'POST',
+          body
+        });
+
+        const remainingCredit = Number(res && res.remainingCredit);
+        if (res && res.success && !Number.isNaN(remainingCredit)) {
+          user.credit = remainingCredit;
+          user.guestCreditLimit = Number(res.creditLimit || remainingCredit);
+          user.guestBonusCredit = Number(res.bonusCredit || 0);
+          AppState.setSelectedUser(user);
+          sessionStorage.setItem('guestRemainingCredit', String(remainingCredit));
+          sessionStorage.setItem('guestCreditLimit', String(res.creditLimit || remainingCredit));
+          sessionStorage.setItem('kakaoGuestBonusCredit', String(res.bonusCredit || 0));
+          document.getElementById('my-credit-num').textContent = user.credit ?? 0;
+          updateBill();
+          return res;
+        }
+      } catch (error) {
+        console.warn('게스트 크레딧 상태 로드 실패:', error);
+      }
+
+      return null;
+    }
+
     // ── 계산서 업데이트 ──────────────────────────────────────────
     function updateBill() {
       const isGuest = (user && user.userId === 'guest');
@@ -569,11 +606,13 @@
         `<span class="user-badge">${AppState.escapeHtml(user.nickname)}${isGuest ? ' (비회원)' : ' 님'}</span>`;
       
       // 보유 크레딧 숫자만 업데이트 (HTML 구조에 🪙 아이콘 포함)
-      // 게스트일 경우 sessionStorage에서 서버 설정값 적용
       if (isGuest) {
-        const serverCredit = Number(sessionStorage.getItem('guestBaseCredit'));
-        if (serverCredit && serverCredit !== user.credit) {
-          user.credit = serverCredit;
+        const serverRemainingCredit = sessionStorage.getItem('guestRemainingCredit');
+        if (serverRemainingCredit !== null && serverRemainingCredit !== '') {
+          user.credit = Number(serverRemainingCredit);
+          AppState.setSelectedUser(user);
+        } else if (typeof user.credit !== 'number') {
+          user.credit = Number(sessionStorage.getItem('guestBaseCredit')) || GUEST_DEFAULT_CREDIT;
           AppState.setSelectedUser(user);
         }
       }
@@ -694,14 +733,17 @@
         const response = await fetchAPI('placeOrder', { method: 'POST', body: orderPayload });
 
         if (response && response.success) {
-          user.credit = remainPoints;
+          const responseRemainPoints = typeof response.afterCredit === 'number'
+            ? response.afterCredit
+            : remainPoints;
+          user.credit = responseRemainPoints;
           AppState.setSelectedUser(user);
 
           const lastOrder = {
             userId:       user.userId,
             nickname:     user.nickname,
             usedPoints:   totalPoints,
-            remainPoints: remainPoints,
+            remainPoints: responseRemainPoints,
             orderNo:      response.orderNo || '',
             orderToken:   response.orderToken || '',
             deliveryType: isGuest ? deliveryType : 'pickup',
@@ -729,6 +771,7 @@
               items: cart.map(item => ({ name: item.name, quantity: item.quantity }))
             });
             localStorage.setItem('guestOrders', JSON.stringify(guestOrders));
+            sessionStorage.setItem('guestRemainingCredit', String(responseRemainPoints));
           }
 
           AppState.clearCart();
@@ -760,6 +803,7 @@
     // ── 바인딩 ───────────────────────────────────────────────────
     window.addEventListener('DOMContentLoaded', () => {
       initData();
+      refreshGuestCreditStatus();
 
       // 유휴 시간 자동 로그아웃 초기화 (70초 유휴 + 10초 경고)
       AppState.initIdleTimeout(70000, 10000);

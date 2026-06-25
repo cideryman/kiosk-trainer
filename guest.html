@@ -269,8 +269,9 @@
             카카오톡 로그인으로 다른 기기에서도 오늘 주문을 찾을 수 있어요.
           </div>
           <div style="display: flex; flex-direction: column; gap: 10px;">
-            <button class="btn btn-gray" id="btn-kakao-login" style="min-height: 52px; font-size: 17px; font-weight: 850; background-color: #FEE500; color: #191919; border: 2px solid #E7CF00; box-shadow: none;">
-              카카오톡 로그인
+            <button class="btn btn-gray" id="btn-kakao-login" style="min-height: 52px; font-size: 17px; font-weight: 850; background-color: #FEE500; color: #191919; border: 2px solid #E7CF00; box-shadow: none; flex-wrap: wrap; gap: 8px; row-gap: 6px;">
+              <span>카카오톡 로그인</span>
+              <span style="display: inline-flex; align-items: center; justify-content: center; min-height: 28px; padding: 3px 10px; border-radius: 999px; background-color: #2EC4B6; color: white; font-size: 13px; font-weight: 900; line-height: 1; white-space: nowrap;">로그인 시 +2 크레딧</span>
             </button>
             <button class="btn btn-gray" id="btn-kakao-logout" style="display: none; min-height: 52px; font-size: 16px; font-weight: 850; box-shadow: none;">
               카카오 연결 해제
@@ -424,6 +425,7 @@
 
       let currentStep = 'select'; // 'select' or 'input'
       let guestBaseCredit = GUEST_DEFAULT_CREDIT;
+      let kakaoGuestBonusCredit = 2;
       let guestDeliveryFee = GUEST_DELIVERY_FEE;
       let remainingCountdown = null;
       let isGuestOpen = false;
@@ -432,6 +434,8 @@
       let allowMultipleOrders = true;
       let rememberedGuestProfile = null;
       let guestProfilePromise = Promise.resolve(null);
+      let guestCreditStatus = null;
+      let guestCreditPromise = Promise.resolve(null);
 
       function getKakaoRedirectUri() {
         return window.location.origin + window.location.pathname;
@@ -450,6 +454,14 @@
         if (!window.history || !window.history.replaceState) return;
         const cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
         window.history.replaceState({}, document.title, cleanUrl);
+      }
+
+      function renderKakaoLoginButtonLabel() {
+        if (!btnKakaoLogin) return;
+        btnKakaoLogin.innerHTML = `
+          <span>카카오톡 로그인</span>
+          <span style="display: inline-flex; align-items: center; justify-content: center; min-height: 28px; padding: 3px 10px; border-radius: 999px; background-color: #2EC4B6; color: white; font-size: 13px; font-weight: 900; line-height: 1; white-space: nowrap;">로그인 시 +2 크레딧</span>
+        `;
       }
 
       function renderGuestAuth() {
@@ -478,7 +490,7 @@
             kakaoAuthStatus.textContent = '카카오톡 로그인으로 다른 기기에서도 오늘 주문을 찾을 수 있어요.';
           }
           if (btnKakaoLogin) {
-            btnKakaoLogin.textContent = '카카오톡 로그인';
+            renderKakaoLoginButtonLabel();
             btnKakaoLogin.style.display = 'flex';
           }
           if (btnKakaoLogout) {
@@ -530,6 +542,54 @@
           console.warn('카카오 게스트 프로필 로드 실패:', error);
         }
 
+        return null;
+      }
+
+      function renderGuestCreditBadge() {
+        if (!guestCreditBadge) return;
+        const auth = AppState.getGuestAuth();
+        if (guestCreditStatus && typeof guestCreditStatus.remainingCredit === 'number') {
+          const bonusText = auth && guestCreditStatus.bonusCredit
+            ? ` (카카오톡 +${guestCreditStatus.bonusCredit})`
+            : '';
+          guestCreditBadge.textContent = `🎫 오늘 남은 크레딧 ${guestCreditStatus.remainingCredit}개${bonusText}`;
+          return;
+        }
+
+        if (auth) {
+          guestCreditBadge.textContent = `🎫 카카오톡 로그인 시 오늘 크레딧 ${guestBaseCredit + kakaoGuestBonusCredit}개`;
+        } else {
+          guestCreditBadge.textContent = `🎫 신규 방문 크레딧 ${guestBaseCredit}개 지급`;
+        }
+      }
+
+      async function loadGuestCreditStatus() {
+        try {
+          const auth = AppState.getGuestAuth();
+          const body = {
+            guestDeviceId: AppState.getGuestDeviceId()
+          };
+          if (auth) {
+            body.authProvider = auth.provider;
+            body.guestKey = auth.guestKey;
+          }
+
+          const res = await fetchAPI('getGuestCreditStatus', {
+            method: 'POST',
+            body
+          });
+          if (res && res.success) {
+            guestCreditStatus = res;
+            sessionStorage.setItem('guestRemainingCredit', String(res.remainingCredit));
+            sessionStorage.setItem('guestCreditLimit', String(res.creditLimit));
+            sessionStorage.setItem('kakaoGuestBonusCredit', String(res.bonusCredit ?? kakaoGuestBonusCredit));
+            renderGuestCreditBadge();
+            return res;
+          }
+        } catch (error) {
+          console.warn('게스트 크레딧 상태 로드 실패:', error);
+        }
+        renderGuestCreditBadge();
         return null;
       }
 
@@ -628,6 +688,9 @@
           sessionStorage.removeItem('kakaoOAuthRedirectUri');
           cleanupKakaoCallbackUrl();
           renderGuestAuth();
+          guestCreditStatus = null;
+          guestCreditPromise = loadGuestCreditStatus();
+          await guestCreditPromise;
           guestProfilePromise = loadRememberedGuestProfile();
           await guestProfilePromise;
           alert('카카오 연결이 완료되었습니다. 이제 오늘 주문을 더 쉽게 찾을 수 있어요.');
@@ -649,6 +712,7 @@
           if (settingsRes && settingsRes.success) {
             isGuestOpen = settingsRes.isGuestOpenNow;
             guestBaseCredit = settingsRes.guestBaseCredit ?? GUEST_DEFAULT_CREDIT;
+            kakaoGuestBonusCredit = settingsRes.kakaoGuestBonusCredit ?? 2;
             guestDeliveryFee = settingsRes.guestDeliveryFee ?? GUEST_DELIVERY_FEE;
             welcomeTitle = settingsRes.welcomeTitle || welcomeTitle;
             welcomeSubtitle = settingsRes.welcomeSubtitle || welcomeSubtitle;
@@ -677,13 +741,12 @@
 
             // sessionStorage에 설정값 캐시 (다음 화면에서 사용)
             sessionStorage.setItem('guestBaseCredit', String(guestBaseCredit));
+            sessionStorage.setItem('kakaoGuestBonusCredit', String(kakaoGuestBonusCredit));
             sessionStorage.setItem('guestDeliveryFee', String(guestDeliveryFee));
             sessionStorage.setItem('guestDefaultDeliveryPlace', settingsRes.guestDefaultDeliveryPlace ?? '사무실 원탁');
 
             // 크레딧 배지 적용
-            if (guestCreditBadge) {
-              guestCreditBadge.textContent = `🎫 신규 방문 크레딧 ${guestBaseCredit}개 지급`;
-            }
+            renderGuestCreditBadge();
 
             if (!isGuestOpen) {
               // 마감 상태
@@ -916,7 +979,9 @@
           AppState.clearGuestAuth();
           rememberedGuestProfile = null;
           guestProfilePromise = Promise.resolve(null);
+          guestCreditStatus = null;
           renderGuestAuth();
+          guestCreditPromise = loadGuestCreditStatus();
           AppState.vibrate(40);
         });
       }
@@ -1055,6 +1120,16 @@
         }
 
         const guestAuth = AppState.getGuestAuth();
+        try {
+          await guestCreditPromise;
+        } catch (error) {
+          console.warn('게스트 크레딧 확인 실패:', error);
+        }
+
+        const startingCredit = guestCreditStatus && typeof guestCreditStatus.remainingCredit === 'number'
+          ? guestCreditStatus.remainingCredit
+          : guestBaseCredit + (guestAuth ? kakaoGuestBonusCredit : 0);
+
         if (guestAuth && !rememberedGuestProfile) {
           try {
             await guestProfilePromise;
@@ -1066,7 +1141,13 @@
         const selectedUser = {
           userId: 'guest',
           nickname: guestName,
-          credit: guestBaseCredit
+          credit: startingCredit,
+          guestCreditLimit: guestCreditStatus && typeof guestCreditStatus.creditLimit === 'number'
+            ? guestCreditStatus.creditLimit
+            : startingCredit,
+          guestBonusCredit: guestCreditStatus && typeof guestCreditStatus.bonusCredit === 'number'
+            ? guestCreditStatus.bonusCredit
+            : (guestAuth ? kakaoGuestBonusCredit : 0)
         };
         if (guestAuth) {
           selectedUser.authProvider = guestAuth.provider;
@@ -1363,7 +1444,10 @@
         return loadRememberedGuestProfile();
       });
       // 비동기 작업들을 병렬 실행하여 로딩 속도 극대화 (Non-blocking / Parallel Loading)
-      loadSettings();
+      const settingsPromise = loadSettings();
+      Promise.allSettled([settingsPromise, kakaoCallbackPromise]).then(() => {
+        guestCreditPromise = loadGuestCreditStatus();
+      });
       loadRecentReviews();
       syncGuestOrders();
     });

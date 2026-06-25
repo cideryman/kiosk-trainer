@@ -28,6 +28,7 @@ const SHEET = {
   REVIEWS: '후기내역',
   ARCHIVE: '주문보관',
   GUEST_PROFILES: '게스트프로필',
+  GUEST_CREDITS: '게스트크레딧',
 };
 
 // Google Drive 폴더 ID 상수 정의
@@ -202,6 +203,8 @@ function doPost(e) {
       return jsonResponse(getGuestProfileByGuestKey(data));
     } else if (action === 'deleteGuestProfileByGuestKey') {
       return jsonResponse(deleteGuestProfileByGuestKey(data));
+    } else if (action === 'getGuestCreditStatus') {
+      return jsonResponse(getGuestCreditStatus(data));
     }
     
     return jsonResponse({
@@ -649,6 +652,211 @@ function isClosedOrderStatus(status) {
   ].includes(s);
 }
 
+function getGuestCreditPeriodKey(dateValue) {
+  let date = dateValue instanceof Date ? dateValue : new Date(dateValue || new Date());
+  if (isNaN(date.getTime())) {
+    date = new Date();
+  }
+  return Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+function splitGuestCreditDeviceIds(value) {
+  return String(value || '')
+    .split(',')
+    .map(id => id.trim())
+    .filter(Boolean);
+}
+
+function mergeGuestCreditDeviceIds(currentIds, nextId) {
+  const merged = [];
+  (currentIds || []).forEach(id => {
+    const normalized = String(id || '').trim();
+    if (normalized && merged.indexOf(normalized) === -1) {
+      merged.push(normalized);
+    }
+  });
+
+  const normalizedNextId = String(nextId || '').trim();
+  if (normalizedNextId && merged.indexOf(normalizedNextId) === -1) {
+    merged.push(normalizedNextId);
+  }
+
+  return merged.slice(-20);
+}
+
+function ensureGuestCreditSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET.GUEST_CREDITS);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET.GUEST_CREDITS);
+  }
+
+  const currentHeaders = sheet.getDataRange().getValues()[0] || [];
+  const requiredHeaders = [
+    'periodKey',
+    'guestDeviceId',
+    'guestKey',
+    'baseCredit',
+    'bonusCredit',
+    'creditLimit',
+    'usedCredit',
+    'remainingCredit',
+    'updatedAt',
+  ];
+  const headers = currentHeaders.filter(h => h !== '');
+  let modified = headers.length === 0;
+
+  requiredHeaders.forEach(header => {
+    if (headers.indexOf(header) === -1) {
+      headers.push(header);
+      modified = true;
+    }
+  });
+
+  if (modified) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
+
+  return sheet;
+}
+
+function getKakaoGuestBonusCredit(settings) {
+  return Number(settings && settings.kakaoGuestBonusCredit !== undefined ? settings.kakaoGuestBonusCredit : 2);
+}
+
+function resolveGuestCreditWallet(data, options) {
+  const opts = options || {};
+  const settings = opts.settings || getGuestSettings();
+  const periodKey = opts.periodKey || getGuestCreditPeriodKey();
+  const guestDeviceId = String(data.guestDeviceId || '').trim();
+  const requestedGuestKey = String(data.guestKey || '').trim();
+  const authProvider = String(data.authProvider || '').trim().toLowerCase();
+  const guestKey = authProvider === 'kakao' && requestedGuestKey ? requestedGuestKey : '';
+  const spendCredit = Number(opts.spendCredit || 0);
+  const refundCredit = Number(opts.refundCredit || 0);
+
+  const sheet = ensureGuestCreditSheet();
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0] || [];
+  const idx = {
+    periodKey: headers.indexOf('periodKey'),
+    guestDeviceId: headers.indexOf('guestDeviceId'),
+    guestKey: headers.indexOf('guestKey'),
+    baseCredit: headers.indexOf('baseCredit'),
+    bonusCredit: headers.indexOf('bonusCredit'),
+    creditLimit: headers.indexOf('creditLimit'),
+    usedCredit: headers.indexOf('usedCredit'),
+    remainingCredit: headers.indexOf('remainingCredit'),
+    updatedAt: headers.indexOf('updatedAt'),
+  };
+
+  const matched = [];
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    if (String(row[idx.periodKey] || '').trim() !== periodKey) continue;
+    const rowDeviceId = String(row[idx.guestDeviceId] || '').trim();
+    const rowDeviceIds = splitGuestCreditDeviceIds(rowDeviceId);
+    const rowGuestKey = String(row[idx.guestKey] || '').trim();
+    const matchByDevice = guestDeviceId && rowDeviceIds.indexOf(guestDeviceId) !== -1;
+    const matchByGuestKey = guestKey && rowGuestKey && rowGuestKey === guestKey;
+    if (matchByDevice || matchByGuestKey) {
+      matched.push({
+        rowNumber: i + 1,
+        row,
+        guestDeviceId: rowDeviceId,
+        guestDeviceIds: rowDeviceIds,
+        guestKey: rowGuestKey,
+      });
+    }
+  }
+
+  const baseCredit = Number(settings.guestBaseCredit || 10);
+  const hasKakaoLink = !!guestKey || matched.some(item => item.guestKey);
+  const bonusCredit = hasKakaoLink ? getKakaoGuestBonusCredit(settings) : 0;
+  const creditLimit = baseCredit + bonusCredit;
+  let usedCredit = matched.reduce((sum, item) => sum + Number(item.row[idx.usedCredit] || 0), 0);
+
+  if (spendCredit > 0) {
+    if (creditLimit - usedCredit < spendCredit) {
+      return {
+        success: false,
+        periodKey,
+        baseCredit,
+        bonusCredit,
+        creditLimit,
+        usedCredit,
+        remainingCredit: Math.max(0, creditLimit - usedCredit),
+        message: `크레딧이 부족합니다. 오늘 남은 크레딧: ${Math.max(0, creditLimit - usedCredit)}개`,
+      };
+    }
+    usedCredit += spendCredit;
+  }
+
+  if (refundCredit > 0) {
+    usedCredit = Math.max(0, usedCredit - refundCredit);
+  }
+
+  const remainingCredit = Math.max(0, creditLimit - usedCredit);
+  const shouldPersist = opts.create || spendCredit > 0 || refundCredit > 0 || matched.length > 1;
+  if (shouldPersist) {
+    const primary = matched[0] || null;
+    let mergedDeviceIds = [];
+    matched.forEach(item => {
+      (item.guestDeviceIds || splitGuestCreditDeviceIds(item.guestDeviceId)).forEach(deviceId => {
+        mergedDeviceIds = mergeGuestCreditDeviceIds(mergedDeviceIds, deviceId);
+      });
+    });
+    const nextDeviceId = mergeGuestCreditDeviceIds(mergedDeviceIds, guestDeviceId).join(',');
+    const nextGuestKey = guestKey || (primary ? primary.guestKey : '');
+    const nextRow = [
+      periodKey,
+      nextDeviceId,
+      nextGuestKey,
+      baseCredit,
+      bonusCredit,
+      creditLimit,
+      usedCredit,
+      remainingCredit,
+      new Date(),
+    ];
+
+    if (primary) {
+      sheet.getRange(primary.rowNumber, 1, 1, nextRow.length).setValues([nextRow]);
+      for (let i = matched.length - 1; i >= 1; i--) {
+        sheet.deleteRow(matched[i].rowNumber);
+      }
+    } else if (nextDeviceId || nextGuestKey) {
+      sheet.appendRow(nextRow);
+    }
+  }
+
+  return {
+    success: true,
+    periodKey,
+    guestDeviceId: guestDeviceId || (matched[0] && matched[0].guestDeviceId) || '',
+    guestKey: guestKey || (matched[0] && matched[0].guestKey) || '',
+    baseCredit,
+    bonusCredit,
+    creditLimit,
+    usedCredit,
+    remainingCredit,
+  };
+}
+
+function getGuestCreditStatus(data) {
+  const status = resolveGuestCreditWallet(data || {}, { create: false });
+  if (!status.success) return status;
+  return {
+    success: true,
+    periodKey: status.periodKey,
+    baseCredit: status.baseCredit,
+    bonusCredit: status.bonusCredit,
+    creditLimit: status.creditLimit,
+    usedCredit: status.usedCredit,
+    remainingCredit: status.remainingCredit,
+  };
+}
+
 /**
  * 7. 주문 접수 및 크레딧/재고 자동 계산 처리
  */
@@ -690,24 +898,37 @@ function placeOrder(data) {
     const deviceIdIdx = headers.indexOf('guestDeviceId');
     const authProviderIdx = headers.indexOf('authProvider');
     const guestKeyIdx = headers.indexOf('guestKey');
+    const rawGuestKey = String(data.guestKey || '').trim();
+    const authProvider = isGuest && rawGuestKey && String(data.authProvider || '').trim().toLowerCase() === 'kakao' ? 'kakao' : '';
+    const guestKey = authProvider === 'kakao' ? rawGuestKey : '';
+    let guestSettings = null;
 
     if (isGuest) {
-      const gSettings = getGuestSettings();
-      if (!gSettings.isGuestOpenNow) {
+      guestSettings = getGuestSettings();
+      if (!guestSettings.isGuestOpenNow) {
         return {
           success: false,
-          message: gSettings.message || '게스트 주문이 마감되었습니다.',
+          message: guestSettings.message || '게스트 주문이 마감되었습니다.',
+        };
+      }
+
+      if (!data.guestDeviceId && !guestKey) {
+        return {
+          success: false,
+          message: '게스트 주문 확인 정보가 없습니다. 화면을 새로고침한 뒤 다시 시도해 주세요.',
         };
       }
       
-      if (!gSettings.guestAllowMultipleOrders && data.guestDeviceId) {
+      if (!guestSettings.guestAllowMultipleOrders && (data.guestDeviceId || guestKey)) {
         const orderValues = orderSheet.getDataRange().getValues();
         const servedYnIdx = headers.indexOf('제공여부');
         let hasActiveOrder = false;
         const nowTime = new Date();
         for (let i = 1; i < orderValues.length; i++) {
           const row = orderValues[i];
-          if (deviceIdIdx !== -1 && String(row[deviceIdIdx]) === String(data.guestDeviceId)) {
+          const sameDevice = deviceIdIdx !== -1 && data.guestDeviceId && String(row[deviceIdIdx]) === String(data.guestDeviceId);
+          const sameGuestKey = guestKeyIdx !== -1 && guestKey && String(row[guestKeyIdx]) === guestKey;
+          if (sameDevice || sameGuestKey) {
             const orderTime = row[0];
             const status = String(row[servedYnIdx !== -1 ? servedYnIdx : 8]).trim();
             if (isSameKoreaDate(orderTime, nowTime) && !isClosedOrderStatus(status)) {
@@ -725,8 +946,8 @@ function placeOrder(data) {
       }
 
       nickname = (data.guestName || '게스트') + ' (비회원)';
-      currentCredit = gSettings.guestBaseCredit;
-      guestFee = gSettings.guestDeliveryFee;
+      currentCredit = guestSettings.guestBaseCredit;
+      guestFee = guestSettings.guestDeliveryFee;
     } else {
       const users = userSheet.getDataRange().getValues();
       userRowIndex = users.findIndex((row, index) => {
@@ -796,10 +1017,19 @@ function placeOrder(data) {
     const deliveryFee = isGuest && deliveryType === 'delivery' ? guestFee : Number(data.deliveryFee || 0);
     const totalCredit = totalPoint + deliveryFee;
     const deliveryPlace = isGuest && deliveryType === 'delivery' ? String(data.deliveryPlace || '').trim() : '';
-    const rawGuestKey = String(data.guestKey || '').trim();
-    const authProvider = isGuest && rawGuestKey && String(data.authProvider || '').trim().toLowerCase() === 'kakao' ? 'kakao' : '';
-    const guestKey = authProvider === 'kakao' ? rawGuestKey : '';
     const shouldRememberGuestProfile = data.rememberGuestProfile === true || String(data.rememberGuestProfile || '').trim().toUpperCase() === 'Y';
+
+    if (isGuest) {
+      const creditStatus = resolveGuestCreditWallet({
+        guestDeviceId: data.guestDeviceId || '',
+        authProvider,
+        guestKey,
+      }, {
+        settings: guestSettings,
+        create: false,
+      });
+      currentCredit = creditStatus.remainingCredit;
+    }
 
     if (currentCredit < totalCredit) {
       return {
@@ -887,6 +1117,20 @@ function placeOrder(data) {
     let newCredit = currentCredit - totalCredit;
     if (!isGuest) {
       userSheet.getRange(userRowIndex + 1, 3).setValue(newCredit);
+    } else {
+      const walletUpdate = resolveGuestCreditWallet({
+        guestDeviceId: data.guestDeviceId || '',
+        authProvider,
+        guestKey,
+      }, {
+        settings: guestSettings,
+        spendCredit: totalCredit,
+        create: true,
+      });
+      if (!walletUpdate.success) {
+        throw new Error(walletUpdate.message || '게스트 크레딧을 업데이트하지 못했습니다.');
+      }
+      newCredit = walletUpdate.remainingCredit;
     }
 
     if (isGuest && authProvider === 'kakao' && guestKey && shouldRememberGuestProfile) {
@@ -906,6 +1150,7 @@ function placeOrder(data) {
       totalPoint: totalCredit,
       beforeCredit: currentCredit,
       afterCredit: newCredit,
+      bonusCredit: isGuest && authProvider === 'kakao' ? getKakaoGuestBonusCredit(guestSettings) : 0,
       items: orderItems,
     };
   } catch (error) {
@@ -1355,9 +1600,9 @@ function cancelOrder(data) {
 
     const orderRange = orderSheet.getDataRange();
     const orderValues = orderRange.getValues();
+    const headers = orderValues[0] || [];
     const userValues = userSheet.getDataRange().getValues();
     const snackValues = snackSheet.getDataRange().getValues();
-    const headers = orderValues[0] || [];
 
     // 시트의 최대 열 수가 부족할 경우 18개(A~R)로 보장
     if (orderSheet.getMaxColumns() < 18) {
@@ -1366,6 +1611,7 @@ function cancelOrder(data) {
 
     let updatedCount = 0;
     let refundLogs = [];
+    let guestCreditRefund = null;
 
     // 1. 주문번호에 해당하는 모든 행을 찾아서 환불 및 재고 복구 진행
     for (let i = 1; i < orderValues.length; i++) {
@@ -1379,6 +1625,16 @@ function cancelOrder(data) {
         const snackName = orderValues[i][5];
         const quantity = Number(orderValues[i][6] || 0);
         const point = Number(orderValues[i][7] || 0);
+
+        if (userId === 'guest' && !guestCreditRefund) {
+          guestCreditRefund = {
+            orderTime: orderValues[i][0],
+            guestDeviceId: headers.indexOf('guestDeviceId') !== -1 ? orderValues[i][headers.indexOf('guestDeviceId')] || '' : '',
+            authProvider: headers.indexOf('authProvider') !== -1 ? orderValues[i][headers.indexOf('authProvider')] || '' : '',
+            guestKey: headers.indexOf('guestKey') !== -1 ? orderValues[i][headers.indexOf('guestKey')] || '' : '',
+            refundCredit: Number(orderValues[i][13] || point || 0),
+          };
+        }
 
         // 1-1. 유저 크레딧 환불
         const userRowIndex = userValues.findIndex((row, idx) => idx > 0 && String(row[0]) === userId);
@@ -1419,6 +1675,17 @@ function cancelOrder(data) {
     }
 
     if (updatedCount > 0) {
+      if (guestCreditRefund && guestCreditRefund.refundCredit > 0) {
+        try {
+          resolveGuestCreditWallet(guestCreditRefund, {
+            periodKey: getGuestCreditPeriodKey(guestCreditRefund.orderTime || new Date()),
+            refundCredit: guestCreditRefund.refundCredit,
+            create: true,
+          });
+        } catch (walletError) {
+          Logger.log('Guest credit refund failed: ' + (walletError && walletError.stack ? walletError.stack : walletError));
+        }
+      }
       return {
         success: true,
         message: `주문번호 ${orderId}의 주문이 취소되었습니다. 환불 내역: ${refundLogs.join(', ')} (총 ${updatedCount}건)`
@@ -1468,6 +1735,7 @@ function userCancelOrder(data) {
 
     const orderRange = orderSheet.getDataRange();
     const orderValues = orderRange.getValues();
+    const headers = orderValues[0] || [];
     const userValues = userSheet.getDataRange().getValues();
     const snackValues = snackSheet.getDataRange().getValues();
 
@@ -1478,6 +1746,7 @@ function userCancelOrder(data) {
     let updatedCount = 0;
     let refundLogs = [];
     let isAlreadyStarted = false;
+    let guestCreditRefund = null;
 
     for (let i = 1; i < orderValues.length; i++) {
       const rowOrderId = String(orderValues[i][1]); // B열: orderNo
@@ -1505,6 +1774,16 @@ function userCancelOrder(data) {
         const snackName = orderValues[i][5];
         const quantity = Number(orderValues[i][6] || 0);
         const point = Number(orderValues[i][7] || 0);
+
+        if (userId === 'guest' && !guestCreditRefund) {
+          guestCreditRefund = {
+            orderTime: orderValues[i][0],
+            guestDeviceId: headers.indexOf('guestDeviceId') !== -1 ? orderValues[i][headers.indexOf('guestDeviceId')] || '' : '',
+            authProvider: headers.indexOf('authProvider') !== -1 ? orderValues[i][headers.indexOf('authProvider')] || '' : '',
+            guestKey: headers.indexOf('guestKey') !== -1 ? orderValues[i][headers.indexOf('guestKey')] || '' : '',
+            refundCredit: Number(orderValues[i][13] || point || 0),
+          };
+        }
 
         // 유저 크레딧 환불
         const userRowIndex = userValues.findIndex((row, idx) => idx > 0 && String(row[0]) === userId);
@@ -1543,6 +1822,17 @@ function userCancelOrder(data) {
     }
 
     if (updatedCount > 0) {
+      if (guestCreditRefund && guestCreditRefund.refundCredit > 0) {
+        try {
+          resolveGuestCreditWallet(guestCreditRefund, {
+            periodKey: getGuestCreditPeriodKey(guestCreditRefund.orderTime || new Date()),
+            refundCredit: guestCreditRefund.refundCredit,
+            create: true,
+          });
+        } catch (walletError) {
+          Logger.log('Guest credit refund failed: ' + (walletError && walletError.stack ? walletError.stack : walletError));
+        }
+      }
       return {
         success: true,
         message: `주문이 취소되었습니다. 환불 내역: ${refundLogs.join(', ')} (총 ${updatedCount}건)`
@@ -1930,6 +2220,7 @@ function getGuestSettings() {
     guestOpen: 'N',
     guestCloseAt: '',
     guestBaseCredit: 10,
+    kakaoGuestBonusCredit: 2,
     guestDeliveryFee: 3,
     guestDefaultDeliveryPlace: '사무실 원탁',
     todayDeliveryTeamEnabled: true,
@@ -1955,6 +2246,7 @@ function getGuestSettings() {
     guestOpen: 'N',
     guestCloseAt: '',
     guestBaseCredit: 10,
+    kakaoGuestBonusCredit: 2,
     guestDeliveryFee: 3,
     guestDefaultDeliveryPlace: '사무실 원탁',
     todayDeliveryTeamEnabled: true,
@@ -2003,6 +2295,7 @@ function getGuestSettings() {
     guestOpen: settings.guestOpen,
     guestCloseAt: settings.guestCloseAt,
     guestBaseCredit: Number(settings.guestBaseCredit || 10),
+    kakaoGuestBonusCredit: Number(settings.kakaoGuestBonusCredit || 2),
     guestDeliveryFee: Number(settings.guestDeliveryFee || 3),
     guestDefaultDeliveryPlace: settings.guestDefaultDeliveryPlace || '사무실 원탁',
     todayDeliveryTeamEnabled: settings.todayDeliveryTeamEnabled === true || String(settings.todayDeliveryTeamEnabled).toLowerCase() === 'true',

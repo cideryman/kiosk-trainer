@@ -32,7 +32,8 @@
 * **체험형 배달 서비스**: "직업 체험" 대신 실제 카페 배달원처럼 활동할 수 있도록 브랜드를 **"배달왔삼 배달 서비스"**로 지향합니다.
 * **주문표시명 입력**: 게스트 주문 시 부르기 쉬운 주문표시명을 직접 적도록 안내합니다. 필요할 때만 `랜덤 이름 쓰기` 버튼으로 재밌는 이름(`형용사 + 삼각지 + 동물/사물`)을 넣을 수 있습니다.
 * **선택형 카카오 연결**: 카카오에서 실명/이메일/전화번호/배송지를 가져오지 않고, 카카오 서비스 사용자 ID만 내부 `guestKey`로 변환해 저장합니다. 연결한 사용자는 다른 기기에서도 오늘 주문을 확인할 수 있으며, 사용자가 별도 체크한 경우에만 직접 입력한 주문표시명과 마지막 배송지를 다음 주문용으로 기억합니다.
-* **중복 주문 차단**: 하루에 한 건만 주문을 넣을 수 있도록 클립보드 로컬스토리지 및 구글시트 서버단(DeviceId 기준)에서 이중으로 동일 일자 중복 주문을 차단합니다.
+* **카카오 로그인 보너스와 일일 게스트 크레딧**: 기본 게스트 크레딧에 카카오 로그인 보너스 2크레딧을 더해 표시합니다. 서버는 같은 날의 `guestDeviceId`와 카카오 `guestKey`를 같은 지갑으로 묶어, 카카오 주문 후 로그아웃 게스트 주문처럼 크레딧을 중복으로 쓰는 흐름을 줄입니다.
+* **중복 주문 차단**: 하루에 한 건만 주문을 넣을 수 있도록 로컬스토리지와 구글시트 서버단에서 동일 일자 진행 중 주문을 이중 차단합니다. 카카오 연결 주문은 같은 `guestKey` 기준도 함께 확인합니다.
 * **수령 방식 및 배달지 입력**: "포장 수령" 또는 "배달 서비스 이용"을 선택할 수 있으며, 배송지(기본값: *사무실 원탁*)가 비어있으면 주문이 접수되지 않습니다.
 * **오늘의 배달팀 표시**: 관리자가 지정한 "오늘의 배달팀(배달 담당, 상품 준비 담당)" 정보와 한마디 메시지가 게스트 메인 화면에 생동감 있게 표시됩니다.
 * **게스트 후기 팝업 뷰어**: 게스트들이 남긴 후기를 슬라이드 방식(이전/다음 버튼)으로 확대하여 볼 수 있는 모바일 최적화 후기 뷰어 모달을 탑재했습니다.
@@ -91,15 +92,17 @@
 
 ## 📊 스프레드시트 구조 (Google Sheets DB)
 
-시스템을 운영하려면 아래 7개 탭(시트)으로 구성된 구글 스프레드시트가 필요합니다.
+시스템을 운영하려면 아래 탭(시트)으로 구성된 구글 스프레드시트가 필요합니다. 일부 보조 탭은 기능 사용 시 GAS가 자동 생성/보정합니다.
 
 1. **`이용자목록`**: `userId` (고유ID), `nickname` (별명), `credit` (잔액), `useYn` (활성화 여부: Y/N), `imageUrl` (사용자 사진 Drive ID)
 2. **`간식목록`**: `snackId` (고유ID), `name` (간식명), `point` (가격), `imageUrl` (간식 사진 Drive ID), `saleYn` (판매여부: Y/N), `stock` (재고량), `displayOrder` (정렬순서), `target` (노출대상: user/guest)
-3. **`주문내역`**: `timestamp` (주문 일시), `orderNo` (주문번호), `userId`, `nickname`, `snackId`, `snackName`, `quantity` (주문수량), `point` (차감포인트), `servedYn` (N:접수, P:준비, R:출발/완료, Y:제공완료, C:취소), `cancelTimestamp`, `orderToken`, `deliveryType` (pickup/delivery), `deliveryFee` (배달료), `totalCredit` (사용 후 잔액), `reviewed` (후기여부), `deliveryPlace` (배달 목적지), `guestDeviceId`, `authProvider`, `guestKey`
+3. **`주문내역`**: `timestamp` (주문 일시), `orderNo` (주문번호), `userId`, `nickname`, `snackId`, `snackName`, `quantity` (주문수량), `point` (차감포인트), `servedYn` (N:접수, P:준비, R:출발/완료, Y:제공완료, C:취소), `cancelTimestamp`, `orderToken`, `deliveryType` (pickup/delivery), `deliveryFee` (배달료), `totalCredit` (주문 총 차감 크레딧), `reviewed` (후기여부), `deliveryPlace` (배달 목적지), `guestDeviceId`, `authProvider`, `guestKey`
 4. **`관리자로그`**: 관리자 로그인 정보 및 재고/크레딧 수정 로그 추적
 5. **`운영설정`**: `key` (설정항목), `value` (설정값) - 게스트 운영 상태(open/closed), 남은 시간, 기본 배달 정보 및 오늘의 배달팀 데이터 관리
 6. **`후기내역`**: `id`, `orderNo`, `nickname`, `rating`, `tags` (선택된 태그), `comment` (한마디), `imageUrl` (후기 사진), `createdAt`, `useYn` (후기 노출 여부: Y/N)
 7. **`게스트프로필`**: `guestKey`, `displayName`, `deliveryPlace`, `updatedAt` - 카카오 연결 사용자가 선택 저장에 동의한 경우에만 마지막 주문표시명과 배송지를 보관합니다.
+8. **`게스트크레딧`**: `periodKey`, `guestDeviceId`, `guestKey`, `baseCredit`, `bonusCredit`, `creditLimit`, `usedCredit`, `remainingCredit`, `updatedAt` - 오늘 하루 게스트 크레딧 사용량을 기기/카카오 연결 기준으로 묶어 관리합니다.
+9. **`주문보관`**: 오래된 주문을 보관하는 아카이브 탭입니다.
 
 ---
 

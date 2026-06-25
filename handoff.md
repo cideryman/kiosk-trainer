@@ -19,7 +19,7 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 ## 2. Technical Stack
 * **Frontend**: Pure HTML5, Vanilla CSS3 (curated custom properties system in `css/style.css`), Vanilla JavaScript. No TailwindCSS, React, or other thick frameworks.
 * **Backend**: **Google Apps Script (GAS) Web App** serves as the API gateway and backend controller. 
-  - Backend database: **Google Sheets** (contains sheets: `이용자목록`, `간식목록`, `주문내역`, `관리자로그`, `운영설정`, `후기내역`).
+  - Backend database: **Google Sheets** (contains sheets: `이용자목록`, `간식목록`, `주문내역`, `관리자로그`, `운영설정`, `후기내역`, `게스트프로필`, `게스트크레딧`, `주문보관`).
   - Access control: API requests containing state modifications (under `ADMIN_ACTIONS`) are protected by an `ADMIN_TOKEN` verification.
 * **Offline & PWA Capabilities**: Service Worker (`service-worker.js`) intercepts requests and caches static resources. 4 distinct PWA manifests exist for each mode to support individual standalone installations.
 
@@ -61,6 +61,8 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 * **`운영설정` (System Settings)**: System operational metadata.
   - Added `guestDefaultDeliveryPlace` key mapping (defaults to "사무실 원탁") for the guest delivery place defaults.
 * **`후기내역` (Reviews)**: Customer reviews / compliments.
+* **`게스트프로필` (Guest Profiles)**: Optional remembered display name and delivery place for Kakao-connected guests who explicitly check the remember option.
+* **`게스트크레딧` (Guest Credits)**: Daily guest credit wallet keyed by `periodKey`, `guestDeviceId`, and optional Kakao `guestKey`.
 
 ---
 
@@ -204,8 +206,12 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - `google-apps-script.md` adds `getKakaoLoginConfig`, `exchangeKakaoAuthCode`, and `getGuestOrdersByGuestKey`. Kakao raw IDs and tokens are not stored; raw Kakao ID is converted to `guestKey` with `KAKAO_GUEST_KEY_SALT`.
   - `주문내역` keeps A~R fixed and appends `guestDeviceId`, `authProvider`, `guestKey` after the existing order columns. `후기내역` is unchanged.
   - `게스트프로필` stores `guestKey`, `displayName`, `deliveryPlace`, `updatedAt` only when the user checks the optional remember box on `confirm.html`. It is not auto-saved by Kakao login alone. `guest.html` can load this profile for auto-fill and provides a `저장 정보 삭제` button.
+  - `게스트크레딧` stores a daily wallet for guest orders. The current policy is daily reset by `periodKey` (`yyyy-MM-dd`), base guest credit plus Kakao login bonus 2 credits. Matching is by same `guestDeviceId` or same Kakao `guestKey`; when a Kakao account is used on multiple devices, the wallet keeps the linked device IDs so logging out on a linked device does not create a fresh daily allowance.
+  - `guest.html` shows the `카카오톡 로그인` button with a small `로그인 시 +2 크레딧` badge and loads `getGuestCreditStatus` before starting an order. `confirm.html` refreshes server-side remaining credit and uses `placeOrder.afterCredit` after submission.
+  - Guest credit refunds are tied into admin/user cancellation paths. For guest orders, cancellation restores the daily wallet usage as well as snack stock.
 * **Code Verification**:
   - Passed `node --check js/config.js`, `node --check js/app.js`, `node --check service-worker.js`, `git diff --check`, HTML inline script parsing for `guest.html`/`guest-orders.html`/`confirm.html`/`admin.html`/`reviews.html`, and JavaScript parsing of `google-apps-script.md`.
+  - Additional 2026-06-25 verification after daily guest-credit wallet work: `js/config.js`, `js/app.js`, `service-worker.js`, GAS syntax via `vm.Script`, inline script parsing for `guest.html`/`confirm.html`/`guest-orders.html`/`admin.html`/`kitchen.html`/`reviews.html`, `git diff --check`, and a mock wallet simulation covering PC -> Kakao -> mobile -> logged-out PC remaining-credit continuity.
   - Runtime verification still requires Kakao console Redirect URI setup, Apps Script Properties, copying `google-apps-script.md` into GAS, and a new GAS deployment.
 
 ---

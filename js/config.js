@@ -273,6 +273,7 @@ function getMockFallback(action, options) {
         guestOpen: settings.guestOpen,
         guestCloseAt: settings.guestCloseAt,
         guestBaseCredit: settings.guestBaseCredit,
+        kakaoGuestBonusCredit: settings.kakaoGuestBonusCredit ?? 2,
         guestDeliveryFee: settings.guestDeliveryFee,
         guestDefaultDeliveryPlace: settings.guestDefaultDeliveryPlace ?? '사무실 원탁',
         isGuestOpenNow,
@@ -296,6 +297,8 @@ function getMockFallback(action, options) {
         message: 'Mock 카카오 연결이 완료되었습니다.'
       };
     }
+  } else if (action === 'getGuestCreditStatus') {
+    res = resolveMockGuestCreditWallet(options.body || {}, { create: false });
   } else if (action === 'updateGuestSettings') {
     const settingsAction = options.body?.settingsAction;
     const settings = getMockGuestSettings();
@@ -432,6 +435,11 @@ function getMockFallback(action, options) {
           return { success: false, message: '게스트 주문 운영 시간이 종료되었습니다.' };
         }
       }
+
+      const hasKakaoKey = options.body?.authProvider === 'kakao' && options.body?.guestKey;
+      if (!options.body?.guestDeviceId && !hasKakaoKey) {
+        return { success: false, message: '게스트 주문 확인 정보가 없습니다. 화면을 새로고침한 뒤 다시 시도해 주세요.' };
+      }
     }
     
     // 사용자 이름 매핑
@@ -479,11 +487,34 @@ function getMockFallback(action, options) {
     const deliveryPlace = (deliveryType === 'delivery') ? String(options.body?.deliveryPlace || '').trim() : '';
     // 게스트 배달비는 서버 설정값 기준으로 재계산
     let deliveryFee = 0;
+    let gSettings = null;
     if (isGuest && deliveryType === 'delivery') {
-      const gSettings = getMockGuestSettings();
+      gSettings = getMockGuestSettings();
       deliveryFee = gSettings.guestDeliveryFee;
     } else {
       deliveryFee = Number(options.body?.deliveryFee || 0);
+    }
+
+    const snackTotalCost = items.reduce((sum, item) => {
+      const snack = snacks.find(s => s.snackId === item.snackId) || { point: 1 };
+      return sum + (Number(snack.point || 0) * Number(item.quantity || 0));
+    }, 0);
+    const totalCost = snackTotalCost + deliveryFee;
+    let guestCreditUpdate = null;
+    if (isGuest) {
+      const authProvider = options.body?.authProvider === 'kakao' ? 'kakao' : '';
+      guestCreditUpdate = resolveMockGuestCreditWallet({
+        guestDeviceId: options.body?.guestDeviceId || '',
+        authProvider,
+        guestKey: authProvider === 'kakao' ? options.body?.guestKey || '' : ''
+      }, {
+        settings: gSettings || getMockGuestSettings(),
+        spendCredit: totalCost,
+        create: true
+      });
+      if (!guestCreditUpdate.success) {
+        return guestCreditUpdate;
+      }
     }
 
     const newOrders = items.map(item => {
@@ -500,7 +531,9 @@ function getMockFallback(action, options) {
         servedYn: 'N',
         deliveryType: deliveryType,
         deliveryFee: deliveryFee,
+        totalCredit: totalCost,
         deliveryPlace: deliveryPlace,
+        guestDeviceId: isGuest ? String(options.body?.guestDeviceId || '') : '',
         authProvider: isGuest && options.body?.authProvider === 'kakao' ? 'kakao' : '',
         guestKey: isGuest && options.body?.guestKey ? String(options.body.guestKey) : '',
         reviewed: false
@@ -524,8 +557,9 @@ function getMockFallback(action, options) {
     // 주문에 따른 사용자 크레딧 차감 시뮬레이션
     const selectedUser = JSON.parse(localStorage.getItem('selectedUser'));
     if (selectedUser) {
-      const totalCost = newOrders.reduce((sum, o) => sum + o.point, 0) + deliveryFee;
-      selectedUser.credit = Math.max(0, selectedUser.credit - totalCost);
+      selectedUser.credit = isGuest && guestCreditUpdate
+        ? guestCreditUpdate.remainingCredit
+        : Math.max(0, selectedUser.credit - totalCost);
       localStorage.setItem('selectedUser', JSON.stringify(selectedUser));
 
       if (!isGuest) {
@@ -541,6 +575,12 @@ function getMockFallback(action, options) {
     res = JSON.parse(JSON.stringify(MOCK_DATA.placeOrder));
     res.orderNo = generatedOrderNo;
     res.orderToken = orderToken;
+    res.totalPoint = totalCost;
+    if (guestCreditUpdate) {
+      res.beforeCredit = guestCreditUpdate.remainingCredit + totalCost;
+      res.afterCredit = guestCreditUpdate.remainingCredit;
+      res.bonusCredit = guestCreditUpdate.bonusCredit || 0;
+    }
   } else if (action === 'updateOrderServed') {
     const orderId = options.body?.orderId;
     const servedYn = options.body?.servedYn || 'N';
@@ -744,9 +784,20 @@ function getMockFallback(action, options) {
     const orderId = options.body?.orderId;
     let updated = false;
     let refundLogs = [];
+    let guestCreditRefund = null;
 
     // Helper function to process refund and stock restore
     const processItemRefund = (item) => {
+      if (item.userId === 'guest' && !guestCreditRefund) {
+        guestCreditRefund = {
+          orderTime: item.timestamp,
+          guestDeviceId: item.guestDeviceId || '',
+          authProvider: item.authProvider || '',
+          guestKey: item.guestKey || '',
+          refundCredit: Number(item.totalCredit || item.point || 0)
+        };
+      }
+
       // 1. User refund
       const users = MOCK_DATA.getUsers.users;
       const user = users.find(u => u.nickname === item.nickname);
@@ -798,6 +849,13 @@ function getMockFallback(action, options) {
     });
 
     if (updated) {
+      if (guestCreditRefund && guestCreditRefund.refundCredit > 0) {
+        resolveMockGuestCreditWallet(guestCreditRefund, {
+          periodKey: getMockGuestCreditPeriodKey(guestCreditRefund.orderTime || new Date()),
+          refundCredit: guestCreditRefund.refundCredit,
+          create: true
+        });
+      }
       res = {
         success: true,
         message: `주문번호 ${orderId}의 주문이 취소되었습니다. 환불 내역: ${refundLogs.join(', ')}`
@@ -1040,6 +1098,7 @@ function getMockGuestSettings() {
     guestOpen: 'N',
     guestCloseAt: '',
     guestBaseCredit: GUEST_DEFAULT_CREDIT,
+    kakaoGuestBonusCredit: 2,
     guestDeliveryFee: GUEST_DELIVERY_FEE,
     guestDefaultDeliveryPlace: '사무실 원탁'
   };
@@ -1047,6 +1106,137 @@ function getMockGuestSettings() {
 
 function saveMockGuestSettings(settings) {
   localStorage.setItem('mockGuestSettings', JSON.stringify(settings));
+}
+
+function getMockGuestCreditPeriodKey(dateValue) {
+  const date = dateValue ? new Date(dateValue) : new Date();
+  const validDate = isNaN(date.getTime()) ? new Date() : date;
+  const year = validDate.getFullYear();
+  const month = String(validDate.getMonth() + 1).padStart(2, '0');
+  const day = String(validDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function splitMockGuestCreditDeviceIds(value) {
+  return String(value || '')
+    .split(',')
+    .map(id => id.trim())
+    .filter(Boolean);
+}
+
+function mergeMockGuestCreditDeviceIds(currentIds, nextId) {
+  const merged = [];
+  (currentIds || []).forEach(id => {
+    const normalized = String(id || '').trim();
+    if (normalized && !merged.includes(normalized)) {
+      merged.push(normalized);
+    }
+  });
+
+  const normalizedNextId = String(nextId || '').trim();
+  if (normalizedNextId && !merged.includes(normalizedNextId)) {
+    merged.push(normalizedNextId);
+  }
+
+  return merged.slice(-20);
+}
+
+function getMockKakaoGuestBonusCredit(settings) {
+  return Number(settings && settings.kakaoGuestBonusCredit !== undefined ? settings.kakaoGuestBonusCredit : 2);
+}
+
+function resolveMockGuestCreditWallet(data = {}, options = {}) {
+  const settings = options.settings || getMockGuestSettings();
+  const periodKey = options.periodKey || getMockGuestCreditPeriodKey();
+  const guestDeviceId = String(data.guestDeviceId || '').trim();
+  const requestedGuestKey = String(data.guestKey || '').trim();
+  const authProvider = String(data.authProvider || '').trim().toLowerCase();
+  const guestKey = authProvider === 'kakao' && requestedGuestKey ? requestedGuestKey : '';
+  const spendCredit = Number(options.spendCredit || 0);
+  const refundCredit = Number(options.refundCredit || 0);
+  const wallets = JSON.parse(localStorage.getItem('mockGuestCreditWallets') || '[]');
+
+  const matched = wallets
+    .map((wallet, index) => ({
+      ...wallet,
+      index,
+      guestDeviceIds: splitMockGuestCreditDeviceIds(wallet.guestDeviceId)
+    }))
+    .filter(wallet => {
+      if (String(wallet.periodKey || '') !== periodKey) return false;
+      const matchByDevice = guestDeviceId && wallet.guestDeviceIds.includes(guestDeviceId);
+      const matchByGuestKey = guestKey && String(wallet.guestKey || '') === guestKey;
+      return matchByDevice || matchByGuestKey;
+    });
+
+  const baseCredit = Number(settings.guestBaseCredit || GUEST_DEFAULT_CREDIT);
+  const hasKakaoLink = !!guestKey || matched.some(wallet => wallet.guestKey);
+  const bonusCredit = hasKakaoLink ? getMockKakaoGuestBonusCredit(settings) : 0;
+  const creditLimit = baseCredit + bonusCredit;
+  let usedCredit = matched.reduce((sum, wallet) => sum + Number(wallet.usedCredit || 0), 0);
+
+  if (spendCredit > 0) {
+    if (creditLimit - usedCredit < spendCredit) {
+      return {
+        success: false,
+        periodKey,
+        baseCredit,
+        bonusCredit,
+        creditLimit,
+        usedCredit,
+        remainingCredit: Math.max(0, creditLimit - usedCredit),
+        message: `크레딧이 부족합니다. 오늘 남은 크레딧: ${Math.max(0, creditLimit - usedCredit)}개`
+      };
+    }
+    usedCredit += spendCredit;
+  }
+
+  if (refundCredit > 0) {
+    usedCredit = Math.max(0, usedCredit - refundCredit);
+  }
+
+  const remainingCredit = Math.max(0, creditLimit - usedCredit);
+  const shouldPersist = options.create || spendCredit > 0 || refundCredit > 0 || matched.length > 1;
+  if (shouldPersist) {
+    const primary = matched[0] || null;
+    let mergedDeviceIds = [];
+    matched.forEach(wallet => {
+      wallet.guestDeviceIds.forEach(deviceId => {
+        mergedDeviceIds = mergeMockGuestCreditDeviceIds(mergedDeviceIds, deviceId);
+      });
+    });
+
+    const nextWallet = {
+      periodKey,
+      guestDeviceId: mergeMockGuestCreditDeviceIds(mergedDeviceIds, guestDeviceId).join(','),
+      guestKey: guestKey || (primary ? primary.guestKey : ''),
+      baseCredit,
+      bonusCredit,
+      creditLimit,
+      usedCredit,
+      remainingCredit,
+      updatedAt: new Date().toISOString()
+    };
+
+    if (primary) {
+      wallets[primary.index] = nextWallet;
+      const removeIndexes = new Set(matched.slice(1).map(wallet => wallet.index));
+      localStorage.setItem('mockGuestCreditWallets', JSON.stringify(wallets.filter((_, index) => !removeIndexes.has(index))));
+    } else if (nextWallet.guestDeviceId || nextWallet.guestKey) {
+      wallets.push(nextWallet);
+      localStorage.setItem('mockGuestCreditWallets', JSON.stringify(wallets));
+    }
+  }
+
+  return {
+    success: true,
+    periodKey,
+    baseCredit,
+    bonusCredit,
+    creditLimit,
+    usedCredit,
+    remainingCredit
+  };
 }
 
 function appendMockAdminLog(action, targetType, targetId, targetName, beforeValue, afterValue, memo) {
