@@ -266,11 +266,11 @@
 
         <div id="kakao-auth-panel" style="display: flex; flex-direction: column; gap: 10px; background-color: #FFFBEA; border: 3px solid #FEE500; border-radius: var(--radius-md); padding: 16px; box-shadow: var(--shadow-sm);">
           <div id="kakao-auth-status" style="font-size: 15px; font-weight: 800; color: #3A2A00; text-align: center; line-height: 1.45; word-break: keep-all;">
-            카카오로 연결하면 다른 기기에서도 오늘 주문을 찾을 수 있어요.
+            카카오톡 로그인으로 다른 기기에서도 오늘 주문을 찾을 수 있어요.
           </div>
           <div style="display: flex; flex-direction: column; gap: 10px;">
             <button class="btn btn-gray" id="btn-kakao-login" style="min-height: 52px; font-size: 17px; font-weight: 850; background-color: #FEE500; color: #191919; border: 2px solid #E7CF00; box-shadow: none;">
-              카카오로 내 주문 찾기
+              카카오톡 로그인
             </button>
             <button class="btn btn-gray" id="btn-kakao-logout" style="display: none; min-height: 52px; font-size: 16px; font-weight: 850; box-shadow: none;">
               카카오 연결 해제
@@ -475,10 +475,10 @@
           }
         } else {
           if (kakaoAuthStatus) {
-            kakaoAuthStatus.textContent = '카카오로 연결하면 다른 기기에서도 오늘 주문을 찾을 수 있어요.';
+            kakaoAuthStatus.textContent = '카카오톡 로그인으로 다른 기기에서도 오늘 주문을 찾을 수 있어요.';
           }
           if (btnKakaoLogin) {
-            btnKakaoLogin.textContent = '카카오로 내 주문 찾기';
+            btnKakaoLogin.textContent = '카카오톡 로그인';
             btnKakaoLogin.style.display = 'flex';
           }
           if (btnKakaoLogout) {
@@ -541,7 +541,7 @@
 
         if (btnKakaoLogin) {
           btnKakaoLogin.disabled = true;
-          btnKakaoLogin.textContent = '카카오 연결 준비 중...';
+          btnKakaoLogin.textContent = '카카오톡 로그인 준비 중...';
         }
 
         try {
