@@ -268,12 +268,12 @@
           <div id="kakao-auth-status" style="font-size: 15px; font-weight: 800; color: #3A2A00; text-align: center; line-height: 1.45; word-break: keep-all;">
             카카오로 연결하면 다른 기기에서도 오늘 주문을 찾을 수 있어요.
           </div>
-          <div style="display: flex; gap: 10px;">
-            <button class="btn btn-gray" id="btn-kakao-login" style="flex: 1; min-height: 52px; font-size: 17px; font-weight: 850; background-color: #FEE500; color: #191919; border: 2px solid #E7CF00; box-shadow: none;">
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button class="btn btn-gray" id="btn-kakao-login" style="min-height: 52px; font-size: 17px; font-weight: 850; background-color: #FEE500; color: #191919; border: 2px solid #E7CF00; box-shadow: none;">
               카카오로 내 주문 찾기
             </button>
-            <button class="btn btn-gray" id="btn-kakao-logout" style="display: none; flex: 0 0 auto; min-height: 52px; font-size: 15px; font-weight: 850; padding: 0 14px; box-shadow: none;">
-              해제
+            <button class="btn btn-gray" id="btn-kakao-logout" style="display: none; min-height: 52px; font-size: 16px; font-weight: 850; box-shadow: none;">
+              카카오 연결 해제
             </button>
           </div>
         </div>
@@ -453,10 +453,10 @@
             kakaoAuthStatus.textContent = '카카오 연결됨: 다른 기기에서도 오늘 주문을 찾을 수 있어요.';
           }
           if (btnKakaoLogin) {
-            btnKakaoLogin.textContent = '카카오 다시 연결하기';
+            btnKakaoLogin.style.display = 'none';
           }
           if (btnKakaoLogout) {
-            btnKakaoLogout.style.display = 'block';
+            btnKakaoLogout.style.display = 'flex';
           }
           if (kakaoInputHint) {
             kakaoInputHint.style.display = 'block';
@@ -467,6 +467,7 @@
           }
           if (btnKakaoLogin) {
             btnKakaoLogin.textContent = '카카오로 내 주문 찾기';
+            btnKakaoLogin.style.display = 'flex';
           }
           if (btnKakaoLogout) {
             btnKakaoLogout.style.display = 'none';
