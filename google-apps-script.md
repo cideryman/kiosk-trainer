@@ -464,7 +464,9 @@ function updateGuestProfileByGuestKey(data) {
     };
   }
 
-  upsertGuestProfile(guestKey, displayName, deliveryPlace);
+  upsertGuestProfile(guestKey, displayName, deliveryPlace, {
+    preserveBlankDeliveryPlace: false,
+  });
   return {
     success: true,
     message: '프로필 정보가 수정되었습니다.',
@@ -475,8 +477,9 @@ function updateGuestProfileByGuestKey(data) {
   };
 }
 
-function upsertGuestProfile(guestKey, displayName, deliveryPlace) {
+function upsertGuestProfile(guestKey, displayName, deliveryPlace, options) {
   if (!guestKey) return;
+  const opts = options || {};
 
   const sheet = ensureGuestProfileSheet();
   const values = sheet.getDataRange().getValues();
@@ -509,7 +512,7 @@ function upsertGuestProfile(guestKey, displayName, deliveryPlace) {
 
   const currentRow = values[targetRow - 1];
   const nextDisplayName = safeDisplayName || currentRow[displayNameIdx] || '';
-  const nextDeliveryPlace = safeDeliveryPlace || currentRow[deliveryPlaceIdx] || '';
+  const nextDeliveryPlace = safeDeliveryPlace || (opts.preserveBlankDeliveryPlace === false ? '' : currentRow[deliveryPlaceIdx] || '');
   sheet.getRange(targetRow, displayNameIdx + 1).setValue(nextDisplayName);
   sheet.getRange(targetRow, deliveryPlaceIdx + 1).setValue(nextDeliveryPlace);
   sheet.getRange(targetRow, updatedAtIdx + 1).setValue(new Date());

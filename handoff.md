@@ -220,8 +220,12 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
     - **Layout Improvements**: Organized the "카카오 로그아웃" and "저장 정보 삭제" buttons side-by-side inside `#kakao-auth-panel` when logged in to save vertical space.
   - **Encountered Issue & Resolution**:
     - During code injection in `guest.html`, a typo introduced a duplicate `});` closing block at the end of the `btnGpeSave` event handler. The syntax check command `node --check` flag caught it immediately, and it was quickly resolved.
+  - **Follow-up Review 2026-06-25**:
+    - A later review found that `guest.html` still had a malformed inline script in the same profile-edit area: the `if (btnGpeSave) { ... }` block was missing its final closing brace, causing `Unexpected token ')'` and preventing the guest page script from loading. Fixed by adding the missing brace and bumping `service-worker.js` to `kiosk-cache-v84`.
+    - GAS profile editing was also aligned with the local mock. In `updateGuestProfileByGuestKey`, an intentionally blank delivery-place field now clears the saved default delivery place. Ordinary order-time profile saving still preserves the previous delivery place when a pickup order has no delivery address.
 * **Code Verification**:
   - Passed `node --check js/config.js`, `node --check js/app.js`, `node --check service-worker.js`, `git diff --check`, HTML inline script parsing for `guest.html`/`guest-orders.html`/`confirm.html`/`admin.html`/`reviews.html`, and JavaScript parsing of `google-apps-script.md` (via `check_syntax.js`).
+  - Follow-up verification 2026-06-25 additionally passed inline script parsing for `guest.html`/`guest-orders.html`/`confirm.html`/`admin.html`/`reviews.html`/`kitchen.html`/`board.html`, `node --check js/config.js`, `node --check js/app.js`, `node --check service-worker.js`, and direct JavaScript parsing of `google-apps-script.md` without writing to `temp.js`.
   - Runtime verification still requires Kakao Redirect URI setup, Apps Script Properties, copying `google-apps-script.md` into GAS, and a new GAS deployment.
 
 ---
