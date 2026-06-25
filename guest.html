@@ -260,10 +260,6 @@
           </div>
         </div>
 
-        <div id="multiple-orders-notice" style="display: none; text-align: center; padding: 12px 16px; background-color: #FFF3E0; border: 2px solid #FFCC80; border-radius: var(--radius-sm); font-size: 15px; font-weight: 800; color: #E65100;">
-          ⚠️ 진행 중인 주문이 있으면 완료 후 다시 주문할 수 있어요.
-        </div>
-
         <div id="kakao-auth-panel" style="display: flex; flex-direction: column; gap: 10px; background-color: #FFFBEA; border: 3px solid #FEE500; border-radius: var(--radius-md); padding: 16px; box-shadow: var(--shadow-sm);">
           <div id="kakao-auth-status" style="font-size: 15px; font-weight: 800; color: #3A2A00; text-align: center; line-height: 1.45; word-break: keep-all;">
             카카오톡 로그인으로 다른 기기에서도 오늘 주문을 찾을 수 있어요.
@@ -431,7 +427,6 @@
       let isGuestOpen = false;
       let welcomeTitle = '배달왔삼에 오신 것을 환영합니다 😊';
       let welcomeSubtitle = '오늘의 간식을 주문해보세요!';
-      let allowMultipleOrders = true;
       let rememberedGuestProfile = null;
       let guestProfilePromise = Promise.resolve(null);
       let guestCreditStatus = null;
@@ -722,23 +717,6 @@
 
             renderTodayDeliveryTeam(settingsRes);
             
-            allowMultipleOrders = settingsRes.guestAllowMultipleOrders !== false;
-
-            if (!allowMultipleOrders) {
-              const now = new Date();
-              const todayStr = now.getFullYear() + '-' + now.getMonth() + '-' + now.getDate();
-              const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
-              const hasActiveOrder = guestOrders.some(o => {
-                const orderDate = new Date(o.createdAt || o.timestamp);
-                const orderDateStr = orderDate.getFullYear() + '-' + orderDate.getMonth() + '-' + orderDate.getDate();
-                return orderDateStr === todayStr && !['제공완료', '배달완료', '취소', '관리자취소', 'Y', 'C'].includes(String(o.status).trim());
-              });
-              if (hasActiveOrder) {
-                const multipleNotice = document.getElementById('multiple-orders-notice');
-                if (multipleNotice) multipleNotice.style.display = 'block';
-              }
-            }
-
             // sessionStorage에 설정값 캐시 (다음 화면에서 사용)
             sessionStorage.setItem('guestBaseCredit', String(guestBaseCredit));
             sessionStorage.setItem('kakaoGuestBonusCredit', String(kakaoGuestBonusCredit));
@@ -1021,22 +999,6 @@
         if (!isGuestOpen) {
           AppState.vibrate([100, 100]);
           return;
-        }
-
-        if (!allowMultipleOrders) {
-          const now = new Date();
-          const todayStr = now.getFullYear() + '-' + now.getMonth() + '-' + now.getDate();
-          const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
-          const hasActiveOrder = guestOrders.some(o => {
-            const orderDate = new Date(o.createdAt || o.timestamp);
-            const orderDateStr = orderDate.getFullYear() + '-' + orderDate.getMonth() + '-' + orderDate.getDate();
-            return orderDateStr === todayStr && !['제공완료', '배달완료', '취소', '관리자취소', 'Y', 'C'].includes(String(o.status).trim());
-          });
-          if (hasActiveOrder) {
-            AppState.vibrate([200, 50, 200]);
-            alert('진행 중인 주문이 있습니다.\n주문이 완료되거나 취소된 후 다시 주문할 수 있어요.');
-            return;
-          }
         }
 
         showStep('input');

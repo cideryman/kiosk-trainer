@@ -2854,7 +2854,6 @@
       const teamTitleEl = document.getElementById('input-team-title');
       const teamMembersEl = document.getElementById('input-team-members');
       const teamMessageEl = document.getElementById('input-team-message');
-      const allowMultipleEl = document.getElementById('input-guest-allow-multiple');
 
       if (creditEl) creditEl.value = data.guestBaseCredit ?? 10;
       if (feeEl) feeEl.value = data.guestDeliveryFee ?? 3;
@@ -2864,7 +2863,6 @@
       if (teamTitleEl) teamTitleEl.value = data.todayDeliveryTeamTitle || '';
       if (teamMembersEl) teamMembersEl.value = data.todayDeliveryTeamMembers || '';
       if (teamMessageEl) teamMessageEl.value = data.todayDeliveryTeamMessage || '';
-      if (allowMultipleEl) allowMultipleEl.checked = data.guestAllowMultipleOrders === true;
 
       if (guestOpsCountdown) {
         clearInterval(guestOpsCountdown);
@@ -2964,7 +2962,6 @@
       const teamTitleInput = document.getElementById('input-team-title');
       const teamMembersInput = document.getElementById('input-team-members');
       const teamMessageInput = document.getElementById('input-team-message');
-      const allowMultipleInput = document.getElementById('input-guest-allow-multiple');
 
       if (!creditInput || !feeInput || !deliveryPlaceInput) return;
 
@@ -2975,7 +2972,6 @@
       const todayDeliveryTeamTitle = teamTitleInput ? teamTitleInput.value.trim() : '';
       const todayDeliveryTeamMembers = teamMembersInput ? teamMembersInput.value.trim() : '';
       const todayDeliveryTeamMessage = teamMessageInput ? teamMessageInput.value.trim() : '';
-      const guestAllowMultipleOrders = allowMultipleInput ? allowMultipleInput.checked : false;
 
       try {
         const adminToken = getAdminToken();
@@ -2990,7 +2986,6 @@
             todayDeliveryTeamTitle,
             todayDeliveryTeamMembers,
             todayDeliveryTeamMessage,
-            guestAllowMultipleOrders,
             adminToken,
             adminMemo: getAdminMemo()
           }

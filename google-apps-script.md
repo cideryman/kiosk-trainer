@@ -2206,6 +2206,17 @@ function uploadImage(data) {
 /**
  * 20. 게스트 운영 설정 조회
  */
+function upsertSettingValue(sheet, key, value) {
+  const values = sheet.getDataRange().getValues();
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][0]).trim() === key) {
+      sheet.getRange(i + 1, 2).setValue(value);
+      return;
+    }
+  }
+  sheet.appendRow([key, value]);
+}
+
 function getGuestSettings() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET.SETTINGS);
@@ -2229,7 +2240,8 @@ function getGuestSettings() {
     todayDeliveryTeamMessage: '맛있게 준비해서 배달하겠습니다!',
     welcomeTitle: '배달왔삼에 오신 것을 환영합니다 😊',
     welcomeSubtitle: '오늘의 간식을 주문해보세요!',
-    guestAllowMultipleOrders: 'FALSE'
+    guestAllowMultipleOrders: 'TRUE',
+    guestOrderLimitPolicyVersion: 'creditWalletV1'
   };
 
   const existingKeys = [];
@@ -2255,13 +2267,21 @@ function getGuestSettings() {
     todayDeliveryTeamMessage: '맛있게 준비해서 배달하겠습니다!',
     welcomeTitle: '배달왔삼에 오신 것을 환영합니다 😊',
     welcomeSubtitle: '오늘의 간식을 주문해보세요!',
-    guestAllowMultipleOrders: 'FALSE'
+    guestAllowMultipleOrders: 'TRUE',
+    guestOrderLimitPolicyVersion: 'creditWalletV1'
   };
 
   for (const key in defaultSettings) {
     if (existingKeys.indexOf(key) === -1) {
       sheet.appendRow([key, defaultSettings[key]]);
     }
+  }
+
+  if (existingKeys.indexOf('guestOrderLimitPolicyVersion') === -1) {
+    settings.guestAllowMultipleOrders = 'TRUE';
+    settings.guestOrderLimitPolicyVersion = 'creditWalletV1';
+    upsertSettingValue(sheet, 'guestAllowMultipleOrders', 'TRUE');
+    upsertSettingValue(sheet, 'guestOrderLimitPolicyVersion', 'creditWalletV1');
   }
 
   const now = new Date();
@@ -2302,7 +2322,7 @@ function getGuestSettings() {
     todayDeliveryTeamTitle: settings.todayDeliveryTeamTitle || '📦 오늘의 배달팀',
     todayDeliveryTeamMembers: settings.todayDeliveryTeamMembers || '',
     todayDeliveryTeamMessage: settings.todayDeliveryTeamMessage || '',
-    guestAllowMultipleOrders: String(settings.guestAllowMultipleOrders || 'FALSE').toUpperCase() === 'TRUE',
+    guestAllowMultipleOrders: String(settings.guestAllowMultipleOrders || 'TRUE').toUpperCase() !== 'FALSE',
     isGuestOpenNow,
     remainingSeconds,
     message
