@@ -665,6 +665,10 @@
         orderPayload.deliveryFee = deliveryFee;
         orderPayload.deliveryPlace = deliveryPlace;
         orderPayload.guestDeviceId = AppState.getGuestDeviceId();
+        if (user.authProvider === 'kakao' && user.guestKey) {
+          orderPayload.authProvider = 'kakao';
+          orderPayload.guestKey = user.guestKey;
+        }
       }
 
       try {
@@ -683,6 +687,8 @@
             orderToken:   response.orderToken || '',
             deliveryType: isGuest ? deliveryType : 'pickup',
             deliveryPlace: isGuest && deliveryType === 'delivery' ? deliveryPlace : '',
+            authProvider: isGuest && user.authProvider === 'kakao' ? 'kakao' : '',
+            guestKey: isGuest && user.guestKey ? user.guestKey : '',
             items:        cart.map(item => ({ name: item.name, quantity: item.quantity }))
           };
 
@@ -699,6 +705,8 @@
               status: 'N',
               deliveryType: deliveryType,
               deliveryPlace: deliveryType === 'delivery' ? deliveryPlace : '',
+              authProvider: user.authProvider === 'kakao' ? 'kakao' : '',
+              guestKey: user.guestKey || '',
               items: cart.map(item => ({ name: item.name, quantity: item.quantity }))
             });
             localStorage.setItem('guestOrders', JSON.stringify(guestOrders));

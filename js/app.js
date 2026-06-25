@@ -20,6 +20,29 @@ const AppState = {
     localStorage.removeItem('selectedUser');
   },
 
+  getGuestAuth() {
+    try {
+      const auth = JSON.parse(localStorage.getItem('guestAuth')) || null;
+      if (!auth || auth.provider !== 'kakao' || !auth.guestKey) return null;
+      return auth;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  setGuestAuth(auth) {
+    if (!auth || auth.provider !== 'kakao' || !auth.guestKey) return;
+    localStorage.setItem('guestAuth', JSON.stringify({
+      provider: 'kakao',
+      guestKey: auth.guestKey,
+      authenticatedAt: auth.authenticatedAt || new Date().toISOString(),
+    }));
+  },
+
+  clearGuestAuth() {
+    localStorage.removeItem('guestAuth');
+  },
+
   // 장바구니 관련 스토리지 헬퍼
   getCart() {
     try {

@@ -311,8 +311,8 @@
     <main class="kiosk-body" id="main-content">
       <!-- 안내 문구 -->
       <div style="font-size: 15px; font-weight: 700; color: var(--text-muted); text-align: center; margin-bottom: 10px; background-color: #F8F9FA; padding: 12px; border-radius: var(--radius-sm); border: 2px solid var(--border-color);">
-        * 본 기기에서 주문한 최근 내역만 표시됩니다.<br>
-        * 다른 기기에서 한 주문이나 과거 내역은 관리자에게 문의해주세요.
+        * 본 기기에서 주문한 최근 내역을 표시합니다.<br>
+        * 카카오로 연결한 경우 오늘 주문은 다른 기기에서도 확인할 수 있어요.
       </div>
       
       <!-- 최근 주문 내역 (서버 갱신) -->
@@ -416,13 +416,14 @@
       // 1. 주문 로드 및 서버 갱신
       async function loadOrders() {
         const localOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
-        if (localOrders.length === 0) {
+        const guestAuth = AppState.getGuestAuth ? AppState.getGuestAuth() : null;
+        if (localOrders.length === 0 && !guestAuth) {
           localList.innerHTML = `<div class="empty-state">최근 주문한 기록이 없습니다. 😢</div>`;
           return;
         }
 
         const tokens = localOrders.map(o => o.orderToken).filter(t => t);
-        if (tokens.length === 0) {
+        if (tokens.length === 0 && !guestAuth) {
           localList.innerHTML = `<div class="empty-state">토큰 정보가 없는 과거 주문입니다. 관리자에게 문의해주세요.</div>`;
           return;
         }
@@ -430,16 +431,55 @@
         loadingOverlay.style.display = 'flex';
 
         try {
-          const response = await fetchAPI('getGuestOrderByToken', {
-            method: 'POST',
-            body: { tokens: tokens }
-          });
+          const serverRows = [];
+          const seenRows = new Set();
+          const appendRows = (rows) => {
+            if (!Array.isArray(rows)) return;
+            rows.forEach(row => {
+              const key = [
+                row.orderNo || '',
+                row.orderToken || '',
+                row.snackId || '',
+                row.snackName || ''
+              ].join('|');
+              if (seenRows.has(key)) return;
+              seenRows.add(key);
+              serverRows.push(row);
+            });
+          };
+
+          if (tokens.length > 0) {
+            const tokenRes = await fetchAPI('getGuestOrderByToken', {
+              method: 'POST',
+              body: { tokens: tokens }
+            });
+            if (tokenRes && tokenRes.success) {
+              appendRows(tokenRes.orders);
+            } else {
+              console.warn('토큰 주문 조회 실패:', tokenRes);
+            }
+          }
+
+          if (guestAuth) {
+            const authRes = await fetchAPI('getGuestOrdersByGuestKey', {
+              method: 'POST',
+              body: {
+                authProvider: guestAuth.provider,
+                guestKey: guestAuth.guestKey
+              }
+            });
+            if (authRes && authRes.success) {
+              appendRows(authRes.orders);
+            } else {
+              console.warn('카카오 주문 조회 실패:', authRes);
+            }
+          }
 
           loadingOverlay.style.display = 'none';
 
-          if (response && response.success && Array.isArray(response.orders) && response.orders.length > 0) {
+          if (serverRows.length > 0) {
             const orderGroups = {};
-            response.orders.forEach(o => {
+            serverRows.forEach(o => {
               if (!orderGroups[o.orderNo]) {
                 orderGroups[o.orderNo] = {
                   orderNo: o.orderNo,
@@ -451,6 +491,8 @@
                   deliveryPlace: o.deliveryPlace || '',
                   reviewed: o.reviewed,
                   cancelReason: o.cancelReason || '',
+                  authProvider: o.authProvider || '',
+                  guestKey: o.guestKey || '',
                   items: []
                 };
               }
@@ -464,14 +506,26 @@
             const mergedOrders = Object.values(orderGroups);
             
             // 로컬 스토리지 동기화
-            const updatedLocal = localOrders.map(lo => {
-              const serverData = mergedOrders.find(mo => mo.orderToken === lo.orderToken);
-              if (serverData) {
-                return { ...lo, ...serverData, status: serverData.status };
-              }
-              return lo;
+            const localByKey = {};
+            localOrders.forEach(lo => {
+              const key = lo.orderToken || lo.orderNo;
+              if (key) localByKey[key] = lo;
             });
-            localStorage.setItem('guestOrders', JSON.stringify(updatedLocal));
+            mergedOrders.forEach(serverData => {
+              const key = serverData.orderToken || serverData.orderNo;
+              if (!key) return;
+              const guestName = serverData.guestName || (serverData.nickname ? String(serverData.nickname).replace(/ \((체험|비회원)\)/g, '') : '게스트');
+              localByKey[key] = {
+                ...(localByKey[key] || {}),
+                ...serverData,
+                guestName,
+                createdAt: serverData.timestamp || (localByKey[key] && localByKey[key].createdAt) || new Date().toISOString(),
+                status: serverData.status,
+                authProvider: serverData.authProvider || (localByKey[key] && localByKey[key].authProvider) || '',
+                guestKey: serverData.guestKey || (localByKey[key] && localByKey[key].guestKey) || ''
+              };
+            });
+            localStorage.setItem('guestOrders', JSON.stringify(Object.values(localByKey)));
 
             // 정렬 (최신순)
             mergedOrders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -482,8 +536,15 @@
             });
             AppState.vibrate(60);
           } else {
-            // 서버에 데이터가 없거나 에러
-            localList.innerHTML = `<div class="empty-state">서버에서 주문을 찾을 수 없습니다.</div>`;
+            if (localOrders.length > 0) {
+              localList.innerHTML = '';
+              [...localOrders].reverse().forEach(order => {
+                const card = createOrderCard(order, true);
+                if (card) localList.appendChild(card);
+              });
+            } else {
+              localList.innerHTML = `<div class="empty-state">오늘 연결된 주문을 찾을 수 없습니다.</div>`;
+            }
           }
         } catch (error) {
           console.error('주문 조회 실패:', error);
@@ -641,7 +702,9 @@
           AppState.setSelectedUser({
             userId: 'guest',
             nickname: guestName,
-            credit: creditAmount
+            credit: creditAmount,
+            authProvider: order.authProvider || '',
+            guestKey: order.guestKey || ''
           });
 
           // lastOrderSummary 세션 바인딩
@@ -658,6 +721,8 @@
             orderToken: order.orderToken,
             deliveryType: order.deliveryType || order.method || 'pickup',
             deliveryPlace: order.deliveryPlace || '',
+            authProvider: order.authProvider || '',
+            guestKey: order.guestKey || '',
             items: order.items || [{ name: order.snackName, quantity: order.quantity }]
           }));
 

@@ -279,6 +279,23 @@ function getMockFallback(action, options) {
         remainingSeconds,
         message
       };
+  } else if (action === 'getKakaoLoginConfig') {
+    res = {
+      success: true,
+      clientId: 'mock-kakao-client-id',
+      message: 'Mock 카카오 설정입니다.'
+    };
+  } else if (action === 'exchangeKakaoAuthCode') {
+    if (!options.body?.code) {
+      res = { success: false, message: '카카오 인증 코드가 누락되었습니다.' };
+    } else {
+      res = {
+        success: true,
+        provider: 'kakao',
+        guestKey: 'kakao_mock_guest',
+        message: 'Mock 카카오 연결이 완료되었습니다.'
+      };
+    }
   } else if (action === 'updateGuestSettings') {
     const settingsAction = options.body?.settingsAction;
     const settings = getMockGuestSettings();
@@ -346,6 +363,21 @@ function getMockFallback(action, options) {
       const isToday = o.timestamp && o.timestamp.slice(2, 10).replace(/-/g, '') === todayStr;
       const nickname = o.nickname || '';
       return isToday && nickname.indexOf('(비회원)') !== -1 && nickname.indexOf(guestName) !== -1;
+    });
+
+    res = {
+      success: true,
+      orders: matchedOrders.map(o => ({ ...o, reviewed: o.reviewed || false }))
+    };
+  } else if (action === 'getGuestOrdersByGuestKey') {
+    const authProvider = options.body?.authProvider;
+    const guestKey = options.body?.guestKey;
+    const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
+    const allMockOrders = [...localOrders, ...MOCK_DATA.getOrdersToday.orders];
+    const todayStr = new Date().toISOString().slice(2, 10).replace(/-/g, '');
+    const matchedOrders = allMockOrders.filter(o => {
+      const isToday = o.timestamp && o.timestamp.slice(2, 10).replace(/-/g, '') === todayStr;
+      return isToday && o.userId === 'guest' && o.authProvider === authProvider && o.guestKey === guestKey;
     });
 
     res = {
@@ -437,6 +469,7 @@ function getMockFallback(action, options) {
         timestamp: timestampStr,
         orderNo: generatedOrderNo,
         orderToken: orderToken,
+        userId: userId,
         nickname: nickname,
         snackName: snack.name,
         quantity: item.quantity,
@@ -445,6 +478,8 @@ function getMockFallback(action, options) {
         deliveryType: deliveryType,
         deliveryFee: deliveryFee,
         deliveryPlace: deliveryPlace,
+        authProvider: isGuest && options.body?.authProvider === 'kakao' ? 'kakao' : '',
+        guestKey: isGuest && options.body?.guestKey ? String(options.body.guestKey) : '',
         reviewed: false
       };
     });
@@ -851,6 +886,8 @@ function getMockFallback(action, options) {
         totalCredit: o.totalCredit || 0,
         reviewed: o.reviewed || false,
         deliveryPlace: o.deliveryPlace || '',
+        authProvider: o.authProvider || '',
+        guestKey: o.guestKey || '',
         cancelReason: o.cancelReason || '',
         cancelReasonDetail: o.cancelReasonDetail || ''
       }))

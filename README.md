@@ -30,7 +30,8 @@
 
 ### 2) 배달왔삼 게스트 모드 (`guest.html`, `guest-orders.html`)
 * **체험형 배달 서비스**: "직업 체험" 대신 실제 카페 배달원처럼 활동할 수 있도록 브랜드를 **"배달왔삼 배달 서비스"**로 지향합니다.
-* **자동 닉네임 생성기**: 게스트 로그인 시 매번 새롭고 재밌는 이름(`형용사 + 삼각지 + 동물/사물` 예: *행복한 삼각지 토끼*)을 무작위로 생성하며, 8%의 확률로 특별한 캐릭터 명칭(*해냄이*, *쭉쭉이*, *여비*)이 부여됩니다.
+* **주문표시명 입력**: 게스트 주문 시 상호명이나 부르기 쉬운 이름을 직접 적도록 안내합니다. 필요할 때만 `랜덤 이름 쓰기` 버튼으로 재밌는 이름(`형용사 + 삼각지 + 동물/사물`)을 넣을 수 있습니다.
+* **선택형 카카오 연결**: 실명/이메일/전화번호/배송지 없이 카카오 서비스 사용자 ID만 내부 `guestKey`로 변환해 저장하며, 연결한 사용자는 다른 기기에서도 오늘 주문을 확인할 수 있습니다.
 * **중복 주문 차단**: 하루에 한 건만 주문을 넣을 수 있도록 클립보드 로컬스토리지 및 구글시트 서버단(DeviceId 기준)에서 이중으로 동일 일자 중복 주문을 차단합니다.
 * **수령 방식 및 배달지 입력**: "포장 수령" 또는 "배달 서비스 이용"을 선택할 수 있으며, 배송지(기본값: *사무실 원탁*)가 비어있으면 주문이 접수되지 않습니다.
 * **오늘의 배달팀 표시**: 관리자가 지정한 "오늘의 배달팀(배달 담당, 상품 준비 담당)" 정보와 한마디 메시지가 게스트 메인 화면에 생동감 있게 표시됩니다.
@@ -94,7 +95,7 @@
 
 1. **`이용자목록`**: `userId` (고유ID), `nickname` (별명), `credit` (잔액), `useYn` (활성화 여부: Y/N), `imageUrl` (사용자 사진 Drive ID)
 2. **`간식목록`**: `snackId` (고유ID), `name` (간식명), `point` (가격), `imageUrl` (간식 사진 Drive ID), `saleYn` (판매여부: Y/N), `stock` (재고량), `displayOrder` (정렬순서), `target` (노출대상: user/guest)
-3. **`주문내역`**: `timestamp` (주문 일시), `orderNo` (주문번호), `userId`, `nickname`, `snackId`, `snackName`, `quantity` (주문수량), `point` (차감포인트), `servedYn` (N:접수, P:준비, R:출발/완료, Y:제공완료, C:취소), `cancelTimestamp`, `orderToken`, `deliveryType` (pickup/delivery), `deliveryFee` (배달료), `totalCredit` (사용 후 잔액), `reviewed` (후기여부), `deliveryPlace` (배달 목적지)
+3. **`주문내역`**: `timestamp` (주문 일시), `orderNo` (주문번호), `userId`, `nickname`, `snackId`, `snackName`, `quantity` (주문수량), `point` (차감포인트), `servedYn` (N:접수, P:준비, R:출발/완료, Y:제공완료, C:취소), `cancelTimestamp`, `orderToken`, `deliveryType` (pickup/delivery), `deliveryFee` (배달료), `totalCredit` (사용 후 잔액), `reviewed` (후기여부), `deliveryPlace` (배달 목적지), `guestDeviceId`, `authProvider`, `guestKey`
 4. **`관리자로그`**: 관리자 로그인 정보 및 재고/크레딧 수정 로그 추적
 5. **`운영설정`**: `key` (설정항목), `value` (설정값) - 게스트 운영 상태(open/closed), 남은 시간, 기본 배달 정보 및 오늘의 배달팀 데이터 관리
 6. **`후기내역`**: `id`, `orderNo`, `nickname`, `rating`, `tags` (선택된 태그), `comment` (한마디), `imageUrl` (후기 사진), `createdAt`, `useYn` (후기 노출 여부: Y/N)
@@ -113,6 +114,8 @@
    - 상단 메뉴의 `확장 프로그램` -> `Apps Script`를 클릭합니다.
    - [google-apps-script.md](./google-apps-script.md) 파일에 백업된 JavaScript 코드를 복사하여 스크립트 에디터에 붙여넣습니다.
    - `새 배포`를 진행하여 발급받은 웹앱 URL을 `js/config.js`의 `API_URL` 값에 설정합니다.
+   - 카카오 선택 로그인을 운영하려면 Apps Script 프로젝트 속성에 `KAKAO_REST_API_KEY`, `KAKAO_GUEST_KEY_SALT`를 저장합니다. 카카오 콘솔에서 Client Secret을 켠 경우에만 `KAKAO_CLIENT_SECRET`도 저장합니다.
+   - 카카오 Redirect URI는 GAS 주소가 아니라 실제 사용자가 여는 정적 앱의 `guest.html` 주소로 등록합니다.
 
 3. **PWA 독립 구동 확인**
    - 브라우저 개발자 도구(F12)의 Application 탭에서 `service-worker.js`와 각 `manifest-*.json` 파일이 충돌 없이 등록되었는지 확인합니다.

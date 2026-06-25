@@ -82,12 +82,12 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - [manifest-board.json](file:///c:/Users/user/Desktop/키오스크/manifest-board.json)
   - [manifest-guest.json](file:///c:/Users/user/Desktop/키오스크/manifest-guest.json)
 
-### 3) Guest Nickname & Delivery Place Enhancements
-* **Random Nickname Generation**:
-  - Automatically populates the guest nickname input (`guest.html`) using a random combination rule: `Adjective + 삼각지 + Noun` (e.g. "행복한 삼각지 토끼").
-  - Includes an 8% chance to roll a special character nickname: `Adjective + Special Character` (Special characters: "해냄이", "쭉쭉이", "여비").
-  - Preserves the nickname across browser reloads using `localStorage` ('guestNickname'), with automatic sync when customized.
-  - Blocks ordering if nickname input is empty and displays "닉네임을 입력해 주세요.".
+### 3) Guest Display Name & Delivery Place Enhancements
+* **Order Display Name Input**:
+  - The guest display-name input (`guest.html`) now starts empty and asks the user to enter a business name or easy-to-call name.
+  - The random nickname generator remains available only through the `랜덤 이름 쓰기` button, using the existing `Adjective + 삼각지 + Noun` rule and the 8% special-name roll.
+  - `guestNickname` localStorage auto-fill/sync is intentionally no longer used, so returning visitors are not forced into an old random nickname.
+  - Blocks ordering if the display-name input is empty and displays "주문표시명을 입력해 주세요.".
 * **Delivery Place Inputs & UI Toggles**:
   - In `confirm.html`, toggles the delivery location input block based on pickup/delivery selection.
   - Pulls default delivery place configuration from Google Sheets settings database (`guestDefaultDeliveryPlace` key, defaulting to "사무실 원탁").
@@ -194,6 +194,19 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - Modified sequence generation in `google-apps-script.md` (`placeOrder`) and `js/config.js` (mock implementation) to scan today's orders, parse the sequence part, find the **maximum** number (`maxSeq`), and increment it by 1 (`maxSeq + 1`).
   - This guarantees unique, monotonically increasing order numbers even when rows are deleted or missing.
 
+### 14) Guest Order Display Name & Optional Kakao Link (Latest)
+* **Decision**: Do not collect real name, email, phone number, Kakao shipping address, user-specific addresses, or delivery presets. Kakao is optional and only improves "find my order" across devices.
+* **Resolution**:
+  - `guest.html` now starts the order display-name field empty and asks for a business name or easy-to-call name. The old random nickname generator remains only as the `랜덤 이름 쓰기` button.
+  - `AppState` stores optional `guestAuth = { provider: 'kakao', guestKey, authenticatedAt }`. `resetAll()` intentionally does not clear this link.
+  - `confirm.html` keeps `userId: 'guest'` and sends `authProvider/guestKey` only when Kakao is connected, preserving guest pricing, delivery fee, kitchen grouping, and duplicate-order behavior.
+  - `guest-orders.html` keeps token-based lookup and additionally calls `getGuestOrdersByGuestKey` for connected Kakao users, limited to today's guest orders.
+  - `google-apps-script.md` adds `getKakaoLoginConfig`, `exchangeKakaoAuthCode`, and `getGuestOrdersByGuestKey`. Kakao raw IDs and tokens are not stored; raw Kakao ID is converted to `guestKey` with `KAKAO_GUEST_KEY_SALT`.
+  - `주문내역` keeps A~R fixed and appends `guestDeviceId`, `authProvider`, `guestKey` after the existing order columns. `후기내역` is unchanged.
+* **Code Verification**:
+  - Passed `node --check js/config.js`, `node --check js/app.js`, `node --check service-worker.js`, `git diff --check`, HTML inline script parsing for `guest.html`/`guest-orders.html`/`confirm.html`/`admin.html`/`reviews.html`, and JavaScript parsing of `google-apps-script.md`.
+  - Runtime verification still requires Kakao console Redirect URI setup, Apps Script Properties, copying `google-apps-script.md` into GAS, and a new GAS deployment.
+
 ---
 
 ## 6. Implementation Notes & Cautions
@@ -203,6 +216,7 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 * **Debugging Frontend Errors**: In case of screen freezing, non-responsive buttons, or general UI errors, do not debug blindly. Ask the user to check the developer console (F12) and share the console error log/stack trace. This is the fastest way to identify the exact line of syntax or runtime errors.
 * **Haptic Feedbacks**: Sounds are created using the Web Audio API synthesizer dynamically. Do not rely on external MP3 files for general interaction sounds.
 * **Google Apps Script Deployments**: If you modify the backend API routes or settings, copy code from [google-apps-script.md](file:///c:/Users/user/Desktop/키오스크/google-apps-script.md) into the Google Sheet Script Editor, save, and trigger **[New Deployment]** (Web App, executing as Me, accessible by Anyone). Update `API_URL` in [js/config.js](file:///c:/Users/user/Desktop/키오스크/js/config.js) to match the new address.
+* **Kakao Optional Login Setup**: Store `KAKAO_REST_API_KEY` and `KAKAO_GUEST_KEY_SALT` in Apps Script Properties. Add `KAKAO_CLIENT_SECRET` only if the Kakao console has Client Secret enabled. Register the static `guest.html` URL, not the GAS URL, as the Kakao Redirect URI.
 
 ---
 
@@ -261,25 +275,12 @@ These items are ordered by operational risk. Do not redo completed items unless 
   - **내용**: `window.addEventListener('offline')` 연동. 인터넷이 일시 단절될 경우 브라우저 에러창이나 정지 대신 친근한 안내 팝업과 캐릭터 일러스트, 안내 TTS를 제공하여 발달장애 이용자의 심리적 불안 최소화. 복구 시 자동 복귀.
   - **상태**: 구현 및 검증 완료.
 
-* **[IDEA] 제안 4) 게스트 모드(봉사자/후원자용) 카카오톡/네이버 소셜 로그인 연동**:
-  - **내용**: 외부 봉사자나 후원자가 `guest.html`을 통해 주문할 때, 무작게 닉네임으로 인해 음료 미수령 및 주문자 식별 곤란 문제가 발생하는 상황을 해결하기 위한 아이디어입니다.
-  - **상세**: 개인 모바일 기기로 주문을 진행하는 게스트 모드에 한하여 카카오톡/네이버 로그인 API(OAuth 2.0)를 연동하고, 사용자 인증 완료 시 프로필 API로부터 실명(진짜 이름)을 강제 수집해 주문자명에 매핑합니다. 이를 통해 배달/수령 오배송 실수를 방지할 수 있습니다. (공용 키오스크 태블릿의 경우 자동 로그인 세션 유지 문제 및 패스워드 입력의 복잡성으로 인해 도입하지 않는 방향이 안전합니다.)
-  - **도입 시 다방면의 코드 수정 필요 사항**:
-    1. **로그인 플로우 개편 (`guest.html` & `js/app.js`)**:
-       * 기존 무작위 닉네임 생성 및 로컬 저장소 캐싱 로직을 소셜 로그인 링크 버튼으로 대체합니다.
-       * 리다이렉트 URI로부터 유입되는 `code` 파라미터를 읽어 GAS 백엔드로 전송하는 인증 확인 프로세스를 구성합니다.
-       * 반환된 소셜 ID(`socialId`), 이름(`realName`), 접근 토큰을 `localStorage`에 세션 정보로 유지합니다.
-    2. **주문 접수 로직 (`confirm.html` & `complete.html`)**:
-       * 주문 생성 시 기존의 고정값 `'guest'` 대신 사용자의 고유 소셜 ID(예: `kakao_12345`)를 `userId` 필드에 바인딩하여 전송합니다.
-       * 주문자 이름은 소셜 계정의 실명(`realName`)을 그대로 매핑하여 전달합니다.
-    3. **내 주문 조회 (`guest-orders.html`)**:
-       * 기존의 로컬스토리지 닉네임 매칭 방식 대신, 로그인 상태인 사용자의 고유 소셜 ID(`socialId`)를 기반으로 백엔드에서 주문 내역을 필터링하도록 쿼리를 수정합니다. 기기가 리셋되거나 다른 브라우저로 재접속하더라도 로그인 시 주문 내역이 즉각 보존되는 이점이 생깁니다.
-    4. **후기 작성 및 조회 (`guest.html`)**:
-       * 후기 제출 시 닉네임을 임의로 입력하는 절차를 삭제하고, 현재 로그인된 소셜 계정의 실명(`realName`) 및 소셜 ID를 자동으로 삽입하여 `후기내역` 시트에 등록하도록 개선합니다.
-    5. **구글 앱스 스크립트 백엔드 API (`google-apps-script.md`)**:
-       * `exchangeOAuthToken` 액션을 신설하여 카카오/네이버 토큰 교환 및 프로필 정보(식별ID, 실명) 획득용 외부 HTTP 호출(`UrlFetchApp.fetch()`) 로직을 추가합니다.
-       * 기존 주문 내역 조회 함수(`getOrdersToday`) 혹은 별도 게스트 주문 전용 함수를 확장하여, 전달받은 `socialId`와 일치하는 주문 데이터만 선별 리턴하도록 보안 및 집계 코드를 수정합니다.
-       * 외부 소셜 가입자 데이터를 관리자 대시보드와 유기적으로 매핑하여 인지할 수 있도록 `이용자목록` 시트에 소셜 회원 구분 플래그 컬럼 작성이 수반됩니다.
+* **[RESOLVED 2026-06-25] 제안 4) 게스트 모드 카카오 선택 로그인 연동**:
+  - **최종 결정**: 실명 확인 기능이 아니라 개인정보 최소화 기반의 주문 조회 보강 기능으로 구현했습니다. 네이버는 도입하지 않고 카카오만 선택형으로 둡니다.
+  - **구현 방식**: `userId`는 계속 `'guest'`로 저장하고, 원본 카카오 ID는 저장하지 않습니다. GAS가 카카오 사용자 ID를 확인한 뒤 `KAKAO_GUEST_KEY_SALT`로 내부 `guestKey`를 만들어 `주문내역.authProvider/guestKey`에만 저장합니다.
+  - **주문표시명**: 랜덤 닉네임 자동 입력은 제거했습니다. 사용자가 상호명이나 부르기 쉬운 이름을 직접 입력하고, 필요할 때만 `랜덤 이름 쓰기` 버튼을 누릅니다.
+  - **제외 범위**: 실명, 이메일, 전화번호, 프로필 사진, 카카오 배송지, 사용자별 배송지 저장, 배송지 프리셋, `후기내역` 소셜 컬럼 추가는 하지 않았습니다.
+  - **운영 주의**: 카카오 Redirect URI는 GAS 웹앱 주소가 아니라 실제 정적 사이트의 `guest.html` 주소여야 합니다.
 
 ---
 

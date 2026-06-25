@@ -118,6 +118,10 @@ function doGet(e) {
     return jsonResponse(getGuestSettings());
   }
 
+  if (action === 'getKakaoLoginConfig') {
+    return jsonResponse(getKakaoLoginConfig(e.parameter.redirectUri));
+  }
+
   if (action === 'getRecentReviews') {
     return jsonResponse(getRecentReviews());
   }
@@ -189,6 +193,10 @@ function doPost(e) {
       return jsonResponse(autoFillEmptySnackIds());
     } else if (action === 'getGuestOrderByToken') {
       return jsonResponse(getGuestOrderByToken(data));
+    } else if (action === 'exchangeKakaoAuthCode') {
+      return jsonResponse(exchangeKakaoAuthCode(data));
+    } else if (action === 'getGuestOrdersByGuestKey') {
+      return jsonResponse(getGuestOrdersByGuestKey(data));
     }
     
     return jsonResponse({
@@ -211,6 +219,127 @@ function jsonResponse(data) {
   return ContentService
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function encodeFormPayload(data) {
+  return Object.keys(data)
+    .filter(key => data[key] !== undefined && data[key] !== null && data[key] !== '')
+    .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(String(data[key])))
+    .join('&');
+}
+
+function getKakaoLoginConfig(redirectUri) {
+  const clientId = PropertiesService
+    .getScriptProperties()
+    .getProperty('KAKAO_REST_API_KEY');
+
+  if (!clientId) {
+    return {
+      success: false,
+      message: 'KAKAO_REST_API_KEY 스크립트 속성이 설정되지 않았습니다.',
+    };
+  }
+
+  return {
+    success: true,
+    clientId,
+    redirectUri: redirectUri || '',
+  };
+}
+
+function buildKakaoGuestKey(kakaoId) {
+  const salt = PropertiesService
+    .getScriptProperties()
+    .getProperty('KAKAO_GUEST_KEY_SALT');
+
+  if (!salt) {
+    throw new Error('KAKAO_GUEST_KEY_SALT 스크립트 속성이 설정되지 않았습니다.');
+  }
+
+  const digest = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    'kakao:' + String(kakaoId) + ':' + salt,
+    Utilities.Charset.UTF_8
+  );
+  return 'kakao_' + Utilities.base64EncodeWebSafe(digest).replace(/=+$/, '').slice(0, 32);
+}
+
+function exchangeKakaoAuthCode(data) {
+  const code = String(data.code || '').trim();
+  const redirectUri = String(data.redirectUri || '').trim();
+  if (!code || !redirectUri) {
+    return {
+      success: false,
+      message: '카카오 인증 코드 또는 redirectUri가 누락되었습니다.',
+    };
+  }
+
+  const props = PropertiesService.getScriptProperties();
+  const clientId = props.getProperty('KAKAO_REST_API_KEY');
+  const clientSecret = props.getProperty('KAKAO_CLIENT_SECRET');
+  if (!clientId) {
+    return {
+      success: false,
+      message: 'KAKAO_REST_API_KEY 스크립트 속성이 설정되지 않았습니다.',
+    };
+  }
+
+  try {
+    const tokenPayload = {
+      grant_type: 'authorization_code',
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      code,
+    };
+    if (clientSecret) {
+      tokenPayload.client_secret = clientSecret;
+    }
+
+    const tokenResponse = UrlFetchApp.fetch('https://kauth.kakao.com/oauth/token', {
+      method: 'post',
+      contentType: 'application/x-www-form-urlencoded;charset=utf-8',
+      payload: encodeFormPayload(tokenPayload),
+      muteHttpExceptions: true,
+    });
+    const tokenCode = tokenResponse.getResponseCode();
+    const tokenBody = JSON.parse(tokenResponse.getContentText() || '{}');
+    if (tokenCode < 200 || tokenCode >= 300 || !tokenBody.access_token) {
+      Logger.log('Kakao token exchange failed: ' + tokenResponse.getContentText());
+      return {
+        success: false,
+        message: '카카오 인증을 확인하지 못했습니다. 다시 시도해 주세요.',
+      };
+    }
+
+    const profileResponse = UrlFetchApp.fetch('https://kapi.kakao.com/v2/user/me', {
+      method: 'get',
+      headers: {
+        Authorization: 'Bearer ' + tokenBody.access_token,
+      },
+      muteHttpExceptions: true,
+    });
+    const profileCode = profileResponse.getResponseCode();
+    const profileBody = JSON.parse(profileResponse.getContentText() || '{}');
+    if (profileCode < 200 || profileCode >= 300 || !profileBody.id) {
+      Logger.log('Kakao profile fetch failed: ' + profileResponse.getContentText());
+      return {
+        success: false,
+        message: '카카오 사용자 확인에 실패했습니다.',
+      };
+    }
+
+    return {
+      success: true,
+      provider: 'kakao',
+      guestKey: buildKakaoGuestKey(profileBody.id),
+    };
+  } catch (error) {
+    Logger.log('exchangeKakaoAuthCode Error: ' + (error && error.stack ? error.stack : error));
+    return {
+      success: false,
+      message: error && error.message ? error.message : '카카오 연결 처리 중 오류가 발생했습니다.',
+    };
+  }
 }
 
 function appendAdminLog(action, targetType, targetId, targetName, beforeValue, afterValue, memo) {
@@ -420,6 +549,8 @@ function placeOrder(data) {
     ensureOrderHeaders();
     const headers = orderSheet.getDataRange().getValues()[0] || [];
     const deviceIdIdx = headers.indexOf('guestDeviceId');
+    const authProviderIdx = headers.indexOf('authProvider');
+    const guestKeyIdx = headers.indexOf('guestKey');
 
     if (isGuest) {
       const gSettings = getGuestSettings();
@@ -526,6 +657,9 @@ function placeOrder(data) {
     const deliveryFee = isGuest && deliveryType === 'delivery' ? guestFee : Number(data.deliveryFee || 0);
     const totalCredit = totalPoint + deliveryFee;
     const deliveryPlace = isGuest && deliveryType === 'delivery' ? String(data.deliveryPlace || '').trim() : '';
+    const rawGuestKey = String(data.guestKey || '').trim();
+    const authProvider = isGuest && rawGuestKey && String(data.authProvider || '').trim().toLowerCase() === 'kakao' ? 'kakao' : '';
+    const guestKey = authProvider === 'kakao' ? rawGuestKey : '';
 
     if (currentCredit < totalCredit) {
       return {
@@ -590,12 +724,16 @@ function placeOrder(data) {
         '' // R: cancelReasonDetail
       ];
       
-      while (newRow.length <= deviceIdIdx) {
-        newRow.push('');
-      }
-      if (deviceIdIdx !== -1) {
-        newRow[deviceIdIdx] = data.guestDeviceId || '';
-      }
+      const setOptionalCell = (idx, value) => {
+        if (idx === -1) return;
+        while (newRow.length <= idx) {
+          newRow.push('');
+        }
+        newRow[idx] = value || '';
+      };
+      setOptionalCell(deviceIdIdx, data.guestDeviceId || '');
+      setOptionalCell(authProviderIdx, authProvider);
+      setOptionalCell(guestKeyIdx, guestKey);
       
       orderSheet.appendRow(newRow);
 
@@ -854,6 +992,8 @@ function getGuestOrderByToken(data) {
   
   const reviewedIdx = headers.indexOf('reviewed');
   const tokenIdx = headers.indexOf('orderToken');
+  const authProviderIdx = headers.indexOf('authProvider');
+  const guestKeyIdx = headers.indexOf('guestKey');
   const rIdx = reviewedIdx !== -1 ? reviewedIdx : 14;
   const tIdx = tokenIdx !== -1 ? tokenIdx : 10;
 
@@ -879,6 +1019,94 @@ function getGuestOrderByToken(data) {
       totalCredit: Number(row[13] || 0),
       reviewed: row[rIdx] === true || String(row[rIdx]).toUpperCase() === 'TRUE' || String(row[rIdx]).toUpperCase() === 'Y',
       deliveryPlace: row[15] || '',
+      authProvider: authProviderIdx !== -1 ? row[authProviderIdx] || '' : '',
+      guestKey: guestKeyIdx !== -1 ? row[guestKeyIdx] || '' : '',
+      cancelReason: row[16] || '',
+      cancelReasonDetail: row[17] || ''
+    }));
+
+  return {
+    success: true,
+    orders,
+  };
+}
+
+/**
+ * 8.8. 카카오 연결 게스트의 오늘 주문 조회 API
+ * 원본 카카오 ID가 아닌 내부 guestKey 기준으로 오늘 주문만 반환합니다.
+ */
+function getGuestOrdersByGuestKey(data) {
+  ensureOrderHeaders();
+  const authProvider = String(data.authProvider || '').trim().toLowerCase();
+  const guestKey = String(data.guestKey || '').trim();
+  if (authProvider !== 'kakao' || !guestKey) {
+    return {
+      success: false,
+      message: '카카오 연결 정보가 누락되었습니다.'
+    };
+  }
+
+  const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET.ORDERS);
+  if (!sheet) {
+    return {
+      success: false,
+      message: '주문내역 시트를 찾을 수 없습니다.'
+    };
+  }
+
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0] || [];
+  const rows = values.slice(1);
+
+  const reviewedIdx = headers.indexOf('reviewed');
+  const authProviderIdx = headers.indexOf('authProvider');
+  const guestKeyIdx = headers.indexOf('guestKey');
+  const rIdx = reviewedIdx !== -1 ? reviewedIdx : 14;
+
+  if (authProviderIdx === -1 || guestKeyIdx === -1) {
+    return {
+      success: true,
+      orders: []
+    };
+  }
+
+  const today = Utilities.formatDate(
+    new Date(),
+    Session.getScriptTimeZone(),
+    'yyyy-MM-dd'
+  );
+
+  const orders = rows
+    .filter(row => {
+      const orderDate = Utilities.formatDate(
+        new Date(row[0]),
+        Session.getScriptTimeZone(),
+        'yyyy-MM-dd'
+      );
+      if (orderDate !== today) return false;
+      if (String(row[2]) !== 'guest') return false;
+      if (String(row[authProviderIdx] || '').trim().toLowerCase() !== authProvider) return false;
+      return String(row[guestKeyIdx] || '').trim() === guestKey;
+    })
+    .map(row => ({
+      timestamp: row[0],
+      orderNo: row[1],
+      userId: row[2],
+      nickname: row[3],
+      snackId: row[4],
+      snackName: row[5],
+      quantity: Number(row[6]),
+      point: Number(row[7]),
+      servedYn: row[8] || 'N',
+      cancelTimestamp: row[9] || '',
+      orderToken: row[10] || '',
+      deliveryType: row[11] || 'pickup',
+      deliveryFee: Number(row[12] || 0),
+      totalCredit: Number(row[13] || 0),
+      reviewed: row[rIdx] === true || String(row[rIdx]).toUpperCase() === 'TRUE' || String(row[rIdx]).toUpperCase() === 'Y',
+      deliveryPlace: row[15] || '',
+      authProvider: row[authProviderIdx] || '',
+      guestKey: row[guestKeyIdx] || '',
       cancelReason: row[16] || '',
       cancelReasonDetail: row[17] || ''
     }));
@@ -2272,13 +2500,16 @@ function archiveOldOrders(data) {
  * P: deliveryAddress (배송지 정보 등)
  * Q: cancelReason
  * R: cancelReasonDetail
+ * S: guestDeviceId
+ * T: authProvider
+ * U: guestKey
  */
 function ensureOrderHeaders() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const orderSheet = ss.getSheetByName(SHEET.ORDERS);
   if (!orderSheet) return;
 
-  const REQUIRED_COLS = 18;
+  const REQUIRED_COLS = 21;
   if (orderSheet.getMaxColumns() < REQUIRED_COLS) {
     orderSheet.insertColumnsAfter(orderSheet.getMaxColumns(), REQUIRED_COLS - orderSheet.getMaxColumns());
   }
@@ -2302,6 +2533,16 @@ function ensureOrderHeaders() {
 
   if (headers.indexOf('guestDeviceId') === -1) {
     headers.push('guestDeviceId');
+    modified = true;
+  }
+
+  if (headers.indexOf('authProvider') === -1) {
+    headers.push('authProvider');
+    modified = true;
+  }
+
+  if (headers.indexOf('guestKey') === -1) {
+    headers.push('guestKey');
     modified = true;
   }
 

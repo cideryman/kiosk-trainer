@@ -264,6 +264,20 @@
           ⚠️ 진행 중인 주문이 있으면 완료 후 다시 주문할 수 있어요.
         </div>
 
+        <div id="kakao-auth-panel" style="display: flex; flex-direction: column; gap: 10px; background-color: #FFFBEA; border: 3px solid #FEE500; border-radius: var(--radius-md); padding: 16px; box-shadow: var(--shadow-sm);">
+          <div id="kakao-auth-status" style="font-size: 15px; font-weight: 800; color: #3A2A00; text-align: center; line-height: 1.45; word-break: keep-all;">
+            카카오로 연결하면 다른 기기에서도 오늘 주문을 찾을 수 있어요.
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-gray" id="btn-kakao-login" style="flex: 1; min-height: 52px; font-size: 17px; font-weight: 850; background-color: #FEE500; color: #191919; border: 2px solid #E7CF00; box-shadow: none;">
+              카카오로 내 주문 찾기
+            </button>
+            <button class="btn btn-gray" id="btn-kakao-logout" style="display: none; flex: 0 0 auto; min-height: 52px; font-size: 15px; font-weight: 850; padding: 0 14px; box-shadow: none;">
+              해제
+            </button>
+          </div>
+        </div>
+
         <div style="display: flex; flex-direction: column; gap: 16px;">
           <button class="btn btn-secondary" id="btn-new-order" style="min-height: 84px; font-size: 24px;">
             🛒 새 주문하기
@@ -303,7 +317,7 @@
       <div id="view-input" style="display: none; flex-direction: column; gap: 20px; width: 100%;">
         <div class="guide-text">
           반갑습니다! 😊<br>
-          주문하실 <span>이름</span>을 적어주세요.
+          주문하실 <span>표시명</span>을 적어주세요.
         </div>
 
         <div class="guest-input-card">
@@ -311,13 +325,20 @@
             🎫 신규 방문 크레딧 10개 지급
           </div>
 
-          <input type="text" id="guest-name-input" class="guest-input" placeholder="예: 홍길동" maxlength="15" autocomplete="off">
-          <div style="font-size: 15px; font-weight: 700; color: var(--secondary-hover); text-align: center; margin-top: -8px; line-height: 1.4; word-break: keep-all;">
-            개인정보 보호를 위해 랜덤 닉네임을 기본으로 제공합니다. 필요하면 수정할 수 있어요.
+          <input type="text" id="guest-name-input" class="guest-input" placeholder="예: 영주반점" maxlength="20" autocomplete="off">
+          <div style="font-size: 15px; font-weight: 800; color: var(--secondary-hover); text-align: center; margin-top: -8px; line-height: 1.4; word-break: keep-all;">
+            상호명이나 부르기 쉬운 이름을 적어주세요.<br>
+            예: 영주반점, 꼬꼬반점, 서해축산, 김OO
+          </div>
+          <button type="button" class="btn btn-gray" id="btn-random-name" style="width: 100%; min-height: 48px; font-size: 16px; font-weight: 850; box-shadow: none; margin-top: 2px;">
+            랜덤 이름 쓰기
+          </button>
+          <div id="kakao-input-hint" style="display: none; font-size: 14px; font-weight: 800; color: #3A2A00; background-color: #FFFBEA; border: 2px solid #FEE500; border-radius: var(--radius-sm); padding: 10px; text-align: center; line-height: 1.4; word-break: keep-all;">
+            카카오 연결됨: 주문표시명은 직접 적어주세요.
           </div>
           
           <div style="font-size: 15px; font-weight: 700; color: var(--text-muted); text-align: center; line-height: 1.4; word-break: keep-all; margin-top: 8px;">
-            * 개인정보 수집 및 동의 과정 없이<br>주문 처리를 위해 이름만 잠시 저장합니다.
+            * 주문 처리를 위해 표시명만 주문내역에 저장합니다.
           </div>
         </div>
       </div>
@@ -384,6 +405,11 @@
       const btnCheckOrders = document.getElementById('btn-check-orders');
       const btnStart = document.getElementById('btn-start');
       const btnBack = document.getElementById('btn-back');
+      const btnKakaoLogin = document.getElementById('btn-kakao-login');
+      const btnKakaoLogout = document.getElementById('btn-kakao-logout');
+      const kakaoAuthStatus = document.getElementById('kakao-auth-status');
+      const kakaoInputHint = document.getElementById('kakao-input-hint');
+      const btnRandomName = document.getElementById('btn-random-name');
 
       const closedNotice = document.getElementById('guest-closed-notice');
       const closedNoticeText = document.getElementById('closed-notice-text');
@@ -400,6 +426,161 @@
       let welcomeTitle = '배달왔삼에 오신 것을 환영합니다 😊';
       let welcomeSubtitle = '오늘의 간식을 주문해보세요!';
       let allowMultipleOrders = true;
+
+      function getKakaoRedirectUri() {
+        return window.location.origin + window.location.pathname;
+      }
+
+      function makeOAuthState() {
+        if (window.crypto && window.crypto.getRandomValues) {
+          const bytes = new Uint8Array(16);
+          window.crypto.getRandomValues(bytes);
+          return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        return String(Date.now()) + Math.random().toString(36).slice(2);
+      }
+
+      function cleanupKakaoCallbackUrl() {
+        if (!window.history || !window.history.replaceState) return;
+        const cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+
+      function renderGuestAuth() {
+        const auth = AppState.getGuestAuth();
+        if (auth) {
+          if (kakaoAuthStatus) {
+            kakaoAuthStatus.textContent = '카카오 연결됨: 다른 기기에서도 오늘 주문을 찾을 수 있어요.';
+          }
+          if (btnKakaoLogin) {
+            btnKakaoLogin.textContent = '카카오 다시 연결하기';
+          }
+          if (btnKakaoLogout) {
+            btnKakaoLogout.style.display = 'block';
+          }
+          if (kakaoInputHint) {
+            kakaoInputHint.style.display = 'block';
+          }
+        } else {
+          if (kakaoAuthStatus) {
+            kakaoAuthStatus.textContent = '카카오로 연결하면 다른 기기에서도 오늘 주문을 찾을 수 있어요.';
+          }
+          if (btnKakaoLogin) {
+            btnKakaoLogin.textContent = '카카오로 내 주문 찾기';
+          }
+          if (btnKakaoLogout) {
+            btnKakaoLogout.style.display = 'none';
+          }
+          if (kakaoInputHint) {
+            kakaoInputHint.style.display = 'none';
+          }
+        }
+      }
+
+      async function startKakaoLogin() {
+        if (window.location.protocol === 'file:') {
+          alert('카카오 연결은 배포된 웹 주소에서 사용할 수 있습니다.');
+          return;
+        }
+
+        if (btnKakaoLogin) {
+          btnKakaoLogin.disabled = true;
+          btnKakaoLogin.textContent = '카카오 연결 준비 중...';
+        }
+
+        try {
+          const redirectUri = getKakaoRedirectUri();
+          const config = await fetchAPI('getKakaoLoginConfig', {
+            params: { redirectUri }
+          });
+
+          if (!config || !config.success || !config.clientId) {
+            throw new Error((config && config.message) || '카카오 설정이 아직 완료되지 않았습니다.');
+          }
+
+          const state = makeOAuthState();
+          sessionStorage.setItem('kakaoOAuthState', state);
+          sessionStorage.setItem('kakaoOAuthRedirectUri', redirectUri);
+
+          const params = new URLSearchParams({
+            response_type: 'code',
+            client_id: config.clientId,
+            redirect_uri: redirectUri,
+            state
+          });
+          window.location.href = 'https://kauth.kakao.com/oauth/authorize?' + params.toString();
+        } catch (error) {
+          alert('카카오 연결을 시작할 수 없습니다.\n' + (error.message || '설정을 확인해 주세요.'));
+          renderGuestAuth();
+        } finally {
+          if (btnKakaoLogin) {
+            btnKakaoLogin.disabled = false;
+          }
+        }
+      }
+
+      async function handleKakaoCallback() {
+        const params = new URLSearchParams(window.location.search);
+        const error = params.get('error');
+        const code = params.get('code');
+        const returnedState = params.get('state');
+        if (!error && !code) return;
+
+        if (error) {
+          cleanupKakaoCallbackUrl();
+          sessionStorage.removeItem('kakaoOAuthState');
+          sessionStorage.removeItem('kakaoOAuthRedirectUri');
+          if (error !== 'access_denied') {
+            alert('카카오 연결이 완료되지 않았습니다.\n' + (params.get('error_description') || error));
+          }
+          return;
+        }
+
+        const savedState = sessionStorage.getItem('kakaoOAuthState');
+        const redirectUri = sessionStorage.getItem('kakaoOAuthRedirectUri') || getKakaoRedirectUri();
+        if (!savedState || savedState !== returnedState) {
+          cleanupKakaoCallbackUrl();
+          sessionStorage.removeItem('kakaoOAuthState');
+          sessionStorage.removeItem('kakaoOAuthRedirectUri');
+          alert('카카오 연결 확인 정보가 일치하지 않습니다. 다시 시도해 주세요.');
+          return;
+        }
+
+        try {
+          if (kakaoAuthStatus) {
+            kakaoAuthStatus.textContent = '카카오 연결 확인 중입니다...';
+          }
+          const res = await fetchAPI('exchangeKakaoAuthCode', {
+            method: 'POST',
+            body: {
+              code,
+              state: returnedState,
+              redirectUri
+            }
+          });
+
+          if (!res || !res.success || !res.guestKey) {
+            throw new Error((res && res.message) || '카카오 연결에 실패했습니다.');
+          }
+
+          AppState.setGuestAuth({
+            provider: 'kakao',
+            guestKey: res.guestKey,
+            authenticatedAt: new Date().toISOString()
+          });
+          sessionStorage.removeItem('kakaoOAuthState');
+          sessionStorage.removeItem('kakaoOAuthRedirectUri');
+          cleanupKakaoCallbackUrl();
+          renderGuestAuth();
+          alert('카카오 연결이 완료되었습니다. 이제 오늘 주문을 더 쉽게 찾을 수 있어요.');
+        } catch (error) {
+          sessionStorage.removeItem('kakaoOAuthState');
+          sessionStorage.removeItem('kakaoOAuthRedirectUri');
+          cleanupKakaoCallbackUrl();
+          renderGuestAuth();
+          alert('카카오 연결에 실패했습니다.\n' + (error.message || '다시 시도해 주세요.'));
+        }
+      }
 
       // 운영 상태 확인
       async function loadSettings() {
@@ -634,18 +815,9 @@
         }
       }
 
-      function initNickname() {
-        let savedNickname = localStorage.getItem('guestNickname');
-        if (!savedNickname) {
-          savedNickname = generateRandomNickname();
-          localStorage.setItem('guestNickname', savedNickname);
-        }
-        input.value = savedNickname;
+      function initOrderDisplayName() {
+        input.value = '';
       }
-
-      input.addEventListener('input', () => {
-        localStorage.setItem('guestNickname', input.value);
-      });
 
       function showStep(step) {
         currentStep = step;
@@ -660,9 +832,31 @@
           btnStart.style.display = 'flex';
           btnBack.style.display = 'flex';
           btnBack.style.flex = '1';
-          initNickname();
+          initOrderDisplayName();
           input.focus();
         }
+      }
+
+      if (btnRandomName) {
+        AppState.bindCardTap(btnRandomName, () => {
+          input.value = generateRandomNickname();
+          input.focus();
+          AppState.vibrate(40);
+        });
+      }
+
+      if (btnKakaoLogin) {
+        AppState.bindCardTap(btnKakaoLogin, () => {
+          startKakaoLogin();
+        });
+      }
+
+      if (btnKakaoLogout) {
+        AppState.bindCardTap(btnKakaoLogout, () => {
+          AppState.clearGuestAuth();
+          renderGuestAuth();
+          AppState.vibrate(40);
+        });
       }
 
       // 이벤트 바인딩
@@ -762,18 +956,25 @@
         }
         const guestName = input.value.trim();
         if (!guestName) {
-          alert('닉네임을 입력해 주세요.');
+          alert('주문표시명을 입력해 주세요.');
           input.focus();
           AppState.vibrate([100, 100]);
           return;
         }
 
-        // 게스트 임시 사용자 저장
-        AppState.setSelectedUser({
+        const guestAuth = AppState.getGuestAuth();
+        const selectedUser = {
           userId: 'guest',
           nickname: guestName,
           credit: guestBaseCredit
-        });
+        };
+        if (guestAuth) {
+          selectedUser.authProvider = guestAuth.provider;
+          selectedUser.guestKey = guestAuth.guestKey;
+        }
+
+        // 게스트 임시 사용자 저장
+        AppState.setSelectedUser(selectedUser);
 
         AppState.vibrate(60);
         AppState.speak(`${guestName} 님, 맛있는 간식 주문을 시작합니다.`);
@@ -1052,6 +1253,8 @@
       });
 
       showStep('select');
+      renderGuestAuth();
+      handleKakaoCallback();
       // 비동기 작업들을 병렬 실행하여 로딩 속도 극대화 (Non-blocking / Parallel Loading)
       loadSettings();
       loadRecentReviews();
