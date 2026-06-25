@@ -917,7 +917,9 @@
       }
 
       function initOrderDisplayName() {
-        input.value = '';
+        input.value = rememberedGuestProfile && rememberedGuestProfile.displayName
+          ? rememberedGuestProfile.displayName
+          : '';
       }
 
       function showStep(step) {
