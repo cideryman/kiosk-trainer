@@ -275,6 +275,9 @@
             <button class="btn btn-gray" id="btn-kakao-logout" style="display: none; min-height: 52px; font-size: 16px; font-weight: 850; box-shadow: none;">
               카카오 연결 해제
             </button>
+            <button class="btn btn-gray" id="btn-guest-profile-delete" style="display: none; min-height: 48px; font-size: 15px; font-weight: 850; box-shadow: none; background-color: #FFF7ED; color: #9A3412; border: 2px solid #FDBA74;">
+              저장 정보 삭제
+            </button>
           </div>
         </div>
 
@@ -407,6 +410,7 @@
       const btnBack = document.getElementById('btn-back');
       const btnKakaoLogin = document.getElementById('btn-kakao-login');
       const btnKakaoLogout = document.getElementById('btn-kakao-logout');
+      const btnGuestProfileDelete = document.getElementById('btn-guest-profile-delete');
       const kakaoAuthStatus = document.getElementById('kakao-auth-status');
       const kakaoInputHint = document.getElementById('kakao-input-hint');
       const btnRandomName = document.getElementById('btn-random-name');
@@ -426,6 +430,8 @@
       let welcomeTitle = '배달왔삼에 오신 것을 환영합니다 😊';
       let welcomeSubtitle = '오늘의 간식을 주문해보세요!';
       let allowMultipleOrders = true;
+      let rememberedGuestProfile = null;
+      let guestProfilePromise = Promise.resolve(null);
 
       function getKakaoRedirectUri() {
         return window.location.origin + window.location.pathname;
@@ -458,7 +464,13 @@
           if (btnKakaoLogout) {
             btnKakaoLogout.style.display = 'flex';
           }
+          if (btnGuestProfileDelete) {
+            btnGuestProfileDelete.style.display = rememberedGuestProfile ? 'flex' : 'none';
+          }
           if (kakaoInputHint) {
+            kakaoInputHint.textContent = rememberedGuestProfile
+              ? '카카오 연결됨: 저장된 주문표시명과 배송지를 불러왔어요.'
+              : '카카오 연결됨: 주문표시명과 배송지를 다음 주문에도 기억할 수 있어요.';
             kakaoInputHint.style.display = 'block';
           }
         } else {
@@ -472,10 +484,53 @@
           if (btnKakaoLogout) {
             btnKakaoLogout.style.display = 'none';
           }
+          if (btnGuestProfileDelete) {
+            btnGuestProfileDelete.style.display = 'none';
+          }
           if (kakaoInputHint) {
             kakaoInputHint.style.display = 'none';
           }
         }
+      }
+
+      function applyRememberedGuestProfile(profile) {
+        rememberedGuestProfile = profile || null;
+        if (!rememberedGuestProfile) {
+          renderGuestAuth();
+          return;
+        }
+
+        if (rememberedGuestProfile.displayName && input && !input.value.trim()) {
+          input.value = rememberedGuestProfile.displayName;
+        }
+        renderGuestAuth();
+      }
+
+      async function loadRememberedGuestProfile() {
+        const auth = AppState.getGuestAuth();
+        if (!auth) {
+          rememberedGuestProfile = null;
+          return null;
+        }
+
+        try {
+          const res = await fetchAPI('getGuestProfileByGuestKey', {
+            method: 'POST',
+            body: {
+              authProvider: auth.provider,
+              guestKey: auth.guestKey
+            }
+          });
+
+          if (res && res.success) {
+            applyRememberedGuestProfile(res.profile || null);
+            return res.profile || null;
+          }
+        } catch (error) {
+          console.warn('카카오 게스트 프로필 로드 실패:', error);
+        }
+
+        return null;
       }
 
       async function startKakaoLogin() {
@@ -525,7 +580,7 @@
         const error = params.get('error');
         const code = params.get('code');
         const returnedState = params.get('state');
-        if (!error && !code) return;
+        if (!error && !code) return false;
 
         if (error) {
           cleanupKakaoCallbackUrl();
@@ -534,7 +589,7 @@
           if (error !== 'access_denied') {
             alert('카카오 연결이 완료되지 않았습니다.\n' + (params.get('error_description') || error));
           }
-          return;
+          return true;
         }
 
         const savedState = sessionStorage.getItem('kakaoOAuthState');
@@ -544,7 +599,7 @@
           sessionStorage.removeItem('kakaoOAuthState');
           sessionStorage.removeItem('kakaoOAuthRedirectUri');
           alert('카카오 연결 확인 정보가 일치하지 않습니다. 다시 시도해 주세요.');
-          return;
+          return true;
         }
 
         try {
@@ -573,13 +628,17 @@
           sessionStorage.removeItem('kakaoOAuthRedirectUri');
           cleanupKakaoCallbackUrl();
           renderGuestAuth();
+          guestProfilePromise = loadRememberedGuestProfile();
+          await guestProfilePromise;
           alert('카카오 연결이 완료되었습니다. 이제 오늘 주문을 더 쉽게 찾을 수 있어요.');
+          return true;
         } catch (error) {
           sessionStorage.removeItem('kakaoOAuthState');
           sessionStorage.removeItem('kakaoOAuthRedirectUri');
           cleanupKakaoCallbackUrl();
           renderGuestAuth();
           alert('카카오 연결에 실패했습니다.\n' + (error.message || '다시 시도해 주세요.'));
+          return true;
         }
       }
 
@@ -855,8 +914,40 @@
       if (btnKakaoLogout) {
         AppState.bindCardTap(btnKakaoLogout, () => {
           AppState.clearGuestAuth();
+          rememberedGuestProfile = null;
+          guestProfilePromise = Promise.resolve(null);
           renderGuestAuth();
           AppState.vibrate(40);
+        });
+      }
+
+      if (btnGuestProfileDelete) {
+        AppState.bindCardTap(btnGuestProfileDelete, async () => {
+          const auth = AppState.getGuestAuth();
+          if (!auth || !rememberedGuestProfile) return;
+          if (!confirm('저장된 주문표시명과 배송지를 삭제할까요?\n현재 주문은 계속할 수 있습니다.')) return;
+
+          btnGuestProfileDelete.disabled = true;
+          try {
+            const res = await fetchAPI('deleteGuestProfileByGuestKey', {
+              method: 'POST',
+              body: {
+                authProvider: auth.provider,
+                guestKey: auth.guestKey
+              }
+            });
+            if (!res || !res.success) {
+              throw new Error((res && res.message) || '저장 정보 삭제에 실패했습니다.');
+            }
+            rememberedGuestProfile = null;
+            guestProfilePromise = Promise.resolve(null);
+            renderGuestAuth();
+            alert('저장된 주문표시명과 배송지를 삭제했습니다.');
+          } catch (error) {
+            alert(error.message || '저장 정보 삭제에 실패했습니다.');
+          } finally {
+            btnGuestProfileDelete.disabled = false;
+          }
         });
       }
 
@@ -950,7 +1041,7 @@
       }
 
       // 시작하기 함수
-      function startGuestMode() {
+      async function startGuestMode() {
         if (!isGuestOpen) {
           alert('게스트 주문이 마감된 상태입니다.');
           return;
@@ -964,6 +1055,14 @@
         }
 
         const guestAuth = AppState.getGuestAuth();
+        if (guestAuth && !rememberedGuestProfile) {
+          try {
+            await guestProfilePromise;
+          } catch (error) {
+            console.warn('저장된 게스트 정보 확인 실패:', error);
+          }
+        }
+
         const selectedUser = {
           userId: 'guest',
           nickname: guestName,
@@ -972,6 +1071,9 @@
         if (guestAuth) {
           selectedUser.authProvider = guestAuth.provider;
           selectedUser.guestKey = guestAuth.guestKey;
+          if (rememberedGuestProfile && rememberedGuestProfile.deliveryPlace) {
+            selectedUser.rememberedDeliveryPlace = rememberedGuestProfile.deliveryPlace;
+          }
         }
 
         // 게스트 임시 사용자 저장
@@ -1255,7 +1357,11 @@
 
       showStep('select');
       renderGuestAuth();
-      handleKakaoCallback();
+      const kakaoCallbackPromise = handleKakaoCallback();
+      guestProfilePromise = kakaoCallbackPromise.then((processedCallback) => {
+        if (processedCallback) return rememberedGuestProfile;
+        return loadRememberedGuestProfile();
+      });
       // 비동기 작업들을 병렬 실행하여 로딩 속도 극대화 (Non-blocking / Parallel Loading)
       loadSettings();
       loadRecentReviews();

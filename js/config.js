@@ -384,6 +384,29 @@ function getMockFallback(action, options) {
       success: true,
       orders: matchedOrders.map(o => ({ ...o, reviewed: o.reviewed || false }))
     };
+  } else if (action === 'getGuestProfileByGuestKey') {
+    const authProvider = options.body?.authProvider;
+    const guestKey = options.body?.guestKey;
+    const profiles = JSON.parse(localStorage.getItem('mockGuestProfiles') || '{}');
+    if (authProvider !== 'kakao' || !guestKey) {
+      res = { success: false, message: '카카오 연결 정보가 누락되었습니다.' };
+    } else {
+      res = {
+        success: true,
+        profile: profiles[guestKey] || null
+      };
+    }
+  } else if (action === 'deleteGuestProfileByGuestKey') {
+    const authProvider = options.body?.authProvider;
+    const guestKey = options.body?.guestKey;
+    const profiles = JSON.parse(localStorage.getItem('mockGuestProfiles') || '{}');
+    if (authProvider !== 'kakao' || !guestKey) {
+      res = { success: false, message: '카카오 연결 정보가 누락되었습니다.' };
+    } else {
+      delete profiles[guestKey];
+      localStorage.setItem('mockGuestProfiles', JSON.stringify(profiles));
+      res = { success: true, message: '저장된 게스트 정보가 삭제되었습니다.' };
+    }
   } else if (action === 'getOrdersToday') {
     // 로컬 스토리지에 저장된 테스트용 주문 내역이 있으면 그것을 병합
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
@@ -485,6 +508,18 @@ function getMockFallback(action, options) {
     });
 
     localStorage.setItem('mockOrders', JSON.stringify([...newOrders, ...localOrders]));
+    const shouldRememberGuestProfile = options.body?.rememberGuestProfile === true || String(options.body?.rememberGuestProfile || '').trim().toUpperCase() === 'Y';
+    if (isGuest && options.body?.authProvider === 'kakao' && options.body?.guestKey && shouldRememberGuestProfile) {
+      const guestKey = String(options.body.guestKey);
+      const profiles = JSON.parse(localStorage.getItem('mockGuestProfiles') || '{}');
+      const currentProfile = profiles[guestKey] || {};
+      profiles[guestKey] = {
+        displayName: String(options.body?.guestName || currentProfile.displayName || '').trim(),
+        deliveryPlace: deliveryPlace || currentProfile.deliveryPlace || '',
+        updatedAt: new Date().toISOString()
+      };
+      localStorage.setItem('mockGuestProfiles', JSON.stringify(profiles));
+    }
 
     // 주문에 따른 사용자 크레딧 차감 시뮬레이션
     const selectedUser = JSON.parse(localStorage.getItem('selectedUser'));

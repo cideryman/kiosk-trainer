@@ -195,7 +195,7 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - This guarantees unique, monotonically increasing order numbers even when rows are deleted or missing.
 
 ### 14) Guest Order Display Name & Optional Kakao Link (Latest)
-* **Decision**: Do not collect real name, email, phone number, Kakao shipping address, user-specific addresses, or delivery presets. Kakao is optional and only improves "find my order" across devices.
+* **Decision**: Do not collect real name, email, phone number, Kakao shipping address, or delivery presets. Kakao is optional, improves "find my order" across devices, and can remember the last display name/delivery place only after an explicit optional checkbox.
 * **Resolution**:
   - `guest.html` now starts the order display-name field empty and asks for an easy-to-call display name. The old random nickname generator remains only as the `랜덤 이름 쓰기` button.
   - `AppState` stores optional `guestAuth = { provider: 'kakao', guestKey, authenticatedAt }`. `resetAll()` intentionally does not clear this link.
@@ -203,6 +203,7 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - `guest-orders.html` keeps token-based lookup and additionally calls `getGuestOrdersByGuestKey` for connected Kakao users, limited to today's guest orders.
   - `google-apps-script.md` adds `getKakaoLoginConfig`, `exchangeKakaoAuthCode`, and `getGuestOrdersByGuestKey`. Kakao raw IDs and tokens are not stored; raw Kakao ID is converted to `guestKey` with `KAKAO_GUEST_KEY_SALT`.
   - `주문내역` keeps A~R fixed and appends `guestDeviceId`, `authProvider`, `guestKey` after the existing order columns. `후기내역` is unchanged.
+  - `게스트프로필` stores `guestKey`, `displayName`, `deliveryPlace`, `updatedAt` only when the user checks the optional remember box on `confirm.html`. It is not auto-saved by Kakao login alone. `guest.html` can load this profile for auto-fill and provides a `저장 정보 삭제` button.
 * **Code Verification**:
   - Passed `node --check js/config.js`, `node --check js/app.js`, `node --check service-worker.js`, `git diff --check`, HTML inline script parsing for `guest.html`/`guest-orders.html`/`confirm.html`/`admin.html`/`reviews.html`, and JavaScript parsing of `google-apps-script.md`.
   - Runtime verification still requires Kakao console Redirect URI setup, Apps Script Properties, copying `google-apps-script.md` into GAS, and a new GAS deployment.
@@ -278,8 +279,8 @@ These items are ordered by operational risk. Do not redo completed items unless 
 * **[RESOLVED 2026-06-25] 제안 4) 게스트 모드 카카오 선택 로그인 연동**:
   - **최종 결정**: 실명 확인 기능이 아니라 개인정보 최소화 기반의 주문 조회 보강 기능으로 구현했습니다. 네이버는 도입하지 않고 카카오만 선택형으로 둡니다.
   - **구현 방식**: `userId`는 계속 `'guest'`로 저장하고, 원본 카카오 ID는 저장하지 않습니다. GAS가 카카오 사용자 ID를 확인한 뒤 `KAKAO_GUEST_KEY_SALT`로 내부 `guestKey`를 만들어 `주문내역.authProvider/guestKey`에만 저장합니다.
-  - **주문표시명**: 랜덤 닉네임 자동 입력은 제거했습니다. 사용자가 부르기 쉬운 주문표시명을 직접 입력하고, 필요할 때만 `랜덤 이름 쓰기` 버튼을 누릅니다.
-  - **제외 범위**: 실명, 이메일, 전화번호, 프로필 사진, 카카오 배송지, 사용자별 배송지 저장, 배송지 프리셋, `후기내역` 소셜 컬럼 추가는 하지 않았습니다.
+  - **주문표시명/배송지 기억**: 카카오 연결 사용자가 주문 확인 화면에서 선택 체크한 경우에만 `게스트프로필`에 마지막 주문표시명과 배송지를 저장합니다. 체크하지 않아도 주문은 가능하며, 게스트 화면에서 저장 정보 삭제가 가능합니다.
+  - **제외 범위**: 실명, 이메일, 전화번호, 프로필 사진, 카카오 배송지 API, 배송지 프리셋, `후기내역` 소셜 컬럼 추가는 하지 않았습니다.
   - **운영 주의**: 카카오 Redirect URI는 GAS 웹앱 주소가 아니라 실제 정적 사이트의 `guest.html` 주소여야 합니다.
 
 ---

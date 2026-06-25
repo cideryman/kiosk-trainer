@@ -27,6 +27,7 @@ const SHEET = {
   SETTINGS: '운영설정',
   REVIEWS: '후기내역',
   ARCHIVE: '주문보관',
+  GUEST_PROFILES: '게스트프로필',
 };
 
 // Google Drive 폴더 ID 상수 정의
@@ -197,6 +198,10 @@ function doPost(e) {
       return jsonResponse(exchangeKakaoAuthCode(data));
     } else if (action === 'getGuestOrdersByGuestKey') {
       return jsonResponse(getGuestOrdersByGuestKey(data));
+    } else if (action === 'getGuestProfileByGuestKey') {
+      return jsonResponse(getGuestProfileByGuestKey(data));
+    } else if (action === 'deleteGuestProfileByGuestKey') {
+      return jsonResponse(deleteGuestProfileByGuestKey(data));
     }
     
     return jsonResponse({
@@ -340,6 +345,140 @@ function exchangeKakaoAuthCode(data) {
       message: error && error.message ? error.message : '카카오 연결 처리 중 오류가 발생했습니다.',
     };
   }
+}
+
+function ensureGuestProfileSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET.GUEST_PROFILES);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET.GUEST_PROFILES);
+  }
+
+  const values = sheet.getDataRange().getValues();
+  const currentHeaders = values[0] || [];
+  const requiredHeaders = ['guestKey', 'displayName', 'deliveryPlace', 'updatedAt'];
+  const headers = currentHeaders.filter(h => h !== '');
+  let modified = headers.length === 0;
+
+  requiredHeaders.forEach(header => {
+    if (headers.indexOf(header) === -1) {
+      headers.push(header);
+      modified = true;
+    }
+  });
+
+  if (modified) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
+
+  return sheet;
+}
+
+function getGuestProfileByGuestKey(data) {
+  const authProvider = String(data.authProvider || '').trim().toLowerCase();
+  const guestKey = String(data.guestKey || '').trim();
+  if (authProvider !== 'kakao' || !guestKey) {
+    return {
+      success: false,
+      message: '카카오 연결 정보가 누락되었습니다.',
+    };
+  }
+
+  const sheet = ensureGuestProfileSheet();
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0] || [];
+  const guestKeyIdx = headers.indexOf('guestKey');
+  const displayNameIdx = headers.indexOf('displayName');
+  const deliveryPlaceIdx = headers.indexOf('deliveryPlace');
+  const updatedAtIdx = headers.indexOf('updatedAt');
+
+  const row = values.slice(1).find(item => String(item[guestKeyIdx] || '').trim() === guestKey);
+  if (!row) {
+    return {
+      success: true,
+      profile: null,
+    };
+  }
+
+  return {
+    success: true,
+    profile: {
+      displayName: displayNameIdx !== -1 ? row[displayNameIdx] || '' : '',
+      deliveryPlace: deliveryPlaceIdx !== -1 ? row[deliveryPlaceIdx] || '' : '',
+      updatedAt: updatedAtIdx !== -1 ? row[updatedAtIdx] || '' : '',
+    },
+  };
+}
+
+function deleteGuestProfileByGuestKey(data) {
+  const authProvider = String(data.authProvider || '').trim().toLowerCase();
+  const guestKey = String(data.guestKey || '').trim();
+  if (authProvider !== 'kakao' || !guestKey) {
+    return {
+      success: false,
+      message: '카카오 연결 정보가 누락되었습니다.',
+    };
+  }
+
+  const sheet = ensureGuestProfileSheet();
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0] || [];
+  const guestKeyIdx = headers.indexOf('guestKey');
+
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][guestKeyIdx] || '').trim() === guestKey) {
+      sheet.deleteRow(i + 1);
+      return {
+        success: true,
+        message: '저장된 게스트 정보가 삭제되었습니다.',
+      };
+    }
+  }
+
+  return {
+    success: true,
+    message: '삭제할 저장 정보가 없습니다.',
+  };
+}
+
+function upsertGuestProfile(guestKey, displayName, deliveryPlace) {
+  if (!guestKey) return;
+
+  const sheet = ensureGuestProfileSheet();
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0] || [];
+  const guestKeyIdx = headers.indexOf('guestKey');
+  const displayNameIdx = headers.indexOf('displayName');
+  const deliveryPlaceIdx = headers.indexOf('deliveryPlace');
+  const updatedAtIdx = headers.indexOf('updatedAt');
+
+  const safeDisplayName = String(displayName || '').replace(/ \((체험|비회원)\)/g, '').trim();
+  const safeDeliveryPlace = String(deliveryPlace || '').trim();
+  let targetRow = -1;
+
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][guestKeyIdx] || '').trim() === guestKey) {
+      targetRow = i + 1;
+      break;
+    }
+  }
+
+  if (targetRow === -1) {
+    sheet.appendRow([
+      guestKey,
+      safeDisplayName,
+      safeDeliveryPlace,
+      new Date(),
+    ]);
+    return;
+  }
+
+  const currentRow = values[targetRow - 1];
+  const nextDisplayName = safeDisplayName || currentRow[displayNameIdx] || '';
+  const nextDeliveryPlace = safeDeliveryPlace || currentRow[deliveryPlaceIdx] || '';
+  sheet.getRange(targetRow, displayNameIdx + 1).setValue(nextDisplayName);
+  sheet.getRange(targetRow, deliveryPlaceIdx + 1).setValue(nextDeliveryPlace);
+  sheet.getRange(targetRow, updatedAtIdx + 1).setValue(new Date());
 }
 
 function appendAdminLog(action, targetType, targetId, targetName, beforeValue, afterValue, memo) {
@@ -660,6 +799,7 @@ function placeOrder(data) {
     const rawGuestKey = String(data.guestKey || '').trim();
     const authProvider = isGuest && rawGuestKey && String(data.authProvider || '').trim().toLowerCase() === 'kakao' ? 'kakao' : '';
     const guestKey = authProvider === 'kakao' ? rawGuestKey : '';
+    const shouldRememberGuestProfile = data.rememberGuestProfile === true || String(data.rememberGuestProfile || '').trim().toUpperCase() === 'Y';
 
     if (currentCredit < totalCredit) {
       return {
@@ -747,6 +887,14 @@ function placeOrder(data) {
     let newCredit = currentCredit - totalCredit;
     if (!isGuest) {
       userSheet.getRange(userRowIndex + 1, 3).setValue(newCredit);
+    }
+
+    if (isGuest && authProvider === 'kakao' && guestKey && shouldRememberGuestProfile) {
+      try {
+        upsertGuestProfile(guestKey, data.guestName || '', deliveryPlace);
+      } catch (profileError) {
+        Logger.log('Guest profile save failed: ' + (profileError && profileError.stack ? profileError.stack : profileError));
+      }
     }
 
     return {

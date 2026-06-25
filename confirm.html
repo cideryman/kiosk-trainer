@@ -209,6 +209,14 @@
             <label for="delivery-place-input" style="font-size: 18px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 4px;">📍 어디로 배달할까요?</label>
             <input type="text" id="delivery-place-input" class="guest-input" style="width: 100%; box-sizing: border-box; font-size: 18px; min-height: 48px; font-weight: 800; text-align: left; padding: 8px 12px; margin-top: 4px;" placeholder="예: 사무실 원탁">
           </div>
+
+          <label id="remember-guest-profile-box" style="display: none; align-items: flex-start; gap: 10px; border-top: 2px dashed var(--border-color); padding-top: 12px; font-size: 15px; font-weight: 800; line-height: 1.45; color: var(--text-main); cursor: pointer;">
+            <input type="checkbox" id="remember-guest-profile-input" style="width: 24px; height: 24px; margin-top: 2px; flex: 0 0 auto;">
+            <span>
+              다음 주문에도 이 주문표시명을 기억하기 <span style="color: var(--text-muted);">(선택)</span><br>
+              <span style="font-size: 13px; font-weight: 700; color: var(--text-muted);">배달 주문이면 배송지도 함께 기억합니다. 체크하지 않아도 주문할 수 있어요.</span>
+            </span>
+          </label>
         </div>
 
         <!-- 주문 리스트 영역 -->
@@ -586,6 +594,8 @@
           const btnDeliver = document.getElementById('btn-delivery-deliver');
           const deliveryPlaceBox = document.getElementById('delivery-place-box');
           const deliveryPlaceInput = document.getElementById('delivery-place-input');
+          const rememberGuestProfileBox = document.getElementById('remember-guest-profile-box');
+          const rememberGuestProfileInput = document.getElementById('remember-guest-profile-input');
           
           const fee = getGuestFee();
           btnDeliver.textContent = `배달 (+${fee} 🪙)`;
@@ -593,7 +603,14 @@
           // 기본 배달지 설정
           if (deliveryPlaceInput) {
             const defaultPlace = sessionStorage.getItem('guestDefaultDeliveryPlace') || '사무실 원탁';
-            deliveryPlaceInput.value = defaultPlace;
+            deliveryPlaceInput.value = user.rememberedDeliveryPlace || defaultPlace;
+          }
+
+          if (rememberGuestProfileBox && user.authProvider === 'kakao' && user.guestKey) {
+            rememberGuestProfileBox.style.display = 'flex';
+            if (rememberGuestProfileInput) {
+              rememberGuestProfileInput.checked = false;
+            }
           }
 
           btnPickup.addEventListener('click', () => {
@@ -668,6 +685,8 @@
         if (user.authProvider === 'kakao' && user.guestKey) {
           orderPayload.authProvider = 'kakao';
           orderPayload.guestKey = user.guestKey;
+          const rememberGuestProfileInput = document.getElementById('remember-guest-profile-input');
+          orderPayload.rememberGuestProfile = !!(rememberGuestProfileInput && rememberGuestProfileInput.checked);
         }
       }
 
