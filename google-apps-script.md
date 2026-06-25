@@ -753,7 +753,14 @@ function resolveGuestCreditWallet(data, options) {
   const matched = [];
   for (let i = 1; i < values.length; i++) {
     const row = values[i];
-    if (String(row[idx.periodKey] || '').trim() !== periodKey) continue;
+    let rowPeriodKey = '';
+    const rawPeriodVal = row[idx.periodKey];
+    if (rawPeriodVal instanceof Date) {
+      rowPeriodKey = Utilities.formatDate(rawPeriodVal, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    } else {
+      rowPeriodKey = String(rawPeriodVal || '').trim();
+    }
+    if (rowPeriodKey !== periodKey) continue;
     const rowDeviceId = String(row[idx.guestDeviceId] || '').trim();
     const rowDeviceIds = splitGuestCreditDeviceIds(rowDeviceId);
     const rowGuestKey = String(row[idx.guestKey] || '').trim();
