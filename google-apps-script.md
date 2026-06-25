@@ -203,6 +203,8 @@ function doPost(e) {
       return jsonResponse(getGuestProfileByGuestKey(data));
     } else if (action === 'deleteGuestProfileByGuestKey') {
       return jsonResponse(deleteGuestProfileByGuestKey(data));
+    } else if (action === 'updateGuestProfileByGuestKey') {
+      return jsonResponse(updateGuestProfileByGuestKey(data));
     } else if (action === 'getGuestCreditStatus') {
       return jsonResponse(getGuestCreditStatus(data));
     }
@@ -441,6 +443,35 @@ function deleteGuestProfileByGuestKey(data) {
   return {
     success: true,
     message: '삭제할 저장 정보가 없습니다.',
+  };
+}
+
+function updateGuestProfileByGuestKey(data) {
+  const authProvider = String(data.authProvider || '').trim().toLowerCase();
+  const guestKey = String(data.guestKey || '').trim();
+  const displayName = String(data.displayName || '').trim();
+  const deliveryPlace = String(data.deliveryPlace || '').trim();
+  if (authProvider !== 'kakao' || !guestKey) {
+    return {
+      success: false,
+      message: '카카오 연결 정보가 누락되었습니다.',
+    };
+  }
+  if (!displayName) {
+    return {
+      success: false,
+      message: '주문표시명을 입력해 주세요.',
+    };
+  }
+
+  upsertGuestProfile(guestKey, displayName, deliveryPlace);
+  return {
+    success: true,
+    message: '프로필 정보가 수정되었습니다.',
+    profile: {
+      displayName: displayName,
+      deliveryPlace: deliveryPlace
+    }
   };
 }
 

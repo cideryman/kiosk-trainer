@@ -264,17 +264,31 @@
           <div id="kakao-auth-status" style="font-size: 15px; font-weight: 800; color: #3A2A00; text-align: center; line-height: 1.45; word-break: keep-all;">
             카카오톡 로그인으로 다른 기기에서도 오늘 주문을 찾을 수 있어요.
           </div>
+          
+          <!-- 프로필 저장 시 카드 영역 -->
+          <div id="kakao-profile-card" style="display: none; flex-direction: column; gap: 8px; background-color: white; border: 2px solid #FEE500; border-radius: var(--radius-sm); padding: 12px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);">
+            <div style="font-size: 16px; font-weight: 850; color: #191919; display: flex; align-items: center; justify-content: space-between;">
+              <span id="kpc-nickname">👤 [닉네임] 님</span>
+              <button class="btn btn-gray" id="btn-guest-profile-edit" style="min-height: 32px; font-size: 13px; font-weight: 800; padding: 4px 10px; box-shadow: none; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color); background-color: white;">프로필 수정</button>
+            </div>
+            <div id="kpc-delivery-place-row" style="font-size: 14px; font-weight: 700; color: var(--text-muted); border-top: 1px dashed var(--border-color); padding-top: 8px; margin-top: 4px; display: flex; align-items: center; justify-content: space-between;">
+              <span>📍 기본 배달지: <span id="kpc-delivery-place">사무실 원탁</span></span>
+            </div>
+          </div>
+
           <div style="display: flex; flex-direction: column; gap: 10px;">
             <button class="btn btn-gray" id="btn-kakao-login" style="min-height: 52px; font-size: 17px; font-weight: 850; background-color: #FEE500; color: #191919; border: 2px solid #E7CF00; box-shadow: none; flex-wrap: wrap; gap: 8px; row-gap: 6px;">
               <span>카카오톡 로그인</span>
               <span style="display: inline-flex; align-items: center; justify-content: center; min-height: 28px; padding: 3px 10px; border-radius: 999px; background-color: #2EC4B6; color: white; font-size: 13px; font-weight: 900; line-height: 1; white-space: nowrap;">로그인 시 +2 크레딧</span>
             </button>
-            <button class="btn btn-gray" id="btn-kakao-logout" style="display: none; min-height: 52px; font-size: 16px; font-weight: 850; box-shadow: none;">
-              카카오 연결 해제
-            </button>
-            <button class="btn btn-gray" id="btn-guest-profile-delete" style="display: none; min-height: 48px; font-size: 15px; font-weight: 850; box-shadow: none; background-color: #FFF7ED; color: #9A3412; border: 2px solid #FDBA74;">
-              저장 정보 삭제
-            </button>
+            <div id="kakao-auth-buttons-row" style="display: none; gap: 8px; width: 100%;">
+              <button class="btn btn-gray" id="btn-kakao-logout" style="flex: 1; min-height: 48px; font-size: 15px; font-weight: 850; box-shadow: none;">
+                카카오 로그아웃
+              </button>
+              <button class="btn btn-gray" id="btn-guest-profile-delete" style="flex: 1; min-height: 48px; font-size: 15px; font-weight: 850; box-shadow: none; background-color: #FFF7ED; color: #9A3412; border: 2px solid #FDBA74;">
+                저장 정보 삭제
+              </button>
+            </div>
           </div>
         </div>
 
@@ -389,6 +403,30 @@
     </div>
   </div>
 
+  <!-- 게스트 프로필 수정 모달 -->
+  <div id="guest-profile-edit-modal" class="guest-modal" style="display: none; align-items: center; justify-content: center; z-index: 9999;">
+    <div class="guest-modal-content" style="max-width: 440px;">
+      <button class="guest-modal-close" id="btn-gpe-close">&times;</button>
+      <div class="guest-modal-body" style="display: flex; flex-direction: column; gap: 16px; padding: 24px 20px;">
+        <h2 style="font-size: 20px; font-weight: 850; color: var(--text-main); margin-top: 0; margin-bottom: 8px; text-align: center;">⚙️ 저장 정보 수정</h2>
+        
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <label style="font-size: 15px; font-weight: 800; color: var(--text-main);">주문 표시명 (닉네임)</label>
+          <input type="text" id="gpe-name-input" class="guest-input" style="font-size: 18px; min-height: 48px; text-align: left; padding: 8px 12px; margin-top: 4px;" placeholder="예: 홍길동">
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <label style="font-size: 15px; font-weight: 800; color: var(--text-main);">📍 기본 배달 위치 (선택)</label>
+          <input type="text" id="gpe-delivery-input" class="guest-input" style="font-size: 18px; min-height: 48px; text-align: left; padding: 8px 12px; margin-top: 4px;" placeholder="예: 사무실 원탁">
+        </div>
+      </div>
+      <div class="guest-modal-footer">
+        <button id="btn-gpe-cancel" class="guest-modal-btn" style="border: 2px solid var(--border-color); color: var(--text-muted); background: white;">취소</button>
+        <button id="btn-gpe-save" class="guest-modal-btn" style="border: none; background-color: var(--secondary-color); color: white;">저장하기</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 스크립트 참조 -->
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>
@@ -408,6 +446,14 @@
       const btnKakaoLogin = document.getElementById('btn-kakao-login');
       const btnKakaoLogout = document.getElementById('btn-kakao-logout');
       const btnGuestProfileDelete = document.getElementById('btn-guest-profile-delete');
+      const btnGuestProfileEdit = document.getElementById('btn-guest-profile-edit');
+      const guestProfileEditModal = document.getElementById('guest-profile-edit-modal');
+      const btnGpeClose = document.getElementById('btn-gpe-close');
+      const btnGpeCancel = document.getElementById('btn-gpe-cancel');
+      const btnGpeSave = document.getElementById('btn-gpe-save');
+      const gpeNameInput = document.getElementById('gpe-name-input');
+      const gpeDeliveryInput = document.getElementById('gpe-delivery-input');
+      const kakaoAuthButtonsRow = document.getElementById('kakao-auth-buttons-row');
       const kakaoAuthStatus = document.getElementById('kakao-auth-status');
       const kakaoInputHint = document.getElementById('kakao-input-hint');
       const btnRandomName = document.getElementById('btn-random-name');
@@ -461,12 +507,21 @@
 
       function renderGuestAuth() {
         const auth = AppState.getGuestAuth();
+        const kpc = document.getElementById('kakao-profile-card');
+        const kpcNickname = document.getElementById('kpc-nickname');
+        const kpcDeliveryPlace = document.getElementById('kpc-delivery-place');
+        const kpcDeliveryPlaceRow = document.getElementById('kpc-delivery-place-row');
+
         if (auth) {
           if (kakaoAuthStatus) {
-            kakaoAuthStatus.textContent = '카카오 연결됨: 다른 기기에서도 오늘 주문을 찾을 수 있어요.';
+            kakaoAuthStatus.style.display = rememberedGuestProfile ? 'none' : 'block';
+            kakaoAuthStatus.textContent = '카카오 연결됨: 주문표시명과 배송지를 다음 주문에도 기억할 수 있어요.';
           }
           if (btnKakaoLogin) {
             btnKakaoLogin.style.display = 'none';
+          }
+          if (kakaoAuthButtonsRow) {
+            kakaoAuthButtonsRow.style.display = 'flex';
           }
           if (btnKakaoLogout) {
             btnKakaoLogout.style.display = 'flex';
@@ -474,6 +529,22 @@
           if (btnGuestProfileDelete) {
             btnGuestProfileDelete.style.display = rememberedGuestProfile ? 'flex' : 'none';
           }
+
+          if (rememberedGuestProfile) {
+            if (kpc) kpc.style.display = 'flex';
+            if (kpcNickname) kpcNickname.textContent = `👤 ${rememberedGuestProfile.displayName} 님`;
+            if (kpcDeliveryPlaceRow) {
+              if (rememberedGuestProfile.deliveryPlace) {
+                kpcDeliveryPlaceRow.style.display = 'flex';
+                if (kpcDeliveryPlace) kpcDeliveryPlace.textContent = rememberedGuestProfile.deliveryPlace;
+              } else {
+                kpcDeliveryPlaceRow.style.display = 'none';
+              }
+            }
+          } else {
+            if (kpc) kpc.style.display = 'none';
+          }
+
           if (kakaoInputHint) {
             kakaoInputHint.textContent = rememberedGuestProfile
               ? '카카오 연결됨: 저장된 주문표시명과 배송지를 불러왔어요.'
@@ -482,11 +553,15 @@
           }
         } else {
           if (kakaoAuthStatus) {
+            kakaoAuthStatus.style.display = 'block';
             kakaoAuthStatus.textContent = '카카오톡 로그인으로 다른 기기에서도 오늘 주문을 찾을 수 있어요.';
           }
           if (btnKakaoLogin) {
             renderKakaoLoginButtonLabel();
             btnKakaoLogin.style.display = 'flex';
+          }
+          if (kakaoAuthButtonsRow) {
+            kakaoAuthButtonsRow.style.display = 'none';
           }
           if (btnKakaoLogout) {
             btnKakaoLogout.style.display = 'none';
@@ -494,6 +569,7 @@
           if (btnGuestProfileDelete) {
             btnGuestProfileDelete.style.display = 'none';
           }
+          if (kpc) kpc.style.display = 'none';
           if (kakaoInputHint) {
             kakaoInputHint.style.display = 'none';
           }
@@ -986,6 +1062,9 @@
             }
             rememberedGuestProfile = null;
             guestProfilePromise = Promise.resolve(null);
+            if (input) {
+              input.value = '';
+            }
             renderGuestAuth();
             alert('저장된 주문표시명과 배송지를 삭제했습니다.');
           } catch (error) {
@@ -1003,8 +1082,94 @@
           return;
         }
 
-        showStep('input');
+        if (rememberedGuestProfile && rememberedGuestProfile.displayName) {
+          // 저장된 프로필이 있으면 바로 주문 시작 (이름 입력 화면 건너뜀)
+          input.value = rememberedGuestProfile.displayName;
+          startGuestMode();
+        } else {
+          showStep('input');
+        }
       });
+
+      // 프로필 수정 모달 관련 바인딩
+      if (btnGuestProfileEdit) {
+        AppState.bindCardTap(btnGuestProfileEdit, () => {
+          if (!rememberedGuestProfile) return;
+          if (guestProfileEditModal) {
+            guestProfileEditModal.style.display = 'flex';
+          }
+          if (gpeNameInput) {
+            gpeNameInput.value = rememberedGuestProfile.displayName || '';
+          }
+          if (gpeDeliveryInput) {
+            gpeDeliveryInput.value = rememberedGuestProfile.deliveryPlace || '';
+          }
+          AppState.vibrate(40);
+        });
+      }
+
+      if (btnGpeClose) {
+        btnGpeClose.addEventListener('click', () => {
+          if (guestProfileEditModal) guestProfileEditModal.style.display = 'none';
+          AppState.vibrate(30);
+        });
+      }
+
+      if (btnGpeCancel) {
+        AppState.bindCardTap(btnGpeCancel, () => {
+          if (guestProfileEditModal) guestProfileEditModal.style.display = 'none';
+        });
+      }
+
+      if (btnGpeSave) {
+        AppState.bindCardTap(btnGpeSave, async () => {
+          const auth = AppState.getGuestAuth();
+          if (!auth) return;
+
+          const name = gpeNameInput.value.trim();
+          const delivery = gpeDeliveryInput.value.trim();
+
+          if (!name) {
+            alert('주문 표시명을 입력해 주세요.');
+            gpeNameInput.focus();
+            AppState.vibrate([100, 100]);
+            return;
+          }
+
+          btnGpeSave.disabled = true;
+          try {
+            const res = await fetchAPI('updateGuestProfileByGuestKey', {
+              method: 'POST',
+              body: {
+                authProvider: auth.provider,
+                guestKey: auth.guestKey,
+                displayName: name,
+                deliveryPlace: delivery
+              }
+            });
+            if (!res || !res.success) {
+              throw new Error(res.message || '정보 수정에 실패했습니다.');
+            }
+            
+            rememberedGuestProfile = {
+              displayName: name,
+              deliveryPlace: delivery
+            };
+            if (input) {
+              input.value = name;
+            }
+            renderGuestAuth();
+            
+            if (guestProfileEditModal) {
+              guestProfileEditModal.style.display = 'none';
+            }
+            alert('저장 정보가 수정되었습니다.');
+          } catch (error) {
+            alert(error.message || '정보 수정 중 오류가 발생했습니다.');
+          } finally {
+            btnGpeSave.disabled = false;
+          }
+        });
 
       AppState.bindCardTap(btnCheckOrders, () => {
         window.location.href = 'guest-orders.html';

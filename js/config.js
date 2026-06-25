@@ -410,6 +410,29 @@ function getMockFallback(action, options) {
       localStorage.setItem('mockGuestProfiles', JSON.stringify(profiles));
       res = { success: true, message: '저장된 게스트 정보가 삭제되었습니다.' };
     }
+  } else if (action === 'updateGuestProfileByGuestKey') {
+    const authProvider = options.body?.authProvider;
+    const guestKey = options.body?.guestKey;
+    const displayName = options.body?.displayName;
+    const deliveryPlace = options.body?.deliveryPlace;
+    const profiles = JSON.parse(localStorage.getItem('mockGuestProfiles') || '{}');
+    if (authProvider !== 'kakao' || !guestKey) {
+      res = { success: false, message: '카카오 연결 정보가 누락되었습니다.' };
+    } else if (!displayName) {
+      res = { success: false, message: '주문표시명을 입력해 주세요.' };
+    } else {
+      profiles[guestKey] = {
+        displayName: String(displayName).trim(),
+        deliveryPlace: String(deliveryPlace || '').trim(),
+        updatedAt: new Date().toISOString()
+      };
+      localStorage.setItem('mockGuestProfiles', JSON.stringify(profiles));
+      res = {
+        success: true,
+        message: '프로필 정보가 수정되었습니다.',
+        profile: profiles[guestKey]
+      };
+    }
   } else if (action === 'getOrdersToday') {
     // 로컬 스토리지에 저장된 테스트용 주문 내역이 있으면 그것을 병합
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
