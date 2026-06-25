@@ -698,7 +698,10 @@
           }
 
           // selectedUser 복원
-          const creditAmount = typeof GUEST_DEFAULT_CREDIT !== 'undefined' ? GUEST_DEFAULT_CREDIT : 10;
+          const storedRemainingCredit = Number(sessionStorage.getItem('guestRemainingCredit'));
+          const creditAmount = !Number.isNaN(storedRemainingCredit)
+            ? storedRemainingCredit
+            : (typeof GUEST_DEFAULT_CREDIT !== 'undefined' ? GUEST_DEFAULT_CREDIT : 10);
           AppState.setSelectedUser({
             userId: 'guest',
             nickname: guestName,

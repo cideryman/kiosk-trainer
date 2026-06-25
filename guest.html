@@ -1075,14 +1075,6 @@
           alert('게스트 주문이 마감된 상태입니다.');
           return;
         }
-        const guestName = input.value.trim();
-        if (!guestName) {
-          alert('주문표시명을 입력해 주세요.');
-          input.focus();
-          AppState.vibrate([100, 100]);
-          return;
-        }
-
         const guestAuth = AppState.getGuestAuth();
         try {
           await guestCreditPromise;
@@ -1100,6 +1092,17 @@
           } catch (error) {
             console.warn('저장된 게스트 정보 확인 실패:', error);
           }
+          if (!input.value.trim() && rememberedGuestProfile && rememberedGuestProfile.displayName) {
+            input.value = rememberedGuestProfile.displayName;
+          }
+        }
+
+        const guestName = input.value.trim();
+        if (!guestName) {
+          alert('주문표시명을 입력해 주세요.');
+          input.focus();
+          AppState.vibrate([100, 100]);
+          return;
         }
 
         const selectedUser = {
