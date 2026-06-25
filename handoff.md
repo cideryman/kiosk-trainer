@@ -210,10 +210,19 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - `guest.html` shows the `카카오톡 로그인` button with a small `로그인 시 +2 크레딧` badge and loads `getGuestCreditStatus` before starting an order. `confirm.html` refreshes server-side remaining credit and uses `placeOrder.afterCredit` after submission.
   - Guest credit refunds are tied into admin/user cancellation paths. For guest orders, cancellation restores the daily wallet usage as well as snack stock.
   - The old "block new orders while an active guest order exists" policy is no longer exposed in `kitchen.html` and the guest home no longer performs local active-order blocking. The backend guard remains available only as a hidden sheet-level safety switch. `getGuestSettings()` migrates legacy `guestAllowMultipleOrders=FALSE` to `TRUE` once by adding `guestOrderLimitPolicyVersion=creditWalletV1`, so current operations default to the daily-credit-wallet policy.
+* **Kakao Guest Profile Bypass & Edit (Latest)**:
+  - **Rationale**: Regular Kakao guest users were forced to go through the name-entry screen (`view-input`) and click "시작하기" every time they ordered, even if they had a saved profile. This created unnecessary friction.
+  - **Resolution**:
+    - **Name-Entry Bypass**: If a guest has a saved profile (nickname and optional delivery address), clicking **"새 주문하기"** will automatically bypass the name-entry view and transition directly to the menu page (`menu.html`).
+    - **Homepage Profile Card**: Created a new `#kakao-profile-card` block inside `#kakao-auth-panel` on the guest home screen. It displays the saved user's name and default delivery address, along with an **"프로필 수정" (Edit Profile)** button.
+    - **Profile Editing Modal**: Appended `#guest-profile-edit-modal` (styled using the central `.guest-modal` CSS layout). Users can edit their nickname and default delivery location directly from the home screen, updating the profile instantly.
+    - **Backend API & Local Mock**: Implemented `updateGuestProfileByGuestKey` in the Google Apps Script backend ([google-apps-script.md](file:///c:/Users/user/Desktop/키오스크/google-apps-script.md)) and its mock equivalent in `js/config.js` to save edits immediately.
+    - **Layout Improvements**: Organized the "카카오 로그아웃" and "저장 정보 삭제" buttons side-by-side inside `#kakao-auth-panel` when logged in to save vertical space.
+  - **Encountered Issue & Resolution**:
+    - During code injection in `guest.html`, a typo introduced a duplicate `});` closing block at the end of the `btnGpeSave` event handler. The syntax check command `node --check` flag caught it immediately, and it was quickly resolved.
 * **Code Verification**:
-  - Passed `node --check js/config.js`, `node --check js/app.js`, `node --check service-worker.js`, `git diff --check`, HTML inline script parsing for `guest.html`/`guest-orders.html`/`confirm.html`/`admin.html`/`reviews.html`, and JavaScript parsing of `google-apps-script.md`.
-  - Additional 2026-06-25 verification after daily guest-credit wallet work: `js/config.js`, `js/app.js`, `service-worker.js`, GAS syntax via `vm.Script`, inline script parsing for `guest.html`/`confirm.html`/`guest-orders.html`/`admin.html`/`kitchen.html`/`reviews.html`, `git diff --check`, and a mock wallet simulation covering PC -> Kakao -> mobile -> logged-out PC remaining-credit continuity.
-  - Runtime verification still requires Kakao console Redirect URI setup, Apps Script Properties, copying `google-apps-script.md` into GAS, and a new GAS deployment.
+  - Passed `node --check js/config.js`, `node --check js/app.js`, `node --check service-worker.js`, `git diff --check`, HTML inline script parsing for `guest.html`/`guest-orders.html`/`confirm.html`/`admin.html`/`reviews.html`, and JavaScript parsing of `google-apps-script.md` (via `check_syntax.js`).
+  - Runtime verification still requires Kakao Redirect URI setup, Apps Script Properties, copying `google-apps-script.md` into GAS, and a new GAS deployment.
 
 ---
 
