@@ -680,6 +680,10 @@
       if (cart.length === 0) return;
 
       const isGuest = (user.userId === 'guest');
+      if (isGuest) {
+        await refreshGuestCreditStatus();
+      }
+
       const fee = getGuestFee();
       const deliveryFee = (isGuest && deliveryType === 'delivery') ? fee : 0;
       const snackPoints  = cart.reduce((sum, i) => sum + i.point * i.quantity, 0);
@@ -733,9 +737,18 @@
         const response = await fetchAPI('placeOrder', { method: 'POST', body: orderPayload });
 
         if (response && response.success) {
-          const responseRemainPoints = typeof response.afterCredit === 'number'
-            ? response.afterCredit
+          const parsedAfterCredit = Number(response.afterCredit);
+          let responseRemainPoints = !Number.isNaN(parsedAfterCredit)
+            ? parsedAfterCredit
             : remainPoints;
+          if (isGuest && totalPoints > 0 && responseRemainPoints > user.credit) {
+            console.warn('게스트 주문 후 잔액 응답이 현재 보유 크레딧보다 커서 로컬 계산값을 사용합니다.', {
+              beforeCredit: user.credit,
+              responseAfterCredit: response.afterCredit,
+              totalPoints
+            });
+            responseRemainPoints = Math.max(0, user.credit - totalPoints);
+          }
           user.credit = responseRemainPoints;
           AppState.setSelectedUser(user);
 

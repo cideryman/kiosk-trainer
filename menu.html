@@ -87,6 +87,61 @@
     let snacks = [];
     let cart = []; // { snackId, name, point, quantity }
 
+    function renderCreditUI() {
+      const creditAmount = document.getElementById('user-credit');
+      if (creditAmount) {
+        creditAmount.textContent = user ? (user.credit ?? 0) : 0;
+      }
+
+      if (user && user.userId === 'guest') {
+        const hintEl = document.getElementById('guest-delivery-hint');
+        if (hintEl) {
+          hintEl.style.display = 'block';
+          const fee = Number(sessionStorage.getItem('guestDeliveryFee')) || GUEST_DELIVERY_FEE;
+          const maxSnackCredit = Math.max(0, (Number(user.credit) || 0) - fee);
+          document.getElementById('guest-delivery-fee-text').textContent = fee;
+          document.getElementById('guest-max-snack-credit').textContent = maxSnackCredit;
+        }
+      }
+    }
+
+    async function refreshGuestCreditStatus() {
+      if (!user || user.userId !== 'guest') return null;
+
+      try {
+        const body = {
+          guestDeviceId: AppState.getGuestDeviceId()
+        };
+        if (user.authProvider === 'kakao' && user.guestKey) {
+          body.authProvider = 'kakao';
+          body.guestKey = user.guestKey;
+        }
+
+        const res = await fetchAPI('getGuestCreditStatus', {
+          method: 'POST',
+          body
+        });
+
+        const remainingCredit = Number(res && res.remainingCredit);
+        if (res && res.success && !Number.isNaN(remainingCredit)) {
+          user.credit = remainingCredit;
+          user.guestCreditLimit = Number(res.creditLimit || remainingCredit);
+          user.guestBonusCredit = Number(res.bonusCredit || 0);
+          AppState.setSelectedUser(user);
+          sessionStorage.setItem('guestRemainingCredit', String(remainingCredit));
+          sessionStorage.setItem('guestCreditLimit', String(res.creditLimit || remainingCredit));
+          sessionStorage.setItem('kakaoGuestBonusCredit', String(res.bonusCredit || 0));
+          renderCreditUI();
+          updateCartSummary();
+          return res;
+        }
+      } catch (error) {
+        console.warn('게스트 크레딧 상태 로드 실패:', error);
+      }
+
+      return null;
+    }
+
     // 1. 유저 정보 체크
     function checkUserSession() {
       user = AppState.getSelectedUser();
@@ -102,16 +157,14 @@
       badgeContainer.innerHTML = `<span class="user-badge">${AppState.escapeHtml(user.nickname)}${isGuest ? ' (체험)' : ' 님'}</span>`;
       
       // 크레딧 숫자만 업데이트 (HTML 구조는 이미 🪙 아이콘 포함)
-      const creditAmount = document.getElementById('user-credit');
-      // 게스트 모드일 경우 sessionStorage에서 서버 설정값 적용
       if (user.userId === 'guest') {
-        const serverCredit = Number(sessionStorage.getItem('guestBaseCredit')) || user.credit;
-        if (serverCredit !== user.credit) {
-          user.credit = serverCredit;
+        const storedRemainingCredit = sessionStorage.getItem('guestRemainingCredit');
+        if (storedRemainingCredit !== null && storedRemainingCredit !== '') {
+          user.credit = Number(storedRemainingCredit);
           AppState.setSelectedUser(user);
         }
       }
-      creditAmount.textContent = user.credit ?? 0;
+      renderCreditUI();
 
       // 크레딧 표시부 렌더링
       const creditBadge = document.querySelector('.credit-badge');
@@ -120,6 +173,7 @@
           // '내 동전' 라벨을 '크레딧'으로 변경
           creditBadge.classList.add('guest-mode');
           creditBadge.innerHTML = `크레딧 <span class="coin-icon">🪙</span><span class="coin-number" id="user-credit">${user.credit ?? 0}</span>`;
+          renderCreditUI();
         }
         // 게스트 모드에서는 '이름 다시 고르기' 대신 '처음 화면으로 가기'로 표시
         const btnBack = document.getElementById('btn-back');
@@ -127,14 +181,7 @@
           btnBack.textContent = '처음 화면으로 가기';
         }
 
-        // 배달 힌트 배너 보이기 및 세팅
-        const hintEl = document.getElementById('guest-delivery-hint');
-        if (hintEl) {
-          hintEl.style.display = 'block';
-          const fee = Number(sessionStorage.getItem('guestDeliveryFee')) || GUEST_DELIVERY_FEE;
-          document.getElementById('guest-delivery-fee-text').textContent = fee;
-          document.getElementById('guest-max-snack-credit').textContent = (user.credit ?? 10) - fee;
-        }
+        renderCreditUI();
       }
     }
 
@@ -425,6 +472,7 @@
     // 초기 바인딩
     window.addEventListener('DOMContentLoaded', () => {
       checkUserSession();
+      refreshGuestCreditStatus();
       loadSnacks();
 
       // 유휴 시간 자동 로그아웃 초기화 (70초 유휴 + 10초 경고)
