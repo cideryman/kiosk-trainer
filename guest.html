@@ -685,6 +685,7 @@
             sessionStorage.setItem('guestCreditLimit', String(res.creditLimit));
             sessionStorage.setItem('kakaoGuestBonusCredit', String(res.bonusCredit ?? kakaoGuestBonusCredit));
             renderGuestCreditBadge();
+            renderGuestAuth(); // 상단 프로필 바의 크레딧 정보도 실시간 동기화
             return res;
           }
         } catch (error) {
@@ -846,6 +847,9 @@
               // 운영 중 - 남은 시간 표시
               closedNotice.style.display = 'none';
               guideText.style.display = 'block';
+              btnNewOrder.disabled = false;
+              btnNewOrder.style.opacity = '1';
+              btnNewOrder.style.cursor = 'pointer';
               if (settingsRes.remainingSeconds > 0) {
                 remainingTimeBox.style.display = 'block';
                 let remaining = settingsRes.remainingSeconds;
@@ -1127,15 +1131,17 @@
       // 프로필 수정 모달 관련 바인딩
       if (btnGuestProfileEdit) {
         AppState.bindCardTap(btnGuestProfileEdit, () => {
-          if (!rememberedGuestProfile) return;
+          const auth = AppState.getGuestAuth();
+          if (!auth) return; // 카카오 로그인 상태가 아니면 무시
+
           if (guestProfileEditModal) {
             guestProfileEditModal.style.display = 'flex';
           }
           if (gpeNameInput) {
-            gpeNameInput.value = rememberedGuestProfile.displayName || '';
+            gpeNameInput.value = rememberedGuestProfile ? (rememberedGuestProfile.displayName || '') : '';
           }
           if (gpeDeliveryInput) {
-            gpeDeliveryInput.value = rememberedGuestProfile.deliveryPlace || '';
+            gpeDeliveryInput.value = rememberedGuestProfile ? (rememberedGuestProfile.deliveryPlace || '') : '';
           }
           if (gpeCreditInfo) {
             let currentCredit = guestBaseCredit + kakaoGuestBonusCredit;
@@ -1143,6 +1149,10 @@
               currentCredit = guestCreditStatus.remainingCredit;
             }
             gpeCreditInfo.textContent = `🎫 보유 크레딧: ${currentCredit}개`;
+          }
+          // 저장된 프로필이 있는 경우에만 삭제(개인정보 파기) 버튼을 노출합니다.
+          if (btnGuestProfileDelete) {
+            btnGuestProfileDelete.style.display = rememberedGuestProfile ? 'inline-block' : 'none';
           }
           AppState.vibrate(40);
         });
@@ -1301,13 +1311,19 @@
         });
       }
 
-      // Page Visibility API 자동 동기화 바인딩
+      // Page Visibility API 자동 동기화 바인딩 (debounce로 중복 호출 방지)
+      let visibilityRefreshTimer = null;
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
-          console.log('앱 활성화 감지: 영업 상태 및 크레딧 갱신 중...');
-          loadSettings();
-          loadGuestCreditStatus();
-          loadRememberedGuestProfile();
+          if (visibilityRefreshTimer) clearTimeout(visibilityRefreshTimer);
+          visibilityRefreshTimer = setTimeout(async () => {
+            visibilityRefreshTimer = null;
+            console.log('앱 활성화 감지: 영업 상태 및 크레딧 갱신 중...');
+            await loadSettings();
+            loadGuestCreditStatus();
+            loadRememberedGuestProfile();
+            renderGuestAuth();
+          }, 300);
         }
       });
 
