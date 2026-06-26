@@ -239,6 +239,13 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   * PWA 환경에서 앱을 켜두었다가 다시 활성화(화면 보기)할 때 `visibilitychange` 이벤트를 감지하여 최신 영업 상태(`loadSettings`), 남은 크레딧, 프로필 정보를 자동으로 서버와 동기화시킴.
   * 비운영 마감 카드(`#guest-closed-notice`) 내에 `🔄 상태 새로고침` 수동 버튼을 추가하여 필요 시 수동으로 동기화 조회가 가능하도록 함.
 
+### 16) 관리자 간식 순서 변경(드래그 앤 드롭) 다회 작동 문제 해결
+* **이슈**: `admin.html`에서 간식 순서 변경(드래그 앤 드롭 또는 ▲▼ 버튼 클릭) 시, 동적으로 생성되는 새로운 간식 아이템 요소(`snack-order-item`)에 드래그 관련 이벤트 리스너가 다시 등록되지 않아 드래그 앤 드롭이 한 번만 동작하고 이후 멈추는 현상이 존재했습니다.
+* **해결**:
+  - `saveSnackOrderToServer` 함수에서 서버 전송 및 메모리 업데이트가 성공적으로 끝난 뒤, 이벤트 리스너가 온전히 구현되어 있는 `renderSnackOrderPanel` 함수를 재호출하도록 수정하였습니다.
+  - 이를 통해 새로 바인딩된 DOM 요소에서도 드래그 앤 드롭이 영구적으로 연속 동작하도록 보장하였습니다.
+  - 정적 파일 캐시 갱신을 위해 `service-worker.js` 버전을 `kiosk-cache-v85`로 업데이트하였습니다.
+
 ---
 
 ## 6. Implementation Notes & Cautions
@@ -294,6 +301,11 @@ These items are ordered by operational risk. Do not redo completed items unless 
 ---
 
 ## 7. Future Roadmaps & Considerations (다음 작업 고려 목록)
+
+* **[BACKLOG / 중요도 낮음] 기본 루트(/) 접속 시 게스트 화면(guest.html) 노출 및 일반 키오스크 보안 대책**:
+  - **배경**: 현재 `https://cideryman.github.io/kiosk-trainer/` 접속 시 일반 이용자 목록(이름/사진)이 바로 노출되는 `index.html`이 열리므로 개인정보 노출 우려가 있음. 외부인은 게스트 화면(`guest.html`)을 기본으로 보게 할 필요가 있음.
+  - **해결 방안(A안)**: `index.html` 상단에 스크립트 분기를 두어 `?type=kiosk` 쿼리 파라미터가 없으면 `guest.html`로 자동 replace 처리. 일반 키오스크 기기는 즐겨찾기/PWA 시작 URL을 `index.html?type=kiosk`로 설정하여 사용.
+  - **보안 보강 방안**: 단순 파라미터 분기 외에도 최초 1회 관리자 비밀번호를 확인하여 로컬 스토리지에 암호화 키를 저장한 기기만 일반 키오스크 로그인 화면을 볼 수 있게 하거나, 비밀 토큰 기반의 쿼리 스트링(예: `?auth=secret-key`)을 가진 경우에만 일반 이용자 목록 데이터를 불러오도록 API 레벨에서 보강하는 방안 검토 가능.
 
 * **[RESOLVED] Review Visibility Toggle Error**:
   - **Problem**: Clicking the public/private visibility toggle on the review moderation page (`reviews.html`) triggered a "구글시트 연결에 실패했습니다" (failed to connect to google sheet) popup error.

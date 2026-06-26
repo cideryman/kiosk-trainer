@@ -1832,6 +1832,8 @@
             const s = currentSnacks.find(x => String(x.snackId) === String(snackId));
             if (s) s.displayOrder = displayOrder;
           });
+          // 드래그&드롭 리스너 재등록을 위해 패널을 다시 렌더링
+          renderSnackOrderPanel(currentSnacks, target);
           AppState.vibrate(30);
         } else {
           clearAdminTokenIfDenied(res);
