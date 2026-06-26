@@ -257,7 +257,7 @@
         const pointNum = Number(snack.point) || 0;
         let coinPriceHTML = '';
         if (user && user.userId === 'guest') {
-          coinPriceHTML = `<div class="snack-coin-price" style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">💰 단가 <span style="color: var(--primary-color); font-weight: 800; font-size: 18px;">${pointNum}🪙</span></div>`;
+          coinPriceHTML = `<div class="snack-coin-price" style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">단가 <span style="color: var(--primary-color); font-weight: 800; font-size: 18px;">${pointNum}🪙</span></div>`;
         } else {
           const maxCoins = 5;
           const coinCount = Math.min(pointNum, maxCoins);

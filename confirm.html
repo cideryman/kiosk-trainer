@@ -436,7 +436,7 @@
         const subTotal = p * cart[idx].quantity;
         
         if (isGuest) {
-          if (unitEl) unitEl.innerHTML = `💰 단가 <span style="color:var(--primary-color);font-weight:800;">${p}🪙</span>`;
+          if (unitEl) unitEl.innerHTML = `단가 <span style="color:var(--primary-color);font-weight:800;">${p}🪙</span>`;
           if (subEl) subEl.innerHTML = `🛒 합계 <span style="color:var(--primary-color);font-weight:800;">${subTotal}🪙</span>`;
         } else {
           const maxC = 5;
@@ -519,7 +519,7 @@
         const isGuest = (user && user.userId === 'guest');
 
         if (isGuest) {
-          unitHTML = `💰 단가 <span style="color:var(--primary-color);font-weight:800;">${item.point}🪙</span>`;
+          unitHTML = `단가 <span style="color:var(--primary-color);font-weight:800;">${item.point}🪙</span>`;
           subtotalHTML = `🛒 합계 <span style="color:var(--primary-color);font-weight:800;">${item.point * item.quantity}🪙</span>`;
         } else {
           const maxCoins = 5;

@@ -246,6 +246,14 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - 이를 통해 새로 바인딩된 DOM 요소에서도 드래그 앤 드롭이 영구적으로 연속 동작하도록 보장하였습니다.
   - 정적 파일 캐시 갱신을 위해 `service-worker.js` 버전을 `kiosk-cache-v85`로 업데이트하였습니다.
 
+### 17) 메뉴 이름 짤림 문제 해결 및 게스트 단가 표시 개선 (최근)
+* **메뉴명 텍스트 잘림 해결**:
+  - `css/style.css` 내 `.snack-name`에서 `word-break: keep-all;` 설정을 `break-all`로 수정하고 글자 크기(`font-size`)를 `22px`에서 `20px`로 소폭 축소했습니다.
+  - 이를 통해 '아이스말차바닐라라떼'처럼 공백이 없는 긴 메뉴명이 카드 레이아웃 바깥으로 삐져나가거나 잘리지 않고 글자 단위로 알맞게 두 줄 이내 줄바꿈이 이루어지도록 조치했습니다.
+* **게스트 단가 표시 이모지 정리**:
+  - `menu.html` 및 `confirm.html`에서 게스트 모드로 상품 단가를 렌더링할 때 돈주머니(`💰`) 기호를 제거하여 화폐 단위 기호인 `🪙`와 통일감이 들도록 `단가 4🪙` 형태로 간결화했습니다.
+  - 변경된 정적 리소스를 강제 캐시 갱신시키기 위해 `service-worker.js` 버전을 `kiosk-cache-v86`으로 업데이트하였습니다.
+
 ---
 
 ## 6. Implementation Notes & Cautions

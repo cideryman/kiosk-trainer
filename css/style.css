@@ -413,10 +413,10 @@ body {
 }
 
 .snack-name {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
   color: var(--text-main);
-  word-break: keep-all;
+  word-break: break-all;
 }
 
 .snack-point {
