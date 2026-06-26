@@ -228,6 +228,17 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - Follow-up verification 2026-06-25 additionally passed inline script parsing for `guest.html`/`guest-orders.html`/`confirm.html`/`admin.html`/`reviews.html`/`kitchen.html`/`board.html`, `node --check js/config.js`, `node --check js/app.js`, `node --check service-worker.js`, and direct JavaScript parsing of `google-apps-script.md` without writing to `temp.js`.
   - Runtime verification still requires Kakao Redirect URI setup, Apps Script Properties, copying `google-apps-script.md` into GAS, and a new GAS deployment.
 
+### 15) 게스트 화면 카카오톡 로그인 UI/UX 개선 및 영업 상태 자동 동기화
+* **카카오 로그인 정보 상단 이전**:
+  * 로그인 성공 시 기존 화면 중앙의 크고 넓은 노란색 카드 패널(`#kakao-auth-panel`)을 숨기고, 배달왔삼 로고 바로 아래 가로형 미니 프로필 바(`#kakao-logged-in-header`)를 노출시켜 하단의 새 주문하기 등의 중요 버튼이 스크롤 아래로 밀리는 모바일 화면 가독성 문제를 대폭 개선함.
+  * 프로필 바 좌측에는 사용자 닉네임과 남은 크레딧 정보를, 우측에는 ⚙️(정보 수정) 및 🚪(로그아웃) 아이콘 버튼을 배치하여 화면 공간을 절약하고 일반 모바일 앱 수준의 고품질 UX를 제공함.
+* **정보 수정 모달 내 기능 통합**:
+  * 정보 수정 모달(`#guest-profile-edit-modal`) 내에 보유 중인 남은 크레딧 정보와 기존 메인 화면에 크게 노출되었던 **"브라우저에 저장된 정보 삭제하기(개인정보 파기)"** 링크 버튼을 모달 하단으로 옮겨 통합함.
+  * 정보 삭제 및 수정 완료 시 모달 창이 자동으로 닫히도록 개선하여 메인화면 UI의 완성도를 크게 향상시킴.
+* **Page Visibility API 기반 자동 동기화 및 수동 새로고침 추가**:
+  * PWA 환경에서 앱을 켜두었다가 다시 활성화(화면 보기)할 때 `visibilitychange` 이벤트를 감지하여 최신 영업 상태(`loadSettings`), 남은 크레딧, 프로필 정보를 자동으로 서버와 동기화시킴.
+  * 비운영 마감 카드(`#guest-closed-notice`) 내에 `🔄 상태 새로고침` 수동 버튼을 추가하여 필요 시 수동으로 동기화 조회가 가능하도록 함.
+
 ---
 
 ## 6. Implementation Notes & Cautions
@@ -371,3 +382,14 @@ These items are ordered by operational risk. Do not redo completed items unless 
      * **선택 제공 검증**: `🥡 키오스크 주문` 열 내부의 특정 주문 카드들의 "이 주문 선택" 체크박스를 선택합니다. 이 과정에서 오직 키오스크 열 내부의 `[선택 제공]` 버튼만 활성화되고, 선택된 주문 개수가 표시되는지 확인합니다. 다른 두 열의 버튼은 비활성화 상태여야 합니다. `[선택 제공]` 버튼을 클릭해 정상 완료 처리되는지 봅니다.
      * **모두 제공 검증**: `🛵 배달왔삼 배달` 열 헤더의 `[모두 제공]` 버튼을 클릭합니다. 해당 열에 있는 대기 주문들 전체가 일괄 선택되어 제공 완료(Y) 상태로 바뀌는지 검증합니다. 이때 다른 두 열의 대기 주문들은 완료 처리되지 않고 대기 상태로 그대로 유지되어야 합니다.
 
+### 9) 게스트 화면 카카오 UI 개선 및 자동 동기화 수동 검증
+* **검증 대상**: `guest.html` (게스트 주문 홈 화면)
+* **검증 순서**:
+  1. **로그인 유도 패널 노출**: 게스트 홈 진입 시 상단 미니 바가 나타나지 않고, 화면 중간에 노란색 카카오톡 로그인 유도 박스가 올바르게 노출되는지 확인합니다.
+  2. **상단 프로필 바 전환**: 카카오톡 로그인을 완료하면 중간의 노란색 로그인 박스가 사라지고 배달왔삼 로고 아래 가로바 형태로 `닉네임` 및 `오늘 남은 크레딧` 정보와 `⚙️`(수정), `🚪`(로그아웃) 아이콘이 노출되는지 확인합니다.
+  3. **정보 수정 모달 및 개인정보 파기**:
+     * `⚙️` 아이콘 클릭 시 수정 모달창이 열리고 모달 본문 안에 `보유 크레딧` 및 최하단에 **"브라우저에 저장된 정보 삭제하기"** 링크 버튼이 잘 배치되어 있는지 확인합니다.
+     * 닉네임과 배송지 수정 저장 시 상단 바에 즉각 반영되는지 확인합니다.
+     * "저장 정보 삭제" 클릭 시 컨펌 창을 통해 정상 삭제 처리되며 자동 로그아웃 및 모달 닫기가 이뤄지는지 확인합니다.
+  4. **PWA 화면 백그라운드 자동 동기화**: 관리자 모드에서 게스트 영업 상태를 변경한 뒤 게스트 앱 브라우저/PWA 화면으로 복귀 시 화면의 영업/마감 여부가 즉각 자동 갱신되는지 확인합니다.
+  5. **마감 시 수동 새로고침**: 마감 상태의 화면에서 `🔄 상태 새로고침` 버튼을 클릭했을 때 영업 상태를 새로 조회하여 적용하는지 확인합니다.
