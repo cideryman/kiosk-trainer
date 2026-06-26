@@ -37,9 +37,9 @@ const MOCK_DATA = {
   getSnacks: {
     success: true,
     snacks: [
-      { snackId: 1, name: "초코칩 쿠키", point: 1, imageUrl: "", saleYn: "Y", stock: 5, target: "both" },
+      { snackId: 1, name: "초코칩 쿠키", point: 1, imageUrl: "", saleYn: "Y", stock: 5, target: "user" },
       { snackId: 2, name: "감자칩", point: 2, imageUrl: "", saleYn: "Y", stock: 3, target: "user" },
-      { snackId: 3, name: "사이다", point: 1, imageUrl: "", saleYn: "Y", stock: 0, target: "both" }, // 품절 테스트용
+      { snackId: 3, name: "사이다", point: 1, imageUrl: "", saleYn: "Y", stock: 0, target: "guest" }, // 품절 테스트용
       { snackId: 4, name: "오렌지주스", point: 3, imageUrl: "", saleYn: "Y", stock: 10, target: "guest" },
       { snackId: 5, name: "초코우유", point: 2, imageUrl: "", saleYn: "Y", stock: 1, target: "user" }, // 1개 남은 것 테스트용
       { snackId: 6, name: "하리보 젤리", point: 1, imageUrl: "", saleYn: "Y", stock: 8, target: "guest" }
@@ -231,12 +231,12 @@ function getMockFallback(action, options) {
       if (cleanedMode === 'user') {
         res.snacks = res.snacks.filter(s => {
           const t = s.target ? String(s.target).trim().toLowerCase() : 'user';
-          return t === 'user' || t === 'both';
+          return t === 'user';
         });
       } else if (cleanedMode === 'guest') {
         res.snacks = res.snacks.filter(s => {
           const t = s.target ? String(s.target).trim().toLowerCase() : 'user';
-          return t === 'guest' || t === 'both';
+          return t === 'guest';
         });
       }
     }

@@ -21,7 +21,7 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 * **Backend**: **Google Apps Script (GAS) Web App** serves as the API gateway and backend controller. 
   - Backend database: **Google Sheets** (contains sheets: `이용자목록`, `간식목록`, `주문내역`, `관리자로그`, `운영설정`, `후기내역`, `게스트프로필`, `게스트크레딧`, `주문보관`).
   - Access control: API requests containing state modifications (under `ADMIN_ACTIONS`) are protected by an `ADMIN_TOKEN` verification.
-* **Offline & PWA Capabilities**: Service Worker (`service-worker.js`) intercepts requests and caches static resources. 4 distinct PWA manifests exist for each mode to support individual standalone installations.
+* **Offline & PWA Capabilities**: Service Worker (`service-worker.js`) intercepts requests and caches static resources. 6 distinct PWA manifests exist for each mode to support individual standalone installations.
 
 ---
 
@@ -35,14 +35,22 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 ├── guest.html            # Guest mode login page (contains local review board)
 ├── guest-orders.html     # Guest active order lookup page
 ├── board.html            # Order status display board (audio announcements)
-├── admin.html            # Administrative dashboard
+├── admin.html            # Foundational admin dashboard for users/snacks/order display settings
+├── kitchen.html          # Live order operations, guest operations, CSV/archive, print links
+├── reviews.html          # Review moderation and visibility management
+├── print-bills.html      # Printable order bills and delivery-place checklist
 ├── google-apps-script.md # Backup source of Google Apps Script (Code.gs) & instructions
 ├── handoff.md            # THIS FILE (handoff memory and state status)
 ├── service-worker.js     # PWA Service worker (handles assets caching & updates)
 ├── manifest-kiosk.json   # Kiosk app configuration manifest
 ├── manifest-admin.json   # Admin app configuration manifest
+├── manifest-kitchen.json # Kitchen/operations app configuration manifest
+├── manifest-reviews.json # Review moderation app configuration manifest
 ├── manifest-board.json   # Display board app configuration manifest
 ├── manifest-guest.json   # Guest app configuration manifest
+├── sounds/
+│   └── new-order.mp3     # Custom new-order voice/audio cue for operations screens
+├── assets/               # Banners, closed/offline illustrations, logos
 ├── css/
 │   └── style.css         # Central styling sheet (custom variables, responsive layout)
 ├── js/
@@ -55,12 +63,12 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 
 ## 4. Database Schema (Google Sheets)
 * **`이용자목록` (Users)**: `userId` (ID), `nickname` (Name/Alias), `credit` (Balance), `useYn` (Active flag: Y/N), `imageUrl` (User Photo ID or URL).
-* **`간식목록` (Snacks)**: `snackId` (ID), `name` (Name), `point` (Cost), `imageUrl` (Image), `saleYn` (Availability flag: Y/N), `stock` (Inventory, 0 = Sold Out), `displayOrder` (Order in list), `target` (user/guest/both).
-* **`주문내역` (Orders)**: `timestamp`, `orderNo` (ID), `userId`, `nickname`, `snackId`, `snackName`, `quantity`, `point` (Cost), `servedYn` (Served status: N/P/R/Y), `cancelTimestamp`, `orderToken`, `deliveryType` (pickup/delivery), `deliveryFee`, `totalCredit`, `reviewed` (Boolean), `deliveryPlace` (Delivery location, Column P).
+* **`간식목록` (Snacks)**: `snackId` (ID), `name` (Name), `point` (Cost), `imageUrl` (Image), `saleYn` (Availability flag: Y/N), `stock` (Inventory, 0 = Sold Out), `displayOrder` (Order in list), `target` (user/guest only; `both` has been removed).
+* **`주문내역` (Orders)**: `timestamp`, `orderNo` (ID), `userId`, `nickname`, `snackId`, `snackName`, `quantity`, `point` (Cost), `servedYn` (N/P/R/Y/C), `cancelTimestamp`, `orderToken`, `deliveryType` (pickup/delivery), `deliveryFee`, `totalCredit`, `reviewed` (Boolean), `deliveryPlace` (Column P), `guestDeviceId`, `authProvider`, `guestKey`, plus cancellation reason/detail fields used by current backend archival/export flows.
 * **`관리자로그` (Admin Logs)**: Tracks modifications made by administrative accounts for audit.
 * **`운영설정` (System Settings)**: System operational metadata.
   - Added `guestDefaultDeliveryPlace` key mapping (defaults to "사무실 원탁") for the guest delivery place defaults.
-* **`후기내역` (Reviews)**: Customer reviews / compliments.
+* **`후기내역` (Reviews)**: Customer reviews / compliments, including optional `imageUrl` and `useYn` visibility state.
 * **`게스트프로필` (Guest Profiles)**: Optional remembered display name and delivery place for Kakao-connected guests who explicitly check the remember option.
 * **`게스트크레딧` (Guest Credits)**: Daily guest credit wallet keyed by `periodKey`, `guestDeviceId`, and optional Kakao `guestKey`.
 
@@ -254,6 +262,39 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - `menu.html` 및 `confirm.html`에서 게스트 모드로 상품 단가를 렌더링할 때 돈주머니(`💰`) 기호를 제거하여 화폐 단위 기호인 `🪙`와 통일감이 들도록 `단가 4🪙` 형태로 간결화했습니다.
   - 변경된 정적 리소스를 강제 캐시 갱신시키기 위해 `service-worker.js` 버전을 `kiosk-cache-v86`으로 업데이트하였습니다.
 
+### 18) Codex code review and handoff sync (2026-06-26)
+* **Verification performed**:
+  - `node --check js/app.js`, `node --check js/config.js`, and `node --check service-worker.js` passed.
+  - Inline script parsing passed for `index.html`, `menu.html`, `confirm.html`, `complete.html`, `guest.html`, `guest-orders.html`, `board.html`, `admin.html`, `kitchen.html`, `reviews.html`, and `print-bills.html`.
+  - `google-apps-script.md` JavaScript parsing passed without writing to `temp.js`.
+  - HTML static reference scan passed for local `src`/`href` references.
+  - `git diff --check` passed.
+* **Small code corrections made**:
+  - `js/config.js` mock snack data and mock `getSnacks(mode)` filtering now follow the production `target` policy (`user` or `guest` only). Legacy mock-only `both` support was removed so local mock tests do not hide production target split bugs.
+  - `service-worker.js` cache version was bumped to `kiosk-cache-v87`.
+  - `print-bills.html`, `assets/closed-character.png`, and `sounds/new-order.mp3` were added to the service worker pre-cache list so bill printing, closed-state illustration, and operations audio are less likely to be stale or unavailable in installed PWA sessions.
+* **Potential issue followed up**:
+  - The initial review found guarded legacy order-rendering/helper functions in `admin.html` from the pre-split dashboard era. Section 19 documents the later cleanup decision and verification. Future fixes for order processing should still be made in `kitchen.html`, not by restoring old `admin.html` copies.
+
+### 19) Admin legacy order-function cleanup (2026-06-26)
+* **Why this cleanup is safe**:
+  - The active `admin.html` UI contains only user management, snack management, and snack display-order tabs.
+  - Live order processing, cancellation, CSV export, old-order archive, today summary, and print/board operations are owned by `kitchen.html`.
+  - The removed `admin.html` code was a dormant pre-split copy guarded by missing DOM checks such as `order-table-body`, so it was not participating in the visible admin workflow.
+* **Cleanup scope**:
+  - Removed legacy order-processing variables and functions from `admin.html`: pending/completed order rendering, bulk order completion, single order status transitions, cancellation modal handlers, dormant CSV download, and stale archive button binding.
+  - Kept shared/admin-critical helpers such as `esc`, `attr`, `callAttr`, `jsString`, `getAdminToken`, `withAdminToken`, `clearAdminTokenIfDenied`, user/snack management, snack ordering, image upload, and guest operations settings.
+  - Left CSS-only legacy selectors in place when they had no active DOM/JS references. Broad CSS cleanup was intentionally avoided to prevent unrelated visual regressions.
+* **Verification after cleanup**:
+  - `admin.html` no longer contains references to removed order functions/variables such as `currentOrders`, `renderData`, `completeOrder`, `updateStatusAction`, `cancelOrderAction`, `downloadTodayOrdersCsv`, or `archiveOldOrders`.
+  - The same order-processing functions still exist in `kitchen.html`, which remains the active owner for live order operations.
+  - `node --check js/app.js`, `node --check js/config.js`, `node --check service-worker.js`, all HTML inline-script parsing, `google-apps-script.md` parsing, service-worker cache-entry existence checks, and `git diff --check` passed.
+* **If an error appears after this cleanup**:
+  - If order processing, cancellation, CSV export, archive, today summary, or print flow breaks, inspect `kitchen.html` first. Do not re-add the old `admin.html` copy unless the active UI was deliberately moved back.
+  - If `admin.html` fails to load or buttons stop responding, check the browser console first, then run the inline-script parse check for `admin.html`.
+  - If a missing-function error names one of the removed order functions (`renderData`, `completeOrder`, `updateStatusAction`, `cancelOrderAction`, `downloadTodayOrdersCsv`, etc.), confirm whether an old DOM button or copied HTML block was accidentally restored to `admin.html`. The correct fix is usually to remove that stale DOM reference or route the workflow to `kitchen.html`.
+  - After any static-file cleanup or restore, bump `CACHE_NAME` in `service-worker.js` so installed PWA clients receive the corrected file.
+
 ---
 
 ## 6. Implementation Notes & Cautions
@@ -263,7 +304,9 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 * **Debugging Frontend Errors**: In case of screen freezing, non-responsive buttons, or general UI errors, do not debug blindly. Ask the user to check the developer console (F12) and share the console error log/stack trace. This is the fastest way to identify the exact line of syntax or runtime errors.
 * **Haptic Feedbacks**: Sounds are created using the Web Audio API synthesizer dynamically. Do not rely on external MP3 files for general interaction sounds.
 * **Google Apps Script Deployments**: If you modify the backend API routes or settings, copy code from [google-apps-script.md](file:///c:/Users/user/Desktop/키오스크/google-apps-script.md) into the Google Sheet Script Editor, save, and trigger **[New Deployment]** (Web App, executing as Me, accessible by Anyone). Update `API_URL` in [js/config.js](file:///c:/Users/user/Desktop/키오스크/js/config.js) to match the new address.
-* **Kakao Optional Login Setup**: Store `KAKAO_REST_API_KEY` and `KAKAO_GUEST_KEY_SALT` in Apps Script Properties. Add `KAKAO_CLIENT_SECRET` only if the Kakao console has Client Secret enabled. Register the static `guest.html` URL, not the GAS URL, as the Kakao Redirect URI.
+* **Apps Script Properties**: Store `ADMIN_TOKEN` for protected admin actions. For Kakao optional login, also store `KAKAO_REST_API_KEY` and `KAKAO_GUEST_KEY_SALT`. Add `KAKAO_CLIENT_SECRET` only if the Kakao console has Client Secret enabled. Register the static `guest.html` URL, not the GAS URL, as the Kakao Redirect URI.
+* **Service Worker Cache Discipline**: Any deployed static-file behavior change should bump `CACHE_NAME` in `service-worker.js`. The current reviewed version is `kiosk-cache-v87`.
+* **Syntax Check Caution**: `check_syntax.js` writes extracted GAS code into tracked `temp.js`. Prefer a direct parse command when you only need verification and want to avoid dirtying the working tree.
 
 ---
 
@@ -336,9 +379,9 @@ These items are ordered by operational risk. Do not redo completed items unless 
 
 ---
 
-## 8. 금일 추가된 3대 기능 수동 검증 절차 (Manual Verification Checklist)
+## 8. Recent Manual Verification Checklist
 
-오늘 구현된 세 가지 기능(오늘의 운영 결과 모달, 배송지별 배달 체크리스트 인쇄, 3열 주문 목록 그룹화 및 컬럼별 일괄 처리)은 시스템 운영의 안정성과 직관성을 검증하기 위해 다음과 같이 수동 검증을 진행해 주세요.
+최근 추가/수정된 운영 기능은 시스템 안정성과 직관성을 검증하기 위해 다음 절차로 수동 확인해 주세요.
 
 ### 1) 오늘의 운영 결과 모달 수동 검증
 * **검증 대상**: `kitchen.html` (오늘 주문 운영 화면)
@@ -402,7 +445,7 @@ These items are ordered by operational risk. Do not redo completed items unless 
      * **선택 제공 검증**: `🥡 키오스크 주문` 열 내부의 특정 주문 카드들의 "이 주문 선택" 체크박스를 선택합니다. 이 과정에서 오직 키오스크 열 내부의 `[선택 제공]` 버튼만 활성화되고, 선택된 주문 개수가 표시되는지 확인합니다. 다른 두 열의 버튼은 비활성화 상태여야 합니다. `[선택 제공]` 버튼을 클릭해 정상 완료 처리되는지 봅니다.
      * **모두 제공 검증**: `🛵 배달왔삼 배달` 열 헤더의 `[모두 제공]` 버튼을 클릭합니다. 해당 열에 있는 대기 주문들 전체가 일괄 선택되어 제공 완료(Y) 상태로 바뀌는지 검증합니다. 이때 다른 두 열의 대기 주문들은 완료 처리되지 않고 대기 상태로 그대로 유지되어야 합니다.
 
-### 9) 게스트 화면 카카오 UI 개선 및 자동 동기화 수동 검증
+### 4) 게스트 화면 카카오 UI 개선 및 자동 동기화 수동 검증
 * **검증 대상**: `guest.html` (게스트 주문 홈 화면)
 * **검증 순서**:
   1. **로그인 유도 패널 노출**: 게스트 홈 진입 시 상단 미니 바가 나타나지 않고, 화면 중간에 노란색 카카오톡 로그인 유도 박스가 올바르게 노출되는지 확인합니다.
