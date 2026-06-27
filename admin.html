@@ -544,18 +544,24 @@
 
     /* 간식 표시 순서 편집 패널 */
     .snack-order-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 10px;
+      align-items: stretch;
     }
     .snack-order-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+      display: grid;
+      grid-template-columns: auto auto minmax(0, 1fr) auto;
+      grid-template-areas:
+        "rank emoji name handle"
+        "buttons buttons buttons buttons";
+      align-items: start;
+      gap: 8px;
       background-color: #fff;
       border: 2px solid var(--border-color);
       border-radius: var(--radius-sm);
-      padding: 10px 14px;
+      padding: 12px;
+      min-height: 112px;
       cursor: grab;
       transition: box-shadow 0.15s, border-color 0.15s;
       user-select: none;
@@ -563,12 +569,45 @@
     .snack-order-item:active { cursor: grabbing; }
     .snack-order-item.dragging { opacity: 0.4; border-color: var(--primary-color); box-shadow: var(--shadow-md); }
     .snack-order-item.drag-over { border-color: var(--secondary-color); background-color: #F0FFFE; }
-    .drag-handle { font-size: 20px; color: var(--text-muted); flex-shrink: 0; line-height: 1; }
-    .snack-order-rank { font-size: 15px; font-weight: 900; color: var(--text-muted); min-width: 24px; text-align: center; }
-    .snack-order-name { flex: 1; font-size: 17px; font-weight: 800; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .snack-order-btns { display: flex; gap: 4px; flex-shrink: 0; }
+    .drag-handle { grid-area: handle; font-size: 20px; color: var(--text-muted); flex-shrink: 0; line-height: 1; justify-self: end; }
+    .snack-order-rank {
+      grid-area: rank;
+      font-size: 13px;
+      font-weight: 900;
+      color: white;
+      background-color: var(--secondary-color);
+      min-width: 30px;
+      min-height: 30px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .snack-order-emoji { grid-area: emoji; font-size: 22px; line-height: 1.2; }
+    .snack-order-name {
+      grid-area: name;
+      font-size: 16px;
+      font-weight: 850;
+      color: var(--text-main);
+      line-height: 1.25;
+      word-break: break-all;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      min-height: 40px;
+    }
+    .snack-order-btns {
+      grid-area: buttons;
+      display: flex;
+      gap: 6px;
+      padding-top: 8px;
+      margin-top: 2px;
+      border-top: 1.5px dashed var(--border-color);
+    }
     .snack-order-btn {
-      width: 34px; height: 34px; border-radius: 8px;
+      flex: 1; height: 34px; border-radius: 8px;
       border: 1.5px solid var(--border-color); background-color: #F8F9FA;
       font-size: 16px; font-weight: 800; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
@@ -778,7 +817,7 @@
           <div>
             <div class="admin-section-title" style="color: #7C3AED; border-left-color: #7C3AED;">
               🛒 일반 키오스크 간식 순서
-              <span style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-left: 8px;">일반 이용자 화면에 표시되는 간식 순서입니다. (↑↓ 버튼 또는 드래그)</span>
+              <span style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-left: 8px;">왼쪽 위부터 오른쪽으로 표시되는 순서입니다. (◀▶ 버튼 또는 드래그)</span>
             </div>
             <div class="form-panel" style="background: linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%); border-color: #C4B5FD;">
               <div class="snack-order-list" id="user-snack-order-list">
@@ -794,7 +833,7 @@
           <div style="margin-top: 20px;">
             <div class="admin-section-title" style="color: #ED8936; border-left-color: #ED8936;">
               🛵 게스트/배달왔삼 간식 순서
-              <span style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-left: 8px;">게스트 주문 화면에 표시되는 간식 순서입니다. (↑↓ 버튼 또는 드래그)</span>
+              <span style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-left: 8px;">왼쪽 위부터 오른쪽으로 표시되는 순서입니다. (◀▶ 버튼 또는 드래그)</span>
             </div>
             <div class="form-panel" style="background: linear-gradient(135deg, #FFF5F5 0%, #FED7D7 100%); border-color: #FEB2B2;">
               <div class="snack-order-list" id="guest-snack-order-list">
@@ -1592,11 +1631,11 @@
         item.innerHTML = `
           <span class="drag-handle" title="드래그로 이동">⠿</span>
           <span class="snack-order-rank">${idx + 1}</span>
-          <span style="font-size: 20px;">${esc(emoji)}</span>
+          <span class="snack-order-emoji">${esc(emoji)}</span>
           <span class="snack-order-name">${esc(snack.name)}</span>
           <div class="snack-order-btns">
-            <button class="snack-order-btn" title="위로" onclick="moveSnackOrder(this, -1, '${target}')">▲</button>
-            <button class="snack-order-btn" title="아래로" onclick="moveSnackOrder(this, 1, '${target}')">▼</button>
+            <button class="snack-order-btn" title="앞으로 이동" onclick="moveSnackOrder(this, -1, '${target}')">◀</button>
+            <button class="snack-order-btn" title="뒤로 이동" onclick="moveSnackOrder(this, 1, '${target}')">▶</button>
           </div>
         `;
 
@@ -1649,11 +1688,11 @@
         item.innerHTML = `
           <span class="drag-handle">⠿</span>
           <span class="snack-order-rank">${idx + 1}</span>
-          <span style="font-size: 20px;">${esc(emoji)}</span>
+          <span class="snack-order-emoji">${esc(emoji)}</span>
           <span class="snack-order-name">${esc(snack.name)}</span>
           <div class="snack-order-btns">
-            <button class="snack-order-btn" onclick="moveSnackOrder(this, -1, '${target}')">▲</button>
-            <button class="snack-order-btn" onclick="moveSnackOrder(this, 1, '${target}')">▼</button>
+            <button class="snack-order-btn" title="앞으로 이동" onclick="moveSnackOrder(this, -1, '${target}')">◀</button>
+            <button class="snack-order-btn" title="뒤로 이동" onclick="moveSnackOrder(this, 1, '${target}')">▶</button>
           </div>
         `;
         

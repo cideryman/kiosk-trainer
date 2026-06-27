@@ -295,6 +295,22 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - If a missing-function error names one of the removed order functions (`renderData`, `completeOrder`, `updateStatusAction`, `cancelOrderAction`, `downloadTodayOrdersCsv`, etc.), confirm whether an old DOM button or copied HTML block was accidentally restored to `admin.html`. The correct fix is usually to remove that stale DOM reference or route the workflow to `kitchen.html`.
   - After any static-file cleanup or restore, bump `CACHE_NAME` in `service-worker.js` so installed PWA clients receive the corrected file.
 
+### 20) Admin snack-order grid preview (2026-06-27)
+* **Decision**: Keep the top-level admin tabs as `이용자 관리 / 간식 관리 / 간식 순서`. Do not split the admin screen into separate "general snack", "guest snack", "general order", and "guest order" tabs unless operational pain becomes much higher.
+* **Change**:
+  - Converted the `간식 순서` editing lists in `admin.html` from a vertical list to a grid-style preview.
+  - The order still means left-to-right, top-to-bottom display order. This is a preview-like editing surface, not an exact per-device reproduction of every kiosk viewport.
+  - Existing drag-and-drop saving and immediate `updateSnacksOrder` persistence are preserved.
+  - The movement buttons were changed from `▲/▼` to `◀/▶` to better match the grid mental model.
+  - `service-worker.js` cache version was bumped to `kiosk-cache-v90`.
+* **Why this is safe**:
+  - No GAS, sheet schema, API route, or display-order data model changed.
+  - Only `admin.html` rendering/CSS and static cache version changed.
+* **Verification to repeat if touched again**:
+  - Parse `admin.html` inline script.
+  - Confirm both `user-snack-order-list` and `guest-snack-order-list` still render active snacks only.
+  - Move one item with `◀/▶`, drag one item, and verify the changed order persists after refresh.
+
 ---
 
 ## 6. Implementation Notes & Cautions
@@ -305,7 +321,7 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 * **Haptic Feedbacks**: Sounds are created using the Web Audio API synthesizer dynamically. Do not rely on external MP3 files for general interaction sounds.
 * **Google Apps Script Deployments**: If you modify the backend API routes or settings, copy code from [google-apps-script.md](file:///c:/Users/user/Desktop/키오스크/google-apps-script.md) into the Google Sheet Script Editor, save, and trigger **[New Deployment]** (Web App, executing as Me, accessible by Anyone). Update `API_URL` in [js/config.js](file:///c:/Users/user/Desktop/키오스크/js/config.js) to match the new address.
 * **Apps Script Properties**: Store `ADMIN_TOKEN` for protected admin actions. For Kakao optional login, also store `KAKAO_REST_API_KEY` and `KAKAO_GUEST_KEY_SALT`. Add `KAKAO_CLIENT_SECRET` only if the Kakao console has Client Secret enabled. Register the static `guest.html` URL, not the GAS URL, as the Kakao Redirect URI.
-* **Service Worker Cache Discipline**: Any deployed static-file behavior change should bump `CACHE_NAME` in `service-worker.js`. The current reviewed version is `kiosk-cache-v89`.
+* **Service Worker Cache Discipline**: Any deployed static-file behavior change should bump `CACHE_NAME` in `service-worker.js`. The current reviewed version is `kiosk-cache-v90`.
 * **Syntax Check Caution**: `check_syntax.js` writes extracted GAS code into tracked `temp.js`. Prefer a direct parse command when you only need verification and want to avoid dirtying the working tree.
 
 ---
