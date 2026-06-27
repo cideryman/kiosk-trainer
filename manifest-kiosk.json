@@ -3,7 +3,7 @@
   "name": "주간매점",
   "short_name": "주간매점",
   "description": "발달장애인을 위한 주간보호 간식 구매 키오스크 시스템",
-  "start_url": "./index.html",
+  "start_url": "./index.html?type=kiosk",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#F8F9FA",

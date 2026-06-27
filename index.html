@@ -3,6 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <script>
+    (function () {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('type') !== 'kiosk') {
+        window.location.replace(new URL('guest.html', window.location.href).href);
+      }
+    })();
+  </script>
   <title>주간매점 - 이름을 골라요</title>
   <link rel="stylesheet" href="css/style.css">
   <!-- PWA 설정 -->

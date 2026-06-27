@@ -353,10 +353,29 @@ These items are ordered by operational risk. Do not redo completed items unless 
 
 ## 7. Future Roadmaps & Considerations (다음 작업 고려 목록)
 
-* **[BACKLOG / 중요도 낮음] 기본 루트(/) 접속 시 게스트 화면(guest.html) 노출 및 일반 키오스크 보안 대책**:
+다음 후보들은 기능 확장보다 운영 안정성과 개인정보 노출 감소를 우선한 목록입니다. 새 화면/새 기능을 크게 늘리기보다, 한 항목씩 적용하고 실제 운영에서 체감되는지 확인하세요.
+
+* **[DONE / P1 2026-06-27] 기본 루트(/) 접속 시 게스트 화면(guest.html) 노출 및 일반 키오스크 보안 대책**:
   - **배경**: 현재 `https://cideryman.github.io/kiosk-trainer/` 접속 시 일반 이용자 목록(이름/사진)이 바로 노출되는 `index.html`이 열리므로 개인정보 노출 우려가 있음. 외부인은 게스트 화면(`guest.html`)을 기본으로 보게 할 필요가 있음.
-  - **해결 방안(A안)**: `index.html` 상단에 스크립트 분기를 두어 `?type=kiosk` 쿼리 파라미터가 없으면 `guest.html`로 자동 replace 처리. 일반 키오스크 기기는 즐겨찾기/PWA 시작 URL을 `index.html?type=kiosk`로 설정하여 사용.
+  - **구현 내용**: `index.html` 상단의 조기 스크립트가 `?type=kiosk` 쿼리 파라미터를 확인하고, 없으면 `guest.html`로 `location.replace()` 처리합니다. 일반 키오스크 기기는 `https://cideryman.github.io/kiosk-trainer/index.html?type=kiosk` 주소를 사용합니다.
+  - **일반 키오스크 PWA 처리**: `manifest-kiosk.json`의 `start_url`을 `./index.html?type=kiosk`로 변경했습니다. 서비스워커도 `index.html?type=kiosk`를 프리캐시하고, 쿼리 주소 캐시버스터가 깨지지 않도록 `?`/`&` 구분 로직을 추가했습니다. 캐시 버전은 `kiosk-cache-v88`입니다.
+  - **카카오 설정 영향**: 루트(`/`)만 `guest.html`로 보내고 실제 카카오 로그인은 계속 `guest.html`에서 시작한다면, 현재 코드의 `getKakaoRedirectUri()`가 `window.location.origin + window.location.pathname`을 쓰므로 리다이렉트 URI는 기존 `https://cideryman.github.io/kiosk-trainer/guest.html` 그대로입니다. 이 경우 카카오 API 키나 Redirect URI를 바꿀 필요가 없습니다.
+  - **설정 변경이 필요한 경우**: `guest.html` 파일명을 `baedal.html`로 바꾸거나, `/guest` 같은 확장자 없는 새 주소를 실제 로그인 시작 주소로 쓰거나, 대표 도메인을 커스텀 도메인으로 변경하면 카카오 개발자 콘솔 Redirect URI에 새 정적 앱 주소를 추가해야 합니다. GAS 웹앱 주소는 Redirect URI로 쓰지 않습니다.
   - **보안 보강 방안**: 단순 파라미터 분기 외에도 최초 1회 관리자 비밀번호를 확인하여 로컬 스토리지에 암호화 키를 저장한 기기만 일반 키오스크 로그인 화면을 볼 수 있게 하거나, 비밀 토큰 기반의 쿼리 스트링(예: `?auth=secret-key`)을 가진 경우에만 일반 이용자 목록 데이터를 불러오도록 API 레벨에서 보강하는 방안 검토 가능.
+  - **수동 확인**: 루트 주소 접속 시 게스트 화면으로 이동하는지, `index.html?type=kiosk`에서는 기존 일반 이용자 선택 화면이 유지되는지, 설치된 게스트 PWA의 `start_url`이 계속 `guest.html`로 열리는지, 일반 키오스크 PWA가 `index.html?type=kiosk`로 열리는지, 카카오 로그인 후 돌아오는 주소가 기존 Redirect URI와 일치하는지 확인.
+
+* **[TODO / P2] 운영 점검 버튼 또는 점검 화면 추가**:
+  - **목적**: 배포/GAS/시트/캐시 문제를 운영자가 한눈에 확인하도록 하여, "화면이 이상하다"를 실제 원인별로 빠르게 좁히기 위함.
+  - **권장 위치**: `kitchen.html` 또는 `admin.html` 상단의 작은 `운영 점검` 버튼. 운영 중 가장 자주 보는 화면이 `kitchen.html`이므로 1차 구현은 kitchen 쪽이 실용적입니다.
+  - **점검 항목 후보**: GAS 연결 여부, API_URL, 현재 `CACHE_NAME`, 필수 시트 존재 여부, `주문내역` 헤더 보정 여부, 게스트 운영 상태, 카카오 설정 존재 여부(`clientId` 반환 가능 여부), 오늘 주문 조회 가능 여부.
+  - **주의**: 점검 화면에서 민감한 값(`ADMIN_TOKEN`, `KAKAO_CLIENT_SECRET`, `KAKAO_GUEST_KEY_SALT`)을 그대로 보여주면 안 됩니다. 존재 여부만 `설정됨/누락` 정도로 표시하세요.
+  - **수동 확인**: GAS 배포 직후, 시트 헤더 누락 상황, 카카오 설정 누락 상황에서 점검 결과가 운영자가 이해할 수 있는 문구로 나오는지 확인.
+
+* **[TODO / P3] 터치 보조 모드 추가**:
+  - **목적**: 터치가 어렵거나 손 떨림이 있는 이용자의 오터치를 줄이고, 주요 버튼 반응을 더 안정적으로 만들기 위함.
+  - **권장 방식**: 전역 설정 또는 로컬 설정으로 `터치 보조 강화`를 켜면 `AppState.bindCardTap`의 허용 이동 거리(`tapMoveTolerancePx`)와 최대 탭 시간(`tapMaxDurationMs`)을 약간 넓히고, 주요 버튼의 최소 높이/여백을 소폭 키우는 방식부터 시작.
+  - **주의**: 너무 민감하게 만들면 스크롤하려는 동작이 탭으로 오인될 수 있습니다. 메뉴 카드, 주문 확정, 취소 같은 핵심 버튼 위주로 적용하고, 긴 목록 스크롤 영역은 보수적으로 유지하세요.
+  - **수동 확인**: 일반 이용자 키오스크, 게스트 주문, 장바구니 수량 조절, 주문 확정/취소 버튼에서 오작동 없이 체감이 좋아지는지 실제 터치 기기에서 확인.
 
 * **[RESOLVED] Review Visibility Toggle Error**:
   - **Problem**: Clicking the public/private visibility toggle on the review moderation page (`reviews.html`) triggered a "구글시트 연결에 실패했습니다" (failed to connect to google sheet) popup error.
