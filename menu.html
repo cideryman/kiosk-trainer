@@ -87,6 +87,22 @@
     let snacks = [];
     let cart = []; // { snackId, name, point, quantity }
 
+    function isGuestPreviewMode() {
+      return sessionStorage.getItem('guestPreviewMode') === 'Y' || !!(user && user.previewMode);
+    }
+
+    function renderGuestPreviewNotice() {
+      if (!isGuestPreviewMode()) return;
+      const mainContent = document.getElementById('main-content');
+      if (!mainContent || document.getElementById('guest-preview-menu-notice')) return;
+
+      const notice = document.createElement('div');
+      notice.id = 'guest-preview-menu-notice';
+      notice.style.cssText = 'width:100%;box-sizing:border-box;text-align:center;padding:12px 14px;background-color:#E0F7F5;border:3px solid #2EC4B6;border-radius:var(--radius-sm);font-size:16px;font-weight:850;color:#005F59;line-height:1.45;word-break:keep-all;margin-bottom:8px;';
+      notice.innerHTML = '🛵 배달왔삼 미리보기입니다.<br><span style="font-size:14px;font-weight:750;">실제 주문은 접수되지 않습니다.</span>';
+      mainContent.insertBefore(notice, mainContent.firstElementChild);
+    }
+
     function renderCreditUI() {
       const creditAmount = document.getElementById('user-credit');
       if (creditAmount) {
@@ -107,6 +123,7 @@
 
     async function refreshGuestCreditStatus() {
       if (!user || user.userId !== 'guest') return null;
+      if (isGuestPreviewMode()) return null;
 
       try {
         const body = {
@@ -154,10 +171,15 @@
       // 유저 헤더 렌더링
       const badgeContainer = document.getElementById('user-badge-container');
       const isGuest = (user.userId === 'guest');
-      badgeContainer.innerHTML = `<span class="user-badge">${AppState.escapeHtml(user.nickname)}${isGuest ? ' (체험)' : ' 님'}</span>`;
+      if (isGuestPreviewMode()) {
+        user.previewMode = true;
+        AppState.setSelectedUser(user);
+      }
+      const userSuffix = isGuestPreviewMode() ? ' (미리보기)' : (isGuest ? ' (체험)' : ' 님');
+      badgeContainer.innerHTML = `<span class="user-badge">${AppState.escapeHtml(user.nickname)}${userSuffix}</span>`;
       
       // 크레딧 숫자만 업데이트 (HTML 구조는 이미 🪙 아이콘 포함)
-      if (user.userId === 'guest') {
+      if (user.userId === 'guest' && !isGuestPreviewMode()) {
         const storedRemainingCredit = sessionStorage.getItem('guestRemainingCredit');
         if (storedRemainingCredit !== null && storedRemainingCredit !== '') {
           user.credit = Number(storedRemainingCredit);
@@ -183,6 +205,7 @@
 
         renderCreditUI();
       }
+      renderGuestPreviewNotice();
     }
 
     // 2. 간식 목록 API 조회
@@ -480,8 +503,11 @@
 
       // 뒤로가기
       AppState.bindCardTap(document.getElementById('btn-back'), () => {
+        const shouldReturnToPreview = isGuestPreviewMode();
         AppState.resetAll();
-        if (user && user.userId === 'guest') {
+        if (shouldReturnToPreview) {
+          window.location.href = 'guest.html?preview=1';
+        } else if (user && user.userId === 'guest') {
           window.location.href = 'guest.html';
         } else {
           window.location.href = 'index.html';

@@ -300,8 +300,25 @@
       return Number(sessionStorage.getItem('guestDeliveryFee')) || GUEST_DELIVERY_FEE;
     }
 
+    function isGuestPreviewMode() {
+      return sessionStorage.getItem('guestPreviewMode') === 'Y' || !!(user && user.previewMode);
+    }
+
+    function renderGuestPreviewNotice() {
+      if (!isGuestPreviewMode()) return;
+      const mainContent = document.getElementById('main-content');
+      if (!mainContent || document.getElementById('guest-preview-confirm-notice')) return;
+
+      const notice = document.createElement('div');
+      notice.id = 'guest-preview-confirm-notice';
+      notice.style.cssText = 'width:100%;box-sizing:border-box;text-align:center;padding:12px 14px;background-color:#E0F7F5;border:3px solid #2EC4B6;border-radius:var(--radius-sm);font-size:16px;font-weight:850;color:#005F59;line-height:1.45;word-break:keep-all;margin-bottom:8px;';
+      notice.innerHTML = '🛵 배달왔삼 미리보기입니다.<br><span style="font-size:14px;font-weight:750;">이 화면에서 실제 주문은 전송되지 않습니다.</span>';
+      mainContent.insertBefore(notice, mainContent.firstElementChild);
+    }
+
     async function refreshGuestCreditStatus() {
       if (!user || user.userId !== 'guest') return null;
+      if (isGuestPreviewMode()) return null;
 
       try {
         const body = {
@@ -375,7 +392,9 @@
       } else {
         remainDisplayEl.className = 'bill-coin-display';
         submitBtn.disabled = cart.length === 0;
-        submitBtn.textContent = cart.length === 0 ? '담은 간식 없음' : '주문하기';
+        submitBtn.textContent = cart.length === 0
+          ? '담은 간식 없음'
+          : (isGuestPreviewMode() ? '미리보기 종료' : '주문하기');
         errorBox.style.display = 'none';
       }
     }
@@ -602,11 +621,15 @@
       }
 
       const isGuest = (user.userId === 'guest');
+      if (isGuestPreviewMode()) {
+        user.previewMode = true;
+        AppState.setSelectedUser(user);
+      }
       document.getElementById('user-badge-container').innerHTML =
-        `<span class="user-badge">${AppState.escapeHtml(user.nickname)}${isGuest ? ' (비회원)' : ' 님'}</span>`;
+        `<span class="user-badge">${AppState.escapeHtml(user.nickname)}${isGuestPreviewMode() ? ' (미리보기)' : (isGuest ? ' (비회원)' : ' 님')}</span>`;
       
       // 보유 크레딧 숫자만 업데이트 (HTML 구조에 🪙 아이콘 포함)
-      if (isGuest) {
+      if (isGuest && !isGuestPreviewMode()) {
         const serverRemainingCredit = sessionStorage.getItem('guestRemainingCredit');
         if (serverRemainingCredit !== null && serverRemainingCredit !== '') {
           user.credit = Number(serverRemainingCredit);
@@ -672,12 +695,20 @@
       }
 
       renderOrderList();
+      renderGuestPreviewNotice();
       updateBill();
     }
 
     // ── 주문 제출 ────────────────────────────────────────────────
     async function submitOrder() {
       if (cart.length === 0) return;
+      if (isGuestPreviewMode()) {
+        alert('미리보기 모드입니다. 실제 주문은 접수되지 않습니다.');
+        AppState.resetAll();
+        sessionStorage.setItem('guestPreviewMode', 'Y');
+        window.location.href = 'guest.html?preview=1';
+        return;
+      }
 
       const isGuest = (user.userId === 'guest');
       if (isGuest) {
@@ -816,7 +847,9 @@
     // ── 바인딩 ───────────────────────────────────────────────────
     window.addEventListener('DOMContentLoaded', () => {
       initData();
-      refreshGuestCreditStatus();
+      if (!isGuestPreviewMode()) {
+        refreshGuestCreditStatus();
+      }
 
       // 유휴 시간 자동 로그아웃 초기화 (70초 유휴 + 10초 경고)
       AppState.initIdleTimeout(70000, 10000);

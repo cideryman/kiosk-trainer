@@ -247,6 +247,12 @@
 
       <!-- 선택 화면 -->
       <div id="view-select" style="display: flex; flex-direction: column; gap: 24px; width: 100%;">
+        <!-- 관리자 미리보기 안내 (기본 숨김) -->
+        <div id="guest-preview-notice" style="display: none; text-align: center; padding: 20px; background-color: #E0F7F5; border: 3px solid #2EC4B6; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); color: #005F59;">
+          <div style="font-size: 22px; font-weight: 900; line-height: 1.35; word-break: keep-all;">🛵 배달왔삼 미리보기 모드</div>
+          <div style="font-size: 15px; font-weight: 800; line-height: 1.45; word-break: keep-all; margin-top: 6px;">운영 상태를 바꾸지 않고 메뉴와 주문 전 화면만 확인합니다. 실제 주문은 접수되지 않습니다.</div>
+        </div>
+
         <!-- 마감 안내 (기본 숨김) -->
         <div id="guest-closed-notice" style="display: none; text-align: center; padding: 28px 20px; background-color: #FFF5F5; border: 3px solid #FEB2B2; border-radius: var(--radius-md); box-shadow: var(--shadow-sm);">
           <div style="margin-bottom: 12px; display: flex; justify-content: center; align-items: center;">
@@ -452,6 +458,14 @@
     window.addEventListener('DOMContentLoaded', () => {
       // 혹시 있을 상태 초기화
       AppState.resetAll();
+      const isGuestPreviewMode = new URLSearchParams(window.location.search).get('preview') === '1';
+      if (isGuestPreviewMode) {
+        sessionStorage.setItem('guestPreviewMode', 'Y');
+        sessionStorage.removeItem('guestRemainingCredit');
+        sessionStorage.removeItem('guestCreditLimit');
+      } else {
+        sessionStorage.removeItem('guestPreviewMode');
+      }
 
       const viewSelect = document.getElementById('view-select');
       const viewInput = document.getElementById('view-input');
@@ -484,6 +498,7 @@
       const refreshIcon = document.getElementById('refresh-icon');
 
       const closedNotice = document.getElementById('guest-closed-notice');
+      const previewNotice = document.getElementById('guest-preview-notice');
       const closedNoticeText = document.getElementById('closed-notice-text');
       const remainingTimeBox = document.getElementById('guest-remaining-time');
       const remainingTimerSpan = document.getElementById('remaining-timer');
@@ -530,7 +545,49 @@
         `;
       }
 
+      function applyGuestPreviewModeUi() {
+        if (!isGuestPreviewMode) return;
+
+        if (remainingCountdown) {
+          clearInterval(remainingCountdown);
+          remainingCountdown = null;
+        }
+        if (previewNotice) previewNotice.style.display = 'block';
+        if (closedNotice) closedNotice.style.display = 'none';
+        if (remainingTimeBox) remainingTimeBox.style.display = 'none';
+        if (guideText) {
+          guideText.innerHTML = `배달왔삼 메뉴를 확인합니다 🛵<br><span>간식을 담아 확인 화면까지 볼 수 있어요.</span>`;
+          guideText.style.display = 'block';
+        }
+        const teamSec = document.getElementById('today-delivery-team-section');
+        if (teamSec) teamSec.style.display = 'none';
+        const praiseSec = document.getElementById('praise-board-section');
+        if (praiseSec) praiseSec.style.display = 'none';
+
+        if (btnNewOrder) {
+          btnNewOrder.disabled = false;
+          btnNewOrder.style.opacity = '1';
+          btnNewOrder.style.cursor = 'pointer';
+          btnNewOrder.textContent = '🛵 메뉴 미리보기';
+        }
+        if (btnCheckOrders) btnCheckOrders.style.display = 'none';
+        const btnWriteReview = document.getElementById('btn-write-review');
+        if (btnWriteReview) btnWriteReview.style.display = 'none';
+
+        const kakaoAuthPanel = document.getElementById('kakao-auth-panel');
+        if (kakaoAuthPanel) kakaoAuthPanel.style.display = 'none';
+        if (kakaoLoggedInHeader) kakaoLoggedInHeader.style.display = 'none';
+        if (btnKakaoLogin) btnKakaoLogin.style.display = 'none';
+        if (btnKakaoLogout) btnKakaoLogout.style.display = 'none';
+        if (kakaoInputHint) kakaoInputHint.style.display = 'none';
+      }
+
       function renderGuestAuth() {
+        if (isGuestPreviewMode) {
+          applyGuestPreviewModeUi();
+          return;
+        }
+
         const auth = AppState.getGuestAuth();
         const kakaoAuthPanel = document.getElementById('kakao-auth-panel');
 
@@ -620,6 +677,11 @@
       }
 
       async function loadRememberedGuestProfile() {
+        if (isGuestPreviewMode) {
+          rememberedGuestProfile = null;
+          return null;
+        }
+
         const auth = AppState.getGuestAuth();
         if (!auth) {
           rememberedGuestProfile = null;
@@ -665,6 +727,12 @@
       }
 
       async function loadGuestCreditStatus() {
+        if (isGuestPreviewMode) {
+          guestCreditStatus = null;
+          renderGuestCreditBadge();
+          return null;
+        }
+
         try {
           const auth = AppState.getGuestAuth();
           const body = {
@@ -738,6 +806,8 @@
       }
 
       async function handleKakaoCallback() {
+        if (isGuestPreviewMode) return false;
+
         const params = new URLSearchParams(window.location.search);
         const error = params.get('error');
         const code = params.get('code');
@@ -833,6 +903,12 @@
             // 크레딧 배지 적용
             renderGuestCreditBadge();
 
+            if (isGuestPreviewMode) {
+              isGuestOpen = true;
+              applyGuestPreviewModeUi();
+              return;
+            }
+
             if (!isGuestOpen) {
               // 마감 상태
               closedNotice.style.display = 'block';
@@ -878,6 +954,11 @@
             }
           } else {
             console.warn('게스트 운영 설정 API 응답 실패:', settingsRes);
+            if (isGuestPreviewMode) {
+              isGuestOpen = true;
+              applyGuestPreviewModeUi();
+              return;
+            }
             isGuestOpen = false;
             closedNotice.style.display = 'block';
             closedNoticeText.textContent = (settingsRes && settingsRes.message) || '운영 상태를 확인할 수 없어 잠시 주문을 받을 수 없습니다.';
@@ -890,6 +971,11 @@
           }
         } catch (e) {
           console.warn('게스트 운영 설정 조회 실패:', e);
+          if (isGuestPreviewMode) {
+            isGuestOpen = true;
+            applyGuestPreviewModeUi();
+            return;
+          }
           // API 실패 시 운영 보호를 위해 새 주문 차단 (내 주문 확인하기는 가능)
           isGuestOpen = false;
           closedNotice.style.display = 'block';
@@ -1114,8 +1200,14 @@
 
       // 이벤트 바인딩
       AppState.bindCardTap(btnNewOrder, () => {
-        if (!isGuestOpen) {
+        if (!isGuestOpen && !isGuestPreviewMode) {
           AppState.vibrate([100, 100]);
+          return;
+        }
+
+        if (isGuestPreviewMode) {
+          input.value = '미리보기';
+          startGuestMode();
           return;
         }
 
@@ -1329,22 +1421,26 @@
 
       // 시작하기 함수
       async function startGuestMode() {
-        if (!isGuestOpen) {
+        if (!isGuestOpen && !isGuestPreviewMode) {
           alert('게스트 주문이 마감된 상태입니다.');
           return;
         }
-        const guestAuth = AppState.getGuestAuth();
-        try {
-          await guestCreditPromise;
-        } catch (error) {
-          console.warn('게스트 크레딧 확인 실패:', error);
+        const guestAuth = isGuestPreviewMode ? null : AppState.getGuestAuth();
+        if (!isGuestPreviewMode) {
+          try {
+            await guestCreditPromise;
+          } catch (error) {
+            console.warn('게스트 크레딧 확인 실패:', error);
+          }
         }
 
-        const startingCredit = guestCreditStatus && typeof guestCreditStatus.remainingCredit === 'number'
-          ? guestCreditStatus.remainingCredit
-          : guestBaseCredit + (guestAuth ? kakaoGuestBonusCredit : 0);
+        const startingCredit = isGuestPreviewMode
+          ? guestBaseCredit
+          : (guestCreditStatus && typeof guestCreditStatus.remainingCredit === 'number'
+            ? guestCreditStatus.remainingCredit
+            : guestBaseCredit + (guestAuth ? kakaoGuestBonusCredit : 0));
 
-        if (guestAuth && !rememberedGuestProfile) {
+        if (!isGuestPreviewMode && guestAuth && !rememberedGuestProfile) {
           try {
             await guestProfilePromise;
           } catch (error) {
@@ -1374,6 +1470,9 @@
             ? guestCreditStatus.bonusCredit
             : (guestAuth ? kakaoGuestBonusCredit : 0)
         };
+        if (isGuestPreviewMode) {
+          selectedUser.previewMode = true;
+        }
         if (guestAuth) {
           selectedUser.authProvider = guestAuth.provider;
           selectedUser.guestKey = guestAuth.guestKey;
@@ -1406,6 +1505,8 @@
       AppState.bindCardTap(btnBack, () => {
         if (currentStep === 'input') {
           showStep('select');
+        } else if (isGuestPreviewMode) {
+          window.location.href = 'guest.html?preview=1';
         } else {
           window.location.href = 'index.html';
         }
@@ -1673,8 +1774,12 @@
       Promise.allSettled([settingsPromise, kakaoCallbackPromise]).then(() => {
         guestCreditPromise = loadGuestCreditStatus();
       });
-      loadRecentReviews();
-      syncGuestOrders();
+      if (isGuestPreviewMode) {
+        applyGuestPreviewModeUi();
+      } else {
+        loadRecentReviews();
+        syncGuestOrders();
+      }
     });
   </script>
 </body>

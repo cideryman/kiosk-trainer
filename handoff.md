@@ -311,6 +311,21 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
   - Confirm both `user-snack-order-list` and `guest-snack-order-list` still render active snacks only.
   - Move one item with `◀/▶`, drag one item, and verify the changed order persists after refresh.
 
+### 21) Guest menu preview without opening operations (2026-06-27)
+* **Decision**: Add a lightweight `guest.html?preview=1` flow before building a larger operations diagnostics screen. This directly solves the daily pain point of checking the Baedalwasam guest menu after snack/order changes without temporarily opening guest ordering from `kitchen.html`.
+* **Change**:
+  - Added `🛵 배달왔삼 미리보기` buttons to the top headers of `admin.html` and `kitchen.html`.
+  - `guest.html?preview=1` shows a preview notice, hides Kakao/order lookup/review panels, bypasses the closed-order block, and starts with a temporary `userId: 'guest'` preview user.
+  - `menu.html` and `confirm.html` preserve the preview flag with `sessionStorage.guestPreviewMode` and show preview notices.
+  - `confirm.html` blocks submission before `placeOrder` and returns to `guest.html?preview=1`, so no order row, credit row, stock change, or admin log is created from preview.
+  - Preview mode skips guest credit/profile sync calls to avoid creating or touching guest credit/profile records while checking the menu.
+  - `service-worker.js` cache version was bumped to `kiosk-cache-v91`.
+* **What this does not replace**:
+  - This is not the full P2 operations diagnostics screen. GAS/sheet/header/Kakao settings checks are still listed in the roadmap below.
+* **Verification to repeat if touched again**:
+  - Open `guest.html?preview=1`, press `메뉴 미리보기`, add a snack, proceed to confirm, and press `미리보기 종료`. Confirm no real order appears in `kitchen.html`.
+  - Confirm normal `guest.html` still respects guest open/closed state and normal guest orders can still submit.
+
 ---
 
 ## 6. Implementation Notes & Cautions
@@ -321,7 +336,7 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 * **Haptic Feedbacks**: Sounds are created using the Web Audio API synthesizer dynamically. Do not rely on external MP3 files for general interaction sounds.
 * **Google Apps Script Deployments**: If you modify the backend API routes or settings, copy code from [google-apps-script.md](file:///c:/Users/user/Desktop/키오스크/google-apps-script.md) into the Google Sheet Script Editor, save, and trigger **[New Deployment]** (Web App, executing as Me, accessible by Anyone). Update `API_URL` in [js/config.js](file:///c:/Users/user/Desktop/키오스크/js/config.js) to match the new address.
 * **Apps Script Properties**: Store `ADMIN_TOKEN` for protected admin actions. For Kakao optional login, also store `KAKAO_REST_API_KEY` and `KAKAO_GUEST_KEY_SALT`. Add `KAKAO_CLIENT_SECRET` only if the Kakao console has Client Secret enabled. Register the static `guest.html` URL, not the GAS URL, as the Kakao Redirect URI.
-* **Service Worker Cache Discipline**: Any deployed static-file behavior change should bump `CACHE_NAME` in `service-worker.js`. The current reviewed version is `kiosk-cache-v90`.
+* **Service Worker Cache Discipline**: Any deployed static-file behavior change should bump `CACHE_NAME` in `service-worker.js`. The current reviewed version is `kiosk-cache-v91`.
 * **Syntax Check Caution**: `check_syntax.js` writes extracted GAS code into tracked `temp.js`. Prefer a direct parse command when you only need verification and want to avoid dirtying the working tree.
 
 ---
@@ -383,6 +398,7 @@ These items are ordered by operational risk. Do not redo completed items unless 
 
 * **[TODO / P2] 운영 점검 버튼 또는 점검 화면 추가**:
   - **목적**: 배포/GAS/시트/캐시 문제를 운영자가 한눈에 확인하도록 하여, "화면이 이상하다"를 실제 원인별로 빠르게 좁히기 위함.
+  - **부분 완료 2026-06-27**: 배달왔삼 메뉴 확인 불편은 `guest.html?preview=1` 미리보기 흐름으로 먼저 해결했습니다. 이 항목은 여전히 전체 진단(GAS/시트/캐시/카카오 설정 확인) 화면에 대한 TODO입니다.
   - **권장 위치**: `kitchen.html` 또는 `admin.html` 상단의 작은 `운영 점검` 버튼. 운영 중 가장 자주 보는 화면이 `kitchen.html`이므로 1차 구현은 kitchen 쪽이 실용적입니다.
   - **점검 항목 후보**: GAS 연결 여부, API_URL, 현재 `CACHE_NAME`, 필수 시트 존재 여부, `주문내역` 헤더 보정 여부, 게스트 운영 상태, 카카오 설정 존재 여부(`clientId` 반환 가능 여부), 오늘 주문 조회 가능 여부.
   - **주의**: 점검 화면에서 민감한 값(`ADMIN_TOKEN`, `KAKAO_CLIENT_SECRET`, `KAKAO_GUEST_KEY_SALT`)을 그대로 보여주면 안 됩니다. 존재 여부만 `설정됨/누락` 정도로 표시하세요.
