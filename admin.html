@@ -668,6 +668,7 @@
           <p style="font-size: 14px; margin: 4px 0 0 0; color: #E2E8F0;">이용자 정보, 크레딧, 간식 메뉴, 재고 등 기본 데이터를 관리합니다.</p>
         </div>
         <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+          <button class="btn-small-action" onclick="window.open('index.html?type=kiosk', '_blank')" style="min-height: 48px; background-color: #F59E0B; color: white; border: none;">🛒 일반 키오스크</button>
           <button class="btn-small-action" onclick="window.location.href='kitchen.html'" style="min-height: 48px; background-color: #3182CE; color: white; border: none;">🍳 오늘 주문 운영</button>
           <button class="btn-small-action" onclick="window.location.href='reviews.html'" style="min-height: 48px; background-color: #38A169; color: white; border: none;">💬 후기 관리</button>
           <button class="btn-small-action" onclick="window.open('print-bills.html', '_blank')" style="min-height: 48px; background-color: #ED8936; color: white; border: none;">🖨️ 빌지 인쇄</button>
@@ -2352,7 +2353,7 @@
       const btnGotoKiosk = document.getElementById('btn-goto-kiosk');
       if (btnGotoKiosk) {
         btnGotoKiosk.addEventListener('click', () => {
-          window.location.href = 'index.html';
+          window.location.href = 'index.html?type=kiosk';
         });
       }
 

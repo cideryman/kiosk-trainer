@@ -305,7 +305,7 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 * **Haptic Feedbacks**: Sounds are created using the Web Audio API synthesizer dynamically. Do not rely on external MP3 files for general interaction sounds.
 * **Google Apps Script Deployments**: If you modify the backend API routes or settings, copy code from [google-apps-script.md](file:///c:/Users/user/Desktop/키오스크/google-apps-script.md) into the Google Sheet Script Editor, save, and trigger **[New Deployment]** (Web App, executing as Me, accessible by Anyone). Update `API_URL` in [js/config.js](file:///c:/Users/user/Desktop/키오스크/js/config.js) to match the new address.
 * **Apps Script Properties**: Store `ADMIN_TOKEN` for protected admin actions. For Kakao optional login, also store `KAKAO_REST_API_KEY` and `KAKAO_GUEST_KEY_SALT`. Add `KAKAO_CLIENT_SECRET` only if the Kakao console has Client Secret enabled. Register the static `guest.html` URL, not the GAS URL, as the Kakao Redirect URI.
-* **Service Worker Cache Discipline**: Any deployed static-file behavior change should bump `CACHE_NAME` in `service-worker.js`. The current reviewed version is `kiosk-cache-v87`.
+* **Service Worker Cache Discipline**: Any deployed static-file behavior change should bump `CACHE_NAME` in `service-worker.js`. The current reviewed version is `kiosk-cache-v89`.
 * **Syntax Check Caution**: `check_syntax.js` writes extracted GAS code into tracked `temp.js`. Prefer a direct parse command when you only need verification and want to avoid dirtying the working tree.
 
 ---
@@ -359,6 +359,7 @@ These items are ordered by operational risk. Do not redo completed items unless 
   - **배경**: 현재 `https://cideryman.github.io/kiosk-trainer/` 접속 시 일반 이용자 목록(이름/사진)이 바로 노출되는 `index.html`이 열리므로 개인정보 노출 우려가 있음. 외부인은 게스트 화면(`guest.html`)을 기본으로 보게 할 필요가 있음.
   - **구현 내용**: `index.html` 상단의 조기 스크립트가 `?type=kiosk` 쿼리 파라미터를 확인하고, 없으면 `guest.html`로 `location.replace()` 처리합니다. 일반 키오스크 기기는 `https://cideryman.github.io/kiosk-trainer/index.html?type=kiosk` 주소를 사용합니다.
   - **일반 키오스크 PWA 처리**: `manifest-kiosk.json`의 `start_url`을 `./index.html?type=kiosk`로 변경했습니다. 서비스워커도 `index.html?type=kiosk`를 프리캐시하고, 쿼리 주소 캐시버스터가 깨지지 않도록 `?`/`&` 구분 로직을 추가했습니다. 캐시 버전은 `kiosk-cache-v88`입니다.
+  - **운영 편의 후속 2026-06-27**: 일반 키오스크 주소가 길어졌기 때문에 `admin.html`과 `kitchen.html` 상단에 `🛒 일반 키오스크` 버튼을 추가해 `index.html?type=kiosk`를 새 탭으로 열도록 했습니다. 두 화면 하단의 기존 `키오스크 화면으로 가기` 버튼도 같은 안전 주소로 수정했습니다. 정적 파일 캐시 버전은 `kiosk-cache-v89`입니다.
   - **카카오 설정 영향**: 루트(`/`)만 `guest.html`로 보내고 실제 카카오 로그인은 계속 `guest.html`에서 시작한다면, 현재 코드의 `getKakaoRedirectUri()`가 `window.location.origin + window.location.pathname`을 쓰므로 리다이렉트 URI는 기존 `https://cideryman.github.io/kiosk-trainer/guest.html` 그대로입니다. 이 경우 카카오 API 키나 Redirect URI를 바꿀 필요가 없습니다.
   - **설정 변경이 필요한 경우**: `guest.html` 파일명을 `baedal.html`로 바꾸거나, `/guest` 같은 확장자 없는 새 주소를 실제 로그인 시작 주소로 쓰거나, 대표 도메인을 커스텀 도메인으로 변경하면 카카오 개발자 콘솔 Redirect URI에 새 정적 앱 주소를 추가해야 합니다. GAS 웹앱 주소는 Redirect URI로 쓰지 않습니다.
   - **보안 보강 방안**: 단순 파라미터 분기 외에도 최초 1회 관리자 비밀번호를 확인하여 로컬 스토리지에 암호화 키를 저장한 기기만 일반 키오스크 로그인 화면을 볼 수 있게 하거나, 비밀 토큰 기반의 쿼리 스트링(예: `?auth=secret-key`)을 가진 경우에만 일반 이용자 목록 데이터를 불러오도록 API 레벨에서 보강하는 방안 검토 가능.
