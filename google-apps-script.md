@@ -3024,7 +3024,7 @@ function ensureOrderHeaders() {
   const defaultHeaders = [
     '주문시간', '주문번호', '이용자ID', '별명', '간식ID', '간식명', '수량',
     '차감포인트', '제공여부', 'cancelTimestamp', 'orderToken', 'deliveryType', 
-    'deliveryFee', 'totalCredit', 'reviewed', 'deliveryPlace', 'cancelReason', 'cancelReasonDetail'
+    'deliveryFee', 'totalCredit', 'reviewed', 'deliveryAddress', 'cancelReason', 'cancelReasonDetail'
   ];
 
   let modified = false;
@@ -3192,8 +3192,8 @@ function diagnoseSystem(data) {
 
   // 시트별 기대 헤더 정의
   const expectedHeaders = {
-    [SHEET.USERS]: ['userId', 'nickname', 'credit', 'useYn', 'imageUrl'],
-    [SHEET.SNACKS]: ['snackId', 'name', 'point', 'imageUrl', 'saleYn', 'stock', 'displayOrder', 'target'],
+    [SHEET.USERS]: ['이용자ID', '별명', '크레딧', '사용여부', '사진url'],
+    [SHEET.SNACKS]: ['간식ID', '이름', '포인트', '사진URL', '판매여부', '재고', '표시순서', '제공대상'],
     [SHEET.ORDERS]: [
       '주문시간', '주문번호', '이용자ID', '별명', '간식ID', '간식명',
       '수량', '차감포인트', '제공여부', 'cancelTimestamp', 'orderToken',
@@ -3206,14 +3206,54 @@ function diagnoseSystem(data) {
     [SHEET.ARCHIVE]: [
       '주문시간', '주문번호', '이용자ID', '별명', '간식ID', '간식명',
       '수량', '차감포인트', '제공여부', 'cancelTimestamp', 'orderToken',
-      'deliveryType', 'deliveryFee', 'totalCredit', 'reviewed', 'deliveryAddress',
-      'cancelReason', 'cancelReasonDetail'
+      'deliveryType', 'deliveryFee', 'totalCredit', 'reviewed'
     ],
     [SHEET.GUEST_PROFILES]: ['guestKey', 'displayName', 'deliveryPlace', 'updatedAt'],
     [SHEET.GUEST_CREDITS]: [
       'periodKey', 'guestDeviceId', 'guestKey', 'baseCredit', 'bonusCredit',
       'creditLimit', 'usedCredit', 'remainingCredit', 'updatedAt'
     ],
+  };
+
+  const headerAliases = {
+    [SHEET.USERS]: {
+      '이용자ID': ['userId'],
+      '별명': ['nickname'],
+      '크레딧': ['credit'],
+      '사용여부': ['useYn'],
+      '사진url': ['imageUrl', '사진URL']
+    },
+    [SHEET.SNACKS]: {
+      '간식ID': ['snackId'],
+      '이름': ['name'],
+      '포인트': ['point'],
+      '사진URL': ['imageUrl', '사진url'],
+      '판매여부': ['saleYn'],
+      '재고': ['stock'],
+      '표시순서': ['displayOrder'],
+      '제공대상': ['target']
+    },
+    [SHEET.ORDERS]: {
+      'deliveryPlace': ['deliveryAddress']
+    }
+  };
+
+  const findHeaderIndex = (headers, sheetName, colName) => {
+    const candidates = [colName].concat((headerAliases[sheetName] && headerAliases[sheetName][colName]) || []);
+    for (let i = 0; i < candidates.length; i++) {
+      const idx = headers.indexOf(candidates[i]);
+      if (idx !== -1) return idx;
+    }
+    return -1;
+  };
+
+  const isAcceptedOrderTailLayout = (headers) => {
+    const acceptedLayouts = [
+      ['deliveryPlace', 'cancelReason', 'cancelReasonDetail', 'guestDeviceId', 'authProvider', 'guestKey'],
+      ['deliveryAddress', 'cancelReason', 'cancelReasonDetail', 'guestDeviceId', 'authProvider', 'guestKey'],
+      ['deliveryAddress', 'cancelReason', 'deliveryPlace', 'cancelReasonDetail', 'guestDeviceId', 'authProvider', 'guestKey']
+    ];
+    return acceptedLayouts.some(layout => layout.every((colName, offset) => headers[15 + offset] === colName));
   };
 
   // A. 시트 존재 유무 및 헤더 정합성 체크
@@ -3238,16 +3278,16 @@ function diagnoseSystem(data) {
       const misaligned = [];
 
       expected.forEach((colName, index) => {
-        const currentIdx = headers.indexOf(colName);
+        const currentIdx = findHeaderIndex(headers, sheetName, colName);
         if (currentIdx === -1) {
           missing.push(colName);
-        } else if ((sheetName === SHEET.ORDERS || sheetName === SHEET.ARCHIVE) && index >= 15) {
-          // 주문내역 및 보관의 경우 P열(인덱스 15) 이후 컬럼 위치 정합성이 중요함
-          if (currentIdx !== index) {
-            misaligned.push(`${colName} (예상: ${String.fromCharCode(65 + index)}열, 현재: ${String.fromCharCode(65 + currentIdx)}열)`);
-          }
         }
       });
+
+      if (sheetName === SHEET.ORDERS && missing.length === 0 && !isAcceptedOrderTailLayout(headers)) {
+        const currentTail = headers.slice(15, 22).map((header, idx) => `${String.fromCharCode(80 + idx)}열=${header || '(빈칸)'}`).join(', ');
+        misaligned.push(`P열 이후 주문 확장 컬럼 구조 확인 필요 (${currentTail})`);
+      }
 
       if (missing.length > 0 || misaligned.length > 0) {
         report.sheets[sheetName] = {
