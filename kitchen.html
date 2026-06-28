@@ -997,7 +997,7 @@
       const modal = document.getElementById('modal-system-diagnose');
       if (modal) {
         modal.style.display = 'flex';
-        // 임시로 자동 새로고침 타이머 일시정지
+        diagnoseRefreshPausedBeforeOpen = refreshPaused;
         refreshPaused = true;
         const btn = document.getElementById('btn-toggle-refresh');
         if (btn) btn.textContent = '자동 재개';
@@ -1010,10 +1010,9 @@
       const modal = document.getElementById('modal-system-diagnose');
       if (modal) {
         modal.style.display = 'none';
-        // 타이머 다시 활성화
-        refreshPaused = false;
+        refreshPaused = diagnoseRefreshPausedBeforeOpen;
         const btn = document.getElementById('btn-toggle-refresh');
-        if (btn) btn.textContent = '일시정지';
+        if (btn) btn.textContent = refreshPaused ? '자동 재개' : '일시정지';
         resetRefreshTimer();
       }
     }
@@ -1031,7 +1030,7 @@
 
       try {
         const adminToken = sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) || '';
-        
+
         // 1. GAS 기본 통신 및 상세 진단 요청
         const res = await fetchAPI('diagnoseSystem', {
           method: 'POST',
@@ -1045,7 +1044,7 @@
           summaryCard.style.borderColor = '#FEB2B2';
           summaryCard.style.color = '#C53030';
           summaryCard.innerHTML = '🔴 GAS 연결 실패';
-          
+
           resultsList.innerHTML = `
             <div style="padding: 12px; border: 2px solid #FEB2B2; background-color: #FFF5F5; border-radius: var(--radius-sm); font-size: 15px; font-weight: 700; color: #9B2C2C;">
               <span style="font-size: 18px;">❌</span> <strong>GAS API 응답 실패</strong><br>
@@ -1060,10 +1059,20 @@
 
         // 2. 기본 진단 성공 (비밀번호 미입력 상태)
         if (res.mode === 'basic') {
+          if (adminToken) {
+            sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
+            if (typeof updateAdminTokenStatus === 'function') {
+              updateAdminTokenStatus();
+            }
+          }
+
           summaryCard.style.backgroundColor = '#FFFDF5';
           summaryCard.style.borderColor = '#FEEBC8';
           summaryCard.style.color = '#DD6B20';
           summaryCard.innerHTML = '🟡 기본 연결 성공 (상세 진단 필요)';
+          const passwordGuide = adminToken
+            ? '입력한 관리자 비밀번호가 일치하지 않습니다. 다시 입력해 주세요.'
+            : '관리자 비밀번호를 입력해 주세요.';
 
           let html = `
             <div style="padding: 12px; border: 2px solid #FEEBC8; background-color: #FFFDF5; border-radius: var(--radius-sm); font-size: 15px; font-weight: 700; color: #DD6B20;">
@@ -1074,18 +1083,15 @@
             </div>
           `;
 
-          // 만약 어드민 토큰이 브라우저 세션에 없어서 basic 모드가 나온 것이라면, 비밀번호 입력을 유도
-          if (!adminToken) {
-            html += `
-              <div style="margin-top: 10px; padding: 12px; border: 2px solid var(--border-color); background-color: #F8FAFC; border-radius: var(--radius-sm); font-size: 15px; font-weight: 700;">
-                <p style="margin-bottom: 8px;">🔑 관리자 비밀번호를 입력해 주세요.</p>
-                <div style="display: flex; gap: 8px;">
-                  <input type="password" id="diagnose-input-pwd" placeholder="비밀번호 입력" style="flex: 1; padding: 8px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); font-size: 16px;">
-                  <button class="btn btn-secondary" onclick="submitDiagnosePassword()" style="margin:0; min-height: 38px; width: auto; font-size: 14px;">확인</button>
-                </div>
+          html += `
+            <div style="margin-top: 10px; padding: 12px; border: 2px solid var(--border-color); background-color: #F8FAFC; border-radius: var(--radius-sm); font-size: 15px; font-weight: 700;">
+              <p style="margin-bottom: 8px;">🔑 ${passwordGuide}</p>
+              <div style="display: flex; gap: 8px;">
+                <input type="password" id="diagnose-input-pwd" placeholder="비밀번호 입력" style="flex: 1; padding: 8px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); font-size: 16px;">
+                <button class="btn btn-secondary" onclick="submitDiagnosePassword()" style="margin:0; min-height: 38px; width: auto; font-size: 14px;">확인</button>
               </div>
-            `;
-          }
+            </div>
+          `;
           resultsList.innerHTML = html;
           return;
         }
@@ -1109,7 +1115,7 @@
 
           // A. 구글 시트 검사 결과 렌더링
           itemsHtml += `<h3 style="font-size: 16px; font-weight: 850; margin: 10px 0 6px 0; border-bottom: 2px dashed var(--border-color); padding-bottom: 4px;">📊 구글 스프레드시트 탭/헤더 점검</h3>`;
-          
+
           for (let name in res.sheets) {
             const sheet = res.sheets[name];
             if (!sheet.exists) {
@@ -1143,7 +1149,7 @@
 
           // B. 구글 스크립트 속성 검사 결과 렌더링
           itemsHtml += `<h3 style="font-size: 16px; font-weight: 850; margin: 18px 0 6px 0; border-bottom: 2px dashed var(--border-color); padding-bottom: 4px;">🔑 구글 앱스 스크립트 설정(Script Properties)</h3>`;
-          
+
           for (let key in res.properties) {
             const prop = res.properties[key];
             if (prop.status === 'ERROR') {
@@ -1200,7 +1206,7 @@
         alert('비밀번호를 입력하세요.');
         return;
       }
-      
+
       sessionStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, pwd);
       updateAdminTokenStatus();
       runSystemDiagnosis();
@@ -1210,6 +1216,7 @@
     let hasLoadedOrdersOnce = false;
     let currentUsers = [];
     let refreshPaused = false;
+    let diagnoseRefreshPausedBeforeOpen = false;
     let isModalOpen = false;
     const ADMIN_TOKEN_STORAGE_KEY = 'kioskAdminToken';
     const pendingUpdates = new Map(); // 서버 통신 중인 주문 상태 추적

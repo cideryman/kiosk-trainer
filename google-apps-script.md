@@ -3195,19 +3195,25 @@ function diagnoseSystem(data) {
     [SHEET.USERS]: ['userId', 'nickname', 'credit', 'useYn', 'imageUrl'],
     [SHEET.SNACKS]: ['snackId', 'name', 'point', 'imageUrl', 'saleYn', 'stock', 'displayOrder', 'target'],
     [SHEET.ORDERS]: [
-      'timestamp', 'orderNo', 'userId', 'nickname', 'snackId', 'snackName', 
-      'quantity', 'point', 'servedYn', 'cancelTimestamp', 'orderToken', 
-      'deliveryType', 'deliveryFee', 'totalCredit', 'reviewed', 'deliveryPlace', 
-      'guestDeviceId', 'authProvider', 'guestKey'
+      '주문시간', '주문번호', '이용자ID', '별명', '간식ID', '간식명',
+      '수량', '차감포인트', '제공여부', 'cancelTimestamp', 'orderToken',
+      'deliveryType', 'deliveryFee', 'totalCredit', 'reviewed', 'deliveryPlace',
+      'cancelReason', 'cancelReasonDetail', 'guestDeviceId', 'authProvider', 'guestKey'
     ],
-    [SHEET.SETTINGS]: ['key', 'value', 'description'],
-    [SHEET.REVIEWS]: ['orderNo', 'nickname', 'rating', 'tags', 'comment', 'imageUrl', 'createdAt', 'useYn'],
+    [SHEET.LOGS]: ['timestamp', 'action', 'targetType', 'targetId', 'targetName', 'beforeValue', 'afterValue', 'memo'],
+    [SHEET.SETTINGS]: ['key', 'value'],
+    [SHEET.REVIEWS]: ['createdAt', 'orderId', 'guestName', 'stamp', 'tags', 'comment', 'isPublic', 'imageUrl'],
     [SHEET.ARCHIVE]: [
-      'timestamp', 'orderNo', 'userId', 'nickname', 'snackId', 'snackName', 
-      'quantity', 'point', 'servedYn', 'cancelTimestamp', 'orderToken', 
-      'deliveryType', 'deliveryFee', 'totalCredit', 'reviewed', 'deliveryPlace', 
-      'guestDeviceId', 'authProvider', 'guestKey'
-    ]
+      '주문시간', '주문번호', '이용자ID', '별명', '간식ID', '간식명',
+      '수량', '차감포인트', '제공여부', 'cancelTimestamp', 'orderToken',
+      'deliveryType', 'deliveryFee', 'totalCredit', 'reviewed', 'deliveryAddress',
+      'cancelReason', 'cancelReasonDetail'
+    ],
+    [SHEET.GUEST_PROFILES]: ['guestKey', 'displayName', 'deliveryPlace', 'updatedAt'],
+    [SHEET.GUEST_CREDITS]: [
+      'periodKey', 'guestDeviceId', 'guestKey', 'baseCredit', 'bonusCredit',
+      'creditLimit', 'usedCredit', 'remainingCredit', 'updatedAt'
+    ],
   };
 
   // A. 시트 존재 유무 및 헤더 정합성 체크
@@ -3230,7 +3236,7 @@ function diagnoseSystem(data) {
     if (expected) {
       const missing = [];
       const misaligned = [];
-      
+
       expected.forEach((colName, index) => {
         const currentIdx = headers.indexOf(colName);
         if (currentIdx === -1) {
