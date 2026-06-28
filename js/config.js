@@ -1088,6 +1088,38 @@ function getMockFallback(action, options) {
       saveMockSnacks(snacks);
       res = { success: true, filledCount: filled, message: `${filled}개의 빈 간식ID를 자동으로 채웠습니다.` };
     }
+  } else if (action === 'diagnoseSystem') {
+    const adminToken = options.body?.adminToken;
+    if (!adminToken) {
+      res = {
+        success: true,
+        mode: 'basic',
+        message: '구글 앱스 스크립트(GAS) 서버와 통신은 정상이나, 상세 정보를 확인하려면 관리자 비밀번호를 입력해 주세요.'
+      };
+    } else {
+      res = {
+        success: true,
+        mode: 'detailed',
+        overallStatus: 'OK',
+        sheets: {
+          '간식목록': { exists: true, status: 'OK' },
+          '이용자목록': { exists: true, status: 'OK' },
+          '주문내역': { exists: true, status: 'OK' },
+          '관리자로그': { exists: true, status: 'OK' },
+          '운영설정': { exists: true, status: 'OK' },
+          '후기내역': { exists: true, status: 'OK' },
+          '주문보관': { exists: true, status: 'OK' },
+          '게스트프로필': { exists: true, status: 'OK' },
+          '게스트크레딧': { exists: true, status: 'OK' }
+        },
+        properties: {
+          'ADMIN_TOKEN': { configured: true, required: true, description: '관리자 API 요청 토큰', status: 'OK' },
+          'KAKAO_REST_API_KEY': { configured: true, required: true, description: '카카오 로그인 API 키', status: 'OK' },
+          'KAKAO_GUEST_KEY_SALT': { configured: true, required: true, description: '게스트 식별키 암호화 솔트', status: 'OK' },
+          'KAKAO_CLIENT_SECRET': { configured: false, required: false, description: '카카오 로그인 보안 비밀키 (선택)', status: 'INFO' }
+        }
+      };
+    }
   } else {
     res = { success: false, error: "액션을 찾을 수 없습니다." };
   }

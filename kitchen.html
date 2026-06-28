@@ -698,6 +698,7 @@
           <button class="btn-small-action" onclick="window.location.href='admin.html'" style="min-height: 48px; background-color: #3182CE; color: white; border: none;">⚙️ 관리자 설정</button>
           <button class="btn-small-action" onclick="window.location.href='reviews.html'" style="min-height: 48px; background-color: #38A169; color: white; border: none;">💬 후기 관리</button>
           <button class="btn-small-action" onclick="openTodaySummaryModal()" style="min-height: 48px; background-color: #D97706; color: white; border: none;">📊 오늘의 운영 결과</button>
+          <button class="btn-small-action" onclick="openDiagnoseModal()" style="min-height: 48px; background-color: #4A5568; color: white; border: none;">🛠️ 운영 점검</button>
           <button class="btn-small-action" onclick="window.open('print-bills.html', '_blank')" style="min-height: 48px; background-color: #ED8936; color: white; border: none;">🖨️ 빌지 인쇄</button>
           <button class="btn-small-action" onclick="window.open('board.html', '_blank')" style="min-height: 48px; background-color: #7C3AED; color: white; border: none;">🖥️ 전광판 보기</button>
           <button class="btn-small-action" id="btn-download-csv" style="min-height: 48px;">CSV 다운로드</button>
@@ -949,6 +950,39 @@
     </div>
   </div>
 
+  <!-- 운영 점검 모달 -->
+  <div class="admin-modal" id="modal-system-diagnose">
+    <div class="admin-modal-content" style="max-width: 600px;">
+      <div class="admin-modal-header">
+        <h2 class="admin-modal-title">🛠️ 시스템 운영 점검</h2>
+        <button class="admin-modal-close" onclick="closeDiagnoseModal()">&times;</button>
+      </div>
+      <div class="admin-modal-body" style="max-height: 70vh; overflow-y: auto; display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; background-color: #F8FAFC; padding: 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); margin-bottom: 4px;">
+          <div style="font-weight: 800; font-size: 15px; color: var(--text-main);">
+            현재 API 연결 및 스프레드시트 상태를 진단합니다.
+          </div>
+          <button class="btn btn-primary" onclick="runSystemDiagnosis()" style="margin: 0; min-height: 38px; width: auto; font-size: 14px; padding: 0 12px;">
+            🔄 다시 점검
+          </button>
+        </div>
+        
+        <!-- 점검 상태 요약 카드 -->
+        <div id="diagnose-summary-card" style="padding: 16px; border-radius: var(--radius-md); border: 2.5px solid var(--border-color); text-align: center; font-size: 18px; font-weight: 900; background-color: #F8FAFC;">
+          진단을 진행하고 있습니다...
+        </div>
+
+        <!-- 점검 리스트 -->
+        <div id="diagnose-results-list" style="display: flex; flex-direction: column; gap: 12px;">
+          <!-- JS 동적 생성 -->
+        </div>
+      </div>
+      <div class="admin-modal-footer">
+        <button class="btn btn-gray" onclick="closeDiagnoseModal()" style="flex: 1; min-height: 48px; font-size: 16px;">닫기</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 스크립트 참조 -->
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>
@@ -957,6 +991,220 @@
     let refreshSeconds = 30;
     const MAX_REFRESH_TIME = 30;
     let currentOrders = [];
+
+    // --- 시스템 운영 점검 (진단) 모달 제어 함수 ---
+    function openDiagnoseModal() {
+      const modal = document.getElementById('modal-system-diagnose');
+      if (modal) {
+        modal.style.display = 'flex';
+        // 임시로 자동 새로고침 타이머 일시정지
+        refreshPaused = true;
+        const btn = document.getElementById('btn-toggle-refresh');
+        if (btn) btn.textContent = '자동 재개';
+        resetRefreshTimer();
+        runSystemDiagnosis();
+      }
+    }
+
+    function closeDiagnoseModal() {
+      const modal = document.getElementById('modal-system-diagnose');
+      if (modal) {
+        modal.style.display = 'none';
+        // 타이머 다시 활성화
+        refreshPaused = false;
+        const btn = document.getElementById('btn-toggle-refresh');
+        if (btn) btn.textContent = '일시정지';
+        resetRefreshTimer();
+      }
+    }
+
+    async function runSystemDiagnosis() {
+      const summaryCard = document.getElementById('diagnose-summary-card');
+      const resultsList = document.getElementById('diagnose-results-list');
+      if (!summaryCard || !resultsList) return;
+
+      summaryCard.style.backgroundColor = '#F8FAFC';
+      summaryCard.style.borderColor = 'var(--border-color)';
+      summaryCard.style.color = 'var(--text-main)';
+      summaryCard.innerHTML = '⚙️ 진단을 진행하고 있습니다...';
+      resultsList.innerHTML = '';
+
+      try {
+        const adminToken = sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) || '';
+        
+        // 1. GAS 기본 통신 및 상세 진단 요청
+        const res = await fetchAPI('diagnoseSystem', {
+          method: 'POST',
+          body: {
+            adminToken: adminToken
+          }
+        });
+
+        if (!res || !res.success) {
+          summaryCard.style.backgroundColor = '#FFF5F5';
+          summaryCard.style.borderColor = '#FEB2B2';
+          summaryCard.style.color = '#C53030';
+          summaryCard.innerHTML = '🔴 GAS 연결 실패';
+          
+          resultsList.innerHTML = `
+            <div style="padding: 12px; border: 2px solid #FEB2B2; background-color: #FFF5F5; border-radius: var(--radius-sm); font-size: 15px; font-weight: 700; color: #9B2C2C;">
+              <span style="font-size: 18px;">❌</span> <strong>GAS API 응답 실패</strong><br>
+              <span style="font-size: 14px; font-weight: 600; color: #742A2A; display: block; margin-top: 4px;">
+                원인: API 주소가 올바르지 않거나 구글 서버 상태가 원활하지 않습니다. <br>
+                해결책: js/config.js 의 API_URL을 재확인하고, GAS 웹앱 배포 상태를 검사하세요.
+              </span>
+            </div>
+          `;
+          return;
+        }
+
+        // 2. 기본 진단 성공 (비밀번호 미입력 상태)
+        if (res.mode === 'basic') {
+          summaryCard.style.backgroundColor = '#FFFDF5';
+          summaryCard.style.borderColor = '#FEEBC8';
+          summaryCard.style.color = '#DD6B20';
+          summaryCard.innerHTML = '🟡 기본 연결 성공 (상세 진단 필요)';
+
+          let html = `
+            <div style="padding: 12px; border: 2px solid #FEEBC8; background-color: #FFFDF5; border-radius: var(--radius-sm); font-size: 15px; font-weight: 700; color: #DD6B20;">
+              <span style="font-size: 18px;">🟢</span> <strong>GAS 연결 완료</strong><br>
+              <span style="font-size: 14px; font-weight: 600; color: #7B341E; display: block; margin-top: 4px;">
+                구글 앱스 스크립트 서버와 통신은 양호합니다. 상세 점검(시트 구조 및 설정 키 검증)을 하려면 관리자 세션에 로그인(비밀번호 입력)해야 합니다.
+              </span>
+            </div>
+          `;
+
+          // 만약 어드민 토큰이 브라우저 세션에 없어서 basic 모드가 나온 것이라면, 비밀번호 입력을 유도
+          if (!adminToken) {
+            html += `
+              <div style="margin-top: 10px; padding: 12px; border: 2px solid var(--border-color); background-color: #F8FAFC; border-radius: var(--radius-sm); font-size: 15px; font-weight: 700;">
+                <p style="margin-bottom: 8px;">🔑 관리자 비밀번호를 입력해 주세요.</p>
+                <div style="display: flex; gap: 8px;">
+                  <input type="password" id="diagnose-input-pwd" placeholder="비밀번호 입력" style="flex: 1; padding: 8px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); font-size: 16px;">
+                  <button class="btn btn-secondary" onclick="submitDiagnosePassword()" style="margin:0; min-height: 38px; width: auto; font-size: 14px;">확인</button>
+                </div>
+              </div>
+            `;
+          }
+          resultsList.innerHTML = html;
+          return;
+        }
+
+        // 3. 상세 진단 성공 (detailed)
+        if (res.mode === 'detailed') {
+          // 전체적인 상태에 따른 카드 컬러링
+          if (res.overallStatus === 'OK') {
+            summaryCard.style.backgroundColor = '#F0FFF4';
+            summaryCard.style.borderColor = '#9AE6B4';
+            summaryCard.style.color = '#22543D';
+            summaryCard.innerHTML = '🟢 시스템 상태 양호 (정상 운영 가능)';
+          } else {
+            summaryCard.style.backgroundColor = '#FFFDF5';
+            summaryCard.style.borderColor = '#FEEBC8';
+            summaryCard.style.color = '#DD6B20';
+            summaryCard.innerHTML = '🟡 주의 및 확인이 필요합니다';
+          }
+
+          let itemsHtml = '';
+
+          // A. 구글 시트 검사 결과 렌더링
+          itemsHtml += `<h3 style="font-size: 16px; font-weight: 850; margin: 10px 0 6px 0; border-bottom: 2px dashed var(--border-color); padding-bottom: 4px;">📊 구글 스프레드시트 탭/헤더 점검</h3>`;
+          
+          for (let name in res.sheets) {
+            const sheet = res.sheets[name];
+            if (!sheet.exists) {
+              itemsHtml += `
+                <div style="padding: 10px; border: 2px solid #FEB2B2; background-color: #FFF5F5; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; color: #9B2C2C; display: flex; flex-direction: column; gap: 4px;">
+                  <div>🔴 [${name}] 시트 누락</div>
+                  <div style="font-size: 13px; font-weight: 600; color: #742A2A;">
+                    해결: 구글 스프레드시트에 반드시 '${name}' 이름으로 탭(시트)을 생성해 주세요.
+                  </div>
+                </div>
+              `;
+            } else if (sheet.status === 'WARN') {
+              itemsHtml += `
+                <div style="padding: 10px; border: 2px solid #FEEBC8; background-color: #FFFDF5; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; color: #DD6B20; display: flex; flex-direction: column; gap: 4px;">
+                  <div>🟡 [${name}] 시트 구조 불일치</div>
+                  <div style="font-size: 13px; font-weight: 600; color: #7B341E;">
+                    원인: ${sheet.error}<br>
+                    해결: 해당 컬럼들의 이름을 확인하고 원래 위치에 맞게 스프레드시트를 보정하세요.
+                  </div>
+                </div>
+              `;
+            } else {
+              itemsHtml += `
+                <div style="padding: 10px; border: 2.5px solid var(--border-color); background-color: white; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; color: var(--text-main); display: flex; justify-content: space-between; align-items: center;">
+                  <span>🟢 [${name}] 시트</span>
+                  <span style="font-size: 12px; color: #38A169; font-weight: 950; background-color: #E6FFFA; padding: 2px 8px; border-radius: 999px; border: 1.5px solid #81E6D9;">정상</span>
+                </div>
+              `;
+            }
+          }
+
+          // B. 구글 스크립트 속성 검사 결과 렌더링
+          itemsHtml += `<h3 style="font-size: 16px; font-weight: 850; margin: 18px 0 6px 0; border-bottom: 2px dashed var(--border-color); padding-bottom: 4px;">🔑 구글 앱스 스크립트 설정(Script Properties)</h3>`;
+          
+          for (let key in res.properties) {
+            const prop = res.properties[key];
+            if (prop.status === 'ERROR') {
+              itemsHtml += `
+                <div style="padding: 10px; border: 2px solid #FEB2B2; background-color: #FFF5F5; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; color: #9B2C2C; display: flex; flex-direction: column; gap: 4px;">
+                  <div>🔴 ${key} (${prop.description}) 누락</div>
+                  <div style="font-size: 13px; font-weight: 600; color: #742A2A;">
+                    해결: 구글 앱스 스크립트 에디터의 [프로젝트 설정 > 스크립트 속성]에 '${key}' 값을 정확히 추가해 주세요.
+                  </div>
+                </div>
+              `;
+            } else if (prop.status === 'INFO') {
+              itemsHtml += `
+                <div style="padding: 10px; border: 2.5px solid var(--border-color); background-color: #F8FAFC; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center;">
+                  <span>⚪ ${key} (${prop.description}) 미설정 (선택 사항)</span>
+                  <span style="font-size: 12px; color: var(--text-muted); font-weight: 950; background-color: #EDF2F7; padding: 2px 8px; border-radius: 999px; border: 1.5px solid var(--border-color);">선택</span>
+                </div>
+              `;
+            } else {
+              itemsHtml += `
+                <div style="padding: 10px; border: 2.5px solid var(--border-color); background-color: white; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; color: var(--text-main); display: flex; justify-content: space-between; align-items: center;">
+                  <span>🟢 ${key} (${prop.description})</span>
+                  <span style="font-size: 12px; color: #2B6CB0; font-weight: 950; background-color: #EBF8FF; padding: 2px 8px; border-radius: 999px; border: 1.5px solid #BEE3F8;">설정됨</span>
+                </div>
+              `;
+            }
+          }
+
+          resultsList.innerHTML = itemsHtml;
+        }
+
+      } catch (error) {
+        console.error(error);
+        summaryCard.style.backgroundColor = '#FFF5F5';
+        summaryCard.style.borderColor = '#FEB2B2';
+        summaryCard.style.color = '#C53030';
+        summaryCard.innerHTML = '🔴 진단 오류 발생';
+        resultsList.innerHTML = `
+          <div style="padding: 12px; border: 2px solid #FEB2B2; background-color: #FFF5F5; border-radius: var(--radius-sm); font-size: 15px; font-weight: 700; color: #9B2C2C;">
+            <strong>클라이언트 진단 엔진 오류</strong><br>
+            <span style="font-size: 13px; font-weight: 600; color: #742A2A; display: block; margin-top: 4px;">
+              에러 정보: ${error.message || error}
+            </span>
+          </div>
+        `;
+      }
+    }
+
+    async function submitDiagnosePassword() {
+      const input = document.getElementById('diagnose-input-pwd');
+      if (!input) return;
+      const pwd = input.value.trim();
+      if (!pwd) {
+        alert('비밀번호를 입력하세요.');
+        return;
+      }
+      
+      sessionStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, pwd);
+      updateAdminTokenStatus();
+      runSystemDiagnosis();
+    }
     let userImageMap = {};
     let previousPendingOrders = [];
     let hasLoadedOrdersOnce = false;
