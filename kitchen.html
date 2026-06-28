@@ -786,11 +786,16 @@
                 <input type="text" id="input-team-title" class="admin-inline-input" style="width: 160px; text-align: left; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;" placeholder="📦 오늘의 배달팀">
               </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 15px; font-weight: 700; color: var(--text-main);">
-              <span>멤버:</span>
-              <input type="text" id="input-team-members" class="admin-inline-input" style="flex: 1; min-width: 200px; text-align: left; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;" placeholder="김○○|배달 담당, 박○○|상품 준비 담당">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; font-size: 15px; font-weight: 700; color: var(--text-main);">
+              <label style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+                <span style="white-space: nowrap;">배달 담당:</span>
+                <input type="text" id="input-team-delivery-members" class="admin-inline-input" style="flex: 1; min-width: 0; text-align: left; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;" placeholder="예: 이인, 안태근">
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+                <span style="white-space: nowrap;">상품 준비:</span>
+                <input type="text" id="input-team-prep-members" class="admin-inline-input" style="flex: 1; min-width: 0; text-align: left; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;" placeholder="예: 박상민, 김동환">
+              </label>
             </div>
-            <div id="team-members-preview" class="delivery-team-role-grid delivery-team-preview" style="display: none;"></div>
             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 15px; font-weight: 700; color: var(--text-main);">
               <span>한마디:</span>
               <input type="text" id="input-team-message" class="admin-inline-input" style="flex: 1; min-width: 200px; text-align: left; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;" placeholder="맛있게 준비해서 배달하겠습니다!">
@@ -2512,7 +2517,6 @@
 
       const teamEnabledEl = document.getElementById('input-team-enabled');
       const teamTitleEl = document.getElementById('input-team-title');
-      const teamMembersEl = document.getElementById('input-team-members');
       const teamMessageEl = document.getElementById('input-team-message');
 
       if (creditEl) creditEl.value = data.guestBaseCredit ?? 10;
@@ -2521,9 +2525,8 @@
       
       if (teamEnabledEl) teamEnabledEl.checked = data.todayDeliveryTeamEnabled !== false && String(data.todayDeliveryTeamEnabled).toLowerCase() !== 'false';
       if (teamTitleEl) teamTitleEl.value = data.todayDeliveryTeamTitle || '';
-      if (teamMembersEl) teamMembersEl.value = data.todayDeliveryTeamMembers || '';
+      setTeamMemberInputs(data.todayDeliveryTeamMembers || '');
       if (teamMessageEl) teamMessageEl.value = data.todayDeliveryTeamMessage || '';
-      renderTeamMembersPreview();
 
       if (guestOpsCountdown) {
         clearInterval(guestOpsCountdown);
@@ -2619,37 +2622,51 @@
       return groups;
     }
 
-    function renderDeliveryTeamMemberGrid(container, membersStr) {
-      if (!container) return false;
-      container.innerHTML = '';
-      const groups = parseDeliveryTeamMemberGroups(membersStr).filter(group => group.names.length > 0);
-      if (groups.length === 0) return false;
-
-      groups.forEach(group => {
-        const card = document.createElement('div');
-        card.className = 'delivery-team-role-card';
-
-        const label = document.createElement('div');
-        label.className = 'delivery-team-role-label';
-        label.textContent = group.role || '멤버';
-        card.appendChild(label);
-
-        const names = document.createElement('div');
-        names.className = 'delivery-team-role-names';
-        names.textContent = group.names.join(', ');
-        card.appendChild(names);
-
-        container.appendChild(card);
-      });
-      return true;
+    function normalizeTeamNames(value) {
+      return String(value || '')
+        .split(',')
+        .map(name => name.trim())
+        .filter(Boolean);
     }
 
-    function renderTeamMembersPreview() {
-      const input = document.getElementById('input-team-members');
-      const preview = document.getElementById('team-members-preview');
-      if (!input || !preview) return;
-      const hasContent = renderDeliveryTeamMemberGrid(preview, input.value);
-      preview.style.display = hasContent ? 'grid' : 'none';
+    function setTeamMemberInputs(membersStr) {
+      const deliveryInput = document.getElementById('input-team-delivery-members');
+      const prepInput = document.getElementById('input-team-prep-members');
+      if (!deliveryInput && !prepInput) return;
+
+      const deliveryNames = [];
+      const prepNames = [];
+      const fallbackNames = [];
+
+      parseDeliveryTeamMemberGroups(membersStr).forEach(group => {
+        const role = String(group.role || '').trim();
+        if (role.includes('배달')) {
+          deliveryNames.push(...group.names);
+        } else if (role.includes('상품') || role.includes('준비') || role.includes('주문')) {
+          prepNames.push(...group.names);
+        } else {
+          fallbackNames.push(...group.names);
+        }
+      });
+
+      if (deliveryInput) deliveryInput.value = deliveryNames.concat(fallbackNames).join(', ');
+      if (prepInput) prepInput.value = prepNames.join(', ');
+    }
+
+    function buildRoleSegment(names, role) {
+      const normalized = normalizeTeamNames(names);
+      if (normalized.length === 0) return '';
+      return normalized
+        .map((name, index) => index === normalized.length - 1 ? `${name}|${role}` : name)
+        .join(', ');
+    }
+
+    function getComposedTeamMembers() {
+      const deliveryInput = document.getElementById('input-team-delivery-members');
+      const prepInput = document.getElementById('input-team-prep-members');
+      const deliverySegment = buildRoleSegment(deliveryInput ? deliveryInput.value : '', '배달 담당');
+      const prepSegment = buildRoleSegment(prepInput ? prepInput.value : '', '상품 준비 담당');
+      return [deliverySegment, prepSegment].filter(Boolean).join(', ');
     }
 
     function updateGuestOpsTimer(seconds) {
@@ -2693,7 +2710,6 @@
       const deliveryPlaceInput = document.getElementById('input-guest-delivery-place');
       const teamEnabledInput = document.getElementById('input-team-enabled');
       const teamTitleInput = document.getElementById('input-team-title');
-      const teamMembersInput = document.getElementById('input-team-members');
       const teamMessageInput = document.getElementById('input-team-message');
 
       if (!creditInput || !feeInput || !deliveryPlaceInput) return;
@@ -2703,7 +2719,7 @@
       const guestDefaultDeliveryPlace = deliveryPlaceInput.value.trim();
       const todayDeliveryTeamEnabled = teamEnabledInput ? teamEnabledInput.checked : true;
       const todayDeliveryTeamTitle = teamTitleInput ? teamTitleInput.value.trim() : '';
-      const todayDeliveryTeamMembers = teamMembersInput ? teamMembersInput.value.trim() : '';
+      const todayDeliveryTeamMembers = getComposedTeamMembers();
       const todayDeliveryTeamMessage = teamMessageInput ? teamMessageInput.value.trim() : '';
 
       try {
@@ -2763,11 +2779,6 @@
         btnDownloadCsv.addEventListener('click', () => {
           downloadTodayOrdersCsv();
         });
-      }
-
-      const inputTeamMembers = document.getElementById('input-team-members');
-      if (inputTeamMembers) {
-        inputTeamMembers.addEventListener('input', renderTeamMembersPreview);
       }
 
       // 지난 주문 보관 버튼 바인딩

@@ -870,20 +870,6 @@ body {
   word-break: keep-all;
 }
 
-.delivery-team-preview {
-  margin-top: 4px;
-}
-
-.delivery-team-preview .delivery-team-role-card {
-  padding: 8px 10px;
-  background-color: #F8FAFC;
-  border-color: var(--border-color);
-}
-
-.delivery-team-preview .delivery-team-role-names {
-  font-size: 15px;
-}
-
 /* 관리자 주문 요약 카드 */
 .summary-grid {
   display: grid;
