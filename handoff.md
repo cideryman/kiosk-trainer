@@ -338,7 +338,7 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 * **Haptic Feedbacks**: Sounds are created using the Web Audio API synthesizer dynamically. Do not rely on external MP3 files for general interaction sounds.
 * **Google Apps Script Deployments**: If you modify the backend API routes or settings, copy code from [google-apps-script.md](file:///c:/Users/user/Desktop/키오스크/google-apps-script.md) into the Google Sheet Script Editor, save, and trigger **[New Deployment]** (Web App, executing as Me, accessible by Anyone). Update `API_URL` in [js/config.js](file:///c:/Users/user/Desktop/키오스크/js/config.js) to match the new address.
 * **Apps Script Properties**: Store `ADMIN_TOKEN` for protected admin actions. For Kakao optional login, also store `KAKAO_REST_API_KEY` and `KAKAO_GUEST_KEY_SALT`. Add `KAKAO_CLIENT_SECRET` only if the Kakao console has Client Secret enabled. Register the static `guest.html` URL, not the GAS URL, as the Kakao Redirect URI.
-* **Service Worker Cache Discipline**: Any deployed static-file behavior change should bump `CACHE_NAME` in `service-worker.js`. The current reviewed version is `kiosk-cache-v91`.
+* **Service Worker Cache Discipline**: Any deployed static-file behavior change should bump `CACHE_NAME` in `service-worker.js`. The current reviewed version is `kiosk-cache-v97`.
 * **Syntax Check Caution**: `check_syntax.js` writes extracted GAS code into tracked `temp.js`. Prefer a direct parse command when you only need verification and want to avoid dirtying the working tree.
 
 ---
@@ -388,8 +388,36 @@ These items are ordered by operational risk. Do not redo completed items unless 
 
 다음 후보들은 기능 확장보다 운영 안정성과 개인정보 노출 감소를 우선한 목록입니다. 새 화면/새 기능을 크게 늘리기보다, 한 항목씩 적용하고 실제 운영에서 체감되는지 확인하세요.
 
-**Current open priority order (2026-06-28)**:
-1. **P4 후기 상세 모달 참여 정보 추가 검토**: 후기 참여를 늘리기 위한 관찰 기능. 새 탭/사용자 목록은 만들지 않고, 후기 상세 모달에 해당 작성자의 후기 횟수부터 작게 표시하는 방향을 우선 검토.
+**Current open priority order (2026-06-28 code review update)**:
+1. **P1 공개 읽기 API 범위 축소 및 관리자/공개 API 경계 재정리**:
+   - **Issue**: `google-apps-script.md`의 `doGet`에서 `getOrdersToday`가 관리자 토큰 없이 공개되어 있고, 응답에 오늘 주문자명, 주문번호, `orderToken`, 배송/수령지, 취소 정보가 포함됩니다. `index.html`, `guest.html`, `board.html`, `kitchen.html`도 이 API를 사용합니다.
+   - **Clarification**: 이 문제는 "관리자 화면에서 토큰 없이 보이는 정보가 많다"보다 더 넓습니다. GAS 웹앱 URL과 `action=getOrdersToday`를 아는 사람이면 관리자 화면을 열지 않아도 API 응답을 직접 조회할 수 있는 구조입니다.
+   - **Decision direction**: 공개 화면은 전용 API로 필요한 최소 정보만 받게 하고, 관리자/주방용 전체 주문 조회는 관리자 토큰을 요구하는 POST API로 분리하는 방향을 우선 검토합니다.
+   - **Caution**: `board.html` 전광판, `kitchen.html` 주방 화면, `index.html` 일반 키오스크의 취소 알림, `guest.html` 후기 버튼 동기화가 모두 `getOrdersToday`에 기대고 있으므로 한 번에 막으면 정상 기능이 깨질 수 있습니다. 먼저 호출처별 필요한 필드를 나눈 뒤 단계적으로 교체하세요.
+   - **Verification**: 공개 URL에서 전체 주문 목록/토큰/배송지가 보이지 않는지, 주방/전광판/키오스크 취소 알림은 기존처럼 동작하는지, GAS 새 배포 후 실제 주문-제공-취소-후기 흐름을 수동 확인합니다.
+2. **P1 공개 사용자 취소/후기 등록 검증 강화**:
+   - **Issue**: `userCancelOrder`와 `submitReview`는 `orderToken`이 있으면 비교하지만, 요청에 토큰이 없거나 빈 경우 주문번호만으로도 일부 처리가 진행될 수 있습니다.
+   - **Decision direction**: 게스트 주문 취소와 후기 등록은 `orderToken`을 필수로 요구하고, 회원/일반 키오스크 주문 취소는 현재 운영 정책에 맞춰 별도 검증 경로를 둡니다.
+   - **Caution**: `complete.html`과 `guest-orders.html`은 정상적으로 `orderToken`을 보내지만, 오래된 로컬 저장 데이터나 과거 주문에는 토큰이 비어 있을 수 있습니다. 토큰 없는 과거 주문은 "관리자에게 문의"로 안내하는 fallback을 준비하세요.
+   - **Verification**: 토큰 정상/누락/불일치 케이스, 접수중 취소, 준비 시작 후 취소 거부, 수령완료 후 후기 1회 제한을 각각 확인합니다.
+3. **P2 후기 사진 업로드 남용 방지**:
+   - **Issue**: `uploadImage(type === 'review')`는 관리자 토큰 없이 Drive 파일을 만들 수 있습니다. 후기 사진 업로드를 위해 의도적으로 열어둔 기능이지만, 현재는 주문 토큰/용량/횟수 제한이 약합니다.
+   - **Decision direction**: 후기 사진 업로드에도 `orderId + orderToken` 검증을 붙이고, 파일 크기/이미지 MIME/일일 업로드 횟수 제한을 추가하는 방식을 검토합니다.
+   - **Caution**: 후기 텍스트만 남기는 흐름은 계속 살아 있어야 합니다. 사진 업로드 실패 시 기존처럼 "사진 없이 후기 등록" 선택지가 유지되어야 합니다.
+4. **P2 주방 신규 주문 알림과 수령방식 필터 분리**:
+   - **Issue**: `kitchen.html`의 신규 주문 감지가 현재 화면 필터(`전체/포장/배달`)가 적용된 `pendingOrders` 기준입니다. 따라서 "포장만 보기" 상태에서 배달 신규 주문이 들어오면 알림이 빠지거나 필터 전환 시 뒤늦게 울릴 수 있습니다.
+   - **Decision direction**: 신규 주문 알림용 기준 목록은 화면 표시 필터와 분리하고, 전체 활성 미제공 주문 기준으로 이전/현재 주문번호를 비교합니다. 화면 렌더링 필터는 그대로 유지합니다.
+   - **Caution**: 알림음을 주문 유형별로 분리한 최근 작업(`new-pickup-order.mp3`, `new-delivery-order.mp3`)을 깨지 않도록, 새로 감지된 전체 주문 묶음으로 사운드 타입을 결정하세요.
+5. **P2 주방 통계 주문 건수 집계 보정**:
+   - **Issue**: 주방 화면의 `오늘 총 주문 건수`와 `이용자별 주문 건수`는 원본 행 수를 세기 때문에, 한 주문에 간식이 여러 개면 주문 1건이 여러 건처럼 표시될 수 있습니다.
+   - **Decision direction**: 주문번호(`orderNo`) 기준으로 묶은 뒤 주문 건수를 계산합니다. 간식별 집계와 총 크레딧 계산은 현재처럼 행 단위 합산이 맞습니다.
+   - **Caution**: "간식 판매량"은 행/수량 기준, "주문 건수"는 주문번호 기준으로 분리해야 합니다. 둘을 같은 기준으로 바꾸면 운영 통계가 다시 틀어질 수 있습니다.
+6. **P3 주문 저장 트랜잭션성 개선 검토**:
+   - **Issue**: `placeOrder`는 LockService로 동시 주문은 막고 있지만, 주문 행 추가/재고 차감/크레딧 차감이 여러 시트 쓰기로 나뉩니다. 중간 예외가 나면 주문, 재고, 크레딧이 일부만 반영될 가능성이 있습니다.
+   - **Clarification**: 이 항목은 낙관적 UI 때문이 아닙니다. 프론트의 낙관적 UI는 주방에서 상태 버튼을 먼저 바꾸고 실패 시 롤백하는 문제이고, 여기서 말한 P3는 GAS 백엔드 내부의 시트 쓰기 순서와 원자성 문제입니다.
+   - **Decision direction**: 먼저 실패 가능성이 높은 지점과 복구 방안을 기록하고, 필요하면 "검증 후 일괄 쓰기" 또는 "실패 시 보상 롤백" 구조를 검토합니다.
+   - **Caution**: 이 작업은 주문/재고/크레딧 핵심 흐름을 건드리므로 가장 조심해야 합니다. 운영 중 바로 대수술하지 말고, 위 P1/P2 보강 후 충분한 수동 테스트 시간을 확보했을 때 진행하세요.
+7. **P4 후기 상세 모달 참여 정보 추가 검토**: 후기 참여를 늘리기 위한 관찰 기능. 새 탭/사용자 목록은 만들지 않고, 후기 상세 모달에 해당 작성자의 후기 횟수부터 작게 표시하는 방향을 우선 검토.
 
 * **[DONE / P1 2026-06-27] 기본 루트(/) 접속 시 게스트 화면(guest.html) 노출 및 일반 키오스크 보안 대책**:
   - **배경**: 현재 `https://cideryman.github.io/kiosk-trainer/` 접속 시 일반 이용자 목록(이름/사진)이 바로 노출되는 `index.html`이 열리므로 개인정보 노출 우려가 있음. 외부인은 게스트 화면(`guest.html`)을 기본으로 보게 할 필요가 있음.
