@@ -4,6 +4,56 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
 
 ---
 
+## 0. Active Issues Quick Start (Start Here)
+
+This top section is the current working queue. Long history remains below, but new agents should start here first.
+
+### Active Issues (2026-06-28)
+1. **P1 - Order sheet P~V column standard and diagnostics false-positive prevention**
+   - Current code response field should remain `deliveryPlace`.
+   - Sheet P column is legacy-compatible: header may be `deliveryAddress` or `deliveryPlace`, and code/diagnostics should tolerate both until a deliberate migration is done.
+   - Do not manually delete/move order-sheet columns based only on the diagnostics warning. A human column edit can corrupt order/cancel/guest-key data.
+   - **Confirmed from attached workbook 2026-06-28**: `주문내역` currently has `P deliveryAddress / Q cancelReason / R deliveryPlace / S cancelReasonDetail / T guestDeviceId / U authProvider / V guestKey`. Data counts show P delivery place values, Q cancel reasons, R cancel detail-like values, S empty, and T/U/V guest identity values. This is operationally understandable but structurally confusing.
+   - Consider a separate one-time Apps Script repair function only with preview, backup, exact-layout guard, A~O untouched, and manual execution only. Do not run manual sheet edits.
+2. **P1 - Public read API and order-token boundary**
+   - `getOrdersToday` is currently public and returns more than display-only data, including `orderToken` and delivery/cancel metadata.
+   - Public screens should receive minimal display fields only. Admin/kitchen full order reads should move behind admin token. `getOrderStatus` should avoid returning `orderToken` back to the browser unless strictly needed.
+3. **P1 - Guest cancel/review token verification**
+   - Guest cancel and review submit flows should require a matching `orderToken`; order number alone should not be enough for guest-owned operations.
+   - Keep old/no-token orders graceful: show a user-facing "관리자에게 문의" style fallback instead of breaking the page.
+4. **P2 - Review photo upload guardrails**
+   - Keep guest review photo upload available, but add order-token validation, image MIME validation, size limits, and abuse-resistant checks.
+   - Preserve the current fallback that allows text-only review submission when photo upload fails.
+5. **P2 - Kitchen new-order sound should ignore visual filter**
+   - New-order detection should compare all active pending orders, not only the currently visible pickup/delivery filter.
+   - Rendering can remain filtered; alert detection should not.
+6. **P2 - Kitchen order-count statistics should count orders, not rows**
+   - Snack quantity and total credits remain row/quantity based.
+   - "Total orders" and "orders per user" should group by `orderNo`.
+7. **P3 - Order write transactionality review**
+   - This is not an optimistic UI issue. It is a backend sheet-write sequencing issue inside `placeOrder`: order rows, stock, and credits are written in separate steps.
+   - Do not perform a large rewrite while live operations are running smoothly. Treat this as a later hardening task after P1/P2.
+8. **P4 - Review participation info in review-detail modal**
+   - Still a future engagement/observation idea, not a stability blocker.
+9. **P5 - Low-risk cleanup**
+   - Stale `.target-both` CSS can be removed later. It is not a functional bug because `both` is no longer a supported snack target.
+
+### Recently Resolved
+* GAS deployment was reported current by the operator on 2026-06-28; keep "deploy latest GAS then re-run operations check" as an operating checklist, not an active fix item.
+* Root URL now routes visitors to `guest.html`; general kiosk uses `index.html?type=kiosk`.
+* Operations diagnostics button exists in admin/kitchen and has already received one false-positive/stability follow-up.
+* Admin header actions were grouped to reduce top-bar clutter.
+* Delivery-team input is split into separate delivery/prep fields while keeping the same settings storage string.
+
+### Stable Decisions
+* Snack `target` is only `user` or `guest`; do not restore `both`.
+* `userId: 'guest'` must remain for guest orders; do not replace it with Kakao identity.
+* Original Kakao ID/token must never be stored in Sheets. Store only salted internal `guestKey`.
+* P column delivery-place data is legacy-compatible. App/GAS response names may use `deliveryPlace`, while the sheet header may remain `deliveryAddress` until a guarded migration.
+* Do not auto-run migration/repair functions from `onOpen`, web API routes, or menus. Any order-sheet repair must be preview-first, backup-first, exact-layout guarded, and manually run once from Apps Script.
+
+---
+
 ## 1. Project Overview & Context
 This is a **Progressive Web App (PWA) Kiosk System** designed for adults with developmental disabilities at a day care center.
 * **Goal**: Allows users to select their nickname, view items, order snacks using virtual/allocated credits.
@@ -64,15 +114,24 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 ---
 
 ## 4. Database Schema (Google Sheets)
-* **`이용자목록` (Users)**: `userId` (ID), `nickname` (Name/Alias), `credit` (Balance), `useYn` (Active flag: Y/N), `imageUrl` (User Photo ID or URL).
-* **`간식목록` (Snacks)**: `snackId` (ID), `name` (Name), `point` (Cost), `imageUrl` (Image), `saleYn` (Availability flag: Y/N), `stock` (Inventory, 0 = Sold Out), `displayOrder` (Order in list), `target` (user/guest only; `both` has been removed).
-* **`주문내역` (Orders)**: `timestamp`, `orderNo` (ID), `userId`, `nickname`, `snackId`, `snackName`, `quantity`, `point` (Cost), `servedYn` (N/P/R/Y/C), `cancelTimestamp`, `orderToken`, `deliveryType` (pickup/delivery), `deliveryFee`, `totalCredit`, `reviewed` (Boolean), `deliveryPlace` (Column P), `guestDeviceId`, `authProvider`, `guestKey`, plus cancellation reason/detail fields used by current backend archival/export flows.
-* **`관리자로그` (Admin Logs)**: Tracks modifications made by administrative accounts for audit.
-* **`운영설정` (System Settings)**: System operational metadata.
-  - Added `guestDefaultDeliveryPlace` key mapping (defaults to "사무실 원탁") for the guest delivery place defaults.
-* **`후기내역` (Reviews)**: Customer reviews / compliments, including optional `imageUrl` and `useYn` visibility state.
-* **`게스트프로필` (Guest Profiles)**: Optional remembered display name and delivery place for Kakao-connected guests who explicitly check the remember option.
-* **`게스트크레딧` (Guest Credits)**: Daily guest credit wallet keyed by `periodKey`, `guestDeviceId`, and optional Kakao `guestKey`.
+This section follows the attached live workbook snapshot (`주간보호 매점DB.xlsx`, checked 2026-06-28). Code may use English logical field names, but the actual sheet headers below are the source of truth.
+
+* **`이용자목록` (Users)**: `이용자ID`, `별명`, `크레딧`, `사용여부`, `사진url`.
+* **`간식목록` (Snacks)**: `간식ID`, `이름`, `포인트`, `사진URL`, `판매여부`, `재고`, `표시순서`, `제공대상`, `범주`.
+  - `제공대상` uses `user` or `guest`. Do not restore `both`.
+  - `범주` exists in the live sheet as an extra column; current core ordering/ordering filters primarily use `제공대상`.
+* **`주문내역` (Orders)**:
+  - Current live headers are `주문시간`, `주문번호`, `이용자ID`, `별명`, `간식ID`, `간식명`, `수량`, `차감포인트`, `제공여부`, `cancelTimestamp`, `orderToken`, `deliveryType`, `deliveryFee`, `totalCredit`, `reviewed`, `deliveryAddress`, `cancelReason`, `deliveryPlace`, `cancelReasonDetail`, `guestDeviceId`, `authProvider`, `guestKey`.
+  - Known P~V caution: this is the pre-repair mixed layout. P has delivery-place data, Q has cancel reason, R has cancel-detail-like values, S is currently empty, and T/U/V hold guest identity values. Do not manually move/delete these columns. Use a guarded repair function only after preview and backup.
+  - App/GAS response objects should continue exposing the delivery-place value as `deliveryPlace` even if the sheet header is `deliveryAddress`.
+* **`주문보관` (Archive)**: current live headers are only A~O: `주문시간`, `주문번호`, `이용자ID`, `별명`, `간식ID`, `간식명`, `수량`, `차감포인트`, `제공여부`, `cancelTimestamp`, `orderToken`, `deliveryType`, `deliveryFee`, `totalCredit`, `reviewed`.
+* **`관리자로그` (Admin Logs)**: `timestamp`, `action`, `targetType`, `targetId`, `targetName`, `beforeValue`, `afterValue`, `memo`.
+* **`운영설정` (System Settings)**: `key`, `value`.
+  - Includes guest operation keys such as `guestDefaultDeliveryPlace`, `guestBaseCredit`, `guestDeliveryFee`, today's delivery-team fields, and Kakao guest bonus settings.
+* **`후기내역` (Reviews)**: `createdAt`, `orderId`, `guestName`, `stamp`, `tags`, `comment`, `isPublic`, `imageUrl`.
+* **`게스트프로필` (Guest Profiles)**: `guestKey`, `displayName`, `deliveryPlace`, `updatedAt`.
+* **`게스트크레딧` (Guest Credits)**: `periodKey`, `guestDeviceId`, `guestKey`, `baseCredit`, `bonusCredit`, `creditLimit`, `usedCredit`, `remainingCredit`, `updatedAt`.
+* **`설정`**: blank/unused sheet observed in the workbook snapshot.
 
 ---
 
@@ -388,36 +447,39 @@ These items are ordered by operational risk. Do not redo completed items unless 
 
 다음 후보들은 기능 확장보다 운영 안정성과 개인정보 노출 감소를 우선한 목록입니다. 새 화면/새 기능을 크게 늘리기보다, 한 항목씩 적용하고 실제 운영에서 체감되는지 확인하세요.
 
-**Current open priority order (2026-06-28 code review update)**:
-1. **P1 공개 읽기 API 범위 축소 및 관리자/공개 API 경계 재정리**:
-   - **Issue**: `google-apps-script.md`의 `doGet`에서 `getOrdersToday`가 관리자 토큰 없이 공개되어 있고, 응답에 오늘 주문자명, 주문번호, `orderToken`, 배송/수령지, 취소 정보가 포함됩니다. `index.html`, `guest.html`, `board.html`, `kitchen.html`도 이 API를 사용합니다.
-   - **Clarification**: 이 문제는 "관리자 화면에서 토큰 없이 보이는 정보가 많다"보다 더 넓습니다. GAS 웹앱 URL과 `action=getOrdersToday`를 아는 사람이면 관리자 화면을 열지 않아도 API 응답을 직접 조회할 수 있는 구조입니다.
-   - **Decision direction**: 공개 화면은 전용 API로 필요한 최소 정보만 받게 하고, 관리자/주방용 전체 주문 조회는 관리자 토큰을 요구하는 POST API로 분리하는 방향을 우선 검토합니다.
-   - **Caution**: `board.html` 전광판, `kitchen.html` 주방 화면, `index.html` 일반 키오스크의 취소 알림, `guest.html` 후기 버튼 동기화가 모두 `getOrdersToday`에 기대고 있으므로 한 번에 막으면 정상 기능이 깨질 수 있습니다. 먼저 호출처별 필요한 필드를 나눈 뒤 단계적으로 교체하세요.
-   - **Verification**: 공개 URL에서 전체 주문 목록/토큰/배송지가 보이지 않는지, 주방/전광판/키오스크 취소 알림은 기존처럼 동작하는지, GAS 새 배포 후 실제 주문-제공-취소-후기 흐름을 수동 확인합니다.
-2. **P1 공개 사용자 취소/후기 등록 검증 강화**:
-   - **Issue**: `userCancelOrder`와 `submitReview`는 `orderToken`이 있으면 비교하지만, 요청에 토큰이 없거나 빈 경우 주문번호만으로도 일부 처리가 진행될 수 있습니다.
-   - **Decision direction**: 게스트 주문 취소와 후기 등록은 `orderToken`을 필수로 요구하고, 회원/일반 키오스크 주문 취소는 현재 운영 정책에 맞춰 별도 검증 경로를 둡니다.
-   - **Caution**: `complete.html`과 `guest-orders.html`은 정상적으로 `orderToken`을 보내지만, 오래된 로컬 저장 데이터나 과거 주문에는 토큰이 비어 있을 수 있습니다. 토큰 없는 과거 주문은 "관리자에게 문의"로 안내하는 fallback을 준비하세요.
-   - **Verification**: 토큰 정상/누락/불일치 케이스, 접수중 취소, 준비 시작 후 취소 거부, 수령완료 후 후기 1회 제한을 각각 확인합니다.
-3. **P2 후기 사진 업로드 남용 방지**:
-   - **Issue**: `uploadImage(type === 'review')`는 관리자 토큰 없이 Drive 파일을 만들 수 있습니다. 후기 사진 업로드를 위해 의도적으로 열어둔 기능이지만, 현재는 주문 토큰/용량/횟수 제한이 약합니다.
-   - **Decision direction**: 후기 사진 업로드에도 `orderId + orderToken` 검증을 붙이고, 파일 크기/이미지 MIME/일일 업로드 횟수 제한을 추가하는 방식을 검토합니다.
-   - **Caution**: 후기 텍스트만 남기는 흐름은 계속 살아 있어야 합니다. 사진 업로드 실패 시 기존처럼 "사진 없이 후기 등록" 선택지가 유지되어야 합니다.
-4. **P2 주방 신규 주문 알림과 수령방식 필터 분리**:
+**Current open priority order (2026-06-28 GPT advice merged)**:
+1. **P1 주문내역 P~V 컬럼 기준 정리 및 진단 오탐 방지**:
+   - **Issue**: 화면/응답 필드는 `deliveryPlace`, GAS 기본 헤더는 legacy상 `deliveryAddress`, 진단 도구는 둘을 별칭으로 인정합니다. 실제 시트가 `P deliveryAddress / Q cancelReason / R deliveryPlace / S cancelReasonDetail / T guestDeviceId / U authProvider / V guestKey`처럼 꼬인 경우도 있습니다.
+   - **첨부 시트 확인 2026-06-28**: `주간보호 매점DB.xlsx`의 `주문내역`은 실제로 위 "꼬인 구조"와 일치합니다. P열에는 배송/수령지 값 51건, Q열에는 취소 사유 53건, R열에는 `테스트` 등 취소 상세로 보이는 값 13건, S열은 0건, T/U/V열에는 각각 `guestDeviceId`/`authProvider`/`guestKey` 값이 들어 있습니다.
+   - **Decision direction**: 당장은 P열을 `deliveryAddress` 또는 `deliveryPlace` 모두 허용하고, 코드 응답 필드는 `deliveryPlace`로 통일합니다. 실제 시트 마이그레이션은 백업 후 별도 작업으로만 진행합니다.
+   - **조언2 반영**: 일회성 복구 함수(`previewRepairOrderSheetColumns`, `repairOrderSheetColumnsOnce`)는 좋은 후보이지만, 지금 즉시 실행할 명령은 아닙니다. 구현한다면 preview 우선, 백업 우선, 정확한 꼬인 구조일 때만 실행, A~O 절대 불변, 자동 실행 금지, 수동 1회 실행 원칙을 지켜야 합니다.
+   - **Caution**: 운영자가 진단 경고만 보고 구글시트 열을 직접 삭제/이동하지 않도록 문서와 안내 문구를 먼저 명확히 하세요.
+2. **P1 공개 읽기 API 범위 축소 및 orderToken 경계 재정리**:
+   - **Issue**: `getOrdersToday`가 공개되어 있고, 응답에 오늘 주문자명, 주문번호, `orderToken`, 배송/수령지, 취소 정보가 포함됩니다. `getOrderStatus`도 주문번호 조회 시 `orderToken`을 되돌려줄 수 있습니다.
+   - **Decision direction**: 전광판/공개 화면용 API는 주문번호, 닉네임, 상태 등 최소 표시 필드만 반환합니다. 관리자/주방용 전체 주문 조회는 관리자 토큰을 요구하는 POST API로 분리합니다. `getOrderStatus`는 가능하면 주문토큰 기반 조회를 우선하고, 응답에서 `orderToken` 재전달은 줄입니다.
+   - **Caution**: `board.html`, `kitchen.html`, `index.html` 취소 알림, `guest.html` 후기 버튼 동기화가 `getOrdersToday`에 기대고 있으므로, 먼저 호출처별 필요한 필드를 나눈 뒤 단계적으로 교체하세요.
+3. **P1 게스트 취소/후기 등록 orderToken 필수화**:
+   - **Issue**: `userCancelOrder`와 `submitReview`는 `orderToken`이 있으면 비교하지만, 요청에 토큰이 없거나 빈 경우 주문번호만으로 일부 처리가 진행될 수 있습니다.
+   - **Decision direction**: 게스트 주문 취소와 후기 등록은 `orderToken`을 필수로 요구합니다. 회원/일반 키오스크 주문은 운영 정책에 맞춰 별도 검증 경로를 둡니다.
+   - **Caution**: 오래된 로컬 저장 데이터나 과거 주문에는 토큰이 비어 있을 수 있습니다. 이런 경우 페이지를 깨뜨리지 말고 "관리자에게 문의" fallback을 제공합니다.
+4. **P2 후기 사진 업로드 검증 강화**:
+   - **Issue**: `uploadImage(type === 'review')`는 관리자 토큰 없이 Drive 파일을 만들 수 있습니다. 의도는 맞지만 주문 토큰 검증, 용량 제한, MIME 제한이 약합니다.
+   - **Decision direction**: 후기 사진 업로드 시 `orderId + orderToken`을 같이 보내고 서버에서 해당 주문 토큰을 확인합니다. 이미지 MIME과 최대 용량도 제한합니다.
+   - **Caution**: 사진 업로드 실패 시 기존처럼 "사진 없이 후기 등록" 선택지는 유지합니다.
+5. **P2 주방 신규 주문 알림과 수령방식 필터 분리**:
    - **Issue**: `kitchen.html`의 신규 주문 감지가 현재 화면 필터(`전체/포장/배달`)가 적용된 `pendingOrders` 기준입니다. 따라서 "포장만 보기" 상태에서 배달 신규 주문이 들어오면 알림이 빠지거나 필터 전환 시 뒤늦게 울릴 수 있습니다.
    - **Decision direction**: 신규 주문 알림용 기준 목록은 화면 표시 필터와 분리하고, 전체 활성 미제공 주문 기준으로 이전/현재 주문번호를 비교합니다. 화면 렌더링 필터는 그대로 유지합니다.
    - **Caution**: 알림음을 주문 유형별로 분리한 최근 작업(`new-pickup-order.mp3`, `new-delivery-order.mp3`)을 깨지 않도록, 새로 감지된 전체 주문 묶음으로 사운드 타입을 결정하세요.
-5. **P2 주방 통계 주문 건수 집계 보정**:
+6. **P2 주방 통계 주문 건수 집계 보정**:
    - **Issue**: 주방 화면의 `오늘 총 주문 건수`와 `이용자별 주문 건수`는 원본 행 수를 세기 때문에, 한 주문에 간식이 여러 개면 주문 1건이 여러 건처럼 표시될 수 있습니다.
    - **Decision direction**: 주문번호(`orderNo`) 기준으로 묶은 뒤 주문 건수를 계산합니다. 간식별 집계와 총 크레딧 계산은 현재처럼 행 단위 합산이 맞습니다.
    - **Caution**: "간식 판매량"은 행/수량 기준, "주문 건수"는 주문번호 기준으로 분리해야 합니다. 둘을 같은 기준으로 바꾸면 운영 통계가 다시 틀어질 수 있습니다.
-6. **P3 주문 저장 트랜잭션성 개선 검토**:
+7. **P3 주문 저장 트랜잭션성 개선 검토**:
    - **Issue**: `placeOrder`는 LockService로 동시 주문은 막고 있지만, 주문 행 추가/재고 차감/크레딧 차감이 여러 시트 쓰기로 나뉩니다. 중간 예외가 나면 주문, 재고, 크레딧이 일부만 반영될 가능성이 있습니다.
    - **Clarification**: 이 항목은 낙관적 UI 때문이 아닙니다. 프론트의 낙관적 UI는 주방에서 상태 버튼을 먼저 바꾸고 실패 시 롤백하는 문제이고, 여기서 말한 P3는 GAS 백엔드 내부의 시트 쓰기 순서와 원자성 문제입니다.
-   - **Decision direction**: 먼저 실패 가능성이 높은 지점과 복구 방안을 기록하고, 필요하면 "검증 후 일괄 쓰기" 또는 "실패 시 보상 롤백" 구조를 검토합니다.
-   - **Caution**: 이 작업은 주문/재고/크레딧 핵심 흐름을 건드리므로 가장 조심해야 합니다. 운영 중 바로 대수술하지 말고, 위 P1/P2 보강 후 충분한 수동 테스트 시간을 확보했을 때 진행하세요.
-7. **P4 후기 상세 모달 참여 정보 추가 검토**: 후기 참여를 늘리기 위한 관찰 기능. 새 탭/사용자 목록은 만들지 않고, 후기 상세 모달에 해당 작성자의 후기 횟수부터 작게 표시하는 방향을 우선 검토.
+   - **Caution**: `placeOrder`, 주문보관 마이그레이션, 배송지 컬럼 병합, 관리자/주방 공통 코드 대분리는 지금 급하게 손대지 않습니다. P1/P2 안정화 후 충분한 테스트 시간을 확보했을 때 검토하세요.
+8. **P4 후기 상세 모달 참여 정보 추가 검토**: 후기 참여를 늘리기 위한 관찰 기능. 새 탭/사용자 목록은 만들지 않고, 후기 상세 모달에 해당 작성자의 후기 횟수부터 작게 표시하는 방향을 우선 검토.
+9. **P5 잔여 코드 정리**: `.target-both` CSS 등은 실제 로직과 무관한 낮은 우선순위 정리 후보입니다. 기능 오류가 아니므로 안정화 작업 뒤에 처리합니다.
 
 * **[DONE / P1 2026-06-27] 기본 루트(/) 접속 시 게스트 화면(guest.html) 노출 및 일반 키오스크 보안 대책**:
   - **배경**: 현재 `https://cideryman.github.io/kiosk-trainer/` 접속 시 일반 이용자 목록(이름/사진)이 바로 노출되는 `index.html`이 열리므로 개인정보 노출 우려가 있음. 외부인은 게스트 화면(`guest.html`)을 기본으로 보게 할 필요가 있음.
