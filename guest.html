@@ -283,7 +283,7 @@
             📦 오늘의 배달팀
           </div>
           
-          <div id="delivery-team-members" style="display: flex; flex-direction: column; gap: 12px;">
+          <div id="delivery-team-members" class="delivery-team-role-grid">
             <!-- 동적 렌더링 -->
           </div>
 
@@ -1010,69 +1010,10 @@
         }
 
         if (membersContainer) {
-          membersContainer.innerHTML = '';
-          const membersList = membersStr.split(',').map(m => m.trim()).filter(Boolean);
-          
-          if (membersList.length === 0) {
+          if (!renderDeliveryTeamMemberGrid(membersContainer, membersStr)) {
             teamSection.style.display = 'none';
             return;
           }
-
-          let currentRole = '';
-          const parsedMembers = [];
-          for (let i = membersList.length - 1; i >= 0; i--) {
-            const parts = membersList[i].split('|').map(p => p.trim());
-            if (parts.length > 1) {
-              currentRole = parts[1];
-            }
-            if (parts[0]) {
-              parsedMembers.unshift({ name: parts[0], role: currentRole });
-            }
-          }
-
-          const groupedMembers = {};
-          // Maintain order of roles
-          const rolesOrder = [];
-          parsedMembers.forEach(m => {
-            const roleKey = m.role || '';
-            if (!groupedMembers[roleKey]) {
-              groupedMembers[roleKey] = [];
-              rolesOrder.push(roleKey);
-            }
-            groupedMembers[roleKey].push(m.name);
-          });
-
-          rolesOrder.forEach(role => {
-            const names = groupedMembers[role];
-            const itemDiv = document.createElement('div');
-            itemDiv.style.display = 'flex';
-            itemDiv.style.alignItems = 'center';
-            itemDiv.style.justifyContent = 'center';
-            itemDiv.style.gap = '8px';
-            itemDiv.style.whiteSpace = 'nowrap';
-
-            if (role) {
-              const roleSpan = document.createElement('span');
-              roleSpan.style.backgroundColor = '#FFF3E0';
-              roleSpan.style.border = '1.5px solid var(--primary-color)';
-              roleSpan.style.padding = '2px 8px';
-              roleSpan.style.borderRadius = '999px';
-              roleSpan.style.fontSize = '13px';
-              roleSpan.style.fontWeight = '800';
-              roleSpan.style.color = '#E65100';
-              roleSpan.textContent = role;
-              itemDiv.appendChild(roleSpan);
-            }
-
-            const nameSpan = document.createElement('span');
-            nameSpan.style.fontWeight = '850';
-            nameSpan.style.fontSize = '18px';
-            nameSpan.style.color = 'var(--text-main)';
-            nameSpan.textContent = names.join(', ');
-            itemDiv.appendChild(nameSpan);
-
-            membersContainer.appendChild(itemDiv);
-          });
         }
 
         if (messageEl) {
@@ -1086,6 +1027,70 @@
         }
 
         teamSection.style.display = 'flex';
+      }
+
+      function parseDeliveryTeamMemberGroups(membersStr) {
+        const membersList = String(membersStr || '').split(',').map(m => m.trim()).filter(Boolean);
+        let currentRole = '';
+        const parsedMembers = [];
+
+        for (let i = membersList.length - 1; i >= 0; i--) {
+          const parts = membersList[i].split('|').map(p => p.trim());
+          if (parts.length > 1 && parts[1]) {
+            currentRole = parts.slice(1).join('|').trim();
+          }
+          if (parts[0]) {
+            parsedMembers.unshift({
+              name: parts[0],
+              role: currentRole || '멤버'
+            });
+          }
+        }
+
+        const grouped = new Map();
+        parsedMembers.forEach(member => {
+          const role = member.role || '멤버';
+          if (!grouped.has(role)) grouped.set(role, []);
+          grouped.get(role).push(member.name);
+        });
+
+        const preferredRoles = ['멤버', '배달 담당', '상품 준비 담당'];
+        const groups = [];
+        preferredRoles.forEach(role => {
+          if (grouped.has(role)) {
+            groups.push({ role, names: grouped.get(role) });
+            grouped.delete(role);
+          }
+        });
+        grouped.forEach((names, role) => {
+          groups.push({ role, names });
+        });
+        return groups;
+      }
+
+      function renderDeliveryTeamMemberGrid(container, membersStr) {
+        if (!container) return false;
+        container.innerHTML = '';
+        const groups = parseDeliveryTeamMemberGroups(membersStr).filter(group => group.names.length > 0);
+        if (groups.length === 0) return false;
+
+        groups.forEach(group => {
+          const card = document.createElement('div');
+          card.className = 'delivery-team-role-card';
+
+          const label = document.createElement('div');
+          label.className = 'delivery-team-role-label';
+          label.textContent = group.role || '멤버';
+          card.appendChild(label);
+
+          const names = document.createElement('div');
+          names.className = 'delivery-team-role-names';
+          names.textContent = group.names.join(', ');
+          card.appendChild(names);
+
+          container.appendChild(card);
+        });
+        return true;
       }
 
       function updateTimerDisplay(seconds) {

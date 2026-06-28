@@ -790,6 +790,7 @@
               <span>멤버:</span>
               <input type="text" id="input-team-members" class="admin-inline-input" style="flex: 1; min-width: 200px; text-align: left; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;" placeholder="김○○|배달 담당, 박○○|상품 준비 담당">
             </div>
+            <div id="team-members-preview" class="delivery-team-role-grid delivery-team-preview" style="display: none;"></div>
             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 15px; font-weight: 700; color: var(--text-main);">
               <span>한마디:</span>
               <input type="text" id="input-team-message" class="admin-inline-input" style="flex: 1; min-width: 200px; text-align: left; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;" placeholder="맛있게 준비해서 배달하겠습니다!">
@@ -2522,6 +2523,7 @@
       if (teamTitleEl) teamTitleEl.value = data.todayDeliveryTeamTitle || '';
       if (teamMembersEl) teamMembersEl.value = data.todayDeliveryTeamMembers || '';
       if (teamMessageEl) teamMessageEl.value = data.todayDeliveryTeamMessage || '';
+      renderTeamMembersPreview();
 
       if (guestOpsCountdown) {
         clearInterval(guestOpsCountdown);
@@ -2576,6 +2578,78 @@
         closeTimeEl.textContent = '-';
         remainingEl.textContent = '-';
       }
+    }
+
+    function parseDeliveryTeamMemberGroups(membersStr) {
+      const membersList = String(membersStr || '').split(',').map(m => m.trim()).filter(Boolean);
+      let currentRole = '';
+      const parsedMembers = [];
+
+      for (let i = membersList.length - 1; i >= 0; i--) {
+        const parts = membersList[i].split('|').map(p => p.trim());
+        if (parts.length > 1 && parts[1]) {
+          currentRole = parts.slice(1).join('|').trim();
+        }
+        if (parts[0]) {
+          parsedMembers.unshift({
+            name: parts[0],
+            role: currentRole || '멤버'
+          });
+        }
+      }
+
+      const grouped = new Map();
+      parsedMembers.forEach(member => {
+        const role = member.role || '멤버';
+        if (!grouped.has(role)) grouped.set(role, []);
+        grouped.get(role).push(member.name);
+      });
+
+      const preferredRoles = ['멤버', '배달 담당', '상품 준비 담당'];
+      const groups = [];
+      preferredRoles.forEach(role => {
+        if (grouped.has(role)) {
+          groups.push({ role, names: grouped.get(role) });
+          grouped.delete(role);
+        }
+      });
+      grouped.forEach((names, role) => {
+        groups.push({ role, names });
+      });
+      return groups;
+    }
+
+    function renderDeliveryTeamMemberGrid(container, membersStr) {
+      if (!container) return false;
+      container.innerHTML = '';
+      const groups = parseDeliveryTeamMemberGroups(membersStr).filter(group => group.names.length > 0);
+      if (groups.length === 0) return false;
+
+      groups.forEach(group => {
+        const card = document.createElement('div');
+        card.className = 'delivery-team-role-card';
+
+        const label = document.createElement('div');
+        label.className = 'delivery-team-role-label';
+        label.textContent = group.role || '멤버';
+        card.appendChild(label);
+
+        const names = document.createElement('div');
+        names.className = 'delivery-team-role-names';
+        names.textContent = group.names.join(', ');
+        card.appendChild(names);
+
+        container.appendChild(card);
+      });
+      return true;
+    }
+
+    function renderTeamMembersPreview() {
+      const input = document.getElementById('input-team-members');
+      const preview = document.getElementById('team-members-preview');
+      if (!input || !preview) return;
+      const hasContent = renderDeliveryTeamMemberGrid(preview, input.value);
+      preview.style.display = hasContent ? 'grid' : 'none';
     }
 
     function updateGuestOpsTimer(seconds) {
@@ -2689,6 +2763,11 @@
         btnDownloadCsv.addEventListener('click', () => {
           downloadTodayOrdersCsv();
         });
+      }
+
+      const inputTeamMembers = document.getElementById('input-team-members');
+      if (inputTeamMembers) {
+        inputTeamMembers.addEventListener('input', renderTeamMembersPreview);
       }
 
       // 지난 주문 보관 버튼 바인딩
