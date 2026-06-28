@@ -691,18 +691,28 @@
           <h1 style="font-size: 26px;">🍳 오늘 주문 운영</h1>
           <p style="font-size: 14px; margin: 4px 0 0 0; color: #E2E8F0;">오늘 접수된 주문을 확인하고 준비, 배달, 제공 완료까지 처리합니다.</p>
         </div>
-        <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+        <div class="admin-header-actions">
           <button class="btn-small-action" id="btnEnableSound" style="min-height: 48px; background-color: #38A169; color: white; border: none;">🔊 음성 알림 활성화</button>
-          <button class="btn-small-action" onclick="window.open('index.html?type=kiosk', '_blank')" style="min-height: 48px; background-color: #F59E0B; color: white; border: none;">🛒 일반 키오스크</button>
-          <button class="btn-small-action" onclick="window.open('guest.html?preview=1', '_blank')" style="min-height: 48px; background-color: #0F766E; color: white; border: none;">🛵 배달왔삼 미리보기</button>
-          <button class="btn-small-action" onclick="window.location.href='admin.html'" style="min-height: 48px; background-color: #3182CE; color: white; border: none;">⚙️ 관리자 설정</button>
-          <button class="btn-small-action" onclick="window.location.href='reviews.html'" style="min-height: 48px; background-color: #38A169; color: white; border: none;">💬 후기 관리</button>
+          <button class="btn-small-action" onclick="window.location.href='admin.html'" style="min-height: 48px; background-color: #3182CE; color: white; border: none;">⚙️ 관리자</button>
+          <button class="btn-small-action" onclick="window.location.href='reviews.html'" style="min-height: 48px; background-color: #38A169; color: white; border: none;">💬 후기</button>
           <button class="btn-small-action" onclick="openTodaySummaryModal()" style="min-height: 48px; background-color: #D97706; color: white; border: none;">📊 오늘의 운영 결과</button>
-          <button class="btn-small-action" onclick="openDiagnoseModal()" style="min-height: 48px; background-color: #4A5568; color: white; border: none;">🛠️ 운영 점검</button>
-          <button class="btn-small-action" onclick="window.open('print-bills.html', '_blank')" style="min-height: 48px; background-color: #ED8936; color: white; border: none;">🖨️ 빌지 인쇄</button>
-          <button class="btn-small-action" onclick="window.open('board.html', '_blank')" style="min-height: 48px; background-color: #7C3AED; color: white; border: none;">🖥️ 전광판 보기</button>
-          <button class="btn-small-action" id="btn-download-csv" style="min-height: 48px;">CSV 다운로드</button>
-          <button class="btn-small-action" id="btn-archive-old-orders" style="min-height: 48px; background-color: #4A5568; color: white; border: none;">지난 주문 보관 📁</button>
+          <details class="admin-action-menu">
+            <summary>운영 도구</summary>
+            <div class="admin-action-menu-panel">
+              <button class="btn-small-action" onclick="openDiagnoseModal()" style="background-color: #4A5568; color: white; border: none;">🛠️ 운영 점검</button>
+              <button class="btn-small-action" onclick="window.open('print-bills.html', '_blank')" style="background-color: #ED8936; color: white; border: none;">🖨️ 빌지 인쇄</button>
+              <button class="btn-small-action" id="btn-download-csv">CSV 다운로드</button>
+              <button class="btn-small-action" id="btn-archive-old-orders" style="background-color: #4A5568; color: white; border: none;">지난 주문 보관 📁</button>
+            </div>
+          </details>
+          <details class="admin-action-menu">
+            <summary>외부 화면</summary>
+            <div class="admin-action-menu-panel">
+              <button class="btn-small-action" onclick="window.open('index.html?type=kiosk', '_blank')" style="background-color: #F59E0B; color: white; border: none;">🛒 일반 키오스크</button>
+              <button class="btn-small-action" onclick="window.open('guest.html?preview=1', '_blank')" style="background-color: #0F766E; color: white; border: none;">🛵 배달왔삼 미리보기</button>
+              <button class="btn-small-action" onclick="window.open('board.html', '_blank')" style="background-color: #7C3AED; color: white; border: none;">🖥️ 전광판 보기</button>
+            </div>
+          </details>
           <button class="btn-small-action" id="btn-toggle-refresh" style="min-height: 48px;">일시정지</button>
           <button class="btn btn-primary" id="btn-manual-refresh" style="min-height: 48px; font-size: 16px; width: auto; padding: 0 16px; margin: 0;">
             🔄 지금 새로고침

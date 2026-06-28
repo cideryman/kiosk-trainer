@@ -667,10 +667,17 @@
           <h1 style="font-size: 26px;">💬 후기 관리 화면</h1>
           <p style="font-size: 14px; margin: 4px 0 0 0; color: #E2E8F0;">이용자가 남긴 후기를 확인하고 화면에 표시하거나 숨길 수 있습니다.</p>
         </div>
-        <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
-          <button class="btn-small-action" onclick="window.location.href='admin.html'" style="min-height: 48px; background-color: #3182CE; color: white; border: none;">⚙️ 관리자 설정</button>
-          <button class="btn-small-action" onclick="window.location.href='kitchen.html'" style="min-height: 48px; background-color: #3182CE; color: white; border: none;">🍳 오늘 주문 운영</button>
-          <button class="btn-small-action" onclick="window.open('board.html', '_blank')" style="min-height: 48px; background-color: #7C3AED; color: white; border: none;">🖥️ 전광판 보기</button>
+        <div class="admin-header-actions">
+          <button class="btn-small-action" onclick="window.location.href='admin.html'" style="min-height: 48px; background-color: #3182CE; color: white; border: none;">⚙️ 관리자</button>
+          <button class="btn-small-action" onclick="window.location.href='kitchen.html'" style="min-height: 48px; background-color: #3182CE; color: white; border: none;">🍳 주문 운영</button>
+          <details class="admin-action-menu">
+            <summary>외부 화면</summary>
+            <div class="admin-action-menu-panel">
+              <button class="btn-small-action" onclick="window.open('board.html', '_blank')" style="background-color: #7C3AED; color: white; border: none;">🖥️ 전광판 보기</button>
+              <button class="btn-small-action" onclick="window.open('index.html?type=kiosk', '_blank')" style="background-color: #F59E0B; color: white; border: none;">🛒 일반 키오스크</button>
+              <button class="btn-small-action" onclick="window.open('guest.html?preview=1', '_blank')" style="background-color: #0F766E; color: white; border: none;">🛵 배달왔삼 미리보기</button>
+            </div>
+          </details>
           <button class="btn btn-primary" id="btn-manual-refresh" style="min-height: 48px; font-size: 16px; width: auto; padding: 0 16px; margin: 0;">
             🔄 지금 새로고침
           </button>

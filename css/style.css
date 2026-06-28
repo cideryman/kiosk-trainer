@@ -711,6 +711,90 @@ body {
   font-weight: 800;
 }
 
+.admin-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.admin-action-menu {
+  position: relative;
+}
+
+.admin-action-menu summary {
+  min-height: 48px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-color: #334155;
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 850;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.admin-action-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-action-menu summary::after {
+  content: "▼";
+  font-size: 10px;
+}
+
+.admin-action-menu[open] summary::after {
+  content: "▲";
+}
+
+.admin-action-menu-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 50;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background-color: white;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+}
+
+.admin-action-menu-panel .btn-small-action {
+  width: 100%;
+  min-height: 42px;
+  text-align: left;
+}
+
+@media (max-width: 640px) {
+  .admin-header-actions {
+    justify-content: stretch;
+  }
+
+  .admin-header-actions > .btn-small-action,
+  .admin-header-actions > .btn,
+  .admin-action-menu {
+    flex: 1 1 100%;
+  }
+
+  .admin-action-menu-panel {
+    position: static;
+    margin-top: 6px;
+    min-width: 0;
+  }
+}
+
 .refresh-indicator {
   display: flex;
   align-items: center;
