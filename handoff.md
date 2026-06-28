@@ -49,7 +49,9 @@ This is a **Progressive Web App (PWA) Kiosk System** designed for adults with de
 ├── manifest-board.json   # Display board app configuration manifest
 ├── manifest-guest.json   # Guest app configuration manifest
 ├── sounds/
-│   └── new-order.mp3     # Custom new-order voice/audio cue for operations screens
+│   ├── new-order.mp3              # Default kiosk new-order voice/audio cue
+│   ├── new-pickup-order.mp3       # Guest pickup new-order voice/audio cue
+│   └── new-delivery-order.mp3     # Guest delivery new-order voice/audio cue
 ├── assets/               # Banners, closed/offline illustrations, logos
 ├── css/
 │   └── style.css         # Central styling sheet (custom variables, responsive layout)
@@ -827,3 +829,109 @@ These items are ordered by operational risk. Do not redo completed items unless 
 ##### 운영자가 확인할 것
 
 * GAS 새 배포 후 운영점검을 다시 눌러, 이번에 표시된 `간식목록`, `이용자목록`, `주문내역`, `주문보관` 경고가 사라지는지 확인하세요.
+
+---
+
+### 작업 기록 (Development Log) - 25) 주방 신규 주문 유형별 알림음 분리
+
+#### 작업명
+> 주방 화면에서 일반 키오스크/배달왔삼 포장/배달왔삼 배달 주문에 따라 신규 주문 알림음을 다르게 재생
+
+#### 1. Issue (문제)
+
+##### 증상
+* 주방 화면의 신규 주문 알림은 모든 주문 유형에서 `sounds/new-order.mp3` 하나만 재생했습니다.
+* 배달왔삼 포장과 배달 주문이 늘어나면서 소리만 듣고 주문 유형을 구분하기 어렵습니다.
+
+##### 영향
+* 주문 생성/제공 로직에는 영향이 없지만, 주방 담당자가 화면을 보기 전까지 포장/배달 여부를 즉시 알기 어렵습니다.
+
+#### 2. Cause (원인 분석)
+
+##### 원인
+* `kitchen.html`의 `playNewOrderSound()`가 주문 객체를 받지 않고 항상 고정 파일만 재생했습니다.
+* 신규 주문 감지 로직은 새로 들어온 주문 객체를 식별할 수 있었지만, 그 정보를 알림음 선택에 사용하지 않았습니다.
+
+##### 조사 과정
+* `sounds` 폴더에 `new-order.mp3`, `new-pickup-order.mp3`, `new-delivery-order.mp3`가 있는지 확인했습니다.
+* `kitchen.html`의 신규 주문 감지 로직과 `deliveryType`, `userId` 사용 흐름을 확인했습니다.
+* `service-worker.js` 프리캐시 목록에 기존 `new-order.mp3`만 등록되어 있음을 확인했습니다.
+
+#### 3. Decision (결정)
+
+##### 해결 방법
+* 일반 키오스크 주문은 기존 `sounds/new-order.mp3`를 유지합니다.
+* 게스트 포장 주문은 `sounds/new-pickup-order.mp3`를 재생합니다.
+* 게스트 배달 주문은 `sounds/new-delivery-order.mp3`를 재생합니다.
+* 동시에 여러 신규 주문이 감지될 경우 배달 주문을 우선합니다. 배달이 없고 게스트 주문이 있으면 포장 알림을 사용하고, 둘 다 아니면 기존 키오스크 알림을 사용합니다.
+* 새 mp3 파일 2개를 서비스워커 프리캐시에 추가하고 캐시 버전을 `kiosk-cache-v94`로 올렸습니다.
+
+##### 결정 이유
+* 주방 알림음은 분위기용 랜덤 효과보다 운영 신호에 가깝기 때문에 주문 유형별 분리가 더 실용적입니다.
+* 같은 이름/내용의 임시 파일이라도 파일명을 미리 분리해 두면, 추후 새 녹음본으로 교체할 때 코드 수정 없이 파일만 바꾸면 됩니다.
+
+##### 변경 파일
+* `kitchen.html`
+* `service-worker.js`
+* `handoff.md`
+* `sounds/new-pickup-order.mp3`
+* `sounds/new-delivery-order.mp3`
+
+#### 4. Verification (검증)
+
+##### 코드 검증
+* [x] 문법 검사: `node --check service-worker.js`, `kitchen.html` 인라인 스크립트 파싱 검사
+* [x] 정적 분석: 사운드 파일 존재, 주방 코드 참조, 서비스워커 캐시 등록 확인
+* [x] 빌드 성공: 정적 HTML 앱이라 별도 빌드 없음
+* [ ] 콘솔 오류 없음: 실제 브라우저/PWA에서 수동 확인 필요
+
+##### 기능 검증
+* [x] 기존 기능 영향 없음: 주문 생성/제공/GAS/스프레드시트 로직은 수정하지 않음
+* [ ] 신규 기능 정상 동작: 실제 주방 화면에서 주문 유형별 소리 재생 수동 확인 필요
+* [ ] 예외 상황 확인: 오디오 자동 재생 차단 또는 파일 누락 시 주문 처리는 계속되어야 함
+
+#### 5. Manual Test (수동 테스트)
+
+##### 테스트 순서
+
+1. GitHub Pages 반영 후 주방 화면을 열고 `음성 알림 활성화`를 누릅니다.
+2. 일반 키오스크 주문을 넣고 기존 `new-order.mp3`가 재생되는지 확인합니다.
+3. 배달왔삼 포장 주문을 넣고 `new-pickup-order.mp3`가 재생되는지 확인합니다.
+4. 배달왔삼 배달 주문을 넣고 `new-delivery-order.mp3`가 재생되는지 확인합니다.
+5. 화면을 PWA로 설치해 쓰는 기기에서는 새 캐시가 잡히도록 새로고침 또는 앱 재실행 후 확인합니다.
+
+##### 기대 결과
+* 주문 유형에 따라 다른 파일 경로의 알림음이 재생됩니다.
+* 파일 재생 실패가 있더라도 주문 목록 갱신과 제공 처리는 정상 유지됩니다.
+
+#### 6. Caution (주의사항)
+
+* GAS 추가 배포 필요 여부: **없음**. 정적 프론트 파일과 사운드 파일만 변경되었습니다.
+* Service Worker Cache 업데이트 필요 여부: **필요**. `kiosk-cache-v94`로 올렸습니다.
+* DB 컬럼 추가 여부: **없음**.
+* 환경설정 변경 여부: **없음**.
+* 새 파일을 교체할 때는 파일명(`new-pickup-order.mp3`, `new-delivery-order.mp3`)을 유지하면 코드 수정이 필요 없습니다.
+
+#### 7. Do Not (절대 하지 말 것)
+
+* 알림음 분리를 위해 주문 생성/제공/GAS 로직을 함께 바꾸지 마세요.
+* PWA 캐시 목록에 새 사운드 파일을 빼먹지 마세요.
+
+#### 8. Future Improvements (향후 개선)
+
+* 추후 실제 녹음 파일을 교체할 때 포장/배달 멘트를 명확히 다르게 녹음하면 운영 효과가 커집니다.
+* 필요하다면 주방 화면에 알림음 테스트 버튼을 추가해 배포 후 주문 없이도 소리를 점검할 수 있습니다.
+
+#### 9. Summary (요약)
+
+##### 무엇이 바뀌었는가?
+
+* 주방 신규 주문 알림음이 주문 유형별 파일을 선택하도록 바뀌었습니다.
+
+##### 왜 바뀌었는가?
+
+* 주방 담당자가 소리만 듣고도 일반/포장/배달 주문을 더 빨리 구분할 수 있게 하기 위해서입니다.
+
+##### 운영자가 확인할 것
+
+* GitHub Pages 배포 후 주방 화면에서 일반 키오스크, 배달왔삼 포장, 배달왔삼 배달 주문을 각각 넣어 알림음이 재생되는지 확인하세요.

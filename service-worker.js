@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kiosk-cache-v93';
+const CACHE_NAME = 'kiosk-cache-v94';
 const urlsToCache = [
   'index.html',
   'index.html?type=kiosk',
@@ -36,7 +36,9 @@ const urlsToCache = [
   'assets/store-banner.png',
   'assets/offline.png',
   'assets/closed-character.png',
-  'sounds/new-order.mp3'
+  'sounds/new-order.mp3',
+  'sounds/new-pickup-order.mp3',
+  'sounds/new-delivery-order.mp3'
 ];
 
 // 서비스 워커 설치 및 캐싱

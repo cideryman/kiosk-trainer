@@ -1286,44 +1286,64 @@
       }
     }
 
+    const NEW_ORDER_SOUND_PATHS = {
+      default: 'sounds/new-order.mp3',
+      pickup: 'sounds/new-pickup-order.mp3',
+      delivery: 'sounds/new-delivery-order.mp3'
+    };
+
+    function resolveNewOrderSoundPath(newOrders) {
+      const orders = Array.isArray(newOrders) ? newOrders : [];
+      const hasDeliveryOrder = orders.some(order =>
+        String(order.userId || '') === 'guest' && String(order.deliveryType || 'pickup') === 'delivery'
+      );
+      if (hasDeliveryOrder) return NEW_ORDER_SOUND_PATHS.delivery;
+
+      const hasGuestOrder = orders.some(order => String(order.userId || '') === 'guest');
+      if (hasGuestOrder) return NEW_ORDER_SOUND_PATHS.pickup;
+
+      return NEW_ORDER_SOUND_PATHS.default;
+    }
+
     // 신규 주문 발생 시 띵동 알림음 후 배달의민족 커스텀 알림음 재생
-    function playNewOrderSound() {
+    function playNewOrderSound(soundPath) {
       try {
+        const customSoundPath = soundPath || NEW_ORDER_SOUND_PATHS.default;
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
+
         // 첫 번째 음 (딩 - High A)
         const osc1 = audioCtx.createOscillator();
         const gain1 = audioCtx.createGain();
         osc1.connect(gain1);
         gain1.connect(audioCtx.destination);
-        
+
         osc1.type = 'sine';
         osc1.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
         gain1.gain.setValueAtTime(0, audioCtx.currentTime);
         gain1.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + 0.05);
         gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
-        
+
         osc1.start(audioCtx.currentTime);
         osc1.stop(audioCtx.currentTime + 0.6);
-        
+
         // 두 번째 음 (동 - Low E)
         const osc2 = audioCtx.createOscillator();
         const gain2 = audioCtx.createGain();
         osc2.connect(gain2);
         gain2.connect(audioCtx.destination);
-        
+
         osc2.type = 'sine';
         osc2.frequency.setValueAtTime(659, audioCtx.currentTime + 0.22); // E5
         gain2.gain.setValueAtTime(0, audioCtx.currentTime + 0.22);
         gain2.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + 0.27);
         gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.9);
-        
+
         osc2.start(audioCtx.currentTime + 0.22);
         osc2.stop(audioCtx.currentTime + 0.9);
 
         // 딩동 소리 재생이 끝날 즈음(약 1초 후)에 원장님 커스텀 목소리 재생
         setTimeout(() => {
-          const audio = new Audio('sounds/new-order.mp3');
+          const audio = new Audio(customSoundPath);
           audio.play().catch(e => {
             console.warn("오디오 자동 재생 차단:", e);
           });
@@ -1965,17 +1985,18 @@
 
       // 신규 주문 알림 접수 감지 및 재생
       if (hasLoadedOrdersOnce) {
-        const prevKeys = previousPendingOrders.map(o => o.orderNo);
-
-        const hasNewPendingOrder = pendingOrders.some(order =>
-          !prevKeys.includes(order.orderNo)
+        const prevKeys = new Set(previousPendingOrders.map(o => o.orderNo));
+        const newPendingOrders = pendingOrders.filter(order =>
+          !prevKeys.has(order.orderNo)
         );
+
+        const hasNewPendingOrder = newPendingOrders.length > 0;
 
         if (hasNewPendingOrder) {
           console.log('신규 주문 감지');
           console.log(previousPendingOrders.length);
           console.log(pendingOrders.length);
-          playNewOrderSound();
+          playNewOrderSound(resolveNewOrderSoundPath(newPendingOrders));
         }
       }
 
