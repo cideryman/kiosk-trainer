@@ -590,7 +590,7 @@
         if (fallbackIsGuest) {
           window.location.href = 'guest.html';
         } else {
-          window.location.href = 'index.html';
+          window.location.href = 'index.html?type=kiosk';
         }
         return;
       }
@@ -890,7 +890,7 @@
         clearInterval(pollInterval);
       }
       
-      const targetUrl = isGuestMode ? 'guest.html' : 'index.html';
+      const targetUrl = isGuestMode ? 'guest.html' : 'index.html?type=kiosk';
       
       // 세션 정리 (마지막 주문 정보 및 유저 초기화)
       localStorage.removeItem('lastOrderSummary');

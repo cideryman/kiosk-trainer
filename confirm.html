@@ -616,7 +616,11 @@
       cart = AppState.getCart();
 
       if (!user || cart.length === 0) {
-        window.location.href = 'index.html';
+        if (user && user.userId !== 'guest') {
+          window.location.href = 'index.html?type=kiosk';
+        } else {
+          window.location.href = 'index.html';
+        }
         return;
       }
 

@@ -383,7 +383,7 @@ const AppState = {
       if (isGuest) {
         window.location.href = 'guest.html';
       } else {
-        window.location.href = 'index.html';
+        window.location.href = 'index.html?type=kiosk';
       }
     }
 
