@@ -701,7 +701,7 @@
 <body>
   <div class="kiosk-container" style="height: auto; min-height: 100vh;">
     <!-- 관리자 헤더 -->
-    <header class="kiosk-header admin-header">
+    <header class="kiosk-header admin-header page-admin">
       <div class="kiosk-header-top">
         <div>
           <h1 style="font-size: 26px;">⚙️ 주간매점 관리자 설정</h1>
@@ -1664,7 +1664,7 @@
           : `<div class="admin-avatar-initial" style="background-color: ${safeAvatarBgColor}; width: 36px; height: 36px; font-size: 16px;">${safeInitial}</div>`;
 
         tr.innerHTML = `
-          <td>
+          <td onclick="${callAttr(`openEditUserModal(${userIdArg})`)}" class="admin-clickable-cell">
             <div style="display: flex; align-items: center; gap: 10px;">
               ${avatarHtml}
               <strong>${safeNickname} 님</strong>
@@ -2048,7 +2048,7 @@
         }
 
         tr.innerHTML = `
-          <td>
+          <td onclick="${callAttr(`openEditSnackModal(${snackIdArg})`)}" class="admin-clickable-cell">
             <div style="display: flex; align-items: center; gap: 10px;">
               <div style="position: relative; width: 36px; height: 36px;">
                 ${imgHTML}

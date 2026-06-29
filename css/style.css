@@ -706,6 +706,27 @@ body {
   padding: 20px;
 }
 
+.admin-header.page-admin {
+  background-color: #2B2D42;
+}
+
+.admin-header.page-kitchen {
+  background-color: #DD6B20;
+}
+
+.admin-header.page-reviews {
+  background-color: #38A169;
+}
+
+.admin-clickable-cell {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.admin-clickable-cell:hover {
+  background-color: #F1F5F9 !important;
+}
+
 .admin-header h1 {
   font-size: 24px;
   font-weight: 800;
