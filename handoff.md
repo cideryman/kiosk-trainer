@@ -16,6 +16,7 @@ This top section is the current working queue. Long history remains below, but n
    - Future engagement/observation idea, not a stability blocker.
 
 ### Recently Resolved
+* **[NEW]** P3 - 주방 화면 새로고침 제어 위치 이동 및 관리자 버튼 문구 축약 (Development Log - 40)
 * **[NEW]** P2 - 후기 이미지 업로드 상태/중복 검증 GAS 하드닝 배치 및 GAS 배포 완료 보고 (Development Log - 39)
 * **[NEW]** P1/P2 - 2026-06-29 code review static follow-up: review upload token forwarding, kiosk fallback routing, mock security parity, cache v103 (Development Log - 38)
 * **[NEW]** P2 - 이용자 및 간식 관리 탭 1열 터치 클릭 모달 연동 (Development Log - 37)
@@ -2097,4 +2098,84 @@ These items are ordered by operational risk. Do not redo completed items unless 
 
 #### 7. Summary (요약)
 * 후기 이미지 업로드를 단순 토큰 보유 여부가 아니라 "수령완료된 미리뷰 게스트 주문"으로 제한했습니다. 이번 작업은 GAS 기능 변경을 포함하므로, 운영 반영을 위해 Apps Script 새 배포가 1회 필요합니다.
+
+---
+
+### 작업 기록 (Development Log) - 40) 주방 화면 새로고침 제어 위치 이동 및 관리자 버튼 문구 축약
+
+#### 작업명
+> 주방 화면 헤더 부담을 줄이고 새로고침 제어를 실제 운영 맥락 아래로 이동
+
+#### 1. Issue (문제)
+##### 증상
+* 주방 화면 상단 헤더에 `음성 알림 활성화`, `일시정지`, `지금 새로고침`, 30초 카운트 바가 함께 있어 붉은/주황 계열 헤더 안에서 버튼 밀도가 높아 보였음.
+* 특히 `음성 알림 활성화`와 `지금 새로고침` 문구가 길어, 이미 색으로 화면 구분을 하는 관리자 UI에서 시각적 부담이 커졌음.
+
+##### 영향
+* 운영자가 주방 화면에서 자주 보는 핵심 영역이 헤더와 자동 새로고침 상태에 의해 복잡해 보일 수 있음.
+* 기능 오류는 아니지만, 실제 운영 중 인지 부담을 줄이는 UI 정리가 필요했음.
+
+#### 2. Decision (결정)
+##### 해결 방법
+* **안전 단위 1 - 주방 헤더 문구 축약**
+  - `kitchen.html`의 음성 알림 버튼을 `🔊 음성 알림 활성화`에서 `🔊 알림`으로 축약.
+* **안전 단위 2 - 주방 새로고침 제어 위치 이동**
+  - `일시정지`, `새로고침`, 30초 자동 새로고침 상태 바를 주방 헤더에서 제거.
+  - 동일한 DOM id(`btn-toggle-refresh`, `btn-manual-refresh`, `refresh-text`, `timer-bar`)를 유지한 채, `게스트 주문 운영` 패널 아래와 `간식 챙겨주기` 영역 위에 새 `kitchen-refresh-controls` 섹션으로 이동.
+  - 일시정지 버튼 문구는 기본 `⏸ 일시정지`, 정지 상태는 `▶ 자동 재개`로 표시.
+* **안전 단위 3 - 관리자/후기 화면 문구 축약**
+  - `admin.html`, `reviews.html`의 새로고침 버튼을 `🔄 지금 새로고침`에서 `🔄 새로고침`으로 축약.
+* **안전 단위 4 - 캐시 갱신**
+  - HTML/CSS 변경 반영을 위해 `service-worker.js`의 `CACHE_NAME`을 `kiosk-cache-v105`로 상향.
+
+##### GAS 배포 판단
+* **Apps Script 수정/배포 필요 없음.**
+* 이번 작업은 `kitchen.html`, `admin.html`, `reviews.html`, `css/style.css`, `service-worker.js`의 정적 프론트엔드 UI 변경만 포함함.
+
+##### 변경 파일
+* `kitchen.html` (주방 헤더 문구 축약, 새로고침 제어 위치 이동, 일시정지/재개 문구 조정)
+* `admin.html` (새로고침 버튼 문구 축약)
+* `reviews.html` (새로고침 버튼 문구 축약)
+* `css/style.css` (`kitchen-refresh-controls` 반응형 스타일 추가)
+* `service-worker.js` (PWA 캐시 버전 `kiosk-cache-v105`)
+* `handoff.md` (진행 기록)
+
+#### 3. Verification (검증)
+##### 코드 검증
+* [x] `git diff --check` 통과. 단, Windows 줄바꿈 경고(LF -> CRLF)는 기존 Git 설정에 따른 안내이며 diff 오류는 없음.
+* [x] `node --check js/app.js`, `node --check js/config.js`, `node --check service-worker.js` 통과.
+* [x] 전체 HTML 11개 파일 인라인 스크립트 파싱 통과.
+* [x] 서비스워커 캐시 버전 및 주요 변경 파일(`kitchen.html`, `admin.html`, `reviews.html`, `css/style.css`) 포함 확인.
+
+##### 렌더링 검증
+* [x] Chrome headless 기준 `kitchen.html` 데스크톱 1400x900, 모바일 390x900에서 가로 넘침 없음.
+* [x] 주방 헤더에서 `일시정지`/`새로고침`이 빠지고, `🔊 알림`이 표시됨.
+* [x] `kitchen-refresh-controls`가 `guest-ops-panel` 아래에 배치됨.
+* [x] `admin.html`, `reviews.html`의 새로고침 버튼 라벨이 `🔄 새로고침`으로 표시됨.
+
+#### 4. Manual Test (수동 테스트)
+##### 테스트 순서
+1. 주방 화면을 새로고침한 뒤 헤더에 `🔊 알림`, `관리자`, `후기`, `오늘의 운영 결과`, `운영 도구`, `외부 화면`만 남아 있는지 확인합니다.
+2. `게스트 주문 운영` 패널 아래에 `자동 새로고침 대기 중 (30초)`, `⏸ 일시정지`, `🔄 새로고침`이 보이는지 확인합니다.
+3. `⏸ 일시정지`를 눌렀을 때 버튼이 `▶ 자동 재개`로 바뀌고 자동 새로고침이 멈추는지 확인합니다.
+4. `▶ 자동 재개`를 다시 눌렀을 때 `⏸ 일시정지`로 돌아오고 30초 카운트가 다시 진행되는지 확인합니다.
+5. `🔄 새로고침`을 눌렀을 때 주문 목록이 수동으로 갱신되는지 확인합니다.
+6. 관리자 화면과 후기 화면에서 새로고침 버튼이 `🔄 새로고침`으로 보이고 기존처럼 클릭 동작이 유지되는지 확인합니다.
+
+#### 5. Caution (주의사항 / 오류 발생 시 대처방법)
+##### 오류 발생 시 대처방법
+* **증상: 주방 화면에서 예전 헤더가 계속 보임**
+  * PWA 캐시가 이전 버전을 들고 있을 가능성이 큽니다. 브라우저 새로고침 후에도 유지되면 앱을 완전히 닫았다가 다시 열고, 필요 시 사이트 데이터/캐시를 정리합니다. 이번 변경의 캐시 버전은 `kiosk-cache-v105`입니다.
+* **증상: 일시정지/새로고침 버튼이 동작하지 않음**
+  * `btn-toggle-refresh`, `btn-manual-refresh`, `refresh-text`, `timer-bar` id가 유지되어야 합니다. 해당 id를 바꾸거나 중복 생성하지 않았는지 확인합니다.
+* **증상: 모바일에서 버튼이 좁거나 줄바꿈이 어색함**
+  * `css/style.css`의 `.kitchen-refresh-controls`, `.kitchen-refresh-actions` 반응형 규칙을 우선 확인합니다. 버튼 자체 기능보다 배치 문제일 가능성이 높습니다.
+
+#### 6. Do Not (절대 하지 말 것)
+* 이 UI 정리를 위해 Apps Script를 수정하거나 새 GAS 배포를 요구하지 마십시오.
+* 새로고침 제어 id(`btn-toggle-refresh`, `btn-manual-refresh`, `refresh-text`, `timer-bar`)를 임의로 변경하지 마십시오. 기존 타이머/수동 갱신 로직이 이 id를 사용합니다.
+* 화면별 색 구분은 유지하기로 한 사용자 결정입니다. 이번 작업 범위를 색상 체계 전면 개편으로 확대하지 마십시오.
+
+#### 7. Summary (요약)
+* 현재 색 구분은 유지하면서, 주방 화면의 긴 버튼과 자동 새로고침 제어를 실제 운영 영역 아래로 옮겨 헤더 부담을 줄였습니다. 관리자/후기 화면은 새로고침 버튼 문구만 축약했으며, GAS 수정은 필요하지 않습니다.
 

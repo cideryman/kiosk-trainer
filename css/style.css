@@ -843,6 +843,67 @@ body {
   transition: width 1s linear;
 }
 
+.kitchen-refresh-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: -2px 0 18px 0;
+  padding: 12px 14px;
+  background-color: var(--card-bg);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+.kitchen-refresh-status {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.kitchen-refresh-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.kitchen-refresh-actions .btn-small-action {
+  min-height: 42px;
+  padding: 0 14px;
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.kitchen-refresh-actions #btn-toggle-refresh {
+  background-color: #2B2D42;
+}
+
+.kitchen-refresh-actions #btn-manual-refresh {
+  background-color: #FF9F1C;
+}
+
+@media (max-width: 640px) {
+  .kitchen-refresh-controls {
+    align-items: stretch;
+  }
+
+  .kitchen-refresh-actions {
+    width: 100%;
+  }
+
+  .kitchen-refresh-actions .btn-small-action {
+    flex: 1 1 140px;
+  }
+}
+
 .admin-section-title {
   font-size: 20px;
   font-weight: 800;
