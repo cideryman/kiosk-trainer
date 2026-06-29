@@ -1245,7 +1245,7 @@ function getOrdersToday() {
       point: Number(row[7]),
       servedYn: row[8] || 'N',
       cancelTimestamp: row[9] || '',
-      orderToken: row[10] || '',
+      orderToken: '', // 보안을 위해 공개 API에서는 토큰 노출 제외
       deliveryType: row[11] || 'pickup',
       deliveryFee: Number(row[12] || 0),
       totalCredit: Number(row[13] || 0),
@@ -1309,7 +1309,7 @@ function getOrderStatus(id) {
   return {
     success: true,
     orderNo: firstRow[1],
-    orderToken: firstRow[10] || '',
+    orderToken: '', // 보안을 위해 공개 API에서는 토큰 노출 제외
     servedYn: servedYn,
     cancelTimestamp: cancelTimestamp,
     deliveryType: firstRow[11] || 'pickup',
@@ -1385,7 +1385,7 @@ function getGuestOrdersToday(guestName) {
       point: Number(row[7]),
       servedYn: row[8] || 'N',
       cancelTimestamp: row[9] || '',
-      orderToken: row[10] || '',
+      orderToken: '', // 보안을 위해 공개 API에서는 토큰 노출 제외
       deliveryType: row[11] || 'pickup',
       deliveryFee: Number(row[12] || 0),
       totalCredit: Number(row[13] || 0),
