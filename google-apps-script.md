@@ -1799,9 +1799,10 @@ function userCancelOrder(data) {
       // orderId가 orderNo(회원) 또는 orderToken(게스트)와 일치하는 경우
       if (rowOrderId === String(orderId) || rowOrderToken === String(orderId)) {
         
-        if (requestToken && rowOrderToken) {
-          if (rowOrderToken !== String(requestToken)) {
-            return { success: false, message: '주문 확인 정보가 일치하지 않습니다.' };
+        // 게스트 주문이고 시트에 토큰이 있는 경우, 요청 토큰 검증 필수
+        if (rowOrderToken) {
+          if (!requestToken || rowOrderToken !== String(requestToken)) {
+            return { success: false, message: '주문 확인 정보(토큰)가 일치하지 않거나 누락되었습니다.' };
           }
         }
 
@@ -2176,7 +2177,7 @@ function uploadImage(data) {
   try {
     const base64Data = data.base64Data; // 'data:image/jpeg;base64,...'
     const fileName = data.fileName;
-    const type = data.type; // 'user' 또는 'snack'
+    const type = data.type; // 'user' 또는 'snack' 또는 'review'
 
     if (!base64Data || !fileName || !type) {
       return {
@@ -2185,12 +2186,64 @@ function uploadImage(data) {
       };
     }
 
-    // 보안 검증: 이용자 및 간식 이미지 등록은 관리자 권한이 필요합니다.
+    // 1. 이미지 크기 제한 (Base64 문자열 길이 기준 약 3.5MB 이하)
+    // 3.5MB * 1.33 = 약 4,650,000 characters
+    if (base64Data.length > 4700000) {
+      return {
+        success: false,
+        message: '이미지 파일 크기가 너무 큽니다. 3.5MB 이하의 파일만 업로드 가능합니다.'
+      };
+    }
+
+    // 2. 이미지 MIME 형식 검증
+    const mimeTypeMatch = base64Data.match(/^data:(image\/(jpeg|png|webp|gif|jpg));base64,/i);
+    if (!mimeTypeMatch) {
+      return {
+        success: false,
+        message: '허용되지 않는 파일 형식입니다. 이미지 파일(jpg, jpeg, png, webp, gif)만 업로드할 수 있습니다.'
+      };
+    }
+
+    // 3. 보안 검증
     if (type === 'user' || type === 'snack') {
       const auth = verifyAdminToken(data);
       if (!auth.success) {
         return auth;
       }
+    } else if (type === 'review') {
+      // 게스트 후기 사진 업로드 시 orderToken 필수 검증
+      const orderToken = String(data.orderToken || '').trim();
+      if (!orderToken) {
+        return {
+          success: false,
+          message: '주문 확인 정보(토큰)가 없어 이미지를 업로드할 수 없습니다.'
+        };
+      }
+      
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const orderSheet = ss.getSheetByName(SHEET.ORDERS);
+      if (!orderSheet) {
+        return { success: false, message: '주문내역 시트를 찾을 수 없습니다.' };
+      }
+      const values = orderSheet.getDataRange().getValues();
+      const headers = values[0] || [];
+      const orderTokenIdx = headers.indexOf('orderToken');
+      const userIdIdx = headers.indexOf('이용자ID');
+      const tIdx = orderTokenIdx !== -1 ? orderTokenIdx : 10;
+      const uIdx = userIdIdx !== -1 ? userIdIdx : 2;
+
+      const hasValidOrder = values.slice(1).some(row => 
+        String(row[tIdx]).trim() === orderToken && String(row[uIdx]).trim() === 'guest'
+      );
+
+      if (!hasValidOrder) {
+        return {
+          success: false,
+          message: '유효하지 않은 주문 정보입니다.'
+        };
+      }
+    } else {
+      return { success: false, message: '올바르지 않은 이미지 타입입니다.' };
     }
 
     // base64 헤더 제거 및 바이너리 디코딩
@@ -2599,9 +2652,10 @@ function submitReview(data) {
       const rowOrderToken = String(orderValues[i][orderTokenIdx !== -1 ? orderTokenIdx : 10] || '');
       
       if (rowOrderId === String(orderId)) {
-        if (requestToken && rowOrderToken) {
-          if (rowOrderToken !== String(requestToken)) {
-            return { success: false, message: '주문 확인 정보가 일치하지 않습니다.' };
+        // 게스트 주문이고 시트에 토큰이 있는 경우, 요청 토큰 검증 필수
+        if (rowOrderToken) {
+          if (!requestToken || rowOrderToken !== String(requestToken)) {
+            return { success: false, message: '주문 확인 정보(토큰)가 일치하지 않거나 누락되었습니다.' };
           }
         }
         targetIndices.push(i);

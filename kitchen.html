@@ -1998,11 +1998,14 @@
 
       const pendingOrders = filteredActive.filter(o => o.servedYn !== 'Y');
       const completedOrders = filteredActive.filter(o => o.servedYn === 'Y');
+      
+      // 필터와 상관없이 전체 대기(미제공) 주문을 기준으로 신규 주문 감지
+      const allPendingOrders = activeOrders.filter(o => o.servedYn !== 'Y');
 
       // 신규 주문 알림 접수 감지 및 재생
       if (hasLoadedOrdersOnce) {
         const prevKeys = new Set(previousPendingOrders.map(o => o.orderNo));
-        const newPendingOrders = pendingOrders.filter(order =>
+        const newPendingOrders = allPendingOrders.filter(order =>
           !prevKeys.has(order.orderNo)
         );
 
@@ -2011,12 +2014,12 @@
         if (hasNewPendingOrder) {
           console.log('신규 주문 감지');
           console.log(previousPendingOrders.length);
-          console.log(pendingOrders.length);
+          console.log(allPendingOrders.length);
           playNewOrderSound(resolveNewOrderSoundPath(newPendingOrders));
         }
       }
 
-      previousPendingOrders = [...pendingOrders];
+      previousPendingOrders = [...allPendingOrders];
       hasLoadedOrdersOnce = true;
 
       // 2. 미제공 간식 총합 계산 및 렌더링
