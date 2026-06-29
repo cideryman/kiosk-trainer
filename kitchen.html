@@ -2336,6 +2336,7 @@
       const snackAggregates = {}; // { snackName: totalQuantity }
       const userAggregates = {}; // { nickname: orderCount }
       const countedDeliveryFee = {}; // { orderNo: true }
+      const countedUserOrders = new Set(); // 이용자별 중복 주문번호 방지용 Set
 
       activeOrders.forEach(order => {
         const pointVal = order.point || 0;
@@ -2354,12 +2355,19 @@
         }
 
         if (order.nickname) {
-          userAggregates[order.nickname] = (userAggregates[order.nickname] || 0) + 1;
+          const userOrderKey = `${order.orderNo}_${order.nickname}`;
+          if (!countedUserOrders.has(userOrderKey)) {
+            userAggregates[order.nickname] = (userAggregates[order.nickname] || 0) + 1;
+            countedUserOrders.add(userOrderKey);
+          }
         }
       });
 
       document.getElementById('stat-total-points').textContent = AppState.formatPoint(totalPoints);
-      document.getElementById('stat-total-orders').textContent = `${orders.length}건`;
+      
+      // 오늘 총 주문 건수: 중복되지 않은 고유 orderNo의 총 개수 (취소된 주문 제외 활성 주문 기준)
+      const uniqueOrderNos = new Set(activeOrders.map(o => o.orderNo));
+      document.getElementById('stat-total-orders').textContent = `${uniqueOrderNos.size}건`;
 
       // 6. 간식 집계 렌더링
       const snackStatsEl = document.getElementById('snack-stats');
