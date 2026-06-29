@@ -19,6 +19,8 @@ This top section is the current working queue. Long history remains below, but n
    - Future engagement/observation idea, not a stability blocker.
 
 ### Recently Resolved
+* **[NEW]** P1 - 키오스크 주소 변경에 따른 복귀 쿼리 파라미터(type=kiosk) 누락 오류 수정 (Development Log - 35)
+* **[NEW]** P2 - 주방 화면 주문 통계 중복 카운트 버그 수정 (Development Log - 34)
 * **[NEW]** P2 - 관리자 운영 점검 모달 반응형 레이아웃 강화 (Development Log - 33)
 * **[NEW]** P2 - 주방 신규 주문 감지 시 화면 필터 우회 수정 (Development Log - 32)
 * **[NEW]** P2 - 게스트 후기 사진 업로드 가드레일 및 규격 제한 적용 (Development Log - 31)
@@ -1727,3 +1729,79 @@ These items are ordered by operational risk. Do not redo completed items unless 
 
 #### 8. Summary (요약)
 * 다품목 장바구니 주문 시 스프레드시트의 다중 행 발생 특성으로 인해 통계가 과다 카운팅되던 현상을 `Set` 중복 제거를 통해 주문번호(orderNo) 단위로 정교하게 통일함으로써 주방 운영 통계의 정밀성을 확보했습니다.
+
+---
+
+### 작업 기록 (Development Log) - 35) 키오스크 주소 변경에 따른 복귀 쿼리 파라미터(type=kiosk) 누락 오류 수정
+
+#### 작업명
+> 기본 주소(배달왔삼) 변경에 따른 일반 키오스크 모드 복귀 시 type=kiosk 파라미터 유실 현상 수정
+
+#### 1. Issue (문제)
+
+##### 증상
+* 일반 키오스크 모드(`index.html?type=kiosk`)로 로그인하여 주문을 진행하는 중 "이전으로 가기", "처음으로 가기", 또는 "유휴 타임아웃 만료"로 인해 메인 화면(`index.html`)으로 복귀할 때 게스트 모드(`guest.html`)로 강제 이동됨.
+
+##### 영향
+* 키오스크 기기에서 일반 회원이 주문을 진행하다가 뒤로가기를 누르거나 주문을 완료하면 게스트 모드(배달왔삼) 화면으로 넘어가버려 키오스크 기기로서의 정상적인 운영이 불가능해짐.
+
+#### 2. Cause (원인 분석)
+
+##### 원인
+* 기본 주소(/) 접속 시 배달왔삼(`guest.html`)으로 이동시키기 위해 `index.html` 상단에 `?type=kiosk`가 없는 경우 리다이렉트되도록 수정됨. 그러나 기존 코드 내에서 메인으로 보내는 여러 이동 명령어가 단순히 `window.location.href = 'index.html'`로 연결되어 파라미터가 유실되었음.
+
+#### 3. Decision (결정)
+
+##### 해결 방법
+* 사용자가 일반 회원(키오스크)일 경우와 게스트(배달왔삼)일 경우를 판별하여 분기 리다이렉션하도록 코드 수정.
+  * **수정 파일 및 위치**:
+    * `js/app.js`: 유휴 타임아웃 만료 시 `isGuest`가 아니면 `index.html?type=kiosk`로 리다이렉트
+    * `menu.html`: 일반 회원 상태에서 이전으로(뒤로가기) 버튼 클릭 시 `index.html?type=kiosk`로 이동
+    * `confirm.html`: 세션 혹은 카트가 비었을 때, `selectedUser`가 일반 회원일 경우 `index.html?type=kiosk`로 이동
+    * `complete.html`: 주문 완료 후 처음 화면 복귀 시 일반 회원은 `index.html?type=kiosk`로 이동
+    * `reviews.html`: 일반 키오스크 버튼 클릭 시 `index.html?type=kiosk`로 이동
+    * `board.html`: 전광판 화면 닫고 키오스크 화면으로 갈 때 `index.html?type=kiosk`로 이동
+  * **서비스 워커 캐시 상향**: 수정된 정적 리소스들이 즉시 반영되도록 `service-worker.js` 캐시 버전을 `kiosk-cache-v100`에서 `kiosk-cache-v101`로 업데이트.
+
+##### 결정 이유
+* 일반 키오스크 운영 기기들과 배달왔삼 게스트 모드 기기들이 각자 올바른 세션을 타며 오인 리다이렉션되지 않도록 주소 안전성과 사용자 경험을 보장하기 위함.
+
+##### 변경 파일
+* `js/app.js` (유휴 타임아웃 복귀 파라미터 추가)
+* `menu.html` (뒤로가기 시 복귀 파라미터 추가)
+* `confirm.html` (예외 복귀 파라미터 추가)
+* `complete.html` (처음으로 및 리다이렉트 파라미터 추가)
+* `reviews.html` (키오스크 버튼 복귀 파라미터 추가)
+* `board.html` (전광판 뒤로가기 복귀 파라미터 추가)
+* `service-worker.js` (PWA 캐시 버전 상향)
+* `handoff.md` (개발 로그 추가 및 기록)
+
+#### 4. Verification (검증)
+
+##### 코드 검증
+* [x] 정적 코드 분석: 수정된 전체 6개 파일의 주소 리다이렉션 흐름에 `?type=kiosk` 누락이 없는지 검토 완료.
+
+#### 5. Manual Test (수동 테스트)
+
+##### 테스트 순서
+1. 일반 키오스크 모드로 진입합니다 (`index.html?type=kiosk`).
+2. 사용자(일반 회원) 카드를 클릭하여 메뉴판(`menu.html`)에 들어간 후 '이전으로 가기'를 클릭해 봅니다.
+3. 다시 메뉴판에서 장바구니를 담고 주문 확인(`confirm.html`) 후 주문을 완료(`complete.html`)합니다.
+4. '처음으로 가기' 버튼을 누르거나 대기 시간 만료로 자동 리다이렉트될 때까지 기다려 봅니다.
+
+##### 기대 결과
+* 어떤 상황에서도 키오스크 모드가 풀리지 않고 항상 일반 이용자명 선택 화면(`index.html?type=kiosk`)으로 정상 복귀합니다.
+
+#### 6. Caution (주의사항 / 오류 발생 시 대처방법)
+
+##### 오류 발생 시 대처방법
+* **증상: 패치 이후에도 여전히 게스트 모드로 리다이렉트되는 문제**
+  * **원인**: 기기 내 브라우저에 구버전 정적 파일이 강하게 캐싱되어 있는 경우입니다.
+  * **대처법**: v101 버전 서비스 워커가 정상 설치/활성화된 상태에서 브라우저 탭을 완전히 닫았다가 다시 열어 새로고침하거나, 사이트의 서비스워커를 언레지스터 후 재접속합니다.
+
+#### 7. Do Not (절대 하지 말 것)
+* 주소 분기를 제거하거나 무차별 리다이렉트를 가하지 마십시오.
+
+#### 8. Summary (요약)
+* `type=kiosk` 쿼리 파라미터를 소실시키던 주요 리다이렉트 포인트들에 분기 로직 및 올바른 쿼리 스트링을 추가함으로써 키오스크와 게스트 모드의 주소 안정성을 확보하고 사용자 이탈을 해결했습니다.
+
