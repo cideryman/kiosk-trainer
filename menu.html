@@ -91,6 +91,14 @@
       return sessionStorage.getItem('guestPreviewMode') === 'Y' || !!(user && user.previewMode);
     }
 
+    function getMissingSessionFallbackUrl() {
+      const hasGuestFlowHint =
+        sessionStorage.getItem('guestPreviewMode') === 'Y' ||
+        sessionStorage.getItem('guestRemainingCredit') ||
+        sessionStorage.getItem('guestCreditLimit');
+      return hasGuestFlowHint ? 'guest.html' : 'index.html?type=kiosk';
+    }
+
     function renderGuestPreviewNotice() {
       if (!isGuestPreviewMode()) return;
       const mainContent = document.getElementById('main-content');
@@ -164,7 +172,7 @@
       user = AppState.getSelectedUser();
       if (!user) {
         // 유저 정보 없으면 메인으로 튕김
-        window.location.href = 'index.html';
+        window.location.href = getMissingSessionFallbackUrl();
         return;
       }
       

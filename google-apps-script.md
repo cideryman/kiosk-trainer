@@ -2219,7 +2219,7 @@ function uploadImage(data) {
           message: '주문 확인 정보(토큰)가 없어 이미지를 업로드할 수 없습니다.'
         };
       }
-      
+
       const ss = SpreadsheetApp.getActiveSpreadsheet();
       const orderSheet = ss.getSheetByName(SHEET.ORDERS);
       if (!orderSheet) {
@@ -2232,7 +2232,7 @@ function uploadImage(data) {
       const tIdx = orderTokenIdx !== -1 ? orderTokenIdx : 10;
       const uIdx = userIdIdx !== -1 ? userIdIdx : 2;
 
-      const hasValidOrder = values.slice(1).some(row => 
+      const hasValidOrder = values.slice(1).some(row =>
         String(row[tIdx]).trim() === orderToken && String(row[uIdx]).trim() === 'guest'
       );
 

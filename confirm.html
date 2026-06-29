@@ -304,6 +304,14 @@
       return sessionStorage.getItem('guestPreviewMode') === 'Y' || !!(user && user.previewMode);
     }
 
+    function getMissingSessionFallbackUrl() {
+      const hasGuestFlowHint =
+        sessionStorage.getItem('guestPreviewMode') === 'Y' ||
+        sessionStorage.getItem('guestRemainingCredit') ||
+        sessionStorage.getItem('guestCreditLimit');
+      return hasGuestFlowHint ? 'guest.html' : 'index.html?type=kiosk';
+    }
+
     function renderGuestPreviewNotice() {
       if (!isGuestPreviewMode()) return;
       const mainContent = document.getElementById('main-content');
@@ -616,10 +624,12 @@
       cart = AppState.getCart();
 
       if (!user || cart.length === 0) {
-        if (user && user.userId !== 'guest') {
+        if (user && user.userId === 'guest') {
+          window.location.href = 'guest.html';
+        } else if (user && user.userId !== 'guest') {
           window.location.href = 'index.html?type=kiosk';
         } else {
-          window.location.href = 'index.html';
+          window.location.href = getMissingSessionFallbackUrl();
         }
         return;
       }

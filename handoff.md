@@ -8,17 +8,16 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
 
 This top section is the current working queue. Long history remains below, but new agents should start here first.
 
-#### Active Issues (2026-06-29)
-1. **P2 - Kitchen order-count statistics should count orders, not rows**
-   - Snack quantity and total credits remain row/quantity based.
-   - "Total orders" and "orders per user" should group by `orderNo` instead of counting sheet rows directly.
-2. **P3 - Order write transactionality review**
-   - This is not an optimistic UI issue. It is a backend sheet-write sequencing issue inside `placeOrder`: order rows, stock, and credits are written in separate steps.
-   - Do not perform a large rewrite while live operations are running smoothly. Treat this as a later hardening task.
-3. **P4 - Review participation info in review-detail modal**
+#### Active Issues (2026-06-29 After Static Follow-Up)
+1. **P3 / GAS batch candidate - Optional backend hardening, deploy only once**
+   - No immediate static P1/P2 fixes remain from the 2026-06-29 code review follow-up; see Development Log 38.
+   - If doing a backend hardening pass, bundle related GAS changes into one edit and deploy once after verification. Candidate items: make review-image upload also check the matched order is a guest order in a valid reviewable state (`servedYn === 'Y'`) and consider rejecting repeated uploads after `reviewed` is already true; consider minimizing public `getOrderStatus` response fields further if privacy requirements increase; revisit `placeOrder` write transactionality only as a later hardening task.
+   - **Deployment rule:** do not redeploy after each tiny GAS tweak. Finish the planned GAS batch, run GAS parse checks and relevant frontend parse checks, then copy `google-apps-script.md` to Apps Script and create one new deployment.
+2. **P4 - Review participation info in review-detail modal**
    - Future engagement/observation idea, not a stability blocker.
 
 ### Recently Resolved
+* **[NEW]** P1/P2 - 2026-06-29 code review static follow-up: review upload token forwarding, kiosk fallback routing, mock security parity, cache v103 (Development Log - 38)
 * **[NEW]** P2 - 이용자 및 간식 관리 탭 1열 터치 클릭 모달 연동 (Development Log - 37)
 * **[NEW]** P2 - 관리자 화면별 상단 색 구분 및 PWA theme-color 연동 (Development Log - 36)
 * **[NEW]** P1 - 키오스크 주소 변경에 따른 복귀 쿼리 파라미터(type=kiosk) 누락 오류 수정 (Development Log - 35)
@@ -1937,4 +1936,88 @@ These items are ordered by operational risk. Do not redo completed items unless 
 
 #### 8. Summary (요약)
 * `admin.html` 내의 데이터 관리 표에서 1열의 셀에만 포인터 스타일과 수정 모달 실행 이벤트를 접목시킴으로써, 모바일 터치 사용성을 극대화하는 동시에 인라인 수량 조정 폼 조작 시의 불필요한 트리거 오작동을 영리하게 극복했습니다.
+
+---
+
+### 작업 기록 (Development Log) - 38) 코드 리뷰 후속 정적 안정화 및 GAS 배포 분리
+
+#### 작업명
+> 2026-06-29 코드 리뷰에서 발견된 정적 연결 누락과 Mock 정합성 문제를 GAS 재배포 없이 안전 단위로 후속 정리
+
+#### 1. Issue (문제)
+##### 증상
+* `google-apps-script.md`의 `uploadImage(type === 'review')`는 후기 사진 업로드 시 `orderToken`을 필수로 요구하도록 강화되었으나, `complete.html`과 `guest-orders.html`의 실제 업로드 호출에는 `orderToken`이 빠져 있었음.
+* `index.html`이 `?type=kiosk`가 없으면 `guest.html`로 보내는 구조가 된 뒤에도, 일부 세션 누락 fallback 경로가 bare `index.html`로 남아 일반 키오스크 기기가 게스트 화면으로 빠질 수 있었음.
+* `js/config.js` Mock API가 공개 조회 응답에서 `orderToken`을 그대로 반환하거나 후기 이미지 업로드 검증을 생략해, 로컬 테스트가 운영 보안 정책을 제대로 재현하지 못했음.
+* 오늘 diff에 trailing whitespace가 남아 `git diff --check`에서 경고가 발생했음.
+
+#### 2. Decision (결정)
+##### 해결 방법
+* **안전 단위 1 - 후기 사진 업로드 토큰 전달**
+  - `complete.html`: `uploadImage` body에 `orderToken: summaryData.orderToken` 추가.
+  - `guest-orders.html`: `uploadImage` body에 `orderToken: currentReviewOrderToken` 추가.
+* **안전 단위 2 - `type=kiosk` 예외 복귀 경로 보완**
+  - `menu.html`과 `confirm.html`에 `getMissingSessionFallbackUrl()`을 추가.
+  - 현재 탭에 `guestPreviewMode`, `guestRemainingCredit`, `guestCreditLimit` 같은 게스트 진행 힌트가 있으면 `guest.html`로, 그 외 세션 누락 복구는 `index.html?type=kiosk`로 보냄.
+* **안전 단위 3 - Mock 보안 정합성 보완**
+  - `js/config.js`의 공개 Mock 응답(`getOrderStatus`, `getGuestOrdersToday`, `getOrdersToday`)에서 `orderToken`을 빈 문자열로 마스킹.
+  - Mock `uploadImage`도 실제 GAS와 같은 방향으로 base64/MIME/용량 검증 및 후기 업로드 `orderToken` 검증을 수행하도록 수정.
+  - 토큰 기반 전용 조회인 `getGuestOrderByToken`, `getGuestOrdersByGuestKey`는 후기 등록 연계를 위해 토큰 반환을 유지.
+* **안전 단위 4 - 캐시 및 공백 정리**
+  - `service-worker.js`의 `CACHE_NAME`을 `kiosk-cache-v103`으로 상향.
+  - `google-apps-script.md`와 `kitchen.html`의 trailing whitespace를 제거. 이는 기능 변경이 아닌 공백 정리임.
+
+##### GAS 배포 판단
+* **이번 작업으로 인한 GAS 새 배포 필요 없음.**
+* `google-apps-script.md`는 기능 로직을 바꾸지 않고 공백만 정리했으므로 Apps Script에 복사/새 배포할 필요가 없음.
+* 향후 GAS 보강이 필요하면 후기 이미지 업로드 상태 검증, 반복 업로드 제한, 공개 상태 조회 응답 최소화, `placeOrder` 쓰기 원자성 검토를 한 번의 백엔드 배치로 묶어 작업하고 마지막에 한 번만 배포할 것.
+
+##### 변경 파일
+* `complete.html` (후기 사진 업로드 `orderToken` 전달)
+* `guest-orders.html` (후기 사진 업로드 `orderToken` 전달)
+* `menu.html` (세션 누락 fallback 분기)
+* `confirm.html` (세션/카트 누락 fallback 분기)
+* `js/config.js` (Mock 공개 토큰 마스킹 및 후기 이미지 업로드 검증)
+* `service-worker.js` (PWA 캐시 버전 `kiosk-cache-v103`)
+* `google-apps-script.md` (공백 정리만, 기능 변경 없음)
+* `kitchen.html` (공백 정리만)
+* `handoff.md` (진행 기록)
+
+#### 3. Verification (검증)
+##### 코드 검증
+* [x] `git diff --check` 통과.
+* [x] `node --check js/app.js`, `node --check js/config.js`, `node --check service-worker.js` 통과.
+* [x] `google-apps-script.md` 직접 파싱 통과.
+* [x] 전체 HTML 11개 파일 인라인 스크립트 파싱 통과.
+* [x] 서비스워커 프리캐시 목록의 로컬 파일 존재 검사 통과. `index.html?type=kiosk`는 쿼리 앞의 `index.html` 기준으로 확인.
+
+##### 정적 계약 검증
+* [x] `complete.html`과 `guest-orders.html`의 `uploadImage` 호출이 각각 본인 주문의 `orderToken`을 전달함.
+* [x] `js/config.js` 공개 Mock 조회 응답이 production GAS처럼 `orderToken: ''`로 마스킹됨.
+* [x] `service-worker.js` 캐시 버전이 `kiosk-cache-v103`으로 갱신됨.
+
+#### 4. Manual Test (수동 테스트)
+##### 테스트 순서
+1. GitHub Pages 배포 후 PWA/브라우저를 완전히 새로고침하여 `kiosk-cache-v103`이 적용되도록 합니다.
+2. 게스트 주문을 1건 넣고 수령완료(Y) 상태로 만든 뒤 `complete.html` 또는 `guest-orders.html`에서 사진이 포함된 후기를 등록합니다.
+3. 사진 업로드가 성공하면 후기 이미지가 후기 관리 화면/게스트 후기 영역에 표시되는지 확인합니다.
+4. 일반 키오스크 기기에서 세션이 비었거나 뒤로가기/예외 복귀가 발생했을 때 `index.html?type=kiosk`의 이름 선택 화면으로 돌아오는지 확인합니다.
+5. 게스트 흐름에서는 게스트 진행 힌트가 있을 때 `guest.html`로 돌아가는지 확인합니다.
+
+#### 5. Caution (주의사항 / 오류 발생 시 대처방법)
+##### 오류 발생 시 대처방법
+* **증상: 사진 후기 업로드가 여전히 "토큰 없음"으로 실패**
+  * 브라우저가 이전 정적 파일을 캐시하고 있을 가능성이 큽니다. PWA를 완전히 종료하고 다시 열거나 브라우저 캐시를 지운 뒤 `service-worker.js`가 `kiosk-cache-v103`인지 확인합니다.
+* **증상: 텍스트 후기는 되지만 사진만 실패**
+  * `complete.html`/`guest-orders.html`에서 해당 주문 객체가 `orderToken`을 보유하고 있는지 LocalStorage의 `guestOrders` 또는 토큰 기반 조회 응답을 확인합니다.
+* **증상: 일반 키오스크가 게스트 화면으로 빠짐**
+  * `menu.html` 또는 `confirm.html`에서 새 fallback 분기가 적용된 최신 정적 파일인지 확인합니다. 직접 접속/복구 주소는 `index.html?type=kiosk`여야 합니다.
+
+#### 6. Do Not (절대 하지 말 것)
+* 이 정적 후속 작업을 이유로 Apps Script를 즉시 새 배포하지 마십시오. 이번 묶음에는 GAS 기능 변경이 없습니다.
+* 게스트 흐름 전체를 무조건 `index.html?type=kiosk`로 돌리지 마십시오. 게스트 진행 힌트가 있는 경우에는 `guest.html` 복귀가 맞습니다.
+* 토큰 기반 전용 조회(`getGuestOrderByToken`, `getGuestOrdersByGuestKey`)까지 Mock/Production에서 토큰을 마스킹하지 마십시오. 후기 등록과 취소 연계가 깨집니다.
+
+#### 7. Summary (요약)
+* 후기 사진 업로드의 프론트/백엔드 보안 계약을 맞추고, 일반 키오스크 복귀 예외 경로와 Mock 보안 정합성을 정적 파일 단위로 보완했습니다. 이번 작업은 GAS 기능 변경 없이 완료되었으며, 백엔드 하드닝은 추후 한 번의 GAS 배치로 묶어 처리하는 방침을 명확히 남겼습니다.
 

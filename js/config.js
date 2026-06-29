@@ -342,7 +342,7 @@ function getMockFallback(action, options) {
       res = {
         success: true,
         orderNo: matched.orderNo,
-        orderToken: matched.orderToken || '',
+        orderToken: '',
         servedYn: matched.servedYn || 'N',
         cancelTimestamp: matched.cancelTimestamp || '',
         deliveryType: matched.deliveryType || 'pickup',
@@ -370,7 +370,7 @@ function getMockFallback(action, options) {
 
     res = {
       success: true,
-      orders: matchedOrders.map(o => ({ ...o, reviewed: o.reviewed || false }))
+      orders: matchedOrders.map(o => ({ ...o, orderToken: '', reviewed: o.reviewed || false }))
     };
   } else if (action === 'getGuestOrdersByGuestKey') {
     const authProvider = options.body?.authProvider;
@@ -438,7 +438,7 @@ function getMockFallback(action, options) {
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
     res = {
       success: true,
-      orders: [...localOrders, ...MOCK_DATA.getOrdersToday.orders].map(o => ({ ...o, reviewed: o.reviewed || false }))
+      orders: [...localOrders, ...MOCK_DATA.getOrdersToday.orders].map(o => ({ ...o, orderToken: '', reviewed: o.reviewed || false }))
     };
   } else if (action === 'placeOrder') {
     // 주문 완료 시 로컬 스토리지에 임시 주문 추가 (관리자 화면에서 확인 가능하게)
@@ -891,11 +891,41 @@ function getMockFallback(action, options) {
     }
   } else if (action === 'uploadImage') {
     const type = options.body?.type || 'unknown';
-    const fileName = options.body?.fileName || 'image.jpg';
-    res = {
-      success: true,
-      imageUrl: `https://drive.google.com/uc?export=view&id=mock_file_id_${type}_${Date.now()}`
-    };
+    const fileName = options.body?.fileName;
+    const base64Data = options.body?.base64Data || '';
+
+    if (!base64Data || !fileName || !type) {
+      res = { success: false, message: '필수 매개변수(base64Data, fileName, type)가 누락되었습니다.' };
+    } else if (base64Data.length > 4700000) {
+      res = { success: false, message: '이미지 파일 크기가 너무 큽니다. 3.5MB 이하의 파일만 업로드 가능합니다.' };
+    } else if (!/^data:(image\/(jpeg|png|webp|gif|jpg));base64,/i.test(base64Data)) {
+      res = { success: false, message: '허용되지 않는 파일 형식입니다. 이미지 파일(jpg, jpeg, png, webp, gif)만 업로드할 수 있습니다.' };
+    } else if (type === 'review') {
+      const orderToken = String(options.body?.orderToken || '').trim();
+      const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
+      const allMockOrders = [...localOrders, ...MOCK_DATA.getOrdersToday.orders];
+      const hasValidOrder = allMockOrders.some(o =>
+        String(o.orderToken || '').trim() === orderToken && String(o.userId || '') === 'guest'
+      );
+
+      if (!orderToken) {
+        res = { success: false, message: '주문 확인 정보(토큰)가 없어 이미지를 업로드할 수 없습니다.' };
+      } else if (!hasValidOrder) {
+        res = { success: false, message: '유효하지 않은 주문 정보입니다.' };
+      } else {
+        res = {
+          success: true,
+          imageUrl: `https://drive.google.com/uc?export=view&id=mock_file_id_${type}_${Date.now()}`
+        };
+      }
+    } else if (type === 'user' || type === 'snack') {
+      res = {
+        success: true,
+        imageUrl: `https://drive.google.com/uc?export=view&id=mock_file_id_${type}_${Date.now()}`
+      };
+    } else {
+      res = { success: false, message: '올바르지 않은 이미지 타입입니다.' };
+    }
   } else if (action === 'submitReview') {
     const orderId = options.body?.orderId;
     const guestName = options.body?.guestName;

@@ -1998,7 +1998,7 @@
 
       const pendingOrders = filteredActive.filter(o => o.servedYn !== 'Y');
       const completedOrders = filteredActive.filter(o => o.servedYn === 'Y');
-      
+
       // 필터와 상관없이 전체 대기(미제공) 주문을 기준으로 신규 주문 감지
       const allPendingOrders = activeOrders.filter(o => o.servedYn !== 'Y');
 
@@ -2364,7 +2364,7 @@
       });
 
       document.getElementById('stat-total-points').textContent = AppState.formatPoint(totalPoints);
-      
+
       // 오늘 총 주문 건수: 중복되지 않은 고유 orderNo의 총 개수 (취소된 주문 제외 활성 주문 기준)
       const uniqueOrderNos = new Set(activeOrders.map(o => o.orderNo));
       document.getElementById('stat-total-orders').textContent = `${uniqueOrderNos.size}건`;
