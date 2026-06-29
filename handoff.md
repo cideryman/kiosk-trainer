@@ -8,15 +8,15 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
 
 This top section is the current working queue. Long history remains below, but new agents should start here first.
 
-#### Active Issues (2026-06-29 After Static Follow-Up)
-1. **P3 / GAS batch candidate - Optional backend hardening, deploy only once**
-   - No immediate static P1/P2 fixes remain from the 2026-06-29 code review follow-up; see Development Log 38.
-   - If doing a backend hardening pass, bundle related GAS changes into one edit and deploy once after verification. Candidate items: make review-image upload also check the matched order is a guest order in a valid reviewable state (`servedYn === 'Y'`) and consider rejecting repeated uploads after `reviewed` is already true; consider minimizing public `getOrderStatus` response fields further if privacy requirements increase; revisit `placeOrder` write transactionality only as a later hardening task.
-   - **Deployment rule:** do not redeploy after each tiny GAS tweak. Finish the planned GAS batch, run GAS parse checks and relevant frontend parse checks, then copy `google-apps-script.md` to Apps Script and create one new deployment.
+#### Active Issues (2026-06-29 After GAS Deployment)
+1. **P3 / Future backend hardening**
+   - Optional later items only: further minimize public `getOrderStatus` response fields if privacy requirements increase, and revisit `placeOrder` write transactionality as a larger backend hardening task.
+   - Keep these as a separate planned GAS batch, not a drive-by change during live operations.
 2. **P4 - Review participation info in review-detail modal**
    - Future engagement/observation idea, not a stability blocker.
 
 ### Recently Resolved
+* **[NEW]** P2 - 후기 이미지 업로드 상태/중복 검증 GAS 하드닝 배치 및 GAS 배포 완료 보고 (Development Log - 39)
 * **[NEW]** P1/P2 - 2026-06-29 code review static follow-up: review upload token forwarding, kiosk fallback routing, mock security parity, cache v103 (Development Log - 38)
 * **[NEW]** P2 - 이용자 및 간식 관리 탭 1열 터치 클릭 모달 연동 (Development Log - 37)
 * **[NEW]** P2 - 관리자 화면별 상단 색 구분 및 PWA theme-color 연동 (Development Log - 36)
@@ -2020,4 +2020,81 @@ These items are ordered by operational risk. Do not redo completed items unless 
 
 #### 7. Summary (요약)
 * 후기 사진 업로드의 프론트/백엔드 보안 계약을 맞추고, 일반 키오스크 복귀 예외 경로와 Mock 보안 정합성을 정적 파일 단위로 보완했습니다. 이번 작업은 GAS 기능 변경 없이 완료되었으며, 백엔드 하드닝은 추후 한 번의 GAS 배치로 묶어 처리하는 방침을 명확히 남겼습니다.
+
+---
+
+### 작업 기록 (Development Log) - 39) 후기 이미지 업로드 상태/중복 검증 GAS 하드닝 배치
+
+#### 작업명
+> 게스트 후기 사진 업로드를 실제 후기 작성 가능 상태의 주문으로 제한하고, 이미 리뷰된 주문의 반복 이미지 업로드를 차단
+
+#### 1. Issue (문제)
+##### 증상
+* Development Log 31에서 `uploadImage(type === 'review')`에 MIME/용량/orderToken 검증을 추가했으나, 토큰이 실존하는 게스트 주문인지까지만 확인했음.
+* 토큰을 보유한 사용자가 아직 수령완료되지 않은 주문으로 사진만 먼저 업로드하거나, 이미 후기를 남긴 주문 토큰으로 이미지 업로드를 반복할 여지가 남아 있었음.
+
+##### 영향
+* 정상 후기 등록 단계(`submitReview`)는 이미 수령완료/중복후기 검사를 하고 있었지만, 이미지 업로드는 그 전에 실행되므로 Drive 파일 생성이 먼저 일어날 수 있었음.
+* 악의적이거나 실수성 반복 업로드가 누적되면 Drive 용량과 Apps Script 처리 시간을 불필요하게 소모할 수 있음.
+
+#### 2. Decision (결정)
+##### 해결 방법
+* **안전 단위 1 - GAS 후기 이미지 업로드 검증 강화**
+  - `google-apps-script.md`의 `uploadImage(type === 'review')` 검증부에서 `orderToken`으로 매칭되는 게스트 주문 행들을 찾도록 변경.
+  - 매칭 행이 없으면 기존처럼 `유효하지 않은 주문 정보입니다.`로 거부.
+  - 첫 매칭 행의 `제공여부` 또는 `상태`가 수령완료(`Y` 또는 `수령완료`)가 아니면 `수령완료된 주문만 후기 사진을 업로드할 수 있습니다.`로 거부.
+  - 매칭 행 중 하나라도 `reviewed`가 true/TRUE/Y이면 `이미 응원 메시지를 남긴 주문입니다.`로 거부.
+* **안전 단위 2 - Mock 동기화**
+  - `js/config.js` Mock `uploadImage(type === 'review')`도 같은 상태/중복 조건을 반영.
+  - 로컬 테스트에서도 운영과 같은 실패 조건을 볼 수 있도록 조정.
+* **안전 단위 3 - 캐시 갱신**
+  - 정적 Mock 코드 변경이 반영되도록 `service-worker.js`의 `CACHE_NAME`을 `kiosk-cache-v104`로 상향.
+
+##### GAS 배포 판단
+* **Apps Script 새 배포 완료 보고됨 (2026-06-29).**
+* 이번 작업은 `google-apps-script.md`의 실제 백엔드 로직을 변경했으므로, 최신 코드를 Apps Script 편집기에 복사한 뒤 새 배포를 한 번 수행해야 운영 서버에 반영됨.
+* 이번 배치 안에서는 GAS 변경을 한 번으로 묶었고, 사용자가 최신 코드로 GAS 배포를 완료했다고 보고함.
+
+##### 변경 파일
+* `google-apps-script.md` (후기 이미지 업로드 상태/중복 검증 강화)
+* `js/config.js` (Mock 동작 동기화)
+* `service-worker.js` (PWA 캐시 버전 `kiosk-cache-v104`)
+* `handoff.md` (진행 기록)
+
+#### 3. Verification (검증)
+##### 코드 검증
+* [x] `git diff --check` 통과.
+* [x] `node --check js/app.js`, `node --check js/config.js`, `node --check service-worker.js` 통과.
+* [x] `google-apps-script.md` 직접 파싱 통과.
+* [x] 전체 HTML 11개 파일 인라인 스크립트 파싱 통과.
+* [x] 서비스워커 프리캐시 목록의 로컬 파일 존재 검사 통과.
+
+##### 정적 계약 검증
+* [x] `uploadImage(type === 'review')`가 실존 게스트 주문 토큰, 수령완료 상태, 미리뷰 상태를 모두 확인하도록 변경됨.
+* [x] `submitReview`의 기존 수령완료/중복후기 검증은 그대로 유지됨.
+* [x] Mock `uploadImage`도 같은 상태/중복 실패 조건을 반환하도록 동기화됨.
+
+#### 4. Manual Test (수동 테스트)
+##### 테스트 순서
+1. 완료된 게스트 주문(`servedYn === 'Y'`)으로 사진 포함 후기를 등록해 성공하는지 확인합니다.
+2. 아직 접수/준비중인 게스트 주문으로 사진 업로드를 시도해 `수령완료된 주문만 후기 사진을 업로드할 수 있습니다.`가 반환되는지 확인합니다.
+3. 이미 후기를 남긴 주문으로 다시 사진 업로드를 시도해 `이미 응원 메시지를 남긴 주문입니다.`가 반환되는지 확인합니다.
+4. 텍스트-only 후기 등록은 기존처럼 사진 업로드 실패와 별개로 정상 fallback 흐름을 유지하는지 확인합니다.
+
+#### 5. Caution (주의사항 / 오류 발생 시 대처방법)
+##### 오류 발생 시 대처방법
+* **증상: 완료된 주문인데 사진 업로드가 "수령완료된 주문만"으로 거부됨**
+  * 주문내역 시트의 `제공여부` 값이 실제로 `Y`인지 확인합니다. 표시 텍스트만 완료처럼 보이고 시트 값이 `R`, `P`, `N`이면 업로드가 거부되는 것이 정상입니다.
+* **증상: 사진 업로드가 "이미 응원 메시지"로 거부됨**
+  * 주문내역의 `reviewed` 열이 TRUE/Y로 되어 있는지 확인합니다. 이미 리뷰 처리된 주문이면 새 이미지 업로드를 막는 것이 정상입니다.
+* **증상: 운영에서는 여전히 예전 동작**
+  * Apps Script 새 배포가 아직 안 되었거나, 웹앱 배포 URL이 이전 배포를 가리킬 수 있습니다. 최신 코드를 복사한 뒤 새 배포 버전을 만들었는지 확인합니다.
+
+#### 6. Do Not (절대 하지 말 것)
+* 이 하드닝을 위해 `submitReview`의 기존 수령완료/중복 검증을 제거하지 마십시오. 이미지 업로드와 후기 등록 양쪽 모두에서 방어해야 합니다.
+* 토큰 기반 전용 조회 API(`getGuestOrderByToken`, `getGuestOrdersByGuestKey`)의 `orderToken` 반환을 제거하지 마십시오. 정상 사용자의 후기/취소 연계가 깨집니다.
+* 배포 전후로 운영 중인 시트 열을 수동 이동하지 마십시오. 상태 검증은 기존 `제공여부`, `상태`, `reviewed`, `orderToken`, `이용자ID` 열을 기준으로 합니다.
+
+#### 7. Summary (요약)
+* 후기 이미지 업로드를 단순 토큰 보유 여부가 아니라 "수령완료된 미리뷰 게스트 주문"으로 제한했습니다. 이번 작업은 GAS 기능 변경을 포함하므로, 운영 반영을 위해 Apps Script 새 배포가 1회 필요합니다.
 

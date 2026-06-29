@@ -2229,17 +2229,43 @@ function uploadImage(data) {
       const headers = values[0] || [];
       const orderTokenIdx = headers.indexOf('orderToken');
       const userIdIdx = headers.indexOf('이용자ID');
+      const servedYnIdx = headers.indexOf('제공여부');
+      const statusIdx = headers.indexOf('상태');
+      const reviewedIdx = headers.indexOf('reviewed');
       const tIdx = orderTokenIdx !== -1 ? orderTokenIdx : 10;
       const uIdx = userIdIdx !== -1 ? userIdIdx : 2;
+      const sIdx = servedYnIdx !== -1 ? servedYnIdx : 8;
+      const rIdx = reviewedIdx !== -1 ? reviewedIdx : 14;
 
-      const hasValidOrder = values.slice(1).some(row =>
+      const matchedRows = values.slice(1).filter(row =>
         String(row[tIdx]).trim() === orderToken && String(row[uIdx]).trim() === 'guest'
       );
 
-      if (!hasValidOrder) {
+      if (matchedRows.length === 0) {
         return {
           success: false,
           message: '유효하지 않은 주문 정보입니다.'
+        };
+      }
+
+      const firstMatchedRow = matchedRows[0];
+      const servedYnValue = firstMatchedRow[sIdx];
+      const statusValue = statusIdx !== -1 ? firstMatchedRow[statusIdx] : '';
+      if (servedYnValue !== 'Y' && servedYnValue !== '수령완료' && statusValue !== '수령완료') {
+        return {
+          success: false,
+          message: '수령완료된 주문만 후기 사진을 업로드할 수 있습니다.'
+        };
+      }
+
+      const isAlreadyReviewed = matchedRows.some(row => {
+        const reviewedValue = row[rIdx];
+        return reviewedValue === true || String(reviewedValue).toUpperCase() === 'TRUE' || String(reviewedValue).toUpperCase() === 'Y';
+      });
+      if (isAlreadyReviewed) {
+        return {
+          success: false,
+          message: '이미 응원 메시지를 남긴 주문입니다.'
         };
       }
     } else {

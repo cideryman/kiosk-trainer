@@ -904,14 +904,18 @@ function getMockFallback(action, options) {
       const orderToken = String(options.body?.orderToken || '').trim();
       const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
       const allMockOrders = [...localOrders, ...MOCK_DATA.getOrdersToday.orders];
-      const hasValidOrder = allMockOrders.some(o =>
+      const matchedOrders = allMockOrders.filter(o =>
         String(o.orderToken || '').trim() === orderToken && String(o.userId || '') === 'guest'
       );
 
       if (!orderToken) {
         res = { success: false, message: '주문 확인 정보(토큰)가 없어 이미지를 업로드할 수 없습니다.' };
-      } else if (!hasValidOrder) {
+      } else if (matchedOrders.length === 0) {
         res = { success: false, message: '유효하지 않은 주문 정보입니다.' };
+      } else if (!matchedOrders.some(o => o.servedYn === 'Y' || o.status === '수령완료')) {
+        res = { success: false, message: '수령완료된 주문만 후기 사진을 업로드할 수 있습니다.' };
+      } else if (matchedOrders.some(o => o.reviewed === true || String(o.reviewed).toUpperCase() === 'TRUE' || String(o.reviewed).toUpperCase() === 'Y')) {
+        res = { success: false, message: '이미 응원 메시지를 남긴 주문입니다.' };
       } else {
         res = {
           success: true,
