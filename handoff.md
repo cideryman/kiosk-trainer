@@ -8,37 +8,24 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
 
 This top section is the current working queue. Long history remains below, but new agents should start here first.
 
-### Active Issues (2026-06-28)
-1. **P1 - Order sheet P~V column standard and diagnostics false-positive prevention**
-   - Current code response field should remain `deliveryPlace`.
-   - Sheet P column is legacy-compatible: header may be `deliveryAddress` or `deliveryPlace`, and code/diagnostics should tolerate both until a deliberate migration is done.
-   - Do not manually delete/move order-sheet columns based only on the diagnostics warning. A human column edit can corrupt order/cancel/guest-key data.
-   - **Confirmed from attached workbook 2026-06-28**: `주문내역` currently has `P deliveryAddress / Q cancelReason / R deliveryPlace / S cancelReasonDetail / T guestDeviceId / U authProvider / V guestKey`. Data counts show P delivery place values, Q cancel reasons, R cancel detail-like values, S empty, and T/U/V guest identity values. This is operationally understandable but structurally confusing.
-   - Consider a separate one-time Apps Script repair function only with preview, backup, exact-layout guard, A~O untouched, and manual execution only. Do not run manual sheet edits.
-2. **P1 - Public read API and order-token boundary**
-   - `getOrdersToday` is currently public and returns more than display-only data, including `orderToken` and delivery/cancel metadata.
-   - Public screens should receive minimal display fields only. Admin/kitchen full order reads should move behind admin token. `getOrderStatus` should avoid returning `orderToken` back to the browser unless strictly needed.
-3. **P1 - Guest cancel/review token verification**
-   - Guest cancel and review submit flows should require a matching `orderToken`; order number alone should not be enough for guest-owned operations.
-   - Keep old/no-token orders graceful: show a user-facing "관리자에게 문의" style fallback instead of breaking the page.
-4. **P2 - Review photo upload guardrails**
-   - Keep guest review photo upload available, but add order-token validation, image MIME validation, size limits, and abuse-resistant checks.
-   - Preserve the current fallback that allows text-only review submission when photo upload fails.
-5. **P2 - Kitchen new-order sound should ignore visual filter**
-   - New-order detection should compare all active pending orders, not only the currently visible pickup/delivery filter.
-   - Rendering can remain filtered; alert detection should not.
-6. **P2 - Kitchen order-count statistics should count orders, not rows**
+#### Active Issues (2026-06-29)
+1. **P2 - Kitchen order-count statistics should count orders, not rows**
    - Snack quantity and total credits remain row/quantity based.
-   - "Total orders" and "orders per user" should group by `orderNo`.
-7. **P3 - Order write transactionality review**
+   - "Total orders" and "orders per user" should group by `orderNo` instead of counting sheet rows directly.
+2. **P3 - Order write transactionality review**
    - This is not an optimistic UI issue. It is a backend sheet-write sequencing issue inside `placeOrder`: order rows, stock, and credits are written in separate steps.
-   - Do not perform a large rewrite while live operations are running smoothly. Treat this as a later hardening task after P1/P2.
-8. **P4 - Review participation info in review-detail modal**
-   - Still a future engagement/observation idea, not a stability blocker.
-9. **P5 - Low-risk cleanup**
-   - Stale `.target-both` CSS can be removed later. It is not a functional bug because `both` is no longer a supported snack target.
+   - Do not perform a large rewrite while live operations are running smoothly. Treat this as a later hardening task.
+3. **P4 - Review participation info in review-detail modal**
+   - Future engagement/observation idea, not a stability blocker.
 
 ### Recently Resolved
+* **[NEW]** P2 - 관리자 운영 점검 모달 반응형 레이아웃 강화 (Development Log - 33)
+* **[NEW]** P2 - 주방 신규 주문 감지 시 화면 필터 우회 수정 (Development Log - 32)
+* **[NEW]** P2 - 게스트 후기 사진 업로드 가드레일 및 규격 제한 적용 (Development Log - 31)
+* **[NEW]** P1 - 게스트 취소 및 후기 등록 시 토큰 검증 강화 (Development Log - 30)
+* **[NEW]** P1 - 공개 조회 API 주문 토큰 노출 마스킹 (보안 경계 분리) (Development Log - 29)
+* **[NEW]** P1 - 주문 시트 P~V열 표준화 및 진단 오탐 방지 해결 (Development Log - 28)
+* P2 - 전광판 조밀(Dense/Ultra) 모드 레이아웃 정렬 및 글자 찌그러짐 방지 적용 완료 (Development Log - 27)
 * GAS deployment was reported current by the operator on 2026-06-28; keep "deploy latest GAS then re-run operations check" as an operating checklist, not an active fix item.
 * Root URL now routes visitors to `guest.html`; general kiosk uses `index.html?type=kiosk`.
 * Operations diagnostics button exists in admin/kitchen and has already received one false-positive/stability follow-up.
