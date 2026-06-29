@@ -1188,7 +1188,7 @@
             const sheet = res.sheets[name];
             if (!sheet.exists) {
               itemsHtml += `
-                <div style="padding: 10px; border: 2px solid #FEB2B2; background-color: #FFF5F5; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; color: #9B2C2C; display: flex; flex-direction: column; gap: 4px;">
+                <div style="padding: 10px; border: 2px solid #FEB2B2; background-color: #FFF5F5; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; color: #9B2C2C; display: flex; flex-direction: column; gap: 4px; word-break: break-all;">
                   <div>🔴 [${name}] 시트 누락</div>
                   <div style="font-size: 13px; font-weight: 600; color: #742A2A;">
                     해결: 구글 스프레드시트에 반드시 '${name}' 이름으로 탭(시트)을 생성해 주세요.
@@ -1197,7 +1197,7 @@
               `;
             } else if (sheet.status === 'WARN') {
               itemsHtml += `
-                <div style="padding: 10px; border: 2px solid #FEEBC8; background-color: #FFFDF5; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; color: #DD6B20; display: flex; flex-direction: column; gap: 4px;">
+                <div style="padding: 10px; border: 2px solid #FEEBC8; background-color: #FFFDF5; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; color: #DD6B20; display: flex; flex-direction: column; gap: 4px; word-break: break-all;">
                   <div>🟡 [${name}] 시트 구조 불일치</div>
                   <div style="font-size: 13px; font-weight: 600; color: #7B341E;">
                     원인: ${sheet.error}<br>
@@ -1207,9 +1207,9 @@
               `;
             } else {
               itemsHtml += `
-                <div style="padding: 10px; border: 2.5px solid var(--border-color); background-color: white; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; color: var(--text-main); display: flex; justify-content: space-between; align-items: center;">
-                  <span>🟢 [${name}] 시트</span>
-                  <span style="font-size: 12px; color: #38A169; font-weight: 950; background-color: #E6FFFA; padding: 2px 8px; border-radius: 999px; border: 1.5px solid #81E6D9;">정상</span>
+                <div style="padding: 10px; border: 2.5px solid var(--border-color); background-color: white; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                  <span style="min-width: 0; word-break: break-all;">🟢 [${name}] 시트</span>
+                  <span style="font-size: 12px; color: #38A169; font-weight: 950; background-color: #E6FFFA; padding: 2px 8px; border-radius: 999px; border: 1.5px solid #81E6D9; flex-shrink: 0; white-space: nowrap;">정상</span>
                 </div>
               `;
             }
@@ -1222,7 +1222,7 @@
             const prop = res.properties[key];
             if (prop.status === 'ERROR') {
               itemsHtml += `
-                <div style="padding: 10px; border: 2px solid #FEB2B2; background-color: #FFF5F5; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; color: #9B2C2C; display: flex; flex-direction: column; gap: 4px;">
+                <div style="padding: 10px; border: 2px solid #FEB2B2; background-color: #FFF5F5; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; color: #9B2C2C; display: flex; flex-direction: column; gap: 4px; word-break: break-all;">
                   <div>🔴 ${key} (${prop.description}) 누락</div>
                   <div style="font-size: 13px; font-weight: 600; color: #742A2A;">
                     해결: 구글 앱스 스크립트 에디터의 [프로젝트 설정 > 스크립트 속성]에 '${key}' 값을 정확히 추가해 주세요.
@@ -1231,16 +1231,16 @@
               `;
             } else if (prop.status === 'INFO') {
               itemsHtml += `
-                <div style="padding: 10px; border: 2.5px solid var(--border-color); background-color: #F8FAFC; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center;">
-                  <span>⚪ ${key} (${prop.description}) 미설정 (선택 사항)</span>
-                  <span style="font-size: 12px; color: var(--text-muted); font-weight: 950; background-color: #EDF2F7; padding: 2px 8px; border-radius: 999px; border: 1.5px solid var(--border-color);">선택</span>
+                <div style="padding: 10px; border: 2.5px solid var(--border-color); background-color: #F8FAFC; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                  <span style="min-width: 0; word-break: break-all;">⚪ ${key} (${prop.description}) 미설정 (선택 사항)</span>
+                  <span style="font-size: 12px; color: var(--text-muted); font-weight: 950; background-color: #EDF2F7; padding: 2px 8px; border-radius: 999px; border: 1.5px solid var(--border-color); flex-shrink: 0; white-space: nowrap;">선택</span>
                 </div>
               `;
             } else {
               itemsHtml += `
-                <div style="padding: 10px; border: 2.5px solid var(--border-color); background-color: white; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; color: var(--text-main); display: flex; justify-content: space-between; align-items: center;">
-                  <span>🟢 ${key} (${prop.description})</span>
-                  <span style="font-size: 12px; color: #2B6CB0; font-weight: 950; background-color: #EBF8FF; padding: 2px 8px; border-radius: 999px; border: 1.5px solid #BEE3F8;">설정됨</span>
+                <div style="padding: 10px; border: 2.5px solid var(--border-color); background-color: white; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                  <span style="min-width: 0; word-break: break-all;">🟢 ${key} (${prop.description})</span>
+                  <span style="font-size: 12px; color: #2B6CB0; font-weight: 950; background-color: #EBF8FF; padding: 2px 8px; border-radius: 999px; border: 1.5px solid #BEE3F8; flex-shrink: 0; white-space: nowrap;">설정됨</span>
                 </div>
               `;
             }
