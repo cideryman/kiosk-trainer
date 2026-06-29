@@ -9,10 +9,15 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
 This top section is the current working queue. Long history remains below, but new agents should start here first.
 
 #### Active Issues (2026-06-29 After GAS Deployment)
-1. **P3 / Future backend hardening**
+1. **P2 - 오늘의 운영 결과 요약 후기/태그 집계 0건 표시 의심**
+   - Operator report on 2026-06-29: after writing at least one review today, `오늘 주문 운영 > 📊 오늘의 운영 결과` copied summary still showed `오늘 후기: 0건 (사진 후기: 0건)` and `후기 태그: 등록된 태그 없음`.
+   - The copied summary also showed all order totals as 0 for 2026-06-29, so investigate the full `openTodaySummaryModal()` aggregation path before assuming it is review-only.
+   - Do **not** fix this on 2026-06-29 per operator request; record only. Next work session should inspect date filtering/timezone handling, review source data shape, tag field parsing, and whether today’s orders/reviews are being read from the expected API response.
+   - Reported copied output excerpt: `총 주문: 0건`, `오늘 후기: 0건 (사진 후기: 0건)`, `후기 태그: 등록된 태그 없음` for `2026년 6월 29일 월요일`.
+2. **P3 / Future backend hardening**
    - Optional later items only: further minimize public `getOrderStatus` response fields if privacy requirements increase, and revisit `placeOrder` write transactionality as a larger backend hardening task.
    - Keep these as a separate planned GAS batch, not a drive-by change during live operations.
-2. **P4 - Review participation info in review-detail modal**
+3. **P4 - Review participation info in review-detail modal**
    - Future engagement/observation idea, not a stability blocker.
 
 ### Recently Resolved
