@@ -16,6 +16,8 @@ This top section is the current working queue. Long history remains below, but n
    - Future engagement/observation idea, not a stability blocker.
 
 ### Recently Resolved
+* **[NEW]** P3 - 주방 오늘의 운영 결과 버튼을 운영 메뉴 색상과 정렬 (Development Log - 42)
+* **[NEW]** P3 - 관리자 계열 이동 버튼 색상을 대상 화면 헤더색과 일치 (Development Log - 41)
 * **[NEW]** P3 - 주방 화면 새로고침 제어 위치 이동 및 관리자 버튼 문구 축약 (Development Log - 40)
 * **[NEW]** P2 - 후기 이미지 업로드 상태/중복 검증 GAS 하드닝 배치 및 GAS 배포 완료 보고 (Development Log - 39)
 * **[NEW]** P1/P2 - 2026-06-29 code review static follow-up: review upload token forwarding, kiosk fallback routing, mock security parity, cache v103 (Development Log - 38)
@@ -2178,4 +2180,91 @@ These items are ordered by operational risk. Do not redo completed items unless 
 
 #### 7. Summary (요약)
 * 현재 색 구분은 유지하면서, 주방 화면의 긴 버튼과 자동 새로고침 제어를 실제 운영 영역 아래로 옮겨 헤더 부담을 줄였습니다. 관리자/후기 화면은 새로고침 버튼 문구만 축약했으며, GAS 수정은 필요하지 않습니다.
+
+---
+
+### 작업 기록 (Development Log) - 41) 관리자 계열 이동 버튼 색상 정렬
+
+#### 작업명
+> 관리자/주방/후기 이동 버튼을 대상 화면의 헤더색과 맞춤
+
+#### 1. Issue (문제)
+* 관리자 계열 화면 간 이동 버튼 중 `관리자`, `주문 운영` 버튼 일부가 파란색으로 남아 있어, 화면별 헤더색 구분 규칙과 맞지 않았음.
+* 사용자가 화면 색으로 현재/대상 영역을 인지하는 흐름을 만들고 있으므로, 이동 버튼도 같은 색 체계로 정리할 필요가 있었음.
+
+#### 2. Decision (결정)
+* `관리자` 이동 버튼은 관리자 헤더색 `#2B2D42`로 통일.
+* `주문 운영` 이동 버튼은 주방/운영 헤더색 `#DD6B20`로 통일.
+* `후기` 이동 버튼은 후기 헤더색 `#38A169` 유지.
+* 외부 화면 버튼, 운영 점검, 오늘의 운영 결과, 음성 알림 등은 화면 이동 버튼이 아니므로 이번 범위에서 제외.
+* 정적 HTML 변경 반영을 위해 `service-worker.js` 캐시를 `kiosk-cache-v106`으로 상향.
+
+##### GAS 배포 판단
+* **Apps Script 수정/배포 필요 없음.**
+* 이번 작업은 `admin.html`, `kitchen.html`, `reviews.html`, `service-worker.js`의 정적 UI 변경만 포함함.
+
+#### 3. Verification (검증)
+* [x] `git diff --check` 통과. 단, Windows 줄바꿈 경고(LF -> CRLF)는 기존 Git 설정에 따른 안내이며 diff 오류는 없음.
+* [x] `node --check js/app.js`, `node --check js/config.js`, `node --check service-worker.js` 통과.
+* [x] 전체 HTML 11개 파일 인라인 스크립트 파싱 통과.
+* [x] Chrome headless 렌더링 확인: `관리자` 버튼 `rgb(43, 45, 66)`, `주문 운영` 버튼 `rgb(221, 107, 32)`, `후기` 버튼 `rgb(56, 161, 105)`.
+
+#### 4. Manual Test (수동 테스트)
+1. 관리자 화면에서 `🍳 주문 운영` 버튼이 주황, `💬 후기` 버튼이 초록인지 확인합니다.
+2. 주방 화면에서 `⚙️ 관리자` 버튼이 짙은 남색, `💬 후기` 버튼이 초록인지 확인합니다.
+3. 후기 화면에서 `⚙️ 관리자` 버튼이 짙은 남색, `🍳 주문 운영` 버튼이 주황인지 확인합니다.
+
+#### 5. Caution (주의사항 / 오류 발생 시 대처방법)
+* **증상: 이전 파란 버튼이 계속 보임**
+  * PWA 캐시가 남아 있을 수 있습니다. 새로고침하거나 앱을 완전히 닫았다가 다시 열어 `kiosk-cache-v106`이 반영되게 합니다.
+* **증상: 이동 버튼 색이 다시 섞임**
+  * 화면 이동 버튼은 대상 화면의 헤더색을 따르는 규칙입니다. 관리자 `#2B2D42`, 주문 운영 `#DD6B20`, 후기 `#38A169` 기준을 유지합니다.
+
+#### 6. Do Not (절대 하지 말 것)
+* 이 색상 정리를 위해 Apps Script를 수정하거나 새 GAS 배포를 요구하지 마십시오.
+* 운영 점검/외부 화면/음성 알림 같은 기능 버튼까지 같은 규칙으로 강제로 묶지 마십시오. 이번 규칙은 관리자 계열 화면 이동 버튼에만 적용합니다.
+
+#### 7. Summary (요약)
+* 관리자 계열 이동 버튼 색상을 대상 화면 헤더색과 맞춰, 색으로 화면 목적을 구분하는 현재 UI 방향을 더 일관되게 정리했습니다.
+
+---
+
+### 작업 기록 (Development Log) - 42) 주방 오늘의 운영 결과 버튼 색상 정렬
+
+#### 작업명
+> `오늘의 운영 결과` 버튼을 `운영 도구`/`외부 화면` 메뉴 색상과 맞춤
+
+#### 1. Issue (문제)
+* 주방 화면의 `📊 오늘의 운영 결과` 버튼이 별도 주황색(`#D97706`)으로 남아 있어, 같은 헤더 안에서 기능 버튼 색상이 다소 흩어져 보였음.
+* 이 버튼은 다른 화면으로 이동하는 버튼이 아니라 운영 보조 기능이므로, `운영 도구`/`외부 화면` 메뉴와 같은 그룹 색으로 맞추는 편이 인지 부담이 적음.
+
+#### 2. Decision (결정)
+* `kitchen.html`의 `📊 오늘의 운영 결과` 버튼 배경색을 `#334155`로 변경.
+* `#334155`는 `.admin-action-menu summary`의 `운영 도구`, `외부 화면`과 같은 색상.
+* 정적 HTML 변경 반영을 위해 `service-worker.js` 캐시를 `kiosk-cache-v107`로 상향.
+
+##### GAS 배포 판단
+* **Apps Script 수정/배포 필요 없음.**
+* 이번 작업은 정적 프론트엔드 UI 색상 변경만 포함함.
+
+#### 3. Verification (검증)
+* [x] `git diff --check` 통과. 단, Windows 줄바꿈 경고(LF -> CRLF)는 기존 Git 설정에 따른 안내이며 diff 오류는 없음.
+* [x] `node --check js/app.js`, `node --check js/config.js`, `node --check service-worker.js` 통과.
+* [x] 전체 HTML 11개 파일 인라인 스크립트 파싱 통과.
+* [x] Chrome headless 렌더링 확인: `오늘의 운영 결과`, `운영 도구`, `외부 화면` 모두 `rgb(51, 65, 85)` 계열로 표시됨.
+
+#### 4. Manual Test (수동 테스트)
+1. 주방 화면 헤더에서 `📊 오늘의 운영 결과` 버튼 색이 `운영 도구`, `외부 화면`과 맞는지 확인합니다.
+2. 버튼을 눌러 오늘의 운영 결과 요약 모달이 기존처럼 열리는지 확인합니다.
+
+#### 5. Caution (주의사항 / 오류 발생 시 대처방법)
+* **증상: 예전 주황 버튼이 계속 보임**
+  * PWA 캐시가 남아 있을 수 있습니다. 새로고침하거나 앱을 완전히 닫았다가 다시 열어 `kiosk-cache-v107`이 반영되게 합니다.
+
+#### 6. Do Not (절대 하지 말 것)
+* 이 색상 정리를 위해 Apps Script를 수정하거나 새 GAS 배포를 요구하지 마십시오.
+* 오늘의 운영 결과 버튼의 `openTodaySummaryModal()` 연결을 바꾸지 마십시오.
+
+#### 7. Summary (요약)
+* 주방 헤더에서 운영 보조 기능 버튼 색상을 같은 그룹으로 맞춰 시각적 일관성을 높였습니다.
 
