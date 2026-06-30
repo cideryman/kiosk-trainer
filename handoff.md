@@ -8,20 +8,17 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
 
 This top section is the current working queue. Long history remains below, but new agents should start here first.
 
-#### Active Issues (2026-06-29 After GAS Deployment)
-1. **P2 - 오늘의 운영 결과 요약 후기/태그 집계 0건 표시 의심**
-   - Operator report on 2026-06-29: after writing at least one review today, `오늘 주문 운영 > 📊 오늘의 운영 결과` copied summary still showed `오늘 후기: 0건 (사진 후기: 0건)` and `후기 태그: 등록된 태그 없음`.
-   - The copied summary also showed all order totals as 0 for 2026-06-29, so investigate the full `openTodaySummaryModal()` aggregation path before assuming it is review-only.
-   - Do **not** fix this on 2026-06-29 per operator request; record only. Next work session should inspect date filtering/timezone handling, review source data shape, tag field parsing, and whether today’s orders/reviews are being read from the expected API response.
-   - Reported copied output excerpt: `총 주문: 0건`, `오늘 후기: 0건 (사진 후기: 0건)`, `후기 태그: 등록된 태그 없음` for `2026년 6월 29일 월요일`.
-2. **P3 / Future backend hardening**
+#### Active Issues (2026-06-30)
+1. **P3 / Future backend hardening**
    - Optional later items only: further minimize public `getOrderStatus` response fields if privacy requirements increase, and revisit `placeOrder` write transactionality as a larger backend hardening task.
    - Keep these as a separate planned GAS batch, not a drive-by change during live operations.
-3. **P4 - Review participation info in review-detail modal**
+2. **P4 - Review participation info in review-detail modal**
    - Future engagement/observation idea, not a stability blocker.
 
 ### Recently Resolved
-* **[NEW]** P3 - 주방 오늘의 운영 결과 버튼을 운영 메뉴 색상과 정렬 (Development Log - 42)
+* **[NEW]** P2 - 관리자 화면 내 비활성 이용자 및 숨긴 간식 완전 숨김 처리 (Development Log - 44)
+* P2 - 오늘의 운영 결과 후기/태그 집계 누락 및 호출 파라미터 오류 해결 (Development Log - 43)
+* P3 - 주방 오늘의 운영 결과 버튼을 운영 메뉴 색상과 정렬 (Development Log - 42)
 * **[NEW]** P3 - 관리자 계열 이동 버튼 색상을 대상 화면 헤더색과 일치 (Development Log - 41)
 * **[NEW]** P3 - 주방 화면 새로고침 제어 위치 이동 및 관리자 버튼 문구 축약 (Development Log - 40)
 * **[NEW]** P2 - 후기 이미지 업로드 상태/중복 검증 GAS 하드닝 배치 및 GAS 배포 완료 보고 (Development Log - 39)
@@ -2272,4 +2269,132 @@ These items are ordered by operational risk. Do not redo completed items unless 
 
 #### 7. Summary (요약)
 * 주방 헤더에서 운영 보조 기능 버튼 색상을 같은 그룹으로 맞춰 시각적 일관성을 높였습니다.
+
+---
+
+### 작업 기록 (Development Log) - 43) 오늘의 운영 결과 후기/태그 집계 누락 및 호출 파라미터 오류 해결
+
+#### 작업명
+> 오늘의 운영 결과 요약의 데이터 집계(주문, 후기, 태그) 시 발생하던 날짜 포맷 파싱 오류 및 API 호출 시 권한 토큰 누락 수정
+
+#### 1. Issue (문제)
+##### 증상
+* 주방 화면에서 `오늘 주문 운영 > 📊 오늘의 운영 결과`를 클릭하여 표시되거나 클립보드에 복사되는 텍스트 요약본에 주문 및 후기 수가 0건으로 나오는 현상 발생.
+
+##### 영향
+* 정상적으로 오늘 주문과 후기가 접수되었음에도 불구하고 요약 결과에는 집계가 누락되어 운영자가 올바른 일일 요약을 확인할 수 없음.
+
+##### 원인
+1. **날짜 포맷팅 및 타임존 편차**: 브라우저 기본 `toDateString()`을 사용해 오늘 날짜와 후기의 생성 일자(`createdAt`)를 단순 비교하였으나, 서버(GAS)에서 반환하는 날짜 형식(예: 한글 날짜 형식 "2026. 6. 30. 오후 5:30:00" 또는 ISO 타임스탬프)과 클라이언트 측 시간대 편차가 달라 날짜가 일치하지 않아 필터링에서 모두 제외됨.
+2. **API 호출 권한 누락**: `kitchen.html`에서 `getReviewsForAdmin` API를 호출하여 전체 후기 목록을 가져올 때, 관리자 전용 API 보안 규칙에 필요한 관리자 인증 토큰(`withAdminToken`) 파라미터가 누락되어 데이터를 비어 있는 채로 반환받음.
+
+#### 2. Decision (결정)
+##### 해결 방법
+* **안전 단위 1 - KST 기준 YYYY-MM-DD 날짜 문자열 변환 함수 도입**
+  - `kitchen.html`에 `getKoreaDateString(dateVal)` 함수를 구현.
+  - 이 함수는 `Date` 객체나 타임스탬프가 들어올 경우 UTC 시간에 한국 시간(+9시간)을 명시적으로 더해 KST 기준의 `YYYY-MM-DD`로 변환하며, 한글 날짜 문자열 포맷 또한 정규식 매칭을 통해 안정적으로 `YYYY-MM-DD` 형태로 통일함.
+* **안전 단위 2 - 오늘의 운영 결과 집계 로직의 날짜 비교 수정**
+  - 기존의 `toDateString()` 비교를 새로 구현한 `getKoreaDateString` 기반의 `YYYY-MM-DD` 문자열 일치 검사로 대체.
+* **안전 단위 3 - API 호출 시 관리자 토큰 추가**
+  - `kitchen.html` 내 `openTodaySummaryModal`에서 `getReviewsForAdmin` API를 호출하는 구문을 `fetchAPI('getReviewsForAdmin', { method: 'POST', body: withAdminToken({}) })`로 수정하여 인증을 통과하도록 보완.
+* **안전 단위 4 - 캐시 버전 상향**
+  - 코드 변경 사항이 클라이언트에 정상 배포되고 강제 적용되도록 `service-worker.js`의 `CACHE_NAME`을 `kiosk-cache-v110`으로 업데이트.
+
+##### GAS 배포 판단
+* **Apps Script 수정/배포 필요 없음.**
+  - 본 건의 오류는 백엔드 GAS 코드 자체가 아니라, 클라이언트(`kitchen.html`)의 날짜 파싱 처리 및 API 인자 누락으로 인한 문제였으므로 프론트엔드 정적 파일 수정만으로 조치 가능함.
+
+##### 변경 파일
+* `kitchen.html` (`getKoreaDateString` 추가, 날짜 비교 교체, `getReviewsForAdmin` API 호출 인자 수정)
+* `service-worker.js` (PWA 캐시 버전 `kiosk-cache-v110`으로 상향)
+* `handoff.md` (작업 로그 반영 및 액티브 이슈 업데이트)
+
+#### 3. Verification (검증)
+##### 코드 검증
+* [x] `node --check service-worker.js` 및 전체 HTML 파일 인라인 스크립트 문법 검사 통과.
+* [x] `kitchen.html` 내 `getKoreaDateString` 함수의 다각도 날짜 형식(Date 객체, 타임스탬프, "YYYY. MM. DD" 한글 포맷 문자열 등) 파싱 정상 작동 확인.
+
+##### 정적 계약 검증
+* [x] `getReviewsForAdmin` 호출 시 `withAdminToken` 파라미터가 명시적으로 첨부됨을 확인.
+
+#### 4. Manual Test (수동 테스트)
+##### 테스트 순서
+1. 브라우저 캐시를 강력 새로고침하여 캐시 버전이 `kiosk-cache-v110`으로 갱신되었는지 확인합니다.
+2. 오늘 날짜로 주문과 후기를 최소 1건 이상 등록합니다.
+3. 주방 화면에서 `오늘 주문 운영 > 📊 오늘의 운영 결과` 버튼을 클릭합니다.
+4. 모달 창 및 클립보드 복사 텍스트에서 오늘 등록된 후기 건수와 태그 목록이 정상적으로 카운트 및 요약되는지 확인합니다.
+
+#### 5. Caution (주의사항 / 오류 발생 시 대처방법)
+##### 오류 발생 시 대처방법
+* **증상: 여전히 오늘의 운영 결과에 후기가 0건으로 나옴**
+  - 서비스 워커 캐시가 완전히 갱신되었는지 개발자 도구를 통해 `service-worker.js` 코드가 `kiosk-cache-v110`인지 재차 확인합니다.
+  - 수동으로 브라우저의 사이트 데이터를 삭제 후 재접속합니다.
+
+#### 6. Do Not (절대 하지 말 것)
+* 클라이언트 단 날짜 비교를 위해 서버 타임존과 독립적인 `new Date().toDateString()` 형태를 다시 도입하지 마십시오. 로컬 기기의 타임존 설정에 따라 누락 버그가 재발할 수 있습니다.
+* `getReviewsForAdmin` 호출 시 `withAdminToken` 포맷을 임의로 변경하거나 누락시키지 마십시오. 관리자 세션 보안 가드에 걸려 빈 데이터를 조회하게 됩니다.
+
+#### 7. Summary (요약)
+* 날짜 형식의 다양성과 로컬 시간대 편차로 인한 파싱 실패, 그리고 API 조회 권한 누락 문제를 해결하여 오늘의 운영 결과 요약 기능의 데이터 정확성을 회복했습니다.
+
+---
+
+### 작업 기록 (Development Log) - 44) 관리자 화면 내 비활성 이용자 및 숨긴 간식 완전 숨김 처리 (대안 B)
+
+#### 작업명
+> 데이터 무결성 보존을 위해 물리적 삭제 대신 UI 상에서 비활성/숨김 대상을 필터링 및 토글 제어로 숨김 처리하여 화면 정돈
+
+#### 1. Issue (문제)
+##### 증상
+* 잘못 등록되었거나 더 이상 사용하지 않아 숨김/비활성화 처리된 이용자 및 간식이 관리자 화면 하단에 상시 노출되어 관리 화면의 시각적 복잡도를 높임.
+
+##### 영향
+* 관리자 페이지가 불필요하게 어수선해 보이고, 실제 운영 중인 이용자와 간식을 한눈에 파악하는 데 방해가 됨.
+
+##### 원인
+* 기존 백엔드 설계(Apps Script)는 과거 주문 내역 및 통계 데이터의 연계 정합성(이용자 ID, 간식 ID 매칭)을 깨트리지 않기 위해 물리적 행 삭제 대신 사용여부(`useYn`/`saleYn`) 값을 변경하는 논리 삭제 방식을 유지하고 있었으며, 관리자 화면 렌더링 코드 또한 이를 분리하여 모두 하단에 테이블로 상시 노출시키고 있었음.
+
+#### 2. Decision (결정)
+##### 해결 방법
+* **안전 단위 1 - UI 필터링 토글 체크박스 추가**
+  - `admin.html` 이용자 관리 탭의 검색 영역에 `[ ] 비활성 이용자 표시` 체크박스 추가.
+  - `admin.html` 간식 관리 탭의 헤더 영역에 `[ ] 숨긴 간식 표시` 체크박스 추가.
+* **안전 단위 2 - JS 렌더링 로직의 조건부 드로잉 구현**
+  - `renderUsersManagement()` 함수에서 체크박스가 활성화(checked)된 경우에만 비활성 이용자 목록을 생성하도록 제어.
+  - `renderSnacksManagement()` 함수에서 체크박스가 활성화(checked)된 경우에만 숨긴 일반/게스트 간식 목록을 생성하도록 제어.
+  - 체크박스 클릭(change) 시 목록이 즉시 새로고침되도록 이벤트 바인딩 적용.
+* **안전 단위 3 - 캐시 버전 상향**
+  - UI 레이아웃 및 JS 동작 업데이트 반영을 위해 `service-worker.js`의 `CACHE_NAME`을 `kiosk-cache-v111`로 업데이트.
+
+##### GAS 배포 판단
+* **Apps Script 수정/배포 필요 없음.**
+  - 스프레드시트 데이터 구조 변경이나 백엔드 연동을 건드리지 않고, 순수 프론트엔드 UI/JS 필터링 방식으로만 기능을 구현하여 데이터 손상 위험을 없애고 배포 소요를 생략함.
+
+##### 변경 파일
+* `admin.html` (체크박스 UI 추가, 조건부 렌더링 조건문 보완, 이벤트 바인딩 추가)
+* `service-worker.js` (PWA 캐시 버전 `kiosk-cache-v111`으로 상향)
+* `handoff.md` (진행 기록 반영 및 Recently Resolved 갱신)
+
+#### 3. Verification (검증)
+##### 코드 검증
+* [x] `node --check service-worker.js` 구문 통과.
+* [x] `admin.html` 내 인라인 자바스크립트 DOM 바인딩 및 분기 로직 정밀 확인 완료.
+
+#### 4. Manual Test (수동 테스트)
+##### 테스트 순서
+1. 브라우저 캐시를 강력 새로고침하여 캐시 버전이 `kiosk-cache-v111`로 변경되었는지 확인합니다.
+2. 관리자 페이지 진입 시 기본 상태에서 하단의 '비활성 이용자' 및 '숨김 간식' 목록이 완전히 가려져 화면이 정돈되는지 확인합니다.
+3. `비활성 이용자 표시` 또는 `숨긴 간식 표시` 체크박스를 각각 클릭해 보며 목록이 실시간으로 노출/숨김 전환되는지 검증합니다.
+4. 이용자를 비활성화(`N`) 처리하거나 간식을 숨김(`N`) 처리할 때, 체크박스가 꺼진 기본 상태에서는 해당 항목이 메인 리스트에서 즉각 숨겨지는지 확인합니다.
+
+#### 5. Caution (주의사항 / 오류 발생 시 대처방법)
+##### 오류 발생 시 대처방법
+* **증상: 이전과 다름없이 비활성 목록이 상시 노출됨**
+  - 서비스 워커 캐시가 완전히 갱신되지 않았을 수 있습니다. 브라우저를 끄고 재부팅하거나 강력 새로고침(`Ctrl + F5`)을 수행하십시오.
+
+#### 6. Do Not (절대 하지 말 것)
+* 잘못 등록된 데이터를 정돈할 목적으로 백엔드 스프레드시트의 원본 행을 수동으로 완전 삭제하지 마십시오. 과거 데이터 정합성이 훼손될 수 있으므로, 반드시 본 UI 토글 필터링 기능을 권장합니다.
+
+#### 7. Summary (요약)
+* 과거 데이터 무결성을 유지하기 위해 백엔드 삭제 대신 프론트엔드 UI 토글 필터링(대안 B)을 도입하여, 실수로 데이터를 훼손하지 않으면서도 관리 화면의 복잡성을 간결하게 정리했습니다.
 

@@ -746,6 +746,10 @@
             <div id="user-api-warning" class="error-box" style="display: none; margin-bottom: 16px; font-size: 16px;"></div>
             <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
               <input type="text" id="search-user-input" placeholder="🔍 이용자 별명을 입력해 찾으세요..." class="search-input" style="flex: 1; min-width: 280px; padding: 12px; font-size: 18px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); font-weight: 700; margin: 0;">
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 800; cursor: pointer; user-select: none; padding: 6px 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background-color: white;">
+                <input type="checkbox" id="toggle-inactive-users" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--primary-color);">
+                비활성 이용자 표시
+              </label>
               <button class="btn btn-secondary" onclick="openAddUserModal()" style="min-height: 52px; font-size: 18px; font-weight: 800; margin: 0; width: auto; padding: 0 20px; box-shadow: var(--shadow-btn-sec); white-space: nowrap;">➕ 신규 이용자 등록</button>
             </div>
             <div class="table-responsive">
@@ -794,7 +798,13 @@
           <div>
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
               <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color); margin-bottom: 0;">🍪 간식 목록 및 재고 관리</div>
-              <button class="btn btn-secondary" onclick="openAddSnackModal()" style="min-height: 52px; font-size: 18px; font-weight: 800; margin: 0; width: auto; padding: 0 20px; box-shadow: var(--shadow-btn-sec); white-space: nowrap;">➕ 신규 간식 등록</button>
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 800; cursor: pointer; user-select: none; padding: 6px 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background-color: white;">
+                  <input type="checkbox" id="toggle-hidden-snacks" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--secondary-color);">
+                  숨긴 간식 표시
+                </label>
+                <button class="btn btn-secondary" onclick="openAddSnackModal()" style="min-height: 52px; font-size: 18px; font-weight: 800; margin: 0; width: auto; padding: 0 20px; box-shadow: var(--shadow-btn-sec); white-space: nowrap;">➕ 신규 간식 등록</button>
+              </div>
             </div>
             <div class="table-responsive">
               <table class="admin-table">
@@ -1620,7 +1630,11 @@
       const inactiveUsers = filteredUsers.filter(user => !isUserActive(user));
 
       appendUserGroupRows(tbody, '활성 이용자', activeUsers);
-      appendUserGroupRows(tbody, '비활성 이용자', inactiveUsers);
+
+      const showInactive = document.getElementById('toggle-inactive-users')?.checked ?? false;
+      if (showInactive) {
+        appendUserGroupRows(tbody, '비활성 이용자', inactiveUsers);
+      }
     }
 
     function isUserActive(user) {
@@ -1993,8 +2007,12 @@
 
       appendSnackGroupRows(tbody, '판매중 일반 간식', activeUser);
       appendSnackGroupRows(tbody, '판매중 게스트 간식', activeGuest);
-      appendSnackGroupRows(tbody, '숨김 일반 간식', hiddenUser);
-      appendSnackGroupRows(tbody, '숨김 게스트 간식', hiddenGuest);
+
+      const showHidden = document.getElementById('toggle-hidden-snacks')?.checked ?? false;
+      if (showHidden) {
+        appendSnackGroupRows(tbody, '숨김 일반 간식', hiddenUser);
+        appendSnackGroupRows(tbody, '숨김 게스트 간식', hiddenGuest);
+      }
     }
 
 
@@ -2656,6 +2674,24 @@
         searchInput.addEventListener('input', (e) => {
           userSearchQuery = e.target.value;
           renderUsersManagement(currentUsers);
+        });
+      }
+
+      // 비활성 이용자 토글 바인딩
+      const toggleInactiveUsers = document.getElementById('toggle-inactive-users');
+      if (toggleInactiveUsers) {
+        toggleInactiveUsers.addEventListener('change', () => {
+          renderUsersManagement(currentUsers);
+          AppState.vibrate(30);
+        });
+      }
+
+      // 숨긴 간식 토글 바인딩
+      const toggleHiddenSnacks = document.getElementById('toggle-hidden-snacks');
+      if (toggleHiddenSnacks) {
+        toggleHiddenSnacks.addEventListener('change', () => {
+          renderSnacksManagement(currentSnacks);
+          AppState.vibrate(30);
         });
       }
 
