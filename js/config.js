@@ -90,6 +90,8 @@ function convertDriveImageUrl(url) {
 
   return text;
 }
+// API 호출 캐시 저장소 (정적/기초 데이터 로딩 부하 경감용)
+const API_CACHE = {};
 
 /**
  * Apps Script API 통신을 담당하는 헬퍼 함수
@@ -98,12 +100,32 @@ function convertDriveImageUrl(url) {
  * @returns {Promise<Object>} API 응답 데이터
  */
 async function fetchAPI(action, options = {}) {
+  const method = options.method || 'GET';
+
+  // 1. 뮤테이션(쓰기 작업) 발생 시 모든 캐시 삭제하여 정합성 유지
+  const isMutation = method === 'POST' || /^(update|delete|place|cancel|submit|toggle|archive)/.test(action);
+  if (isMutation) {
+    for (const key in API_CACHE) {
+      delete API_CACHE[key];
+    }
+  }
+
+  // 2. 캐시 조회 (GET 요청이면서 getUsers인 경우 2분 캐싱 적용)
+  const isCacheable = method === 'GET' && (action === 'getUsers');
+  const cacheKey = `${action}_${options.params ? JSON.stringify(options.params) : ''}`;
+  if (isCacheable) {
+    const cached = API_CACHE[cacheKey];
+    if (cached && (Date.now() - cached.timestamp < 120000)) { // 2분 캐시
+      safeLog(`[API Cache Hit] Using cached data for ${action}`);
+      return cached.data;
+    }
+  }
+
   if (typeof USE_MOCK !== 'undefined' && USE_MOCK) {
     console.log(`[API Mock] USE_MOCK이 활성화되어 있어 Mock 데이터를 사용합니다. Action: ${action}`);
     return getMockFallback(action, options);
   }
 
-  const method = options.method || 'GET';
   let url = `${API_URL}?action=${action}`;
 
   // GET 요청 파라미터 매핑
@@ -170,6 +192,14 @@ async function fetchAPI(action, options = {}) {
           imageUrl: convertDriveImageUrl(s.imageUrl)
         }));
       }
+
+      // 캐시 저장
+      if (isCacheable) {
+        API_CACHE[cacheKey] = {
+          data: data,
+          timestamp: Date.now()
+        };
+      }
     }
 
     return data;
@@ -180,7 +210,7 @@ async function fetchAPI(action, options = {}) {
     // 에러 발생 시 사용자 경험 중단을 막기 위해 Mock 데이터로 폴백 제공
     return {
       success: false,
-      message: '구글시트 연결에 실패했습니다.',
+      message: '데이터 연결에 실패했습니다.',
       error: String(error)
     };
   }

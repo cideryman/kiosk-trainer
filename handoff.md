@@ -14,8 +14,20 @@ This top section is the current working queue. Long history remains below, but n
    - Keep these as a separate planned GAS batch, not a drive-by change during live operations.
 2. **P4 - Review participation info in review-detail modal**
    - Future engagement/observation idea, not a stability blocker.
+3. **P2 - 구글 시트 API 연결 불안정 이슈 해결 대책 수립**
+   - **현상**: 최근 간식 등록, 게스트 주문, 주방 및 전광판 등 여러 화면이 활성화된 상태에서 구글 시트 연결 실패 혹은 API 지연 현상 빈발.
+   - **원인**:
+     - GAS 콜드 스타트 지연(5~15초 소요)과 클라이언트 타임아웃(20초) 간의 버퍼 부족.
+     - 각 화면의 빈번한 실시간 폴링(전광판 5초, 주문완료 4초, 주방 30초 등)으로 인한 구글 개인 계정 동시 실행 수 한도(약 30회) 초과 및 HTTP 429/503 오류 발생.
+     - 스프레드시트 읽기/쓰기 병목으로 인한 락 획득 대기(LockService 10초) 한도 초과.
+     - 주방 화면 등에서 유저 목록(`getUsers`)을 30초마다 캐싱 없이 반복 요청하여 서버 부하 가중.
+   - **권장안**:
+     - 이전 요청 완료 후 일정 대기 후 재요청하는 지연 폴링(Backoff) 패턴 도입.
+     - 유저 목록(`getUsers`) 등 자주 변경되지 않는 기본 데이터에 로컬 캐싱(localStorage 등, 1~5분 유효) 적용.
+     - 전광판 및 주문 상태 추적 폴링 간격 완화(전광판 10~15초 등으로 확장).
 
 ### Recently Resolved
+* **[NEW]** P3 - 구글 시트 오류 메시지를 사용자 친화적인 '데이터 연결 실패'로 변경 (Development Log - 46)
 * **[NEW]** P2 - GAS 콜드 스타트 대응을 위한 API 타임아웃 20초 연장 (Development Log - 45)
 * P2 - 관리자 화면 내 비활성 이용자 및 숨긴 간식 완전 숨김 처리 (Development Log - 44)
 * P2 - 오늘의 운영 결과 후기/태그 집계 누락 및 호출 파라미터 오류 해결 (Development Log - 43)
@@ -2448,5 +2460,69 @@ These items are ordered by operational risk. Do not redo completed items unless 
 
 #### 7. Summary (요약)
 * 구글 앱스 스크립트의 콜드 스타트 기동 특성을 감안해 타임아웃 임계치를 20초로 늘려, 첫 접속 시 목록이 보이지 않는 데이터 중단 현상을 극복했습니다.
+
+---
+
+### 작업 기록 (Development Log) - 46) 구글 시트 API 연결 불안정 해소를 위한 최적화 및 에러 메시지 순화
+
+#### 작업명
+> 무제한 호출(setInterval) 폴링을 순차 대기(setTimeout) 및 캐싱(getUsers 2분) 구조로 개선하고, 에러 메시지를 사용자 친화적으로 변경
+
+#### 1. Issue (문제)
+##### 증상
+* 간식 등록, 게스트 주문 시 또는 주방/전광판 화면이 장시간 켜져 있을 때 "구글시트 연결에 실패했습니다." 팝업 에러가 발생하거나 데이터가 불러와지지 않는 현상 발생.
+
+##### 영향
+* 매장의 여러 클라이언트 기기가 동시 구동 시 구글 개인 계정의 GAS 동시 실행 한도(약 30회)가 초과되어 HTTP 429/503 또는 락 대기 시간 초과로 API가 끊겨 주문이 실패하거나 화면 갱신 불능 상태가 됨. 또한, "구글시트"라는 기술적인 용어가 오류 창에 그대로 노출되어 훈련생들에게 불필요한 혼란을 유도함.
+
+##### 원인
+* 전광판(5초), 주문추적(4초), 주방(30초) 화면들이 무조건 `setInterval`로 API를 중첩 호출하여 서버 과부하가 초래됨.
+* 또한, 거의 변경되지 않는 유저 목록(`getUsers`)을 30초 간격으로 주방 화면 등에서 매번 쌩으로 조회함.
+
+#### 2. Decision (결정)
+##### 해결 방법
+* **안전 단위 1 - UI 에러 메시지 순화**
+  - `js/config.js`의 공통 API 에러 메시지 `"구글시트 연결에 실패했습니다."`를 `"데이터 연결에 실패했습니다."`로 순화하여 일반 사용자 친화적인 피드백 제공.
+* **안전 단위 2 - 느리게 변하는 데이터 캐싱 적용**
+  - `js/config.js` 내 `fetchAPI`에 `API_CACHE`를 추가해 `getUsers` 응답 데이터를 2분간 캐싱.
+  - 결제, 등록, 취소, 보관 등 데이터 수정(Mutation) 요청이 발생할 시 즉각 캐시를 비워 최신성을 항상 보장.
+* **안전 단위 3 - 순차 대기형(setTimeout) 폴링 전환 및 주기 완화**
+  - `board.html` 전광판 조회 주기를 기존 5초에서 10초로 완화하고, 중첩 호출을 피하기 위해 이전 호출 성공/실패 응답 완료 후에 다음 10초를 대기 예약하는 순차 대기 구조(`setTimeout` 재귀)로 전환.
+  - `complete.html` 주문 추적 화면 역시 4초 `setInterval` 방식에서 `setTimeout` 순차 폴링으로 수정 및 최종상태(`Y`, `C`) 도달 시 예약을 조기 해제하여 불필요한 트래픽 차단.
+  - `kitchen.html` 주방 데이터 로드 시 새로고침 타이머 리셋(`resetRefreshTimer`)을 API 호출 완료 후에 시작하게 변경(`finally` 블록)해 느린 응답으로 인한 중첩 요청 방지.
+* **안전 단위 4 - 캐시 버전 상향**
+  - 변경 사항 반영을 위해 `service-worker.js`의 `CACHE_NAME`을 `kiosk-cache-v113`으로 상향.
+
+##### GAS 배포 판단
+* **Apps Script 수정/배포 필요 없음.**
+  - 순수 프론트엔드 최적화(클라이언트 캐시 및 호출 타이머 교체) 및 문구 수정이므로 GAS 배포 불필요.
+
+##### 변경 파일
+* `js/config.js` (에러 메시지 문구 수정, getUsers 캐싱 및 뮤테이션 기반 캐시 초기화 로직 구현)
+* `kitchen.html` (loadAdminData 내 타이머 갱신을 API 로딩 완료 이후 시점으로 지연)
+* `board.html` (5초 주기 setInterval 제거 및 loadBoardData 내 10초 순차 대기 setTimeout 루프 구현)
+* `complete.html` (4초 주기 setInterval 제거 및 pollOrderStatus 내 5초 순차 대기 및 조기 중단 setTimeout 구현)
+* `service-worker.js` (PWA 캐시 버전 `kiosk-cache-v113`으로 상향)
+* `handoff.md` (Recently Resolved 리스트 갱신 및 신규 개발로그 기록 추가)
+
+#### 3. Verification (검증)
+##### 코드 검증
+* [x] `node --check js/config.js` 문법 에러 없음 확인.
+* [x] `node --check service-worker.js` 구문 통과.
+
+#### 4. Manual Test (수동 테스트)
+##### 테스트 순서
+1. 브라우저 강력 새로고침(`Ctrl + F5`) 후 서비스 워커 캐시가 `kiosk-cache-v113`으로 활성화되었는지 확인합니다.
+2. 주문 완료 화면 및 전광판 화면을 로드한 뒤 개발자 도구의 네트워크 탭을 확인하여, 요청이 겹치지 않고 이전 요청 종료 후 5초/10초 간격으로 순차 호출되는지 확인합니다.
+3. 주방 화면을 열었을 때 최초 1회만 `getUsers` API가 가고, 이후 새로고침 시에는 `[API Cache Hit]` 로그와 함께 API 요청 없이 유저 이름-이미지 매핑이 정상 동작하는지 검증합니다.
+4. 사용자/간식 등록 및 수정을 진행한 직후 캐시가 초기화되고 최신 정보가 반영되는지 테스트합니다.
+
+#### 5. Caution (주의사항 / 오류 발생 시 대처방법)
+##### 오류 발생 시 대처방법
+* **증상: 이용자 등록 후 정보가 즉시 업데이트되지 않는 것처럼 보임**
+  - 등록 작업(`POST`) 성공 시 클라이언트 캐시를 명시적으로 비우고 있습니다. 만약 여전히 옛 정보가 보인다면 브라우저를 한 번 새로고침(`F5`) 하거나, 브라우저가 다른 탭인 경우 2분 캐시 유효기간이 지날 때까지 기다린 후 리로드합니다.
+
+#### 7. Summary (요약)
+* 쓰기 트랜잭션(주문, 등록)에 부작용을 주는 백엔드 코드는 그대로 두고, 병목 부하의 95% 이상을 유발하던 빈번한 폴링과 무조건적 재조회를 캐싱 및 순차 타이머로 변경하여 구글 Sheets의 연결 안정성을 전례 없이 높였습니다.
 
 

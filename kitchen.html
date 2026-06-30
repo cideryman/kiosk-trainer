@@ -1389,11 +1389,6 @@
 
     // 주문 데이터 및 집계 로드
     async function loadAdminData() {
-      // 새로고침 관련 상태 초기화
-      if (!refreshPaused) {
-        resetRefreshTimer();
-      }
-
       const pendingContainer = document.getElementById('pending-orders-group');
       if (pendingContainer) {
         pendingContainer.innerHTML = '<div style="padding: 20px; text-align: center; font-weight: 700;">대기 목록 불러오는 중...</div>';
@@ -1450,6 +1445,11 @@
         }
         if (stockListEl) {
           stockListEl.innerHTML = `<div style="padding: 10px; text-align: center; color: var(--danger-color); font-weight: 700;">불러오기 실패</div>`;
+        }
+      } finally {
+        // 데이터 로드가 완료(성공 혹은 실패)된 후에 다음 새로고침 타이머 리셋 및 기동
+        if (!refreshPaused) {
+          resetRefreshTimer();
         }
       }
     }

@@ -698,9 +698,8 @@
       AppState.speak(`주문 완료! ${summaryData.nickname} 님, 주문번호는 ${shortNo}번입니다. 실시간으로 주문 진행 상황을 보여드릴게요.`);
       AppState.vibrate([100, 50, 150]);
 
-      // 실시간 폴링 시작 (4초 간격)
+      // 실시간 폴링 시작 (순차 대기 폴링)
       pollOrderStatus();
-      pollInterval = setInterval(pollOrderStatus, 4000);
     }
 
     // 주문번호에서 뒷자리 세 자리(단축번호) 추출 함수
@@ -722,6 +721,7 @@
       const orderIdentifier = summaryData.orderToken || summaryData.orderNo;
       if (!orderIdentifier) return;
       
+      let isFinalStatus = false;
       try {
         const params = {};
         if (summaryData.orderToken) {
@@ -734,9 +734,20 @@
         if (response && response.success) {
           const currentStatus = response.servedYn || 'N';
           updateTrackingUI(currentStatus, summaryData.nickname, response.reviewed, response.cancelReason, response.cancelReasonDetail);
+          if (currentStatus === 'Y' || currentStatus === 'C') {
+            isFinalStatus = true;
+          }
         }
       } catch (error) {
         console.warn('[Polling Error] 실시간 주문 폴링 실패:', error);
+      } finally {
+        // 최종 수령완료(Y) 또는 취소(C) 상태인 경우 더이상 루프를 예약하지 않음
+        if (!isFinalStatus) {
+          if (pollInterval) {
+            clearTimeout(pollInterval);
+          }
+          pollInterval = setTimeout(pollOrderStatus, 5000); // 5초 대기 후 다음 폴링 진행
+        }
       }
     }
 
@@ -862,7 +873,7 @@
       // 최종 단계(수령완료/취소됨)인 경우 10초 후에 자동 메인화면 리다이렉트
       if (status === 'Y' || status === 'C') {
         if (pollInterval) {
-          clearInterval(pollInterval);
+          clearTimeout(pollInterval);
         }
         if (status === 'Y') {
           const btnTrigger = document.getElementById('btn-write-review-trigger');
@@ -887,7 +898,7 @@
       // 모든 인터벌 정리
       clearInterval(countdownInterval);
       if (pollInterval) {
-        clearInterval(pollInterval);
+        clearTimeout(pollInterval);
       }
       
       const targetUrl = isGuestMode ? 'guest.html' : 'index.html?type=kiosk';
