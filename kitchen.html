@@ -1429,8 +1429,8 @@
 
         // 4. 후기 데이터 처리 (kitchen.html에서는 제거됨)
 
-        // 5. 게스트 운영 설정 갱신
-        loadGuestOpsPanel();
+        // 5. 게스트 운영 설정 갱신 (자동 새로고침 시 입력값 보호를 위해 true 전달)
+        loadGuestOpsPanel(true);
       } catch (error) {
         console.error('관리자 데이터 조회 실패:', error);
         const errorTbody = document.getElementById('order-table-body');
@@ -2529,18 +2529,18 @@
     // ── 게스트 운영 관리 ────────────────────────────────────────
     let guestOpsCountdown = null;
 
-    async function loadGuestOpsPanel() {
+    async function loadGuestOpsPanel(isAutoRefresh = false) {
       try {
         const res = await fetchAPI('getGuestSettings');
         if (res && res.success) {
-          updateGuestOpsUI(res);
+          updateGuestOpsUI(res, isAutoRefresh);
         }
       } catch (e) {
         console.warn('게스트 운영 설정 조회 실패:', e);
       }
     }
 
-    function updateGuestOpsUI(data) {
+    function updateGuestOpsUI(data, isAutoRefresh = false) {
       const badge = document.getElementById('guest-ops-status-badge');
       const closeTimeEl = document.getElementById('guest-ops-close-time');
       const remainingEl = document.getElementById('guest-ops-remaining');
@@ -2552,14 +2552,17 @@
       const teamTitleEl = document.getElementById('input-team-title');
       const teamMessageEl = document.getElementById('input-team-message');
 
-      if (creditEl) creditEl.value = data.guestBaseCredit ?? 10;
-      if (feeEl) feeEl.value = data.guestDeliveryFee ?? 3;
-      if (deliveryPlaceEl) deliveryPlaceEl.value = data.guestDefaultDeliveryPlace ?? '사무실 원탁';
-      
-      if (teamEnabledEl) teamEnabledEl.checked = data.todayDeliveryTeamEnabled !== false && String(data.todayDeliveryTeamEnabled).toLowerCase() !== 'false';
-      if (teamTitleEl) teamTitleEl.value = data.todayDeliveryTeamTitle || '';
-      setTeamMemberInputs(data.todayDeliveryTeamMembers || '');
-      if (teamMessageEl) teamMessageEl.value = data.todayDeliveryTeamMessage || '';
+      // 자동 새로고침(isAutoRefresh = true)인 경우 관리자가 폼에 타이핑 중인 값을 덮어쓰지 않도록 설정값 필드 업데이트를 생략합니다.
+      if (!isAutoRefresh) {
+        if (creditEl) creditEl.value = data.guestBaseCredit ?? 10;
+        if (feeEl) feeEl.value = data.guestDeliveryFee ?? 3;
+        if (deliveryPlaceEl) deliveryPlaceEl.value = data.guestDefaultDeliveryPlace ?? '사무실 원탁';
+        
+        if (teamEnabledEl) teamEnabledEl.checked = data.todayDeliveryTeamEnabled !== false && String(data.todayDeliveryTeamEnabled).toLowerCase() !== 'false';
+        if (teamTitleEl) teamTitleEl.value = data.todayDeliveryTeamTitle || '';
+        setTeamMemberInputs(data.todayDeliveryTeamMembers || '');
+        if (teamMessageEl) teamMessageEl.value = data.todayDeliveryTeamMessage || '';
+      }
 
       if (guestOpsCountdown) {
         clearInterval(guestOpsCountdown);
