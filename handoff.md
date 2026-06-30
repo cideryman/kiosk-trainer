@@ -9,12 +9,9 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
 This top section is the current working queue. Long history remains below, but new agents should start here first.
 
 #### Active Issues (2026-06-30)
-1. **P3 / Future backend hardening**
-   - Optional later items only: further minimize public `getOrderStatus` response fields if privacy requirements increase, and revisit `placeOrder` write transactionality as a larger backend hardening task.
-   - Keep these as a separate planned GAS batch, not a drive-by change during live operations.
-2. **P4 - Review participation info in review-detail modal**
+1. **P4 - Review participation info in review-detail modal**
    - Future engagement/observation idea, not a stability blocker.
-3. **P2 - 구글 시트 API 연결 불안정 이슈 해결 대책 수립**
+2. **P2 - 구글 시트 API 연결 불안정 이슈 해결 대책 수립**
    - **현상**: 최근 간식 등록, 게스트 주문, 주방 및 전광판 등 여러 화면이 활성화된 상태에서 구글 시트 연결 실패 혹은 API 지연 현상 빈발.
    - **원인**:
      - GAS 콜드 스타트 지연(5~15초 소요)과 클라이언트 타임아웃(20초) 간의 버퍼 부족.
@@ -27,6 +24,7 @@ This top section is the current working queue. Long history remains below, but n
      - 전광판 및 주문 상태 추적 폴링 간격 완화(전광판 10~15초 등으로 확장).
 
 ### Recently Resolved
+* **[NEW]** P3 - 백엔드 보안 하드닝(P3) 검토 및 보류 결정 (Development Log - 47)
 * **[NEW]** P3 - 구글 시트 오류 메시지를 사용자 친화적인 '데이터 연결 실패'로 변경 (Development Log - 46)
 * **[NEW]** P2 - GAS 콜드 스타트 대응을 위한 API 타임아웃 20초 연장 (Development Log - 45)
 * P2 - 관리자 화면 내 비활성 이용자 및 숨긴 간식 완전 숨김 처리 (Development Log - 44)
@@ -59,6 +57,7 @@ This top section is the current working queue. Long history remains below, but n
 * Original Kakao ID/token must never be stored in Sheets. Store only salted internal `guestKey`.
 * P column delivery-place data is legacy-compatible. App/GAS response names may use `deliveryPlace`, while the sheet header may remain `deliveryAddress` until a guarded migration.
 * Do not auto-run migration/repair functions from `onOpen`, web API routes, or menus. Any order-sheet repair must be preview-first, backup-first, exact-layout guarded, and manually run once from Apps Script.
+* 백엔드 보안 하드닝(P3) 중 공개 API 응답 축소 및 트랜잭션 수동 보완은 기관 내 비식별 정보 사용 특성상 위험 대비 실익이 낮아 보류(사실상 폐기)하기로 결정함 (Development Log - 47).
 
 ---
 
@@ -2524,5 +2523,38 @@ These items are ordered by operational risk. Do not redo completed items unless 
 
 #### 7. Summary (요약)
 * 쓰기 트랜잭션(주문, 등록)에 부작용을 주는 백엔드 코드는 그대로 두고, 병목 부하의 95% 이상을 유발하던 빈번한 폴링과 무조건적 재조회를 캐싱 및 순차 타이머로 변경하여 구글 Sheets의 연결 안정성을 전례 없이 높였습니다.
+
+---
+
+### 작업 기록 (Development Log) - 47) 백엔드 보안 하드닝(P3) 논의 및 보류 결정
+
+#### 작업명
+> 백엔드 보안 하드닝(P3) 검토 및 기관 내 비식별 운영 환경에 따른 보류(사실상 폐기) 결정 기록
+
+#### 1. Issue (문제)
+* **내용**: 
+  * 백엔드 보안 및 트랜잭션 무결성 강화 작업(P3: `placeOrder` 동시성 처리 고도화 및 `getOrderStatus` 공개 조회 데이터 최소화)이 계획되었으나, 작업 시 수반되는 시스템 오작동 위험성 대비 실질적 도입 필요성에 대한 재검토가 이루어짐.
+
+#### 2. Cause (원인 분석)
+* **운영 환경 분석**:
+  * 본 시스템은 실제 이름, 전화번호, 이메일 등 개인정보를 전혀 요구하거나 수집하지 않음.
+  * 저장되는 모든 사용자 이름은 별명(예: 이니, 준이)이고, 배송지 또한 기관 내 위치(예: 사무실 원탁, 교실 A) 등 익명 정보 위주로 구성되어 있어 개인정보 노출 위험이 극히 낮음.
+  * 카카오 로그인 또한 해시 처리된 고유 ID(`guestKey`)만 생성하여 저장하므로 개인정보 식별이 불가능함.
+  * 기존 보안 우려 대상이었던 '타인 주문 무단 취소 및 허위 후기 작성' 어뷰징 취약점은 이미 `orderToken`을 공개 응답에서 공백 마스킹 처리(Dev Log 29, 30)하여 이미 방어가 완비됨.
+
+#### 3. Decision (결정)
+* **해결 방법**:
+  * P3 보안 하드닝 작업을 **보류(사실상 폐기)**로 결정하고, 액티브 이슈 대기열에서 해제함.
+  * 의사결정 결과를 `handoff.md` 문서의 `Stable Decisions` 및 개발 로그에 공식 기록하여 차기 개발 세션에서 불필요한 공수가 발생하지 않도록 조치.
+* **결정 이유**:
+  * 구글 스프레드시트 백엔드 특성상 수동 트랜잭션 롤백 코드 구현 및 락(Lock) 구조를 과도하게 변경할 시, 주문 데이터 누락, 크레딧 차감 실패, 혹은 락 타임아웃으로 인한 키오스크 시스템 마비 등의 위험(Side-Effects)이 실질적 이득에 비해 과도하게 큼.
+  * 공개 데이터 마스킹을 과도하게 진행할 경우, 클라이언트 조회 화면(`complete.html`, `guest-orders.html`)에서 필수 정보(배송지, 취소 상세 정보 등)가 누락되어 훈련생과 스태프에게 오작동이나 인지 혼란을 줄 위험이 있음.
+
+#### 4. Verification (검증)
+* [x] 기획 및 설계 검토: 익명화된 데이터 구조 및 어뷰징 차단 조치 재검증 완료.
+* [x] 정적 문서 정합성: `handoff.md` 내 액티브 이슈, 해결 목록, 의사결정 기록 수정 및 추가.
+
+#### 5. Summary (요약)
+* 백엔드 보안 및 트랜잭션 하드닝(P3)은 시스템 오작동 위험성 대비 실익이 낮아 보류 결정하였으며, 향후 불필요한 구현 공수가 방지되도록 관련 의사결정을 문서화하여 기록을 유지합니다.
 
 
