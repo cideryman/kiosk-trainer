@@ -118,12 +118,12 @@ async function fetchAPI(action, options = {}) {
     redirect: 'follow', // GAS Web App Redirect 필수 처리
   };
 
-  // 10초 타임아웃 제어 설정 (네트워크 및 SW 프리징 대비)
+  // 20초 타임아웃 제어 설정 (GAS 콜드 스타트 및 네트워크 지연 대비)
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
-    console.warn(`[API Timeout] ${action} 요청이 10초 동안 응답이 없어 강제 중단합니다.`);
+    console.warn(`[API Timeout] ${action} 요청이 20초 동안 응답이 없어 강제 중단합니다.`);
     controller.abort();
-  }, 10000);
+  }, 20000);
   fetchOptions.signal = controller.signal;
 
   // POST 요청 설정

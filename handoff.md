@@ -16,7 +16,8 @@ This top section is the current working queue. Long history remains below, but n
    - Future engagement/observation idea, not a stability blocker.
 
 ### Recently Resolved
-* **[NEW]** P2 - 관리자 화면 내 비활성 이용자 및 숨긴 간식 완전 숨김 처리 (Development Log - 44)
+* **[NEW]** P2 - GAS 콜드 스타트 대응을 위한 API 타임아웃 20초 연장 (Development Log - 45)
+* P2 - 관리자 화면 내 비활성 이용자 및 숨긴 간식 완전 숨김 처리 (Development Log - 44)
 * P2 - 오늘의 운영 결과 후기/태그 집계 누락 및 호출 파라미터 오류 해결 (Development Log - 43)
 * P3 - 주방 오늘의 운영 결과 버튼을 운영 메뉴 색상과 정렬 (Development Log - 42)
 * **[NEW]** P3 - 관리자 계열 이동 버튼 색상을 대상 화면 헤더색과 일치 (Development Log - 41)
@@ -2397,4 +2398,55 @@ These items are ordered by operational risk. Do not redo completed items unless 
 
 #### 7. Summary (요약)
 * 과거 데이터 무결성을 유지하기 위해 백엔드 삭제 대신 프론트엔드 UI 토글 필터링(대안 B)을 도입하여, 실수로 데이터를 훼손하지 않으면서도 관리 화면의 복잡성을 간결하게 정리했습니다.
+
+---
+
+### 작업 기록 (Development Log) - 45) GAS 콜드 스타트 대응을 위한 API 타임아웃 20초 연장
+
+#### 작업명
+> 구글 앱스 스크립트(GAS)의 첫 실행 지연(콜드 스타트) 시 API 요청 중단(AbortError)을 방지하기 위한 타임아웃 연장
+
+#### 1. Issue (문제)
+##### 증상
+* 관리자 페이지를 로드할 때 `getUsers` API 호출이 10초 동안 무응답으로 중단되어, 이용자 목록이 빈 칸으로 보이고 콘솔에 `[API Timeout] getUsers 요청이 10초 동안 응답이 없어 강제 중단합니다.` 에러가 기록됨.
+
+##### 영향
+* 스프레드시트 서버(GAS)가 대기 상태(Cold Start)이거나 로딩 지연이 발생할 때, 10초 타임아웃 제한에 의해 데이터를 완전히 가져오지 못하고 이용자 목록 전체 렌더링이 실패함.
+
+##### 원인
+* 기존 프론트엔드 `js/config.js`에 설정된 `fetchAPI`의 타임아웃 가드 제한(10초)이 구글 앱스 스크립트의 초기 기동 지연 시간(보통 10~15초 소요됨)보다 촉박하여 네트워크 요청을 강제 중단(`AbortController.abort()`)시켰음.
+
+#### 2. Decision (결정)
+##### 해결 방법
+* **안전 단위 1 - API 타임아웃을 20초로 연장**
+  - `js/config.js` 내의 `fetchAPI` 타임아웃 제한 시간을 기존 `10000ms`에서 `20000ms`(20초)로 완화하여 GAS 최초 호출이 원활하게 성공하도록 보장.
+* **안전 단위 2 - 캐시 버전 상향**
+  - 업데이트된 타임아웃 설정이 즉시 반영될 수 있도록 `service-worker.js`의 `CACHE_NAME`을 `kiosk-cache-v112`로 상향 조정.
+
+##### GAS 배포 판단
+* **Apps Script 수정/배포 필요 없음.**
+  - 클라이언트 사이드 설정 변경이므로 정적 파일 수정만으로 조치 가능.
+
+##### 변경 파일
+* `js/config.js` (타임아웃 값을 20000ms로 상향 및 경고 텍스트 수정)
+* `service-worker.js` (PWA 캐시 버전 `kiosk-cache-v112`로 상향)
+* `handoff.md` (진행 기록 반영 및 Recently Resolved 갱신)
+
+#### 3. Verification (검증)
+##### 코드 검증
+* [x] `node --check service-worker.js` 및 `js/config.js` 자바스크립트 문법 검사 통과.
+
+#### 4. Manual Test (수동 테스트)
+##### 테스트 순서
+1. 브라우저 캐시를 강력 새로고침하여 캐시 버전이 `kiosk-cache-v112`로 변경되었는지 확인합니다.
+2. 오랜만에 접속하거나 대기 중인 상태에서 `getUsers` API 호출이 10초를 넘어가더라도 20초 이내에 성공하여 정상적으로 이용자 목록이 로딩되는지 확인합니다.
+
+#### 5. Caution (주의사항 / 오류 발생 시 대처방법)
+##### 오류 발생 시 대처방법
+* **증상: 여전히 타임아웃 에러가 발생함**
+  - 구글 스프레드시트 원본 또는 인터넷 통신 문제일 수 있으므로 브라우저 네트워크 연결 상태와 구글 서비스 상태를 체크합니다.
+
+#### 7. Summary (요약)
+* 구글 앱스 스크립트의 콜드 스타트 기동 특성을 감안해 타임아웃 임계치를 20초로 늘려, 첫 접속 시 목록이 보이지 않는 데이터 중단 현상을 극복했습니다.
+
 
