@@ -701,13 +701,13 @@ body {
 
 /* 관리자 화면 (admin.html) */
 .admin-header {
-  background-color: #2B2D42;
+  background-color: #1A365D;
   color: white;
   padding: 20px;
 }
 
 .admin-header.page-admin {
-  background-color: #2B2D42;
+  background-color: #1A365D;
 }
 
 .admin-header.page-kitchen {
