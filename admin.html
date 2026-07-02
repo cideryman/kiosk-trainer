@@ -696,6 +696,51 @@
       border-color: var(--secondary-color);
       background-color: #F0FFFE;
     }
+
+    /* 행 로딩 상태 스타일 */
+    .admin-table tbody tr {
+      position: relative;
+    }
+    .admin-table tbody tr.row-loading {
+      pointer-events: none; /* 클릭 차단 */
+      opacity: 0.55;
+    }
+    .admin-table tbody tr.row-loading::after {
+      content: "⏳ 반영 중...";
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255, 255, 255, 0.75);
+      color: var(--primary-color);
+      font-weight: 850;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      z-index: 10;
+    }
+
+    /* 모바일 화면에서 테이블 조작 버튼 축소 */
+    @media (max-width: 768px) {
+      .admin-table th, .admin-table td {
+        padding: 8px 4px;
+        font-size: 13px;
+      }
+      .credit-adjust-btn {
+        padding: 4px 6px;
+        font-size: 12px;
+        min-width: 32px;
+        height: auto;
+      }
+      .admin-inline-input {
+        width: 45px;
+        font-size: 14px;
+        padding: 4px;
+      }
+      .btn-small-action {
+        padding: 6px 8px;
+        font-size: 12px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1657,6 +1702,7 @@
 
       users.forEach(user => {
         const tr = document.createElement('tr');
+        tr.setAttribute('data-user-row', String(user.userId ?? ''));
         const isActive = isUserActive(user);
         
         const colors = ['#FF9F1C', '#2EC4B6', '#118AB2', '#FF5A5F', '#8338EC', '#3A86C8'];
@@ -1689,10 +1735,11 @@
           </td>
           <td style="font-weight: 800; font-size: 18px; color: var(--primary-color);">${credit} 크레딧</td>
           <td style="text-align: center;">
-            <div style="display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: wrap;">
-              <button class="credit-adjust-btn minus" onclick="${callAttr(`applyDeltaCredit(${userIdArg}, -1)`)}">-</button>
-              <input type="number" id="delta-credit-${attr(userId)}" class="admin-inline-input" value="1" min="1" style="width: 50px;">
-              <button class="credit-adjust-btn plus" onclick="${callAttr(`applyDeltaCredit(${userIdArg}, 1)`)}">+</button>
+            <div style="display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;">
+              <button class="credit-adjust-btn minus" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, -5)`)}">-5</button>
+              <button class="credit-adjust-btn minus" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, -1)`)}">-1</button>
+              <button class="credit-adjust-btn plus" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, 1)`)}">+1</button>
+              <button class="credit-adjust-btn plus" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, 5)`)}">+5</button>
             </div>
           </td>
           <td style="text-align: center;">
@@ -1709,17 +1756,26 @@
       });
     }
 
-    async function applyDeltaCredit(userId, sign) {
-      const deltaInput = document.getElementById(`delta-credit-${userId}`);
-      if (!deltaInput) return;
-      const delta = Number(deltaInput.value || 0);
-      if (delta <= 0 || isNaN(delta)) {
-        alert("0보다 큰 올바른 값을 입력해주세요.");
-        return;
+    function setUserRowLoading(userId, isLoading) {
+      const tr = document.querySelector(`tr[data-user-row="${userId}"]`);
+      if (tr) {
+        if (isLoading) tr.classList.add('row-loading');
+        else tr.classList.remove('row-loading');
       }
+    }
+
+    function setSnackRowLoading(snackId, isLoading) {
+      const tr = document.querySelector(`tr[data-snack-row="${snackId}"]`);
+      if (tr) {
+        if (isLoading) tr.classList.add('row-loading');
+        else tr.classList.remove('row-loading');
+      }
+    }
+
+    async function quickAdjustCredit(userId, change) {
       const user = currentUsers.find(u => String(u.userId) === String(userId));
       if (!user) return;
-      const newCredit = Math.max(0, Number(user.credit) + (delta * sign));
+      const newCredit = Math.max(0, Number(user.credit) + change);
       await updateUserCreditAction(userId, newCredit);
     }
 
@@ -1731,6 +1787,7 @@
     }
 
     async function updateUserCreditAction(userId, credit) {
+      setUserRowLoading(userId, true);
       try {
         const res = await fetchAPI('updateUserCredit', {
           method: 'POST',
@@ -1747,6 +1804,8 @@
       } catch (error) {
         console.error("크레딧 업데이트 에러:", error);
         alert("크레딧 반영 중 통신 에러가 발생했습니다.");
+      } finally {
+        setUserRowLoading(userId, false);
       }
     }
 
@@ -2037,6 +2096,7 @@
 
       snacks.forEach(snack => {
         const tr = document.createElement('tr');
+        tr.setAttribute('data-snack-row', String(snack.snackId ?? ''));
         
         const isSoldOut = snack.stock === 0;
         const isActive = isSnackActive(snack);
@@ -2122,6 +2182,7 @@
     }
 
     async function updateSnackStockAction(snackId, stock) {
+      setSnackRowLoading(snackId, true);
       try {
         const res = await fetchAPI('updateSnackStock', {
           method: 'POST',
@@ -2138,6 +2199,8 @@
       } catch (error) {
         console.error("재고 업데이트 에러:", error);
         alert("재고 반영 중 통신 에러가 발생했습니다.");
+      } finally {
+        setSnackRowLoading(snackId, false);
       }
     }
 
@@ -2147,6 +2210,7 @@
       const ok = confirm(`${snackName} 간식을 ${actionText}할까요?`);
       if (!ok) return;
 
+      setSnackRowLoading(snackId, true);
       try {
         const res = await fetchAPI('updateSnackSale', {
           method: 'POST',
@@ -2163,6 +2227,8 @@
       } catch (error) {
         console.error("간식 상태 변경 에러:", error);
         alert("간식 상태 변경 중 통신 에러가 발생했습니다.");
+      } finally {
+        setSnackRowLoading(snackId, false);
       }
     }
 
