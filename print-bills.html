@@ -374,6 +374,7 @@
                 deliveryType: o.deliveryType || 'pickup',
                 deliveryPlace: o.deliveryPlace || '',
                 deliveryFee: Number(o.deliveryFee || 0),
+                authProvider: o.authProvider || '',
                 items: [],
                 totalPoint: 0
               };
@@ -390,6 +391,12 @@
           sortedGroups.forEach(group => {
             // 배달비 포함 총 차감 크레딧
             const totalCredit = group.totalPoint + group.deliveryFee;
+            
+            const isKakao = group.authProvider === 'kakao';
+            let displayNickname = group.nickname || '';
+            if (isKakao) {
+              displayNickname = displayNickname.replace(/ \((체험|비회원)\)/g, '').trim() + ' 💬';
+            }
             
             // 메뉴 목록 HTML 생성
             const menusHtml = group.items.map(item => `
@@ -431,7 +438,7 @@
                 </div>
                 <div class="info-row">
                   <span class="info-label">주문자</span>
-                  <span class="info-value">${AppState.escapeHtml(group.nickname)} 님</span>
+                  <span class="info-value">${AppState.escapeHtml(displayNickname)} 님</span>
                 </div>
                 <div class="info-row">
                   <span class="info-label">주문시간</span>
@@ -546,6 +553,12 @@
           const parts = String(group.orderNo).split('-');
           const shortOrderNo = parts.length >= 3 ? parts[2] : group.orderNo;
           
+          const isKakao = group.authProvider === 'kakao';
+          let displayNickname = group.nickname || '';
+          if (isKakao) {
+            displayNickname = displayNickname.replace(/ \((체험|비회원)\)/g, '').trim() + ' 💬';
+          }
+          
           const snackNamesHtml = group.items.map(item => AppState.escapeHtml(item.snackName)).join('<br>');
           const quantitiesHtml = group.items.map(item => `${Number(item.quantity || 1)}개`).join('<br>');
           
@@ -553,7 +566,7 @@
             <tr>
               <td style="text-align: center; width: 50px; vertical-align: middle;"><input type="checkbox" class="checklist-chbox"></td>
               <td style="font-family: monospace; vertical-align: middle;">[${AppState.escapeHtml(shortOrderNo)}]</td>
-              <td style="vertical-align: middle;"><strong>${AppState.escapeHtml(group.nickname)} 님</strong></td>
+              <td style="vertical-align: middle;"><strong>${AppState.escapeHtml(displayNickname)} 님</strong></td>
               <td style="vertical-align: middle;">${snackNamesHtml}</td>
               <td style="text-align: center; font-weight: 800; width: 80px; vertical-align: middle;">${quantitiesHtml}</td>
             </tr>

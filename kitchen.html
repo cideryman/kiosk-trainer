@@ -2142,6 +2142,7 @@
               orderNo: order.orderNo,
               servedYn: order.servedYn || 'N',
               deliveryType: order.deliveryType || 'pickup',
+              authProvider: order.authProvider || '',
               items: []
             };
           }
@@ -2177,15 +2178,20 @@
         }
 
         sortedOrderGroups.forEach(group => {
-          const nickname = String(group.nickname || '');
-          const rawImgUrl = userImageMap[nickname] || '';
+          const rawNickname = String(group.nickname || '');
+          const isKakao = group.authProvider === 'kakao';
+          let displayNickname = rawNickname;
+          if (isKakao) {
+            displayNickname = displayNickname.replace(/ \((체험|비회원)\)/g, '').trim() + ' 💬';
+          }
+          const rawImgUrl = userImageMap[rawNickname] || userImageMap[displayNickname] || '';
           const imgUrl = rawImgUrl ? AppState.convertDriveImageUrl(rawImgUrl) : '';
-          const safeNickname = esc(nickname);
-          const safeInitial = esc(nickname.charAt(0) || '?');
+          const safeNickname = esc(displayNickname);
+          const safeInitial = esc(displayNickname.charAt(0) || '?');
           const safeImgUrl = attr(imgUrl);
           
           const colors = ['#FF9F1C', '#2EC4B6', '#118AB2', '#FF5A5F', '#8338EC', '#3A86C8'];
-          const colorIndex = Math.abs(nickname.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % colors.length;
+          const colorIndex = Math.abs(displayNickname.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % colors.length;
           const avatarBgColor = colors[colorIndex];
           const orderNoArg = jsString(group.orderNo);
 
@@ -2269,7 +2275,7 @@
               <label class="card-checkbox-label" for="${attr(checkboxId)}">이 주문 선택</label>
             </div>
             <div style="display: flex; gap: 8px; margin-top: 8px; width: 100%;">
-              <button class="btn-cancel-action" style="flex: 1;" onclick="${callAttr(`cancelOrderAction(${orderNoArg}, ${jsString(nickname)})`)}">주문 취소</button>
+              <button class="btn-cancel-action" style="flex: 1;" onclick="${callAttr(`cancelOrderAction(${orderNoArg}, ${jsString(rawNickname)})`)}">주문 취소</button>
               ${actionBtnHtml}
             </div>
           `;
@@ -2313,6 +2319,12 @@
           const qtyVal = order.quantity || 0;
           const isCanceled = order.servedYn === 'C';
 
+          const isKakao = order.authProvider === 'kakao';
+          let displayNickname = order.nickname || '';
+          if (isKakao) {
+            displayNickname = displayNickname.replace(/ \((체험|비회원)\)/g, '').trim() + ' 💬';
+          }
+
           const isDelivery = order.deliveryType === 'delivery';
           const deliveryBadge = isDelivery
             ? `<span style="background-color: var(--danger-color); color: white; padding: 2px 6px; font-size: 11px; font-weight: 850; border-radius: 4px; margin-left: 6px;">배달</span>`
@@ -2341,7 +2353,7 @@
           tr.style = rowStyle;
           tr.innerHTML = `
             <td><strong>${esc(formatTime(isCanceled ? order.cancelTimestamp : order.timestamp))}</strong></td>
-            <td>${numberPrefix}${esc(order.nickname)}${deliveryBadge}${deliveryPlaceText}</td>
+            <td>${numberPrefix}${esc(displayNickname)}${deliveryBadge}${deliveryPlaceText}</td>
             <td>${esc(order.snackName)}${statusHtml}</td>
             <td style="text-align: center; font-weight: 800;">${qtyVal}개</td>
             <td style="text-align: right; font-weight: 800; color: var(--primary-color);">${esc(AppState.formatPoint(pointVal))}</td>
@@ -2377,9 +2389,10 @@
         }
 
         if (order.nickname) {
+          const cleanNickname = order.nickname.replace(/ \((체험|비회원)\)/g, '').trim();
           const userOrderKey = `${order.orderNo}_${order.nickname}`;
           if (!countedUserOrders.has(userOrderKey)) {
-            userAggregates[order.nickname] = (userAggregates[order.nickname] || 0) + 1;
+            userAggregates[cleanNickname] = (userAggregates[cleanNickname] || 0) + 1;
             countedUserOrders.add(userOrderKey);
           }
         }

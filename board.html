@@ -609,7 +609,12 @@
         const shortNo = getShortNo(order.orderNo);
         // 번호가 너무 길어 원을 벗어나는 현상 방지 (뒤 4자리만 표시)
         const displayNo = String(shortNo).length > 4 ? '...' + String(shortNo).slice(-4) : shortNo;
-        const safeNickname = AppState.escapeHtml(order.nickname);
+        let displayName = order.nickname || '';
+        const isKakao = order.authProvider === 'kakao';
+        if (isKakao) {
+          displayName = displayName.replace(/ \((체험|비회원)\)/g, '').trim() + ' 💬';
+        }
+        const safeNickname = AppState.escapeHtml(displayName);
         const safeSnacksText = AppState.escapeHtml(
           order.snacks.map(s => `${s.name} ${s.quantity}개`).join(', ')
         );
