@@ -8,7 +8,7 @@
     /* 기본 인쇄 스타일 */
     @page {
       size: A4;
-      margin: 10mm;
+      margin: 0; /* 인쇄 마진 제거 (CSS 패딩으로 제어) */
     }
     
     body {
@@ -48,6 +48,8 @@
       grid-template-columns: 1fr 1fr;
       gap: 10mm 15mm; /* 행 간격, 열 간격 */
       background: transparent;
+      padding: 10mm; /* 일반 화면 프리뷰 시 마진 */
+      box-sizing: border-box;
     }
 
     /* 빌지 카드 */
@@ -195,6 +197,92 @@
       color: white;
     }
 
+    /* 라벨지 화면/인쇄 공통 숨김 처리 */
+    body.label-mode .bill-header,
+    body.label-mode .bill-footer,
+    body.label-mode .row-credit,
+    body.label-mode .row-status {
+      display: none !important;
+    }
+
+    /* 라벨 모드 화면(Screen) 스타일 */
+    body.label-mode .print-container {
+      max-width: 210mm;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr); /* 화면에서는 3열 그리드 */
+      gap: 10px; /* 화면 프리뷰 카드 간격 */
+      padding: 20px;
+    }
+
+    body.label-mode .bill-card {
+      aspect-ratio: 63.5 / 38.1; /* 라벨 비율 유지 */
+      border: 1px dashed #9ca3af;
+      background: white;
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 11px;
+      height: auto;
+      min-height: unset;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-sizing: border-box;
+    }
+
+    body.label-mode .bill-body {
+      padding: 0;
+      gap: 2px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    body.label-mode .info-row {
+      font-size: 11px;
+      line-height: 1.1;
+    }
+
+    body.label-mode .info-label {
+      width: auto;
+      font-size: 10px;
+      color: #718096;
+    }
+
+    body.label-mode .info-value {
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    body.label-mode .row-order-no .info-value {
+      font-size: 13px; /* 주문번호는 식별이 중요하므로 조금 큼 */
+      color: #2d3748;
+    }
+
+    body.label-mode .menu-box {
+      margin: 2px 0;
+      padding: 4px 6px;
+      background-color: #f7fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    body.label-mode .menu-item {
+      font-size: 11px;
+      font-weight: 800;
+      margin-bottom: 2px;
+      line-height: 1.2;
+    }
+
+    body.label-mode .menu-item:last-child {
+      margin-bottom: 0;
+    }
+
     @media print {
       body {
         display: block !important;
@@ -204,14 +292,93 @@
       .no-print {
         display: none !important;
       }
-      .print-container {
-        gap: 5mm; /* 인쇄 시 여백 최적화 */
+      
+      /* 일반 모드 인쇄 시 10mm 패딩 가상 여백 부여 */
+      body:not(.label-mode) .print-container {
+        padding: 10mm !important;
+        gap: 5mm !important;
       }
-      .bill-card {
+      body:not(.label-mode) .bill-card {
         border-color: #666; /* 흑백 인쇄 시 더 잘 보이게 */
       }
-      .menu-box {
+      body:not(.label-mode) .menu-box {
         border-color: #ccc;
+      }
+
+      /* 라벨지 인쇄 전용 스타일 */
+      body.label-mode {
+        background-color: white !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+
+      body.label-mode #checklist-container {
+        display: none !important;
+      }
+
+      body.label-mode .print-container {
+        width: 210mm !important;
+        height: 297mm !important;
+        padding-top: 15.1mm !important; /* 상단 여백 15.1mm */
+        padding-bottom: 15.1mm !important; /* 하단 여백 15.1mm */
+        padding-left: 6.4mm !important; /* 좌측 여백 6.4mm */
+        padding-right: 6.4mm !important; /* 우측 여백 6.4mm */
+        display: grid !important;
+        grid-template-columns: repeat(3, 63.5mm) !important;
+        grid-auto-rows: 38.1mm !important;
+        gap: 0 !important; /* 칼선 사이 간격 없음 */
+        box-sizing: border-box !important;
+        margin: 0 !important;
+      }
+
+      body.label-mode .bill-card {
+        width: 63.5mm !important;
+        height: 38.1mm !important;
+        border: 1px dashed #ddd !important; /* 뜯는 선/칼선 대조용 옅은 가이드선 */
+        border-radius: 0 !important;
+        padding: 2mm 3mm !important; /* 라벨 내부 정밀 여백 */
+        box-sizing: border-box !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        overflow: hidden !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        background: white !important;
+      }
+
+      body.label-mode .bill-body {
+        padding: 0 !important;
+        gap: 1px !important;
+        height: 100% !important;
+      }
+
+      body.label-mode .info-row {
+        font-size: 10px !important;
+        line-height: 1.1 !important;
+      }
+
+      body.label-mode .info-label {
+        font-size: 9px !important;
+      }
+
+      body.label-mode .info-value {
+        font-size: 10px !important;
+      }
+
+      body.label-mode .row-order-no .info-value {
+        font-size: 12px !important;
+      }
+
+      body.label-mode .menu-box {
+        margin: 1px 0 !important;
+        padding: 2px 4px !important;
+        border-width: 1px !important;
+      }
+
+      body.label-mode .menu-item {
+        font-size: 10px !important;
+        margin-bottom: 1px !important;
       }
     }
 
@@ -298,6 +465,13 @@
     <div style="font-size: 20px; font-weight: 850; color: #2d3748;">🖨️ 오늘 주문 빌지 인쇄</div>
     <div style="font-size: 14px; color: #718096; margin-right: auto; margin-left: 16px;">
       취소된 주문은 제외됩니다. A4 용지 인쇄에 최적화되어 있습니다.
+    </div>
+    <div style="margin-right: 16px; display: flex; align-items: center; gap: 8px;">
+      <label for="print-mode-select" style="font-size: 14px; font-weight: 800; color: #4a5568;">인쇄 형식:</label>
+      <select id="print-mode-select" style="padding: 8px 12px; font-size: 14px; font-weight: 700; border-radius: 6px; border: 2px solid #cbd5e1; outline: none; cursor: pointer; background: white;">
+        <option value="normal">일반 빌지 (A4 2열)</option>
+        <option value="label">애니라벨 V3050 (3열 7행)</option>
+      </select>
     </div>
     <button class="btn-print" onclick="window.print()">인쇄하기</button>
   </div>
@@ -432,15 +606,15 @@
               </div>
 
               <div class="bill-body">
-                <div class="info-row">
+                <div class="info-row row-order-no">
                   <span class="info-label">주문번호</span>
                   <span class="info-value" style="font-size: 16px;">[${AppState.escapeHtml(shortOrderNo)}]</span>
                 </div>
-                <div class="info-row">
+                <div class="info-row row-nickname">
                   <span class="info-label">주문자</span>
                   <span class="info-value">${AppState.escapeHtml(displayNickname)} 님</span>
                 </div>
-                <div class="info-row">
+                <div class="info-row row-time">
                   <span class="info-label">주문시간</span>
                   <span class="info-value">${formatSimpleTime(group.timestamp)}</span>
                 </div>
@@ -449,21 +623,21 @@
                   ${menusHtml}
                 </div>
 
-                <div class="info-row">
+                <div class="info-row row-delivery-type">
                   <span class="info-label">수령방식</span>
                   <span class="info-value">${deliveryTypeStr}</span>
                 </div>
                 ${isDelivery && group.deliveryPlace ? `
-                <div class="info-row" style="color: #e53e3e;">
+                <div class="info-row row-delivery-place" style="color: #e53e3e;">
                   <span class="info-label" style="color: #e53e3e;">배송지</span>
                   <span class="info-value">${AppState.escapeHtml(group.deliveryPlace)}</span>
                 </div>
                 ` : ''}
-                <div class="info-row">
+                <div class="info-row row-credit">
                   <span class="info-label">차감크레딧</span>
                   <span class="info-value">${AppState.formatPoint(totalCredit)} (배달비 ${group.deliveryFee} 포함)</span>
                 </div>
-                <div class="info-row">
+                <div class="info-row row-status">
                   <span class="info-label">주문상태</span>
                   <span class="info-value">${statusBadge}</span>
                 </div>
@@ -598,6 +772,20 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
+      // 인쇄 모드 복원 및 이벤트 등록
+      const select = document.getElementById('print-mode-select');
+      if (select) {
+        const savedMode = localStorage.getItem('print-bills-mode') || 'normal';
+        select.value = savedMode;
+        document.body.classList.toggle('label-mode', savedMode === 'label');
+
+        select.addEventListener('change', (e) => {
+          const mode = e.target.value;
+          document.body.classList.toggle('label-mode', mode === 'label');
+          localStorage.setItem('print-bills-mode', mode);
+        });
+      }
+
       loadBills();
     });
   </script>
