@@ -8,7 +8,7 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
 
 This top section is the current working queue. Long history remains below, but new agents should start here first.
 
-#### Active Issues (2026-06-30)
+#### Active Issues (2026-07-03)
 1. **P4 - Review participation info in review-detail modal**
    - Future engagement/observation idea, not a stability blocker.
 2. **P2 - 구글 시트 API 연결 불안정 이슈 해결 대책 수립**
@@ -22,6 +22,12 @@ This top section is the current working queue. Long history remains below, but n
      - 이전 요청 완료 후 일정 대기 후 재요청하는 지연 폴링(Backoff) 패턴 도입.
      - 유저 목록(`getUsers`) 등 자주 변경되지 않는 기본 데이터에 로컬 캐싱(localStorage 등, 1~5분 유효) 적용.
      - 전광판 및 주문 상태 추적 폴링 간격 완화(전광판 10~15초 등으로 확장).
+3. **P3 - 배달왔삼(게스트) 후기 감사 답글 기능 기획 및 도입 검토**
+   - **요구사항/아이디어**: 수급자(후원자, 봉사자, 직원)가 작성한 배달 칭찬 후기에 대해, 공급자인 발달장애인 이용자가 직접 감사의 답글을 보낼 수 있는 피드백 루프 신설.
+   - **세부 고려사항**:
+     - 주방 화면(`kitchen.html`) 등에 이용자용 '원클릭 감사 스탬프/상용구 버튼(예: 감사합니다! ❤️)' UI 및 음성 안내 연동 설계.
+     - 주문 번호 기준 배달 담당 이용자와 후기 테이블 간 매칭 데이터 구조 설계.
+     - 구글 시트 `후기내역` 시트 스키마에 `replyContent` 및 `replyCreatedAt` 컬럼 추가 및 관련 API 보강.
 
 ### Recently Resolved
 * **[NEW]** P2 - 주문하기 버튼 더블 클릭 시 비동기 레이스 컨디션에 따른 이중 주문 방지 (Development Log - 51)
