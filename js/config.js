@@ -49,6 +49,10 @@ const MOCK_DATA = {
     success: true,
     message: "주문이 완료되었습니다!"
   },
+  submitReviewReply: {
+    success: true,
+    message: "후기 답글이 성공적으로 등록되었습니다."
+  },
   getOrdersToday: {
     success: true,
     orders: [
@@ -1020,7 +1024,9 @@ function getMockFallback(action, options) {
         stamp: r.stamp,
         tags: r.tags,
         comment: r.comment,
-        imageUrl: r.imageUrl || ''
+        imageUrl: r.imageUrl || '',
+        replyText: r.replyText || '',
+        replyCreatedAt: r.replyCreatedAt || ''
       }))
       .reverse()
       .slice(0, 10);
@@ -1036,11 +1042,24 @@ function getMockFallback(action, options) {
     const mockReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
     const matched = mockReviews.find(r => String(r.createdAt) === String(createdAt));
     if (matched) {
-      matched.isPublic = isPublic;
+            matched.isPublic = isPublic;
       localStorage.setItem('mockReviews', JSON.stringify(mockReviews));
       res = { success: true, message: '후기 공개 상태가 변경되었습니다.' };
     } else {
       res = { success: false, message: '해당 후기를 찾을 수 없습니다.' };
+    }
+  } else if (action === 'submitReviewReply') {
+    const orderId = options.body?.orderId;
+    const replyText = options.body?.replyText || '';
+    const mockReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
+    const matched = mockReviews.find(r => String(r.orderId) === String(orderId));
+    if (matched) {
+      matched.replyText = replyText;
+      matched.replyCreatedAt = new Date().toISOString();
+      localStorage.setItem('mockReviews', JSON.stringify(mockReviews));
+      res = { success: true, message: '후기 답글이 성공적으로 등록되었습니다.' };
+    } else {
+      res = { success: false, message: '해당 주문의 후기를 찾을 수 없습니다.' };
     }
   } else if (action === 'getGuestOrderByToken') {
     const tokens = options.body?.tokens || [];

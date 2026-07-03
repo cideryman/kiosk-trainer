@@ -50,7 +50,7 @@
       border-bottom: 3.5px solid var(--border-color);
       padding-bottom: 0px;
     }
-    
+
     .admin-tab-btn {
       background: none;
       border: none;
@@ -64,23 +64,23 @@
       position: relative;
       bottom: -3.5px;
     }
-    
+
     .admin-tab-btn:hover {
       color: var(--text-main);
       background-color: #F1F5F9;
     }
-    
+
     .admin-tab-btn.active {
       color: var(--primary-color);
       background-color: white;
       border: 3.5px solid var(--border-color);
       border-bottom-color: white;
     }
-    
+
     .admin-tab-content {
       display: none;
     }
-    
+
     .admin-tab-content.active {
       display: block;
     }
@@ -284,14 +284,14 @@
       padding: 20px;
       box-shadow: var(--shadow-sm);
     }
-    
+
     .totals-grid {
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
       margin-top: 12px;
     }
-    
+
     .total-item-badge {
       background-color: #FFF3E0;
       border: 1.5px solid var(--primary-color);
@@ -305,13 +305,13 @@
       gap: 6px;
       box-shadow: var(--shadow-sm);
     }
-    
+
     .total-item-badge .highlight {
       color: var(--primary-color);
       font-size: 20px;
       font-weight: 900;
     }
-    
+
     /* 대기 중인 주문 그룹 레이아웃 */
     .pending-group-container {
       display: grid;
@@ -319,13 +319,13 @@
       gap: 16px;
       margin-top: 12px;
     }
-    
+
     @media (min-width: 600px) {
       .pending-group-container {
         grid-template-columns: 1fr 1fr;
       }
     }
-    
+
     .user-order-card {
       background-color: var(--card-bg);
       border: 2.5px solid var(--border-color);
@@ -337,12 +337,12 @@
       box-shadow: var(--shadow-sm);
       transition: all 0.2s ease-in-out;
     }
-    
+
     .user-order-card:hover {
       border-color: var(--primary-color);
       box-shadow: var(--shadow-md);
     }
-    
+
     .user-profile-header {
       display: flex;
       align-items: center;
@@ -350,7 +350,7 @@
       border-bottom: 2px solid var(--border-color);
       padding-bottom: 10px;
     }
-    
+
     .admin-avatar {
       width: 48px;
       height: 48px;
@@ -358,7 +358,7 @@
       object-fit: cover;
       border: 2px solid var(--border-color);
     }
-    
+
     .admin-avatar-initial {
       width: 48px;
       height: 48px;
@@ -371,20 +371,20 @@
       font-weight: 800;
       user-select: none;
     }
-    
+
     .user-name {
       font-size: 22px;
       font-weight: 800;
       color: var(--text-main);
     }
-    
+
     .order-time-badge {
       font-size: 14px;
       font-weight: 700;
       color: var(--text-muted);
       margin-left: auto;
     }
-    
+
     .user-order-items {
       list-style: none;
       padding: 0;
@@ -393,7 +393,7 @@
       gap: 6px;
       flex: 1;
     }
-    
+
     .user-order-items li {
       font-size: 18px;
       font-weight: 700;
@@ -401,7 +401,7 @@
       display: flex;
       justify-content: space-between;
     }
-    
+
     .btn-complete-action {
       background-color: var(--secondary-color);
       color: white;
@@ -416,7 +416,7 @@
       transition: all 0.15s ease-in-out;
       margin-top: auto;
     }
-    
+
     .btn-complete-action:active {
       transform: scale(0.96);
       background-color: var(--secondary-hover);
@@ -433,12 +433,12 @@
       cursor: pointer;
       transition: all 0.15s ease-in-out;
     }
-    
+
     .btn-cancel-action:active {
       transform: scale(0.96);
       background-color: var(--danger-hover);
     }
-    
+
     .empty-text {
       font-size: 18px;
       font-weight: 700;
@@ -463,12 +463,12 @@
       transition: all 0.15s ease-in-out;
       box-shadow: var(--shadow-sm);
     }
-    
+
     .btn-undo-action:hover {
       background-color: #CBD5E1;
       border-color: #94A3B8;
     }
-    
+
     .btn-undo-action:active {
       transform: scale(0.95);
     }
@@ -487,7 +487,7 @@
       align-items: center;
       padding: 20px;
     }
-    
+
     .admin-modal-content {
       background-color: white;
       border-radius: var(--radius-md);
@@ -500,12 +500,12 @@
       gap: 16px;
       animation: modalFadeIn 0.2s ease-out;
     }
-    
+
     @keyframes modalFadeIn {
       from { transform: scale(0.95); opacity: 0; }
       to { transform: scale(1); opacity: 1; }
     }
-    
+
     .admin-modal-header {
       display: flex;
       justify-content: space-between;
@@ -513,13 +513,13 @@
       border-bottom: 2px solid var(--border-color);
       padding-bottom: 12px;
     }
-    
+
     .admin-modal-title {
       font-size: 22px;
       font-weight: 800;
       color: var(--text-main);
     }
-    
+
     .admin-modal-close {
       background: none;
       border: none;
@@ -796,7 +796,7 @@
     async function loadAdminData() {
       try {
         const reviewsRes = await fetchAPI('getReviewsForAdmin', { method: 'POST', body: withAdminToken({}) });
-        
+
         // 4. 후기 데이터 처리
         if (reviewsRes && reviewsRes.success && Array.isArray(reviewsRes.reviews)) {
           renderReviews(reviewsRes.reviews);
@@ -818,19 +818,19 @@
     function renderReviews(reviews) {
       const tbody = document.getElementById('review-table-body');
       if (!tbody) return;
-      
+
       tbody.innerHTML = '';
-      
+
       if (reviews.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="empty-state">등록된 후기가 없습니다.</td></tr>';
         return;
       }
-      
+
       cachedReviews = reviews;
-      
+
       reviews.forEach((review, index) => {
         const tr = document.createElement('tr');
-        
+
         const isPub = review.isPublic === true || String(review.isPublic).toUpperCase() === 'TRUE' || review.isPublic === 'Y';
         const pubLabel = isPub ? '공개' : '비공개';
         const pubClass = isPub ? 'active' : 'inactive';
@@ -839,7 +839,7 @@
         if (rawDate && !isNaN(rawDate.getTime())) {
           formattedDate = `${rawDate.toLocaleDateString()} ${String(rawDate.getHours()).padStart(2, '0')}:${String(rawDate.getMinutes()).padStart(2, '0')}`;
         }
-        
+
         const photoHtml = review.imageUrl
           ? `<a href="${AppState.escapeAttr(review.imageUrl)}" target="_blank" title="원본 이미지 보기" style="display: inline-block;">
                <img src="${AppState.escapeAttr(AppState.convertDriveImageUrl(review.imageUrl))}" style="width: 44px; height: 44px; object-fit: cover; border-radius: var(--radius-xs); border: 1.5px solid var(--border-color); display: block;" onerror="this.parentElement.style.display='none';">
@@ -852,15 +852,18 @@
           <td>${esc(review.guestName)}</td>
           <td><span style="background-color: #FFF3E0; border: 1.5px solid var(--primary-color); padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #E65100;">${esc(review.stamp)}</span></td>
           <td>${esc(review.tags || '-')}</td>
-          <td style="max-width: 250px; word-break: break-all;">${esc(review.comment || '-')}</td>
+          <td style="max-width: 250px; word-break: break-all;">
+            ${esc(review.comment || '-')}
+            ${review.replyText ? `<br><span style="font-size: 13px; font-weight: 800; color: var(--primary-color); display: inline-block; margin-top: 4px;">↳ 답글: ${esc(review.replyText)}</span>` : ''}
+          </td>
           <td style="text-align: center; vertical-align: middle;">${photoHtml}</td>
           <td style="text-align: center; vertical-align: middle;"><span class="status-badge ${pubClass}">${pubLabel}</span></td>
         `;
-        
+
         tr.style.cursor = 'pointer';
         tr.classList.add('review-row-hover');
         tr.onclick = () => openReviewDetail(index);
-        
+
         tbody.appendChild(tr);
       });
     }
@@ -898,7 +901,7 @@
       if (!cachedReviews || index < 0 || index >= cachedReviews.length) return;
       currentReviewIndex = index;
       const review = cachedReviews[index];
-      
+
       const isPub = review.isPublic === true || String(review.isPublic).toUpperCase() === 'TRUE' || review.isPublic === 'Y';
       const rawDate = review.createdAt ? new Date(review.createdAt) : null;
       let formattedDate = review.createdAt || '-';
@@ -910,7 +913,29 @@
       document.getElementById('rd-created-at').textContent = formattedDate;
       document.getElementById('rd-stamp').textContent = review.stamp;
       document.getElementById('rd-tags').textContent = review.tags || '태그 없음';
-      
+
+      // 답글 데이터 로드 및 초기화
+      const replyInput = document.getElementById('rd-reply-input');
+      if (replyInput) {
+        replyInput.value = review.replyText || '';
+      }
+
+      const replyStatus = document.getElementById('rd-reply-status');
+      if (replyStatus) {
+        if (review.replyText) {
+          const rDate = review.replyCreatedAt ? new Date(review.replyCreatedAt) : null;
+          let formattedRDate = review.replyCreatedAt || '';
+          if (rDate && !isNaN(rDate.getTime())) {
+            formattedRDate = `${rDate.toLocaleDateString()} ${String(rDate.getHours()).padStart(2, '0')}:${String(rDate.getMinutes()).padStart(2, '0')}`;
+          }
+          replyStatus.innerHTML = `🟢 답글 작성됨 <span style="font-size:12px; color:#A0AEC0; font-weight:500; margin-left: 6px;">(${formattedRDate})</span>`;
+          replyStatus.style.color = '#38A169';
+        } else {
+          replyStatus.textContent = '작성된 답글이 없습니다.';
+          replyStatus.style.color = '#A0AEC0';
+        }
+      }
+
       const commentEl = document.getElementById('rd-comment');
       if (review.comment) {
         commentEl.textContent = review.comment;
@@ -951,7 +976,7 @@
 
     async function toggleCurrentReviewVisibility() {
       if (currentReviewIndex < 0 || !cachedReviews[currentReviewIndex]) return;
-      
+
       const review = cachedReviews[currentReviewIndex];
       const isCurrentlyPub = review.isPublic === true || String(review.isPublic).toUpperCase() === 'TRUE' || review.isPublic === 'Y';
       const targetState = !isCurrentlyPub;
@@ -998,17 +1023,76 @@
       openReviewDetail(currentReviewIndex + offset);
     }
 
+    // 프리셋 클릭 시 입력창에 대입하는 헬퍼 함수
+    window.applyReplyPreset = function(text) {
+      const input = document.getElementById('rd-reply-input');
+      if (input) {
+        input.value = text;
+        AppState.vibrate(30);
+      }
+    }
+
+    // 후기 답글 전송 API 호출 및 UI 갱신 함수
+    async function submitReviewReplyAction() {
+      if (currentReviewIndex < 0 || !cachedReviews[currentReviewIndex]) return;
+      const review = cachedReviews[currentReviewIndex];
+      const replyInput = document.getElementById('rd-reply-input');
+      const replyText = replyInput ? replyInput.value.trim() : '';
+
+      if (!replyText) {
+        alert('답글 내용을 입력하거나 단축 버튼을 선택하세요.');
+        if (replyInput) replyInput.focus();
+        return;
+      }
+
+      const btn = document.getElementById('btn-save-reply');
+      const originalText = btn.textContent;
+      btn.textContent = '저장중...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetchAPI('submitReviewReply', {
+          method: 'POST',
+          body: withAdminToken({
+            orderId: review.orderId,
+            replyText: replyText
+          })
+        });
+
+        if (res && res.success) {
+          AppState.vibrate(50);
+          alert('답글이 성공적으로 등록되었습니다.');
+
+          // 로컬 캐시 데이터 갱신
+          review.replyText = replyText;
+          review.replyCreatedAt = new Date().toISOString();
+
+          // UI 리렌더링
+          openReviewDetail(currentReviewIndex);
+          renderReviews(cachedReviews);
+        } else {
+          clearAdminTokenIfDenied(res);
+          alert(res?.message || '답글 저장에 실패했습니다.');
+        }
+      } catch (e) {
+        alert('오류가 발생했습니다: ' + e.message);
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       // 모달 이벤트 리스너 추가
       const btnClose = document.getElementById('btn-close-review-modal');
       if (btnClose) btnClose.addEventListener('click', closeReviewDetail);
-      
+
       const btnPrev = document.getElementById('btn-prev-review');
       if (btnPrev) btnPrev.addEventListener('click', () => navigateReview(-1));
-      
+
       const btnNext = document.getElementById('btn-next-review');
       if (btnNext) btnNext.addEventListener('click', () => navigateReview(1));
-      
+
       const btnToggle = document.getElementById('btn-toggle-review-visibility');
       if (btnToggle) btnToggle.addEventListener('click', toggleCurrentReviewVisibility);
 
@@ -1038,7 +1122,7 @@
   <div id="review-detail-modal" class="admin-modal" style="display: none; align-items: center; justify-content: center; z-index: 9999;">
     <div class="admin-modal-content" style="max-width: 600px; width: 90%; max-height: 90vh; display: flex; flex-direction: column; position: relative; padding: 0;">
       <button class="admin-modal-close" id="btn-close-review-modal" style="position: absolute; right: 15px; top: 15px; font-size: 28px; color: #718096; background: none; border: none; cursor: pointer; line-height: 1; z-index: 10;">&times;</button>
-      
+
       <div style="flex: 1; overflow-y: auto; padding: 35px 30px 20px; text-align: left;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
           <div>
@@ -1061,6 +1145,22 @@
           <img id="rd-photo" style="max-width: 100%; max-height: 500px; object-fit: contain; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid #E2E8F0;" src="" alt="후기 사진">
         </div>
       </div>
+
+        <!-- 답글 관리 영역 -->
+        <div id="rd-reply-container" style="margin-top: 24px; border-top: 2px dashed #E2E8F0; padding-top: 20px; margin-bottom: 10px;">
+          <h4 style="margin: 0 0 12px 0; font-size: 16px; color: var(--text-dark); font-weight: 850; display: flex; align-items: center; gap: 6px;">💬 후기 답글 (관리자 대리 작성)</h4>
+          <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+            <button type="button" class="btn-reply-preset" onclick="applyReplyPreset('💖 응원 고마워요!')" style="padding: 6px 14px; font-size: 13px; font-weight: 800; border-radius: 999px; border: 1.5px solid var(--border-color); background: white; cursor: pointer; color: var(--text-main); transition: all 0.15s;">💖 응원 고마워요!</button>
+            <button type="button" class="btn-reply-preset" onclick="applyReplyPreset('👍 맛있게 먹어줘서 기뻐요!')" style="padding: 6px 14px; font-size: 13px; font-weight: 800; border-radius: 999px; border: 1.5px solid var(--border-color); background: white; cursor: pointer; color: var(--text-main); transition: all 0.15s;">👍 맛있게 먹어줘서 기뻐요!</button>
+            <button type="button" class="btn-reply-preset" onclick="applyReplyPreset('🛵 안전하게 배달을 완료했어요!')" style="padding: 6px 14px; font-size: 13px; font-weight: 800; border-radius: 999px; border: 1.5px solid var(--border-color); background: white; cursor: pointer; color: var(--text-main); transition: all 0.15s;">🛵 안전하게 배달을 완료했어요!</button>
+            <button type="button" class="btn-reply-preset" onclick="applyReplyPreset('🌟 다음에 또 매점 이용해 주세요!')" style="padding: 6px 14px; font-size: 13px; font-weight: 800; border-radius: 999px; border: 1.5px solid var(--border-color); background: white; cursor: pointer; color: var(--text-main); transition: all 0.15s;">🌟 다음에 또 매점 이용해 주세요!</button>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="text" id="rd-reply-input" placeholder="답글 내용을 입력하거나 위의 단축 버튼을 누르세요 (최대 100자)" maxlength="100" style="flex: 1; padding: 10px 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); font-size: 15px; font-weight: 600; outline: none; min-height: 42px;">
+            <button class="btn btn-secondary" id="btn-save-reply" onclick="submitReviewReplyAction()" style="margin: 0; min-height: 42px; width: auto; font-size: 14px; padding: 0 16px; font-weight: 800; white-space: nowrap;">답글 저장</button>
+          </div>
+          <div id="rd-reply-status" style="font-size: 13px; color: #A0AEC0; margin-top: 8px; font-weight: 600;">작성된 답글이 없습니다.</div>
+        </div>
 
       <div style="display: flex; justify-content: space-between; padding: 15px 30px; border-top: 1px solid var(--border-color); background: #F8FAFC; border-radius: 0 0 var(--radius-lg) var(--radius-lg);">
         <button id="btn-prev-review" class="btn-outline" style="min-width: 110px; font-weight: 700;">&larr; 이전 후기</button>

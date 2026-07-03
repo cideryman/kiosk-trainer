@@ -116,7 +116,7 @@
       padding: 16px;
       backdrop-filter: blur(2px);
     }
-    
+
     .guest-modal-content {
       background-color: white;
       border-radius: var(--radius-md);
@@ -129,7 +129,7 @@
       box-shadow: 0 10px 25px rgba(0,0,0,0.15);
       animation: modalFadeIn 0.2s ease-out;
     }
-    
+
     .guest-modal-close {
       position: absolute;
       right: 12px;
@@ -145,19 +145,19 @@
       border-radius: 50%;
       transition: background-color 0.2s, color 0.2s;
     }
-    
+
     .guest-modal-close:active {
       background-color: #EDF2F7;
       color: #4A5568;
     }
-    
+
     .guest-modal-body {
       flex: 1;
       overflow-y: auto;
       padding: 30px 24px 20px;
       -webkit-overflow-scrolling: touch;
     }
-    
+
     .guest-modal-footer {
       display: flex;
       justify-content: space-between;
@@ -167,7 +167,7 @@
       border-radius: 0 0 var(--radius-md) var(--radius-md);
       gap: 12px;
     }
-    
+
     .guest-modal-btn {
       flex: 1;
       min-width: 100px;
@@ -181,25 +181,25 @@
       cursor: pointer;
       transition: all 0.1s ease;
     }
-    
+
     .guest-modal-btn:active {
       transform: scale(0.96);
       background-color: #F1F5F9;
       border-color: #CBD5E1;
     }
-    
+
     .guest-modal-btn:disabled {
       opacity: 0.4;
       cursor: not-allowed;
       transform: none;
       background-color: #F8FAFC;
     }
-    
+
     .review-card-item {
       cursor: pointer;
       transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
     }
-    
+
     .review-card-item:active {
       transform: scale(0.98);
       border-color: var(--secondary-color);
@@ -276,13 +276,13 @@
           배달왔삼에 오신 것을 환영합니다 😊<br>
           <span>오늘의 간식을 주문해보세요!</span>
         </div>
-        
+
         <!-- 오늘의 배달팀 -->
         <div id="today-delivery-team-section" style="display: none; flex-direction: column; gap: 16px; background-color: var(--card-bg); border: 3px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; box-shadow: var(--shadow-sm);">
           <div id="delivery-team-title" style="font-size: 20px; font-weight: 850; color: var(--text-main); display: flex; align-items: center; justify-content: center; gap: 8px;">
             📦 오늘의 배달팀
           </div>
-          
+
           <div id="delivery-team-members" class="delivery-team-role-grid">
             <!-- 동적 렌더링 -->
           </div>
@@ -295,7 +295,7 @@
           <div id="kakao-auth-status" style="font-size: 15px; font-weight: 800; color: #3A2A00; text-align: center; line-height: 1.45; word-break: keep-all;">
             카카오톡 로그인으로 다른 기기에서도 오늘 주문을 찾을 수 있어요.
           </div>
-          
+
           <div style="display: flex; flex-direction: column; gap: 10px;">
             <button class="btn btn-gray" id="btn-kakao-login" style="min-height: 52px; font-size: 17px; font-weight: 850; background-color: #FEE500; color: #191919; border: 2px solid #E7CF00; box-shadow: none; flex-wrap: wrap; gap: 8px; row-gap: 6px;">
               <span>카카오톡 로그인</span>
@@ -324,7 +324,7 @@
             </div>
             <div id="review-toggle-text" style="font-size: 16px; font-weight: 700; color: var(--text-muted);">▼ 펼쳐보기</div>
           </div>
-          
+
           <div id="praise-content" style="display: none; flex-direction: column; gap: 12px;">
             <div style="font-size: 14px; font-weight: 700; color: var(--text-muted); margin-top: 6px; line-height: 1.4; word-break: keep-all;">
               남겨주신 응원은 이용자들의 다음 활동에 큰 힘이 됩니다.
@@ -362,7 +362,7 @@
           <div id="kakao-input-hint" style="display: none; font-size: 14px; font-weight: 800; color: #3A2A00; background-color: #FFFBEA; border: 2px solid #FEE500; border-radius: var(--radius-sm); padding: 10px; text-align: center; line-height: 1.4; word-break: keep-all;">
             카카오 연결됨: 주문표시명은 직접 적어주세요.
           </div>
-          
+
           <div style="font-size: 15px; font-weight: 700; color: var(--text-muted); text-align: center; line-height: 1.4; word-break: keep-all; margin-top: 8px;">
             * 주문 처리를 위해 표시명만 주문내역에 저장합니다.
           </div>
@@ -381,7 +381,7 @@
   <div id="guest-review-modal" class="guest-modal">
     <div class="guest-modal-content">
       <button class="guest-modal-close" id="btn-gm-close">&times;</button>
-      
+
       <div class="guest-modal-body">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
           <div>
@@ -402,7 +402,16 @@
         <div id="gm-photo-container" style="text-align: center; margin-bottom: 16px; display: none;">
           <img id="gm-photo" style="max-width: 100%; max-height: 350px; object-fit: contain; border-radius: var(--radius-sm); border: 2px solid var(--border-color); background-color: #F8F9FA;" src="" alt="후기 사진">
         </div>
-        
+
+        <!-- 답글 영역 -->
+        <div id="gm-reply-container" style="background-color: #F0FDF4; padding: 16px 20px; border-radius: var(--radius-sm); border: 2px solid #BBF7D0; margin-bottom: 20px; display: none; text-align: left;">
+          <div style="font-weight: 850; font-size: 15px; color: #16A34A; display: flex; align-items: center; gap: 4px; margin-bottom: 8px;">
+            <span>💬 매점 담당자 답글</span>
+          </div>
+          <p id="gm-reply-text" style="font-size: 16px; font-weight: 700; line-height: 1.5; color: #1B4332; margin: 0; white-space: pre-wrap; word-break: break-all;">답글 내용</p>
+          <div id="gm-reply-created-at" style="text-align: right; font-size: 12px; font-weight: 700; color: #737373; margin-top: 8px;">답글 작성시간</div>
+        </div>
+
         <div style="text-align: right; font-size: 14px; font-weight: 800; color: var(--text-muted);">
           작성자: <span id="gm-guest-name">게스트</span> 님
         </div>
@@ -421,12 +430,12 @@
       <button class="guest-modal-close" id="btn-gpe-close">&times;</button>
       <div class="guest-modal-body" style="display: flex; flex-direction: column; gap: 16px; padding: 24px 20px;">
         <h2 style="font-size: 20px; font-weight: 850; color: var(--text-main); margin-top: 0; margin-bottom: 8px; text-align: center;">⚙️ 저장 정보 수정</h2>
-        
+
         <div style="display: flex; flex-direction: column; gap: 6px;">
           <label style="font-size: 15px; font-weight: 800; color: var(--text-main);">주문 표시명 (닉네임)</label>
           <input type="text" id="gpe-name-input" class="guest-input" style="font-size: 18px; min-height: 48px; text-align: left; padding: 8px 12px; margin-top: 4px;" placeholder="예: 홍길동">
         </div>
-        
+
         <div style="display: flex; flex-direction: column; gap: 6px;">
           <label style="font-size: 15px; font-weight: 800; color: var(--text-main);">📍 기본 배달 위치 (선택)</label>
           <input type="text" id="gpe-delivery-input" class="guest-input" style="font-size: 18px; min-height: 48px; text-align: left; padding: 8px 12px; margin-top: 4px;" placeholder="예: 사무실 원탁">
@@ -470,7 +479,7 @@
       const viewSelect = document.getElementById('view-select');
       const viewInput = document.getElementById('view-input');
       const input = document.getElementById('guest-name-input');
-      
+
       const btnNewOrder = document.getElementById('btn-new-order');
       const btnCheckOrders = document.getElementById('btn-check-orders');
       const btnStart = document.getElementById('btn-start');
@@ -893,7 +902,7 @@
             guideText.innerHTML = `${welcomeTitle}<br><span>${welcomeSubtitle}</span>`;
 
             renderTodayDeliveryTeam(settingsRes);
-            
+
             // sessionStorage에 설정값 캐시 (다음 화면에서 사용)
             sessionStorage.setItem('guestBaseCredit', String(guestBaseCredit));
             sessionStorage.setItem('kakaoGuestBonusCredit', String(kakaoGuestBonusCredit));
@@ -1297,7 +1306,7 @@
             if (!res || !res.success) {
               throw new Error(res.message || '정보 수정에 실패했습니다.');
             }
-            
+
             rememberedGuestProfile = {
               displayName: name,
               deliveryPlace: delivery
@@ -1306,7 +1315,7 @@
               input.value = name;
             }
             renderGuestAuth();
-            
+
             if (guestProfileEditModal) {
               guestProfileEditModal.style.display = 'none';
             }
@@ -1327,11 +1336,11 @@
       function checkReviewEligibility() {
         try {
           const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
-          const unreviewedOrders = guestOrders.filter(o => 
-            (o.status === 'Y' || o.servedYn === 'Y') && 
+          const unreviewedOrders = guestOrders.filter(o =>
+            (o.status === 'Y' || o.servedYn === 'Y') &&
             (o.reviewed !== true && o.reviewed !== 'true')
           );
-          
+
           const btnWriteReview = document.getElementById('btn-write-review');
           if (btnWriteReview) {
             if (unreviewedOrders.length > 0) {
@@ -1349,7 +1358,7 @@
         try {
           const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
           if (guestOrders.length === 0) return;
-          
+
           const response = await fetchAPI('getOrdersToday');
           if (response && response.success && Array.isArray(response.orders)) {
             let updated = false;
@@ -1491,7 +1500,7 @@
 
         AppState.vibrate(60);
         AppState.speak(`${guestName} 님, 맛있는 간식 주문을 시작합니다.`);
-        
+
         // 이동
         window.location.href = 'menu.html';
       }
@@ -1529,7 +1538,7 @@
         btnMoreReviews.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          
+
           // 이벤트 전파가 방지되므로 햅틱 및 효과음을 수동으로 제공합니다.
           AppState.vibrate(40);
           AppState.playClickSound();
@@ -1588,12 +1597,12 @@
           card.style.flexDirection = 'column';
           card.style.gap = '6px';
           card.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
-          
+
           // 훈련생 이름은 실명 노출 없이 '오늘의 배달원' 등으로 통일 표시
-          const recipientName = "오늘의 배달원"; 
+          const recipientName = "오늘의 배달원";
           const maskedGuest = maskGuestName(review.guestName);
           const stampHtml = review.stamp ? `<span style="background-color: #FFF3E0; border: 1.5px solid var(--primary-color); padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #E65100;">${AppState.escapeHtml(review.stamp)}</span>` : '';
-          
+
           let tagsHtml = '';
           if (review.tags) {
             const tagsList = String(review.tags).split(',').map(t => t.trim()).filter(Boolean);
@@ -1603,6 +1612,17 @@
           const photoHtml = review.imageUrl
             ? `<div style="margin-top: 6px; border-radius: var(--radius-sm); overflow: hidden; border: 1.5px solid var(--border-color); max-height: 200px; display: flex; align-items: center; justify-content: center; background-color: #F8F9FA;">
                  <img src="${AppState.escapeAttr(AppState.convertDriveImageUrl(review.imageUrl))}" style="width: 100%; max-height: 200px; object-fit: cover;" onerror="this.parentElement.style.display='none';" loading="lazy">
+               </div>`
+            : '';
+
+          const replyHtml = review.replyText
+            ? `<div style="background-color: #F0FDF4; border: 1.5px solid #BBF7D0; padding: 10px 12px; border-radius: var(--radius-sm); margin-top: 8px; display: flex; flex-direction: column; gap: 3px; text-align: left;">
+                 <div style="font-weight: 850; font-size: 13px; color: #16A34A; display: flex; align-items: center; gap: 4px;">
+                   <span>💬 매점 담당자 답글</span>
+                 </div>
+                 <div style="font-size: 14px; font-weight: 700; color: #1B4332; line-height: 1.4; word-break: break-all;">
+                   ${AppState.escapeHtml(review.replyText)}
+                 </div>
                </div>`
             : '';
 
@@ -1617,19 +1637,20 @@
               "${AppState.escapeHtml(review.comment || '응원합니다!')}"
             </div>
             ${photoHtml}
+            ${replyHtml}
             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 700; color: var(--text-muted); margin-top: 4px;">
               <div style="display: flex; flex-wrap: wrap; gap: 4px;">${tagsHtml}</div>
               <span>작성자: ${AppState.escapeHtml(maskedGuest)} 님</span>
             </div>
           `;
-          
+
           card.classList.add('review-card-item');
           AppState.bindCardTap(card, () => {
             if (typeof openGuestReviewModal === 'function') {
               openGuestReviewModal(idx);
             }
           });
-          
+
           container.appendChild(card);
         });
 
@@ -1677,7 +1698,7 @@
         if (!allReviews || index < 0 || index >= allReviews.length) return;
         currentReviewIndex = index;
         const review = allReviews[index];
-        
+
         const rawDate = review.createdAt ? new Date(review.createdAt) : null;
         let formattedDate = review.createdAt || '-';
         if (rawDate && !isNaN(rawDate.getTime())) {
@@ -1687,7 +1708,7 @@
         const maskedGuest = maskGuestName(review.guestName);
         document.getElementById('gm-guest-name').textContent = maskedGuest;
         document.getElementById('gm-created-at').textContent = formattedDate;
-        
+
         const stampEl = document.getElementById('gm-stamp');
         if (review.stamp) {
           stampEl.textContent = review.stamp;
@@ -1695,7 +1716,7 @@
         } else {
           stampEl.style.display = 'none';
         }
-        
+
         const tagsEl = document.getElementById('gm-tags');
         if (review.tags) {
           const tagsList = String(review.tags).split(',').map(t => t.trim()).filter(Boolean);
@@ -1704,7 +1725,7 @@
         } else {
           tagsEl.style.display = 'none';
         }
-        
+
         const commentEl = document.getElementById('gm-comment');
         if (review.comment) {
           commentEl.textContent = review.comment;
@@ -1722,6 +1743,28 @@
         } else {
           photoContainer.style.display = 'none';
           photoEl.src = '';
+        }
+
+        const replyContainer = document.getElementById('gm-reply-container');
+        const replyTextEl = document.getElementById('gm-reply-text');
+        const replyDateEl = document.getElementById('gm-reply-created-at');
+
+        if (replyContainer && replyTextEl) {
+          if (review.replyText) {
+            replyTextEl.textContent = review.replyText;
+
+            const rDate = review.replyCreatedAt ? new Date(review.replyCreatedAt) : null;
+            let formattedRDate = review.replyCreatedAt || '';
+            if (rDate && !isNaN(rDate.getTime())) {
+              formattedRDate = `${rDate.toLocaleDateString()} ${String(rDate.getHours()).padStart(2, '0')}:${String(rDate.getMinutes()).padStart(2, '0')}`;
+            }
+            if (replyDateEl) {
+              replyDateEl.textContent = formattedRDate ? `답글 작성일: ${formattedRDate}` : '';
+            }
+            replyContainer.style.display = 'block';
+          } else {
+            replyContainer.style.display = 'none';
+          }
         }
 
         document.getElementById('btn-gm-prev').disabled = (index === 0);
@@ -1747,13 +1790,13 @@
           if (e.target.id === 'guest-review-modal') closeGuestReviewModal();
         });
       }
-      
+
       const btnGmClose = document.getElementById('btn-gm-close');
       if (btnGmClose) btnGmClose.addEventListener('click', closeGuestReviewModal);
-      
+
       const btnGmPrev = document.getElementById('btn-gm-prev');
       if (btnGmPrev) AppState.bindCardTap(btnGmPrev, () => navigateGuestReview(-1));
-      
+
       const btnGmNext = document.getElementById('btn-gm-next');
       if (btnGmNext) AppState.bindCardTap(btnGmNext, () => navigateGuestReview(1));
 

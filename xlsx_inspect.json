@@ -1,0 +1,138 @@
+[
+  {
+    "sheet_name": "간식목록",
+    "headers": [
+      "간식ID",
+      "이름",
+      "포인트",
+      "사진URL",
+      "판매여부",
+      "재고",
+      "표시순서",
+      "제공대상",
+      "범주"
+    ]
+  },
+  {
+    "sheet_name": "게스트크레딧",
+    "headers": [
+      "periodKey",
+      "guestDeviceId",
+      "guestKey",
+      "baseCredit",
+      "bonusCredit",
+      "creditLimit",
+      "usedCredit",
+      "remainingCredit",
+      "updatedAt"
+    ]
+  },
+  {
+    "sheet_name": "게스트프로필",
+    "headers": [
+      "guestKey",
+      "displayName",
+      "deliveryPlace",
+      "updatedAt"
+    ]
+  },
+  {
+    "sheet_name": "주문보관",
+    "headers": [
+      "주문시간",
+      "주문번호",
+      "이용자ID",
+      "별명",
+      "간식ID",
+      "간식명",
+      "수량",
+      "차감포인트",
+      "제공여부",
+      "cancelTimestamp",
+      "orderToken",
+      "deliveryType",
+      "deliveryFee",
+      "totalCredit",
+      "reviewed",
+      "deliveryPlace",
+      "cancelReason",
+      "cancelReasonDetail"
+    ]
+  },
+  {
+    "sheet_name": "후기내역",
+    "headers": [
+      "createdAt",
+      "orderId",
+      "guestName",
+      "stamp",
+      "tags",
+      "comment",
+      "isPublic",
+      "imageUrl"
+    ]
+  },
+  {
+    "sheet_name": "운영설정",
+    "headers": [
+      "key",
+      "value"
+    ]
+  },
+  {
+    "sheet_name": "관리자로그",
+    "headers": [
+      "timestamp",
+      "action",
+      "targetType",
+      "targetId",
+      "targetName",
+      "beforeValue",
+      "afterValue",
+      "memo"
+    ]
+  },
+  {
+    "sheet_name": "이용자목록",
+    "headers": [
+      "이용자ID",
+      "별명",
+      "크레딧",
+      "사용여부",
+      "사진url"
+    ]
+  },
+  {
+    "sheet_name": "주문내역",
+    "headers": [
+      "주문시간",
+      "주문번호",
+      "이용자ID",
+      "별명",
+      "간식ID",
+      "간식명",
+      "수량",
+      "차감포인트",
+      "제공여부",
+      "cancelTimestamp",
+      "orderToken",
+      "deliveryType",
+      "deliveryFee",
+      "totalCredit",
+      "reviewed",
+      "deliveryPlace",
+      "cancelReason",
+      "cancelReasonDetail",
+      "guestDeviceId",
+      "authProvider",
+      "guestKey",
+      "deliveryAddress"
+    ]
+  },
+  {
+    "sheet_name": "설정",
+    "headers": [
+      null
+    ]
+  }
+]
