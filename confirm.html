@@ -724,9 +724,23 @@
         return;
       }
 
+      const loadingOverlay = document.getElementById('loading-overlay');
+      const errorBox       = document.getElementById('error-message-box');
+      const btnSubmit      = document.getElementById('btn-submit');
+      const btnPrev        = document.getElementById('btn-prev');
+
+      if (loadingOverlay) loadingOverlay.style.display = 'flex';
+      if (errorBox) errorBox.style.display = 'none';
+      if (btnSubmit) btnSubmit.disabled = true;
+      if (btnPrev) btnPrev.disabled   = true;
+
       const isGuest = (user.userId === 'guest');
       if (isGuest) {
-        await refreshGuestCreditStatus();
+        try {
+          await refreshGuestCreditStatus();
+        } catch (error) {
+          console.warn('게스트 크레딧 갱신 실패:', error);
+        }
       }
 
       const fee = getGuestFee();
@@ -735,25 +749,15 @@
       const totalPoints = snackPoints + deliveryFee;
       const remainPoints = user.credit - totalPoints;
 
-      const loadingOverlay = document.getElementById('loading-overlay');
-      const errorBox       = document.getElementById('error-message-box');
-      const btnSubmit      = document.getElementById('btn-submit');
-      const btnPrev        = document.getElementById('btn-prev');
-
-      loadingOverlay.style.display = 'flex';
-      errorBox.style.display = 'none';
-      btnSubmit.disabled = true;
-      btnPrev.disabled   = true;
-
       let deliveryPlace = '';
       if (isGuest && deliveryType === 'delivery') {
         const deliveryPlaceInput = document.getElementById('delivery-place-input');
         deliveryPlace = deliveryPlaceInput ? deliveryPlaceInput.value.trim() : '';
         if (!deliveryPlace) {
           alert('배달지를 입력해 주세요.');
-          loadingOverlay.style.display = 'none';
-          btnSubmit.disabled = false;
-          btnPrev.disabled   = false;
+          if (loadingOverlay) loadingOverlay.style.display = 'none';
+          if (btnSubmit) btnSubmit.disabled = false;
+          if (btnPrev) btnPrev.disabled   = false;
           if (deliveryPlaceInput) deliveryPlaceInput.focus();
           return;
         }
