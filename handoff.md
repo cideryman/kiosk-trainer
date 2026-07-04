@@ -14,12 +14,31 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
    - **현황**: API 지연(콜드 스타트 20초 대응) 및 동시 실행 제한 우회를 위해 client-side `API_CACHE` (getUsers 2분 캐시) 및 순차 대기형(`setTimeout` 재귀) 폴링을 적용함.
    - **관찰사항**: 실제 다수 기기 운영 환경에서 구글 계정 동시 실행 한도 초과(HTTP 429/503)나 락 획득 대기 시간 초과 에러가 재발하지 않는지 모니터링 필요.
 
+### Analysis Queue
+1. **P1 - Apps Script 성능 점검**
+   - Google Sheets 읽기/쓰기 호출 최적화 가능성, 반복 조회, CacheService 적용 후보, 주문 처리 병목을 분석한다.
+   - 구현 전 분석과 우선순위 제안이 목적이다.
+   - **권장 방향**: 바로 최적화 코드를 넣지 말고, 성능 감사와 안전한 후보 선별부터 진행한다.
+   - **안전한 진행 로드맵**
+     1. 함수별 시트 호출 지도를 만든다: `placeOrder`, `getGuestSettings`, `getGuestCreditStatus`, `resolveGuestCreditWallet`, `getSnacks`, `getUsers`, `getOrdersToday`, `getGuestOrderByToken`, `getReviewsForAdmin`, `archiveOldOrders`를 우선 확인한다.
+     2. 각 함수별로 읽는 시트, 쓰는 시트, `getValue/getValues/setValue/setValues/appendRow` 사용, 락 사용 여부, 실시간성 필요 여부, 캐시 가능 여부를 표로 정리한다.
+     3. 위험도를 나눈다: 운영설정/간식목록/이용자목록/후기 목록 같은 조회는 저위험, 오늘 주문/게스트 주문/운영 결과 집계는 중위험, `placeOrder`/재고 차감/게스트 크레딧 차감·환불/주문 취소/주문 보관은 고위험으로 본다.
+     4. 저위험 후보부터 검토한다: `getGuestSettings()` 짧은 캐시(30~60초)와 설정 변경 시 캐시 무효화, 같은 요청 안의 반복 조회 제거, `getValues()` 1회 읽기 후 메모리 필터링, 여러 셀 쓰기 묶기.
+     5. `placeOrder`는 별도 설계로 다룬다: 주문 생성 중 설정 조회 횟수, 주문내역 전체 조회 필요성, 간식 재고 확인/차감의 락 일관성, 게스트 크레딧 계산과 주문 행 작성 사이 실패 가능성, 주문 행 일괄 쓰기 가능성을 검토한다.
+     6. 적용 순서는 분석표 작성 → 캐시 금지 데이터 명시 → 저위험 조회 함수 개선 후보화 → 후기/통계 조회 최적화 → `placeOrder` 별도 설계 → 복사본 또는 낮은 운영 시간 검증 → GAS 새 배포 순으로 진행한다.
+   - **금지선**: 주문내역, 크레딧, 재고를 긴 TTL로 캐시하지 않는다. 성능 이유만으로 `placeOrder`를 크게 리팩터링하지 않는다. 락 범위를 줄이기 전에 동시 주문 시나리오를 먼저 검토한다. 운영 시트 컬럼을 성능 개선 명목으로 재배열하지 않는다.
+
+2. **P2 - 배달왔삼 주문 흐름 UX 재설계 검토**
+   - 닉네임 입력과 배달지 입력을 `주문자 정보` 화면으로 통합하는 변경이 UX와 기존 데이터 흐름에 적절한지 검토한다.
+   - 카카오 로그인, 로컬 게스트 크레딧, 주문 생성/조회/취소/후기 영향까지 확인한다.
+
+3. **P3 - Apps Script 백엔드 구조 유지보수성 검토**
+   - 기능별 분리 필요성, 결합도, AI 유지보수 용이성, 장기적 백엔드 이전 가능성을 기준으로 현재 구조 유지/부분 분리/전면 분리를 비교한다.
+   - 성능 개선이 아니라 유지보수성과 확장성 중심으로 판단한다.
+
 ### Manual Verification
-1. **주문하기 버튼 더블 클릭 시 이중 주문 방지 기능 동작 검증**
-2. **주방 화면 신규 주문 알림이 화면 필터와 무관하게 작동하는지 검증**
-3. **완료/취소된 주문의 토큰을 이용한 취소, 후기 등록, 사진 업로드 거부 검증**
-4. **주문보관(아카이브) 처리 시 시트 밀림 여부 및 P~V열 데이터 정합성 검증**
-5. **서비스워커 최신 캐시 브라우저 반영 여부 검증**
+* **Pending**: None. The previously listed field checks currently appear to work in operation and are treated as completed.
+* **Completed field checks**: double-order prevention, kitchen new-order sound/filter behavior, order-token guardrails for cancel/review/photo upload, archive sheet column alignment, and latest service-worker cache reflection.
 
 ### Recently Resolved (최근 해결 항목)
 * **P2 - 관리자 대리 입력식 후기 답글 기능 및 게스트 노출 1~3단계 구현** (Development Log - 52)
@@ -222,7 +241,9 @@ sequenceDiagram
 
 ---
 
-## 9. Current Manual Verification Checklist
+## 9. Completed Manual Verification Checklist
+
+현재 운영상 아래 항목들은 정상 동작하는 것으로 확인되어 완료 처리되었습니다. 동일 증상이 재발하거나 배포 환경이 바뀌면 이 목록을 회귀 테스트 기준으로 다시 사용합니다.
 
 ### 1) 일반/게스트 주문 정상 접수 및 결제 흐름 검증
 - 일반 키오스크(`index.html?type=kiosk`) 로그인 후 임의의 회원 카드를 선택하고 주문하여 잔여 크레딧 차감과 주방 화면 주문 카드가 접수되는지 확인합니다.
