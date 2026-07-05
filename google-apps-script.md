@@ -1173,9 +1173,13 @@ function placeOrder(data) {
       }
       return safeRow;
     });
+    const orderStartRow = orderSheet.getLastRow() + 1;
     orderSheet
-      .getRange(orderSheet.getLastRow() + 1, 1, safeOrderRows.length, maxOrderCols)
+      .getRange(orderStartRow, 1, safeOrderRows.length, maxOrderCols)
       .setValues(safeOrderRows);
+    orderSheet
+      .getRange(orderStartRow, 1, safeOrderRows.length, 1)
+      .setNumberFormat('yyyy. m. d AM/PM h:mm:ss');
 
     orderItems.forEach(item => {
       // 간식 재고 차감 반영
@@ -1640,43 +1644,62 @@ function updateOrderServed(data) {
     };
   }
 
-  const ss = SpreadsheetApp.getActive();
-  const orderSheet = ss.getSheetByName(SHEET.ORDERS);
-
-  if (!orderSheet) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
     return {
       success: false,
-      message: '주문내역 시트를 찾을 수 없습니다.'
+      message: '다른 작업을 처리 중입니다. 잠시 후 다시 시도해 주세요.',
     };
   }
 
-  const range = orderSheet.getDataRange();
-  const values = range.getValues();
-  let updatedCount = 0;
+  try {
+    const ss = SpreadsheetApp.getActive();
+    const orderSheet = ss.getSheetByName(SHEET.ORDERS);
 
-  for (let i = 1; i < values.length; i++) {
-    const rowOrderId = String(values[i][1]);
-    if (rowOrderId === String(orderId)) {
-      const beforeServedYn = values[i][8] || 'N';
-      orderSheet.getRange(i + 1, 9).setValue(servedYn); // I열 (9번째) 제공여부 수정
-      updatedCount++;
-      if (updatedCount === 1) {
-        safeAppendAdminLog('updateOrderServed', 'order', orderId, values[i][3], beforeServedYn, servedYn, data.adminMemo);
+    if (!orderSheet) {
+      return {
+        success: false,
+        message: '주문내역 시트를 찾을 수 없습니다.'
+      };
+    }
+
+    const lastRow = orderSheet.getLastRow();
+    if (lastRow <= 1) {
+      return {
+        success: false,
+        message: `주문번호 ${orderId}에 해당하는 기록을 찾을 수 없습니다.`
+      };
+    }
+
+    const values = orderSheet.getRange(2, 2, lastRow - 1, 8).getValues(); // B:I
+    let updatedCount = 0;
+
+    for (let i = 0; i < values.length; i++) {
+      const rowOrderId = String(values[i][0]);
+      if (rowOrderId === String(orderId)) {
+        const beforeServedYn = values[i][7] || 'N';
+        orderSheet.getRange(i + 2, 9).setValue(servedYn); // I열 (9번째) 제공여부 수정
+        updatedCount++;
+        if (updatedCount === 1) {
+          safeAppendAdminLog('updateOrderServed', 'order', orderId, values[i][2], beforeServedYn, servedYn, data.adminMemo);
+        }
       }
     }
-  }
 
-  if (updatedCount > 0) {
-    clearOrderReadCache();
-    return {
-      success: true,
-      message: `주문번호 ${orderId}의 제공 상태를 '${servedYn}'으로 업데이트했습니다. (총 ${updatedCount}건)`
-    };
-  } else {
-    return {
-      success: false,
-      message: `주문번호 ${orderId}에 해당하는 기록을 찾을 수 없습니다.`
-    };
+    if (updatedCount > 0) {
+      clearOrderReadCache();
+      return {
+        success: true,
+        message: `주문번호 ${orderId}의 제공 상태를 '${servedYn}'으로 업데이트했습니다. (총 ${updatedCount}건)`
+      };
+    } else {
+      return {
+        success: false,
+        message: `주문번호 ${orderId}에 해당하는 기록을 찾을 수 없습니다.`
+      };
+    }
+  } finally {
+    lock.releaseLock();
   }
 }
 

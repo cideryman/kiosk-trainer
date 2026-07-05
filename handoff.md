@@ -97,6 +97,7 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
    - **8단계 `placeOrder` 주문 행 일괄 쓰기 적용 결과 (완료)**
      - 여러 상품 주문 시 `주문내역`에 상품 수만큼 `appendRow()`를 반복하지 않고, 주문 행 배열을 만든 뒤 한 번의 `setValues()`로 기록하도록 변경했다.
      - 기존 S~U 선택 컬럼(`guestDeviceId`, `authProvider`, `guestKey`)과 운영 시트의 현재 마지막 열 길이를 기준으로 행 길이를 맞춘 뒤 기록한다.
+     - `setValues()`로 기록한 새 행의 A열 `주문시간`이 날짜만 표시되는 사례가 있어, 주문 행 기록 직후 A열 서식을 `yyyy. m. d AM/PM h:mm:ss`로 지정하도록 보완했다. 주문시간 값 자체는 기존처럼 `Date` 객체로 저장한다.
      - 재고 차감, 일반/게스트 크레딧 처리, 카카오 프로필 저장 순서는 변경하지 않았다. 재고 `setValue()` 반복과 게스트 크레딧 확인/차감 분리는 정합성 위험 때문에 그대로 둔다.
      - 위험도: 중간. 주문 상품이 여러 개인 경우 주문 행 쓰기 호출은 줄지만, 주문 생성 핵심 경로이므로 GAS 배포 후 다중 상품 주문 검증이 필요하다.
      - 검증: 일반 사용자 2개 이상 상품 주문, 로컬 게스트 2개 이상 상품 주문, 카카오 게스트 2개 이상 상품 주문에서 주문 행 수, 주문번호 동일성, 재고 차감, 크레딧 차감, 주방/전광판 표시를 확인한다.
@@ -124,9 +125,26 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
    - 기능별 분리 필요성, 결합도, AI 유지보수 용이성, 장기적 백엔드 이전 가능성을 기준으로 현재 구조 유지/부분 분리/전면 분리를 비교한다.
    - 성능 개선이 아니라 유지보수성과 확장성 중심으로 판단한다.
 
+4. **P1 - GAS 안정성 후속 작업 (Claude 조언 검토 결과)**
+   - **진행 대상**
+     1. `updateOrderServed()`에 `LockService`를 추가해 주방 제공 상태 변경의 동시 쓰기 경합을 방지한다.
+     2. 가능하면 같은 흐름에서 `updateOrderServed()`의 읽기 범위를 전체 시트에서 필요한 주문번호/상태/닉네임 범위 중심으로 축소한다. 관리자 로그에 필요한 이전 상태와 닉네임은 유지해야 한다.
+     3. 주문 아카이빙은 개발보다 운영 루틴으로 문서화한다. 주문내역 행이 커지면 `getOrderValuesForRead()`의 2초 캐시 효과가 줄어들 수 있으므로 정기 보관을 권장한다.
+   - **1단계 적용 결과**
+     - `updateOrderServed()`에 `LockService.getScriptLock()`을 추가했다. 제공 상태 변경 중 다른 쓰기 작업이 들어오면 잠시 후 재시도 메시지를 반환한다.
+     - 제공 상태 변경 대상 탐색은 주문시트 전체가 아니라 B:I 범위(`주문번호`, `별명`, `제공여부` 포함)만 읽도록 줄였다.
+     - 관리자 로그 기록과 `clearOrderReadCache()` 호출은 유지했다.
+     - 수동검증 결과: 주방 화면에서 제공 완료(Y)와 대기(N) 되돌리기가 정상 동작하는 것으로 확인했다.
+   - **지금 하지 않는 항목**
+     - `placeOrder()`의 중복 `clearOrderReadCache()` 제거: 첫 번째 호출은 주문 행 기록 후 크레딧 처리 중 예외가 나도 주문 조회 캐시를 비우는 방어선 역할을 할 수 있어 유지한다.
+     - `getSnacks`/`getGuestSettings` 클라이언트 캐시 확대: 호출 수는 줄일 수 있지만 재고/영업상태 표시가 오래 stale 될 수 있어 현재 증상 없이는 우선순위를 낮춘다. 실제 GAS 호출 부하가 다시 커지면 짧은 TTL로 재검토한다.
+     - 전광판 적응형 폴링: 비영업 시간 부하는 줄일 수 있으나 현재 안정성 후속 작업보다 후순위다. 운영 시간 외 부하가 문제로 확인되면 진행한다.
+     - GAS 워밍업 트리거: 콜드 스타트가 반복적으로 운영 문제를 만들 때만 적용한다. 시간 기반 트리거는 코드 변경이 아니라 운영 정책이므로 별도 결정이 필요하다.
+     - `getSnacks` 서버 캐시: 간식 시트 규모가 작고 재고 stale 위험이 있어 현재는 보류한다. 간식 수나 메뉴 진입량이 크게 늘면 다시 검토한다.
+
 ### Manual Verification
-* **Pending**: P1 카카오 연동 게스트 `(비회원)` 꼬리 재노출 확인 및 수정 후 검증. 카카오 주문과 일반 로컬 게스트 주문을 각각 넣고, 주방/전광판/주문조회/빌지 인쇄에서 카카오 주문은 `이름 💬`, 일반 게스트는 `이름 (비회원)` 형태로 구분되는지 확인한다. 이어서 GitHub Pages 반영 후 P2 카카오 게스트 주문 흐름(저장 프로필 주문표시명 생략, 저장 프로필 없음 상태의 주문표시명 입력, 주문 후 표시)을 확인한다.
-* **Completed field checks**: double-order prevention, kitchen new-order sound/filter behavior, order-token guardrails for cancel/review/photo upload, archive sheet column alignment, latest service-worker cache reflection, P1 GAS performance 7~8 validation for regular users/local guests/Kakao guests, and P2 local guest pickup/delivery UX flow.
+* **Pending**: GAS 배포 후 새 주문의 `주문내역` A열 주문시간이 날짜+시간(`2026. 7. 5 오전 10:24:25` 형태)으로 표시되는지 확인한다. 이어서 GitHub Pages 반영 후 P2 카카오 게스트 주문 흐름(저장 프로필 주문표시명 생략, 저장 프로필 없음 상태의 주문표시명 입력, 주문 후 주방/전광판/주문조회 표시)을 확인한다.
+* **Completed field checks**: double-order prevention, kitchen new-order sound/filter behavior, order-token guardrails for cancel/review/photo upload, archive sheet column alignment, latest service-worker cache reflection, P1 GAS performance 7~8 validation for regular users/local guests/Kakao guests, P2 local guest pickup/delivery UX flow, Kakao-linked guest display code recheck for kitchen/board/guest-orders/print-bills, and `updateOrderServed()` lock/range validation.
 
 ### Recently Resolved (최근 해결 항목)
 * **P1 - 카카오 연동 게스트 (비회원) 꼬리 재노출 해결 및 말풍선 이모지 접두사 변경** (Development Log - 54)
@@ -134,7 +152,7 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
 * **P2 - 관리자 대리 입력식 후기 답글 기능 및 게스트 노출 1~3단계 구현** (Development Log - 52)
 * **P2 - 주문하기 버튼 더블 클릭 시 비동기 레이스 컨디션에 따른 이중 주문 방지** (Development Log - 51)
 * **P2 - 빌지 인쇄 페이지 내 일반 빌지 / 애니라벨 V3050 라벨지 선택 인쇄 기능 추가** (Development Log - 50)
-* **P2 - 카카오 연동 게스트 (비회원) 문구 생략 및 말풍선(💬) 이모지 표시 연동** (Development Log - 49; 재발 의심으로 Active Issues P1에서 재검토)
+* **P2 - 카카오 연동 게스트 (비회원) 문구 생략 및 말풍선(💬) 이모지 표시 연동** (Development Log - 49; recurrence addressed by Development Log - 54)
 * **P2 - admin화면 이용자 크레딧 단축 버튼 추가 및 API 요청 시 행 단위 락 처리** (Development Log - 48)
 * **P2 - GAS 콜드 스타트 대응을 위한 API 타임아웃 20초 연장** (Development Log - 45)
 * **P2 - 관리자 화면 내 비활성 이용자 및 숨긴 간식 완전 숨김 처리** (Development Log - 44)
@@ -148,6 +166,7 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
 * **게스트 주문의 사용자 식별자 고정**: 게스트 주문 시 `userId`는 항상 `'guest'` 문자열로 고정하여 일반 회원 주문과 물리적으로 구분하며, 카카오 고유 ID 등으로 대체하지 않습니다.
 * **개인정보 보호 원칙**: 실명, 이메일, 전화번호 등의 개인정보는 일절 수집하지 않으며, 카카오톡 로그인 연동 시에도 원본 카카오 ID나 토큰은 Sheets에 저장하지 않고 솔트가 가미된 단방향 암호화 값인 `guestKey`만 생성하여 저장합니다.
 * **수동 마이그레이션 및 시트 구조 변경 원칙**: 시트 구조 자동 복구나 마이그레이션 함수를 `onOpen` 등의 트리거에 바인딩하여 자동으로 실행시키는 것을 엄격히 금지합니다. 모든 시트 복구/변경은 백업 확보 후, 정확한 레이아웃을 검증한 뒤 앱스 스크립트에서 수동으로만 실행합니다.
+* **주문 아카이빙 운영 루틴**: 주문내역 행 수가 늘어나면 조회 캐시 효과와 시트 읽기 성능이 떨어질 수 있으므로, 운영이 없는 시간에 주방 화면 `운영 도구` -> `지난 주문 보관`을 수동 실행합니다. 기준은 주 1회 또는 주문내역이 약 50건 이상 쌓였을 때를 권장합니다. 시간 기반 자동 트리거는 시트 구조 변경/보관 원칙과 운영 리스크 때문에 별도 결정 전에는 만들지 않습니다.
 * **백엔드 보안 하드닝 수준 보류**: 기관 내부의 비식별 환경 특성상 트랜잭션 롤백 및 동시성 락을 과도하게 도입하는 것은 장애 발생 위험 대비 실익이 낮아 보류(사실상 폐기)하였습니다.
 * **실제 운영 DB 구조 보호**: 코드 assumptions에 맞추기 위해 실제 구글 시트 구조를 임의로 재배열하거나 컬럼을 삭제하지 않습니다. 진단 도구는 구버전 호환 구조를 모두 정상으로 판단할 수 있도록 alias 매핑을 유지해야 합니다.
 * **운영점검 경고 처리**: 운영점검 진단 도구의 경고 메시지만 보고 실제 구글 시트의 열을 수동으로 재배열하거나 이동하지 마십시오.
