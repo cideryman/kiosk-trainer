@@ -43,6 +43,23 @@ const AppState = {
     localStorage.removeItem('guestAuth');
   },
 
+  getLocalGuestDisplayName() {
+    return String(localStorage.getItem('localGuestDisplayName') || '').trim();
+  },
+
+  setLocalGuestDisplayName(name) {
+    const displayName = String(name || '').trim();
+    if (displayName) {
+      localStorage.setItem('localGuestDisplayName', displayName);
+    } else {
+      localStorage.removeItem('localGuestDisplayName');
+    }
+  },
+
+  clearLocalGuestDisplayName() {
+    localStorage.removeItem('localGuestDisplayName');
+  },
+
   // 장바구니 관련 스토리지 헬퍼
   getCart() {
     try {

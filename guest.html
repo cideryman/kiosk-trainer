@@ -1464,6 +1464,13 @@
           }
         }
 
+        if (!isGuestPreviewMode && !guestAuth && !input.value.trim()) {
+          const localGuestDisplayName = AppState.getLocalGuestDisplayName();
+          if (localGuestDisplayName) {
+            input.value = localGuestDisplayName;
+          }
+        }
+
         const guestName = input.value.trim();
         const needsGuestInfo = !guestName;
 

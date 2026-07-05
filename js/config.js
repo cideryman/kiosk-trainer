@@ -479,6 +479,25 @@ function getMockFallback(action, options) {
     const userId = options.body?.userId || 'unknown';
     const items = options.body?.items || [];
     const isGuest = (userId === 'guest');
+    const idempotencyKey = String(options.body?.idempotencyKey || '').trim();
+    const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
+    const idempotentRows = idempotencyKey
+      ? localOrders.filter(o => o.idempotencyKey === idempotencyKey && String(o.userId) === String(userId))
+      : [];
+    if (idempotentRows.length > 0) {
+      const firstRow = idempotentRows[0];
+      const replayTotal = Number(firstRow.totalCredit || idempotentRows.reduce((sum, row) => sum + Number(row.point || 0), 0));
+      const selectedUser = JSON.parse(localStorage.getItem('selectedUser') || 'null');
+      return {
+        ...JSON.parse(JSON.stringify(MOCK_DATA.placeOrder)),
+        orderNo: firstRow.orderNo || '',
+        orderToken: firstRow.orderToken || '',
+        totalPoint: replayTotal,
+        afterCredit: selectedUser ? Number(selectedUser.credit || 0) : undefined,
+        idempotencyKey,
+        idempotentReplay: true
+      };
+    }
 
     // 게스트 주문 시 운영 상태 검증
     if (isGuest) {
@@ -514,7 +533,6 @@ function getMockFallback(action, options) {
     
     const timestampStr = new Date().toISOString();
     const todayStr = new Date().toISOString().slice(2, 10).replace(/-/g, '');
-    const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
     const allMockOrders = [...localOrders, ...MOCK_DATA.getOrdersToday.orders];
     const todayMockOrders = allMockOrders.filter(o => {
       if (!o.timestamp) return false;
@@ -593,6 +611,7 @@ function getMockFallback(action, options) {
         guestDeviceId: isGuest ? String(options.body?.guestDeviceId || '') : '',
         authProvider: isGuest && options.body?.authProvider === 'kakao' ? 'kakao' : '',
         guestKey: isGuest && options.body?.guestKey ? String(options.body.guestKey) : '',
+        idempotencyKey: idempotencyKey,
         reviewed: false
       };
     });
@@ -633,6 +652,7 @@ function getMockFallback(action, options) {
     res.orderNo = generatedOrderNo;
     res.orderToken = orderToken;
     res.totalPoint = totalCost;
+    res.idempotencyKey = idempotencyKey;
     if (guestCreditUpdate) {
       res.beforeCredit = guestCreditUpdate.remainingCredit + totalCost;
       res.afterCredit = guestCreditUpdate.remainingCredit;

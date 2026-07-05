@@ -371,12 +371,84 @@
       if (!user || user.userId !== 'guest') return;
       user.nickname = name;
       user.needsGuestInfo = false;
+      if (!(user.authProvider === 'kakao' && user.guestKey)) {
+        AppState.setLocalGuestDisplayName(name);
+      }
       AppState.setSelectedUser(user);
       renderUserBadge();
     }
 
     function isGuestPreviewMode() {
       return sessionStorage.getItem('guestPreviewMode') === 'Y' || !!(user && user.previewMode);
+    }
+
+    const ORDER_IDEMPOTENCY_STORAGE_KEY = 'pendingPlaceOrderIdempotency';
+
+    function generateOrderIdempotencyKey() {
+      if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return `order-${window.crypto.randomUUID()}`;
+      }
+      const randomPart = Math.random().toString(36).slice(2, 12);
+      return `order-${Date.now()}-${randomPart}`;
+    }
+
+    function buildOrderAttemptSignature(isGuest, selectedDeliveryType, deliveryPlace) {
+      const normalizedItems = cart
+        .map(item => ({
+          snackId: String(item.snackId),
+          quantity: Number(item.quantity || 0),
+        }))
+        .sort((a, b) => a.snackId.localeCompare(b.snackId));
+
+      return JSON.stringify({
+        userId: user ? String(user.userId || '') : '',
+        guestDeviceId: isGuest ? AppState.getGuestDeviceId() : '',
+        authProvider: isGuest && user && user.authProvider === 'kakao' ? 'kakao' : '',
+        guestKey: isGuest && user && user.guestKey ? String(user.guestKey) : '',
+        nickname: isGuest && user ? String(user.nickname || '') : '',
+        deliveryType: isGuest ? selectedDeliveryType : 'pickup',
+        deliveryPlace: isGuest && selectedDeliveryType === 'delivery' ? String(deliveryPlace || '').trim() : '',
+        items: normalizedItems,
+      });
+    }
+
+    function getOrderIdempotencyKey(signature) {
+      try {
+        const stored = JSON.parse(sessionStorage.getItem(ORDER_IDEMPOTENCY_STORAGE_KEY) || 'null');
+        if (stored && stored.signature === signature && stored.key) {
+          return stored.key;
+        }
+      } catch (error) {
+        console.warn('주문 중복 방지 키 읽기 실패:', error);
+      }
+
+      const key = generateOrderIdempotencyKey();
+      sessionStorage.setItem(ORDER_IDEMPOTENCY_STORAGE_KEY, JSON.stringify({
+        key,
+        signature,
+        createdAt: new Date().toISOString(),
+      }));
+      return key;
+    }
+
+    function clearOrderIdempotencyKey() {
+      sessionStorage.removeItem(ORDER_IDEMPOTENCY_STORAGE_KEY);
+    }
+
+    function shouldClearOrderIdempotencyKeyOnFailure(message) {
+      const text = String(message || '');
+      return [
+        '재고',
+        '크레딧',
+        '포인트',
+        '잔액',
+        '마감',
+        '운영 시간이 종료',
+        '찾을 수 없습니다',
+        '주문할 수 없는',
+        '진행 중인 주문',
+        '올바르지',
+      ].some(pattern => text.includes(pattern));
     }
 
     function getMissingSessionFallbackUrl() {
@@ -889,6 +961,9 @@
         userId: user.userId,
         items: cart.map(item => ({ snackId: item.snackId, quantity: item.quantity }))
       };
+      const idempotencySignature = buildOrderAttemptSignature(isGuest, deliveryType, deliveryPlace);
+      const idempotencyKey = getOrderIdempotencyKey(idempotencySignature);
+      orderPayload.idempotencyKey = idempotencyKey;
 
       if (isGuest) {
         orderPayload.guestName = user.nickname;
@@ -934,6 +1009,7 @@
             deliveryPlace: isGuest && deliveryType === 'delivery' ? deliveryPlace : '',
             authProvider: isGuest && user.authProvider === 'kakao' ? 'kakao' : '',
             guestKey: isGuest && user.guestKey ? user.guestKey : '',
+            idempotencyKey: idempotencyKey,
             items:        cart.map(item => ({ name: item.name, quantity: item.quantity }))
           };
 
@@ -942,22 +1018,30 @@
           // 게스트인 경우 guestOrders 배열에 누적 저장
           if (user.userId === 'guest') {
             const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
-            guestOrders.push({
-              orderNo: response.orderNo || '',
-              orderToken: response.orderToken || '',
-              guestName: user.nickname,
-              createdAt: new Date().toISOString(),
-              status: 'N',
-              deliveryType: deliveryType,
-              deliveryPlace: deliveryType === 'delivery' ? deliveryPlace : '',
-              authProvider: user.authProvider === 'kakao' ? 'kakao' : '',
-              guestKey: user.guestKey || '',
-              items: cart.map(item => ({ name: item.name, quantity: item.quantity }))
-            });
+            const hasSameGuestOrder = guestOrders.some(order =>
+              (response.orderToken && order.orderToken === response.orderToken) ||
+              (response.orderNo && order.orderNo === response.orderNo)
+            );
+            if (!hasSameGuestOrder) {
+              guestOrders.push({
+                orderNo: response.orderNo || '',
+                orderToken: response.orderToken || '',
+                guestName: user.nickname,
+                createdAt: new Date().toISOString(),
+                status: 'N',
+                deliveryType: deliveryType,
+                deliveryPlace: deliveryType === 'delivery' ? deliveryPlace : '',
+                authProvider: user.authProvider === 'kakao' ? 'kakao' : '',
+                guestKey: user.guestKey || '',
+                idempotencyKey: idempotencyKey,
+                items: cart.map(item => ({ name: item.name, quantity: item.quantity }))
+              });
+            }
             localStorage.setItem('guestOrders', JSON.stringify(guestOrders));
             sessionStorage.setItem('guestRemainingCredit', String(responseRemainPoints));
           }
 
+          clearOrderIdempotencyKey();
           AppState.clearCart();
           setTimeout(() => { window.location.href = 'complete.html'; }, 500);
         } else {
@@ -976,6 +1060,10 @@
         else if (errStr.includes('크레딧') || errStr.includes('포인트') || errStr.includes('잔액'))
                                                     displayMessage = '크레딧(돈)이 부족해서 주문할 수 없어요!';
         else if (errStr)                            displayMessage = errStr;
+
+        if (shouldClearOrderIdempotencyKeyOnFailure(displayMessage)) {
+          clearOrderIdempotencyKey();
+        }
 
         errorBox.textContent = `⚠️ 주문 실패: ${displayMessage}`;
         errorBox.style.display = 'block';

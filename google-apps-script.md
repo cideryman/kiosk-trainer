@@ -943,17 +943,103 @@ function getSheetHeaderRow(sheet) {
   return sheet.getRange(1, 1, 1, lastColumn).getValues()[0] || [];
 }
 
+const ORDER_IDEMPOTENCY_HEADER = 'idempotencyKey';
+const ORDER_IDEMPOTENCY_COL = 23; // W열
+
+function normalizeIdempotencyKey(value) {
+  return String(value || '').trim();
+}
+
+function isValidIdempotencyKey(value) {
+  const key = normalizeIdempotencyKey(value);
+  return key.length >= 8 && key.length <= 120 && /^[A-Za-z0-9._:-]+$/.test(key);
+}
+
+function getExistingIdempotentOrderResult(orderSheet, userSheet, headers, idempotencyKey, userId) {
+  const key = normalizeIdempotencyKey(idempotencyKey);
+  const keyIdx = headers.indexOf(ORDER_IDEMPOTENCY_HEADER);
+  if (!key || keyIdx === -1 || orderSheet.getLastRow() <= 1) return null;
+
+  const colCount = Math.max(orderSheet.getLastColumn(), keyIdx + 1);
+  const values = orderSheet.getRange(2, 1, orderSheet.getLastRow() - 1, colCount).getValues();
+  const matchedRows = values.filter(row =>
+    String(row[keyIdx] || '').trim() === key && String(row[2]) === String(userId)
+  );
+  if (matchedRows.length === 0) return null;
+
+  const firstRow = matchedRows[0];
+  const totalCredit = Number(firstRow[13] || matchedRows.reduce((sum, row) => sum + Number(row[7] || 0), 0));
+  const result = {
+    success: true,
+    message: '이미 처리된 주문입니다.',
+    orderNo: firstRow[1] || '',
+    orderToken: firstRow[10] || '',
+    nickname: firstRow[3] || '',
+    totalPoint: totalCredit,
+    items: matchedRows.map(row => ({
+      snackId: row[4],
+      snackName: row[5],
+      quantity: Number(row[6] || 0),
+      point: Number(row[7] || 0),
+      totalPoint: Number(row[7] || 0),
+    })),
+    idempotencyKey: key,
+    idempotentReplay: true,
+  };
+
+  try {
+    if (String(userId) === 'guest') {
+      const guestDeviceIdIdx = headers.indexOf('guestDeviceId');
+      const authProviderIdx = headers.indexOf('authProvider');
+      const guestKeyIdx = headers.indexOf('guestKey');
+      const settings = getGuestSettings();
+      const creditStatus = resolveGuestCreditWallet({
+        guestDeviceId: guestDeviceIdIdx !== -1 ? firstRow[guestDeviceIdIdx] || '' : '',
+        authProvider: authProviderIdx !== -1 ? firstRow[authProviderIdx] || '' : '',
+        guestKey: guestKeyIdx !== -1 ? firstRow[guestKeyIdx] || '' : '',
+      }, {
+        settings,
+        create: false,
+      });
+      if (creditStatus && creditStatus.success) {
+        result.afterCredit = creditStatus.remainingCredit;
+        result.beforeCredit = creditStatus.remainingCredit + totalCredit;
+        result.bonusCredit = creditStatus.bonusCredit || 0;
+      }
+    } else if (userSheet) {
+      const userValues = userSheet.getDataRange().getValues();
+      const userRow = userValues.find((row, index) => index > 0 && String(row[0]) === String(userId));
+      if (userRow) {
+        const afterCredit = Number(userRow[2] || 0);
+        result.afterCredit = afterCredit;
+        result.beforeCredit = afterCredit + totalCredit;
+      }
+    }
+  } catch (error) {
+    Logger.log('idempotent order result credit reconstruction failed: ' + (error && error.stack ? error.stack : error));
+  }
+
+  return result;
+}
+
 /**
  * 7. 주문 접수 및 크레딧/재고 자동 계산 처리
  */
 function placeOrder(data) {
   const userId = data.userId;
   const items = data.items;
+  const rawIdempotencyKey = normalizeIdempotencyKey(data.idempotencyKey);
 
   if (!userId || !items || items.length === 0) {
     return {
       success: false,
       message: '주문 정보가 부족합니다.',
+    };
+  }
+  if (rawIdempotencyKey && !isValidIdempotencyKey(rawIdempotencyKey)) {
+    return {
+      success: false,
+      message: '주문 중복 방지 키가 올바르지 않습니다. 화면을 새로고침한 뒤 다시 시도해 주세요.',
     };
   }
 
@@ -971,8 +1057,6 @@ function placeOrder(data) {
     const snackSheet = ss.getSheetByName(SHEET.SNACKS);
     const orderSheet = ss.getSheetByName(SHEET.ORDERS);
 
-    const snacks = snackSheet.getDataRange().getValues();
-
     let nickname = '';
     let currentCredit = 0;
     let userRowIndex = -1;
@@ -984,6 +1068,13 @@ function placeOrder(data) {
     const deviceIdIdx = headers.indexOf('guestDeviceId');
     const authProviderIdx = headers.indexOf('authProvider');
     const guestKeyIdx = headers.indexOf('guestKey');
+    const idempotencyIdx = headers.indexOf(ORDER_IDEMPOTENCY_HEADER);
+    const existingOrderResult = getExistingIdempotentOrderResult(orderSheet, userSheet, headers, rawIdempotencyKey, userId);
+    if (existingOrderResult) {
+      return existingOrderResult;
+    }
+
+    const snacks = snackSheet.getDataRange().getValues();
     const rawGuestKey = String(data.guestKey || '').trim();
     const authProvider = isGuest && rawGuestKey && String(data.authProvider || '').trim().toLowerCase() === 'kakao' ? 'kakao' : '';
     const guestKey = authProvider === 'kakao' ? rawGuestKey : '';
@@ -1253,6 +1344,16 @@ function placeOrder(data) {
       }
     }
 
+    if (rawIdempotencyKey && idempotencyIdx !== -1) {
+      try {
+        orderSheet
+          .getRange(orderStartRow, idempotencyIdx + 1, safeOrderRows.length, 1)
+          .setValues(safeOrderRows.map(() => [rawIdempotencyKey]));
+      } catch (idempotencyError) {
+        Logger.log('idempotency key write failed after order success: ' + (idempotencyError && idempotencyError.stack ? idempotencyError.stack : idempotencyError));
+      }
+    }
+
     clearOrderReadCache();
     return {
       success: true,
@@ -1264,6 +1365,7 @@ function placeOrder(data) {
       beforeCredit: currentCredit,
       afterCredit: newCredit,
       bonusCredit: isGuest && authProvider === 'kakao' ? getKakaoGuestBonusCredit(guestSettings) : 0,
+      idempotencyKey: rawIdempotencyKey,
       items: orderItems,
     };
   } catch (error) {
@@ -3363,13 +3465,14 @@ function archiveOldOrders(data) {
  * S: guestDeviceId
  * T: authProvider
  * U: guestKey
+ * W: idempotencyKey
  */
 function ensureOrderHeaders() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const orderSheet = ss.getSheetByName(SHEET.ORDERS);
   if (!orderSheet) return;
 
-  const REQUIRED_COLS = 21;
+  const REQUIRED_COLS = ORDER_IDEMPOTENCY_COL;
   if (orderSheet.getMaxColumns() < REQUIRED_COLS) {
     orderSheet.insertColumnsAfter(orderSheet.getMaxColumns(), REQUIRED_COLS - orderSheet.getMaxColumns());
   }
@@ -3411,6 +3514,12 @@ function ensureOrderHeaders() {
       orderSheet.insertColumnsAfter(orderSheet.getMaxColumns(), headers.length - orderSheet.getMaxColumns());
     }
     orderSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    clearOrderReadCache();
+  }
+
+  const latestHeaders = getSheetHeaderRow(orderSheet);
+  if (latestHeaders.indexOf(ORDER_IDEMPOTENCY_HEADER) === -1) {
+    orderSheet.getRange(1, ORDER_IDEMPOTENCY_COL).setValue(ORDER_IDEMPOTENCY_HEADER);
     clearOrderReadCache();
   }
   return '헤더 보정이 완료되었습니다.';
@@ -3556,7 +3665,8 @@ function diagnoseSystem(data) {
       '주문시간', '주문번호', '이용자ID', '별명', '간식ID', '간식명',
       '수량', '차감포인트', '제공여부', 'cancelTimestamp', 'orderToken',
       'deliveryType', 'deliveryFee', 'totalCredit', 'reviewed', 'deliveryPlace',
-      'cancelReason', 'cancelReasonDetail', 'guestDeviceId', 'authProvider', 'guestKey'
+      'cancelReason', 'cancelReasonDetail', 'guestDeviceId', 'authProvider', 'guestKey',
+      'idempotencyKey'
     ],
     [SHEET.LOGS]: ['timestamp', 'action', 'targetType', 'targetId', 'targetName', 'beforeValue', 'afterValue', 'memo'],
     [SHEET.SETTINGS]: ['key', 'value'],
