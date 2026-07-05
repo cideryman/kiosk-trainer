@@ -184,7 +184,10 @@
         AppState.setSelectedUser(user);
       }
       const userSuffix = isGuestPreviewMode() ? ' (미리보기)' : (isGuest ? ' (체험)' : ' 님');
-      badgeContainer.innerHTML = `<span class="user-badge">${AppState.escapeHtml(user.nickname)}${userSuffix}</span>`;
+      const displayName = isGuest && user.needsGuestInfo
+        ? '주문자 정보 입력 전'
+        : (user.nickname || (isGuest ? '게스트' : ''));
+      badgeContainer.innerHTML = `<span class="user-badge">${AppState.escapeHtml(displayName)}${userSuffix}</span>`;
       
       // 크레딧 숫자만 업데이트 (HTML 구조는 이미 🪙 아이콘 포함)
       if (user.userId === 'guest' && !isGuestPreviewMode()) {

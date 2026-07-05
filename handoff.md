@@ -104,19 +104,29 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
      - 권장 구현 범위는 7~8단계까지로 본다. 조회 캐시/헤더 비용/주문번호 읽기 범위/다중 상품 주문 행 쓰기는 성능 개선 효과 대비 위험도가 관리 가능한 범위다.
      - 게스트 크레딧 확인과 차감 통합, 재고 차감 일괄 쓰기, 주문/크레딧/재고 트랜잭션 순서 재설계는 고위험 항목으로 보류한다.
      - 일반 사용자와 로컬 게스트의 7~8단계 수동검증은 정상 동작으로 확인했다.
-     - 카카오 게스트 검증은 GitHub Pages 반영과 `service-worker.js` 캐시 버전 갱신 후 별도 확인한다.
+     - GitHub Pages 반영 후 카카오 게스트의 7~8단계 수동검증도 정상 동작으로 확인했다.
 
 2. **P2 - 배달왔삼 주문 흐름 UX 재설계 검토**
    - 닉네임 입력과 배달지 입력을 `주문자 정보` 화면으로 통합하는 변경이 UX와 기존 데이터 흐름에 적절한지 검토한다.
    - 카카오 로그인, 로컬 게스트 크레딧, 주문 생성/조회/취소/후기 영향까지 확인한다.
+   - **선택 방향**: 시작 단계에서 `guestDeviceId`/카카오 `guestKey` 기반 크레딧 조회는 유지하고, 닉네임 입력만 주문 확인 화면으로 늦추는 절충안을 적용한다.
+   - **1단계 적용 결과**
+     - `guest.html`의 새 주문 시작은 닉네임 입력 화면을 거치지 않고 메뉴로 진입하도록 변경했다. 크레딧 조회, 카카오 프로필 조회, `selectedUser` 저장 흐름은 유지한다.
+     - `menu.html`은 닉네임 미입력 상태를 `주문자 정보 입력 전`으로 표시하고, 기존 크레딧/재고 기반 담기 제한은 유지한다.
+     - `confirm.html`의 게스트 수령 방식 박스에 `주문자 정보` 영역을 추가했다. 포장은 주문표시명만, 배달은 주문표시명과 배달지를 확인한다.
+     - 카카오 저장 프로필이 있는 경우에는 주문표시명 입력칸을 생략하고 저장된 이름을 사용한다. 저장 프로필이 없는 카카오/로컬 게스트는 확인 화면에서 주문표시명을 입력해야 한다.
+     - 주문 제출 직전에 주문표시명을 확정해 `placeOrder`로 전달하며, 최종 크레딧/재고 검증은 기존처럼 서버에서 수행한다.
+     - 정적 파일 반영을 위해 `service-worker.js` 캐시 버전을 `kiosk-cache-v122`로 올렸다.
+     - 로컬 게스트 포장/배달 주문, 크레딧 부족 안내, 배달비 포함 잔액 계산, 주문 후 표시 흐름은 수동검증에서 정상 동작으로 확인했다.
+     - 카카오 게스트 흐름은 GitHub Pages 반영 후 별도 확인한다.
 
 3. **P3 - Apps Script 백엔드 구조 유지보수성 검토**
    - 기능별 분리 필요성, 결합도, AI 유지보수 용이성, 장기적 백엔드 이전 가능성을 기준으로 현재 구조 유지/부분 분리/전면 분리를 비교한다.
    - 성능 개선이 아니라 유지보수성과 확장성 중심으로 판단한다.
 
 ### Manual Verification
-* **Pending**: GitHub Pages 반영 후 카카오 게스트 2개 이상 상품 주문에서 주문 행 수, 주문번호 동일성, 재고 차감, 크레딧 차감, 주방/전광판 표시를 확인한다.
-* **Completed field checks**: double-order prevention, kitchen new-order sound/filter behavior, order-token guardrails for cancel/review/photo upload, archive sheet column alignment, and latest service-worker cache reflection.
+* **Pending**: GitHub Pages 반영 후 P2 카카오 게스트 주문 흐름 검증. 저장 프로필 주문표시명 생략, 저장 프로필 없음 상태의 주문표시명 입력, 주문 후 주방/전광판/주문조회 표시를 확인한다.
+* **Completed field checks**: double-order prevention, kitchen new-order sound/filter behavior, order-token guardrails for cancel/review/photo upload, archive sheet column alignment, latest service-worker cache reflection, P1 GAS performance 7~8 validation for regular users/local guests/Kakao guests, and P2 local guest pickup/delivery UX flow.
 
 ### Recently Resolved (최근 해결 항목)
 * **P2 - 관리자 대리 입력식 후기 답글 기능 및 게스트 노출 1~3단계 구현** (Development Log - 52)

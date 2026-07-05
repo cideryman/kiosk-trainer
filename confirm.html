@@ -203,6 +203,21 @@
             <button class="btn btn-secondary" id="btn-delivery-pickup" style="flex: 1; min-height: 60px; font-size: 20px; box-shadow: none; animation: none;">포장 (0 🪙)</button>
             <button class="btn btn-gray" id="btn-delivery-deliver" style="flex: 1; min-height: 60px; font-size: 20px; box-shadow: none; animation: none;">배달 (+🪙)</button>
           </div>
+
+          <!-- 주문자 정보 입력 영역 -->
+          <div id="guest-orderer-info-box" style="display: none; flex-direction: column; gap: 8px; margin-top: 12px; border-top: 2px dashed var(--border-color); padding-top: 12px;">
+            <div style="font-size: 18px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 4px;">👤 주문자 정보</div>
+            <div id="guest-name-entry-box" style="display: flex; flex-direction: column; gap: 8px;">
+              <label for="guest-name-confirm-input" style="font-size: 16px; font-weight: 800; color: var(--text-main);">주문표시명</label>
+              <input type="text" id="guest-name-confirm-input" class="guest-input" style="width: 100%; box-sizing: border-box; font-size: 18px; min-height: 48px; font-weight: 800; text-align: left; padding: 8px 12px; margin-top: 0;" placeholder="예: OO반점" maxlength="20" autocomplete="off">
+              <button type="button" class="btn btn-gray" id="btn-confirm-random-name" style="width: 100%; min-height: 44px; font-size: 15px; font-weight: 850; box-shadow: none; background-color: #E0F7F5; color: #006D67; border: 2px solid #2EC4B6;">
+                랜덤 이름 쓰기
+              </button>
+            </div>
+            <div id="guest-saved-profile-box" style="display: none; font-size: 16px; font-weight: 800; color: #3A2A00; background-color: #FFFBEA; border: 2px solid #FEE500; border-radius: var(--radius-sm); padding: 10px; line-height: 1.4; word-break: keep-all;">
+              카카오 저장 정보 사용
+            </div>
+          </div>
           
           <!-- 배달지 입력 영역 -->
           <div id="delivery-place-box" style="display: none; flex-direction: column; gap: 8px; margin-top: 12px; border-top: 2px dashed var(--border-color); padding-top: 12px;">
@@ -298,6 +313,66 @@
     // sessionStorage에서 서버 설정값 읽기 (폴백: config.js 상수)
     function getGuestFee() {
       return Number(sessionStorage.getItem('guestDeliveryFee')) || GUEST_DELIVERY_FEE;
+    }
+
+    const CONFIRM_NICKNAME_WORDS = {
+      adjectives: ["행복한", "씩씩한", "반짝이는", "따뜻한", "용감한", "즐거운", "친절한", "신나는", "멋진", "귀여운", "사랑스러운", "슬기로운"],
+      nouns: ["토끼", "해바라기", "연필", "커피잔", "구름", "별", "나무", "고양이", "강아지", "도토리", "바람", "하늘"],
+      special: ["해냄이", "쭉쭉이", "여비"]
+    };
+
+    function generateConfirmRandomNickname() {
+      const isSpecial = Math.random() < 0.08;
+      const adj = CONFIRM_NICKNAME_WORDS.adjectives[Math.floor(Math.random() * CONFIRM_NICKNAME_WORDS.adjectives.length)];
+      if (isSpecial) {
+        const char = CONFIRM_NICKNAME_WORDS.special[Math.floor(Math.random() * CONFIRM_NICKNAME_WORDS.special.length)];
+        return `${adj} ${char}`;
+      }
+      const noun = CONFIRM_NICKNAME_WORDS.nouns[Math.floor(Math.random() * CONFIRM_NICKNAME_WORDS.nouns.length)];
+      return `${adj} 삼각지 ${noun}`;
+    }
+
+    function getHeaderDisplayName() {
+      if (!user) return '';
+      const isGuest = user.userId === 'guest';
+      if (isGuest && user.needsGuestInfo) return '주문자 정보 입력 전';
+      return user.nickname || (isGuest ? '게스트' : '');
+    }
+
+    function renderUserBadge() {
+      const badgeContainer = document.getElementById('user-badge-container');
+      if (!badgeContainer || !user) return;
+      const isGuest = user.userId === 'guest';
+      badgeContainer.innerHTML =
+        `<span class="user-badge">${AppState.escapeHtml(getHeaderDisplayName())}${isGuestPreviewMode() ? ' (미리보기)' : (isGuest ? ' (비회원)' : ' 님')}</span>`;
+    }
+
+    function hasSavedKakaoGuestProfile() {
+      return !!(
+        user &&
+        user.userId === 'guest' &&
+        user.authProvider === 'kakao' &&
+        user.guestKey &&
+        user.guestProfileSaved &&
+        String(user.nickname || '').trim()
+      );
+    }
+
+    function getGuestOrderDisplayName() {
+      if (!user || user.userId !== 'guest') return '';
+      if (hasSavedKakaoGuestProfile()) {
+        return String(user.nickname || '').trim();
+      }
+      const nameInput = document.getElementById('guest-name-confirm-input');
+      return nameInput ? nameInput.value.trim() : String(user.nickname || '').trim();
+    }
+
+    function syncGuestOrderDisplayName(name) {
+      if (!user || user.userId !== 'guest') return;
+      user.nickname = name;
+      user.needsGuestInfo = false;
+      AppState.setSelectedUser(user);
+      renderUserBadge();
     }
 
     function isGuestPreviewMode() {
@@ -639,8 +714,7 @@
         user.previewMode = true;
         AppState.setSelectedUser(user);
       }
-      document.getElementById('user-badge-container').innerHTML =
-        `<span class="user-badge">${AppState.escapeHtml(user.nickname)}${isGuestPreviewMode() ? ' (미리보기)' : (isGuest ? ' (비회원)' : ' 님')}</span>`;
+      renderUserBadge();
       
       // 보유 크레딧 숫자만 업데이트 (HTML 구조에 🪙 아이콘 포함)
       if (isGuest && !isGuestPreviewMode()) {
@@ -672,9 +746,40 @@
           const deliveryPlaceInput = document.getElementById('delivery-place-input');
           const rememberGuestProfileBox = document.getElementById('remember-guest-profile-box');
           const rememberGuestProfileInput = document.getElementById('remember-guest-profile-input');
+          const guestOrdererInfoBox = document.getElementById('guest-orderer-info-box');
+          const guestNameEntryBox = document.getElementById('guest-name-entry-box');
+          const guestNameInput = document.getElementById('guest-name-confirm-input');
+          const guestSavedProfileBox = document.getElementById('guest-saved-profile-box');
+          const btnConfirmRandomName = document.getElementById('btn-confirm-random-name');
           
           const fee = getGuestFee();
           btnDeliver.textContent = `배달 (+${fee} 🪙)`;
+
+          if (guestOrdererInfoBox) {
+            guestOrdererInfoBox.style.display = isGuestPreviewMode() ? 'none' : 'flex';
+          }
+
+          if (hasSavedKakaoGuestProfile()) {
+            if (guestNameEntryBox) guestNameEntryBox.style.display = 'none';
+            if (guestSavedProfileBox) {
+              guestSavedProfileBox.textContent = `카카오 저장 정보: ${user.nickname} 님`;
+              guestSavedProfileBox.style.display = 'block';
+            }
+          } else {
+            if (guestNameEntryBox) guestNameEntryBox.style.display = 'flex';
+            if (guestSavedProfileBox) guestSavedProfileBox.style.display = 'none';
+            if (guestNameInput) {
+              guestNameInput.value = user.needsGuestInfo ? '' : (user.nickname || '');
+            }
+          }
+
+          if (btnConfirmRandomName && guestNameInput) {
+            AppState.bindCardTap(btnConfirmRandomName, () => {
+              guestNameInput.value = generateConfirmRandomNickname();
+              guestNameInput.focus();
+              AppState.vibrate(40);
+            });
+          }
 
           // 기본 배달지 설정
           if (deliveryPlaceInput) {
@@ -724,6 +829,24 @@
         return;
       }
 
+      const isGuest = (user.userId === 'guest');
+      if (isGuest) {
+        const guestName = getGuestOrderDisplayName();
+        if (!guestName) {
+          const errorBox = document.getElementById('error-message-box');
+          const guestNameInput = document.getElementById('guest-name-confirm-input');
+          if (errorBox) {
+            errorBox.textContent = '⚠️ 주문표시명을 입력해 주세요.';
+            errorBox.style.display = 'block';
+          }
+          alert('주문표시명을 입력해 주세요.');
+          if (guestNameInput) guestNameInput.focus();
+          AppState.vibrate([100, 100]);
+          return;
+        }
+        syncGuestOrderDisplayName(guestName);
+      }
+
       const loadingOverlay = document.getElementById('loading-overlay');
       const errorBox       = document.getElementById('error-message-box');
       const btnSubmit      = document.getElementById('btn-submit');
@@ -734,7 +857,6 @@
       if (btnSubmit) btnSubmit.disabled = true;
       if (btnPrev) btnPrev.disabled   = true;
 
-      const isGuest = (user.userId === 'guest');
       if (isGuest) {
         try {
           await refreshGuestCreditStatus();

@@ -1226,12 +1226,11 @@
         }
 
         if (rememberedGuestProfile && rememberedGuestProfile.displayName) {
-          // 저장된 프로필이 있으면 바로 주문 시작 (이름 입력 화면 건너뜀)
           input.value = rememberedGuestProfile.displayName;
-          startGuestMode();
         } else {
-          showStep('input');
+          input.value = '';
         }
+        startGuestMode();
       });
 
       // 프로필 수정 모달 관련 바인딩
@@ -1466,16 +1465,12 @@
         }
 
         const guestName = input.value.trim();
-        if (!guestName) {
-          alert('주문표시명을 입력해 주세요.');
-          input.focus();
-          AppState.vibrate([100, 100]);
-          return;
-        }
+        const needsGuestInfo = !guestName;
 
         const selectedUser = {
           userId: 'guest',
           nickname: guestName,
+          needsGuestInfo,
           credit: startingCredit,
           guestCreditLimit: guestCreditStatus && typeof guestCreditStatus.creditLimit === 'number'
             ? guestCreditStatus.creditLimit
@@ -1493,13 +1488,16 @@
           if (rememberedGuestProfile && rememberedGuestProfile.deliveryPlace) {
             selectedUser.rememberedDeliveryPlace = rememberedGuestProfile.deliveryPlace;
           }
+          if (rememberedGuestProfile && rememberedGuestProfile.displayName) {
+            selectedUser.guestProfileSaved = true;
+          }
         }
 
         // 게스트 임시 사용자 저장
         AppState.setSelectedUser(selectedUser);
 
         AppState.vibrate(60);
-        AppState.speak(`${guestName} 님, 맛있는 간식 주문을 시작합니다.`);
+        AppState.speak('맛있는 간식 주문을 시작합니다.');
 
         // 이동
         window.location.href = 'menu.html';
