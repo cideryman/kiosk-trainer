@@ -517,7 +517,7 @@
               const isKakao = serverData.authProvider === 'kakao' || (localByKey[key] && localByKey[key].authProvider === 'kakao');
               let guestName = serverData.guestName || (serverData.nickname ? String(serverData.nickname).replace(/ \((체험|비회원)\)/g, '') : '게스트');
               if (isKakao) {
-                guestName = guestName.replace(/ \((체험|비회원)\)/g, '').trim() + ' 💬';
+                guestName = '💬 ' + guestName.replace(/ \((체험|비회원)\)/g, '').trim();
               }
               localByKey[key] = {
                 ...(localByKey[key] || {}),
@@ -630,7 +630,7 @@
         const isKakao = order.authProvider === 'kakao';
         let guestName = order.guestName || (order.nickname ? String(order.nickname).replace(/ \((체험|비회원)\)/g, '') : '게스트');
         if (isKakao) {
-          guestName = guestName.replace(/ \((체험|비회원)\)/g, '').trim() + ' 💬';
+          guestName = '💬 ' + guestName.replace(/ \((체험|비회원)\)/g, '').trim();
         }
         
         let itemsText = '-';

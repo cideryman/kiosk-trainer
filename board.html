@@ -613,7 +613,7 @@
         let displayName = order.nickname || '';
         const isKakao = order.authProvider === 'kakao';
         if (isKakao) {
-          displayName = displayName.replace(/ \((체험|비회원)\)/g, '').trim() + ' 💬';
+          displayName = '💬 ' + displayName.replace(/ \((체험|비회원)\)/g, '').trim();
         }
         const safeNickname = AppState.escapeHtml(displayName);
         const safeSnacksText = AppState.escapeHtml(

@@ -129,7 +129,7 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
 * **Completed field checks**: double-order prevention, kitchen new-order sound/filter behavior, order-token guardrails for cancel/review/photo upload, archive sheet column alignment, latest service-worker cache reflection, P1 GAS performance 7~8 validation for regular users/local guests/Kakao guests, and P2 local guest pickup/delivery UX flow.
 
 ### Recently Resolved (최근 해결 항목)
-* **P1 - 카카오 연동 게스트 (비회원) 꼬리 재노출 해결 (GAS API 응답 누락 수정)** (Development Log - 54)
+* **P1 - 카카오 연동 게스트 (비회원) 꼬리 재노출 해결 및 말풍선 이모지 접두사 변경** (Development Log - 54)
 * **P2 - 후기 상세 모달 너비 확장 및 답글 영역 여백/정렬 수정** (Development Log - 53)
 * **P2 - 관리자 대리 입력식 후기 답글 기능 및 게스트 노출 1~3단계 구현** (Development Log - 52)
 * **P2 - 주문하기 버튼 더블 클릭 시 비동기 레이스 컨디션에 따른 이중 주문 방지** (Development Log - 51)
@@ -2629,30 +2629,34 @@ sequenceDiagram
 
 ---
 
-### 작업 기록 [RESOLVED] (Development Log) - 54) 카카오 연동 게스트 (비회원) 꼬리 재노출 해결 (GAS API 응답 누락 수정)
+### 작업 기록 [RESOLVED] (Development Log) - 54) 카카오 연동 게스트 (비회원) 꼬리 재노출 해결 및 말풍선 이모지 접두사 변경
 
 #### 작업명
-> 구글 Apps Script(GAS) 백엔드 API에서 주문 조회 시 `authProvider`와 `guestKey` 필드를 응답 JSON에 포함하도록 수정하여 카카오 게스트의 별명 정제 로직( (비회원) 꼬리 삭제 및 💬 말풍선 이모지 부착)이 정상 복구되도록 처리
+> 구글 Apps Script(GAS) 백엔드 API에서 주문 조회 시 `authProvider`와 `guestKey` 필드를 응답 JSON에 포함하도록 수정하여 카카오 게스트의 별명 정제 로직을 복구하고, 말풍선(💬) 이모지를 닉네임 앞으로 배치 변경 및 PWA 캐시 버전 상향 조정
 
 #### 1. Issue (문제)
 ##### 요구사항
 * 주방(`kitchen.html`), 호출 전광판(`board.html`), 주문 완료/상태 추적(`complete.html`, `guest-orders.html` 등) 화면에서 카카오 로그인 연동 게스트에 대해 여전히 `(비회원)` 꼬리 문구가 노출되고 있다는 보고.
-* 원인 규명 및 백엔드/프론트엔드 연동 복구 요청.
+* 추가 요구사항: 카카오 회원임을 알리는 말풍선(`💬`) 이모지를 닉네임 뒤가 아닌 **닉네임 앞**(`💬 닉네임`)으로 위치 변경해 달라는 사용자 피드백 반영.
+* 캐시 갱신을 위해 서비스 워커 버전 상향 요청.
 
 #### 2. Decision (결정)
 ##### 해결 방법
-* **원인 분석**
-  - 프론트엔드 코드(예: `board.html`의 613~616 라인 등)에는 이미 `order.authProvider === 'kakao'` 조건에 맞춰 별명 문자열에서 ` (비회원)`을 정규식으로 지우고 `💬`를 덧붙이도록 구성되어 있었음.
-  - 그러나 백엔드인 구글 Apps Script(`google-apps-script.md`) 내부의 주문 조회 API들(`getOrdersToday`, `getGuestOrdersToday`, `getOrderStatus`)이 주문 시트에서 로우 데이터를 파싱할 때 `authProvider`와 `guestKey` 열의 값을 읽어 프론트엔드로 전달하지 않고 누락하고 있었음.
-* **백엔드 API 속성 맵핑 추가**
-  - `getOrdersToday()`, `getGuestOrdersToday(guestName)`, `getOrderStatus(id)` 함수에서 `authProvider`와 `guestKey` 시트 컬럼(T열, U열)의 인덱스를 찾아 응답 객체에 매핑하여 리턴하도록 확장.
-* **프론트엔드 보강 (대기 중 주문 정보 그룹화 수정)**
-  - 전광판 화면(`board.html`)에서 주문 정보를 `orderNo` 기준으로 그룹화할 때, `authProvider: o.authProvider` 매핑이 누락되어 `isKakao` 판별에 실패하던 버그를 함께 식별하여 수정 완료.
+* **원인 분석 및 백엔드 복구**
+  - 백엔드인 구글 Apps Script(`google-apps-script.md`) 내부의 주문 조회 API들(`getOrdersToday`, `getGuestOrdersToday`, `getOrderStatus`)이 주문 시트에서 `authProvider`와 `guestKey` 열의 값을 누락하고 있어서 프론트엔드로 전달하지 않는 문제를 해결.
+* **말풍선 이모지 닉네임 앞으로 이동**
+  - 프론트엔드 내의 말풍선 문자열 결합 로직을 `displayName = '💬 ' + displayName.replace(/ \((체험|비회원)\)/g, '').trim()` 형태로 변경하여 카카오 연동 표시가 이름 앞에 붙도록 일괄 수정.
+* **PWA 캐시 무효화 및 강제 업데이트**
+  - `service-worker.js`의 캐시 식별자(`CACHE_NAME`)를 `kiosk-cache-v122`에서 **`kiosk-cache-v123`**으로 변경하여, 단말기 브라우저가 새 정적 리소스를 강제 갱신하도록 처리.
 
 ##### 변경 파일
 * `google-apps-script.md` (`getOrdersToday`, `getGuestOrdersToday`, `getOrderStatus` API 내 `authProvider` 및 `guestKey` 데이터 매핑 누적 리턴 구현)
-* `board.html` (주문 정보 로컬 그룹핑 루프 내 `authProvider: o.authProvider || ''` 누락 추가)
-* `handoff.md` (Active Issues 1번 해결 처리, Recently Resolved 갱신 및 신규 개발로그 54 기록 추가)
+* `board.html` (주문 정보 로컬 그룹핑 내 `authProvider` 누락 보완 및 말풍선 접두사 렌더링 수정)
+* `kitchen.html` (주문 렌더링 및 완료 목록 테이블 내 말풍선 접두사 수정)
+* `guest-orders.html` (주문 조회 목록 카드 내 말풍선 접두사 수정)
+* `print-bills.html` (빌지 인쇄 및 배달 체크리스트 내 말풍선 접두사 수정)
+* `service-worker.js` (PWA 캐시 버전을 `kiosk-cache-v123`로 상향)
+* `handoff.md` (Recently Resolved 갱신 및 신규 개발로그 54 기록 최종 갱신)
 
 #### 3. Verification (검증)
 ##### 코드 검증
@@ -2661,8 +2665,8 @@ sequenceDiagram
 
 #### 4. Manual Test (수동 테스트)
 ##### 테스트 순서
-1. `js/config.js` 및 GAS mock 환경을 통해 오늘 주문 응답 데이터에 `authProvider: 'kakao'`가 포함될 때, 주방 및 전광판 화면에서 `별명 (비회원)` 대신 `별명 💬` 형태로 정상 렌더링되는지 확인합니다.
-2. 실 배포 후 카카오 로그인을 한 게스트 계정으로 주문을 작성한 후 주방, 전광판, 주문 조회, 영수증(빌지) 화면을 모니터링하여 꼬리 텍스트가 노출되지 않는지 최종 교차 확인합니다.
+1. `js/config.js` 및 GAS mock 환경을 통해 오늘 주문 응답 데이터에 `authProvider: 'kakao'`가 포함될 때, 주방 및 전광판 화면에서 `별명 (비회원)` 대신 `💬 별명` 형태로 정상 렌더링되는지 확인합니다.
+2. 각 화면에서 PWA 캐시 버전 상향(`kiosk-cache-v123`)으로 인해 캐시가 강제 갱신되고 새로운 이모지 위치가 반영되는지 테스트합니다.
 
 #### 5. Caution (주의사항 / 오류 발생 시 대처방법)
 ##### 오류 발생 시 대처방법
@@ -2670,4 +2674,4 @@ sequenceDiagram
   - 백엔드 스크립트(`google-apps-script.md`) 내부의 JSON 스키마 조회가 변경되었으므로, 해당 변경 사항을 실제 Apps Script 콘솔에 복사하여 붙여넣은 뒤 반드시 **"새 버전 배포(New Deployment)"**를 기동해주어야 실 서버에 적용됩니다.
 
 #### 7. Summary (요약)
-* 카카오 로그인 사용자와 일반 로컬 게스트의 화면 표시 식별성을 명확히 분리하고자 한 기획 의도가 백엔드 응답 필드 누락으로 인해 무력화되던 버그를 분석하여 복구시켰습니다.
+* 카카오 로그인 사용자와 일반 로컬 게스트의 화면 표시 식별성을 명확히 분리하고자 한 기획 의도가 백엔드 응답 필드 누락으로 인해 무력화되던 버그를 분석하여 복구시켰습니다. 추가로 말풍선 기호를 이름 앞으로 이동하여 시각적 직관성을 향상시키고, 캐시 버전 인상을 통해 PWA 정적 화면 갱신을 확실히 보장했습니다.

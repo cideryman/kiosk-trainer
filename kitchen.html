@@ -2182,7 +2182,7 @@
           const isKakao = group.authProvider === 'kakao';
           let displayNickname = rawNickname;
           if (isKakao) {
-            displayNickname = displayNickname.replace(/ \((체험|비회원)\)/g, '').trim() + ' 💬';
+            displayNickname = '💬 ' + displayNickname.replace(/ \((체험|비회원)\)/g, '').trim();
           }
           const rawImgUrl = userImageMap[rawNickname] || userImageMap[displayNickname] || '';
           const imgUrl = rawImgUrl ? AppState.convertDriveImageUrl(rawImgUrl) : '';
@@ -2322,7 +2322,7 @@
           const isKakao = order.authProvider === 'kakao';
           let displayNickname = order.nickname || '';
           if (isKakao) {
-            displayNickname = displayNickname.replace(/ \((체험|비회원)\)/g, '').trim() + ' 💬';
+            displayNickname = '💬 ' + displayNickname.replace(/ \((체험|비회원)\)/g, '').trim();
           }
 
           const isDelivery = order.deliveryType === 'delivery';

@@ -569,7 +569,7 @@
             const isKakao = group.authProvider === 'kakao';
             let displayNickname = group.nickname || '';
             if (isKakao) {
-              displayNickname = displayNickname.replace(/ \((체험|비회원)\)/g, '').trim() + ' 💬';
+              displayNickname = '💬 ' + displayNickname.replace(/ \((체험|비회원)\)/g, '').trim();
             }
             
             // 메뉴 목록 HTML 생성
@@ -730,7 +730,7 @@
           const isKakao = group.authProvider === 'kakao';
           let displayNickname = group.nickname || '';
           if (isKakao) {
-            displayNickname = displayNickname.replace(/ \((체험|비회원)\)/g, '').trim() + ' 💬';
+            displayNickname = '💬 ' + displayNickname.replace(/ \((체험|비회원)\)/g, '').trim();
           }
           
           const snackNamesHtml = group.items.map(item => AppState.escapeHtml(item.snackName)).join('<br>');
