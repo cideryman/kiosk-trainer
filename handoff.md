@@ -36,7 +36,19 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
    - **판단**: 이번 멱등성 작업과 한 번에 섞지 않는다. 멱등성은 동일 요청 재전송 방지이고, 트랜잭션은 부분 성공/부분 실패 복구 문제이므로 분리한다.
    - **우선순위**: 운영 중 부분 실패 사례가 재발하거나, 주문 행은 있는데 크레딧/재고 반영이 불일치하는 증거가 나오면 P1으로 올려 별도 설계한다.
 
-3. **P1 - 이미지 업로드/표시 성능 개선 (완료)**
+3. **P1 - 브라우저 저장소 개인정보/이용 안내 정비**
+   - **배경**: 현재 앱은 `localStorage`/`sessionStorage`에 `guestDeviceId`, `guestOrders`, `lastOrderSummary`, `selectedUser`, `guestAuth`, `localGuestDisplayName`, 장바구니/주문 진행 상태 등을 저장한다.
+   - **판단**: 쿠키 배너까지는 과할 수 있으나, 닉네임/주문토큰/기기식별값/주문내역은 특정 이용자와 연결될 수 있으므로 개인정보 처리방침 또는 이용 안내에 브라우저 저장소 사용 목적, 저장 항목, 보관 범위, 삭제 방법을 명시하는 것이 안전하다.
+   - **권장 범위**: 광고/외부 추적 목적이 없고 주문 편의, 중복 주문 방지, 주문 조회, 게스트 크레딧 중복 사용 방지가 목적임을 명확히 적는다. 배달지/카카오 식별자/크레딧 정보 등 민감도가 높은 값은 불필요하게 새로 로컬 저장하지 않는다.
+   - **다음 작업**: 개인정보 처리방침 또는 배달왔삼 이용 안내 문구 초안을 만들고, 운영자가 실제 고지 위치(README, 앱 내 안내, 기관 문서)를 선택한 뒤 반영한다.
+
+4. **P2 - 비회원 게스트 주문표시명 하루 1회 원칙 검토/구현**
+   - **배경**: 같은 비회원 게스트가 하루 동안 주문마다 다른 주문표시명을 사용하면 주방/전광판/배달/주문조회에서 같은 사람인지 식별하기 어려워 운영 안정성이 떨어진다.
+   - **추천 방향**: `localGuestDisplayName`을 날짜 단위로 확정해 같은 날짜의 두 번째 주문부터 자동 적용한다. 단, 오타 수정 가능성을 고려해 완전 잠금이 아니라 `표시명 변경` 같은 예외 경로를 둘지 검토한다.
+   - **구현 기준**: 첫 주문 완료 또는 주문표시명 확정 시 `{ dateKey, displayName }` 형태로 저장하고, 오늘 날짜와 일치하면 확인 화면에 자동 적용한다. 다음 날에는 새 표시명을 정할 수 있게 한다.
+   - **주의사항**: 진행 중 주문이 있거나 동일 기기에서 이미 오늘 주문이 있는 경우 표시명 변경이 주문조회/배달 혼선을 만들 수 있으므로 변경 버튼 노출 조건과 안내 문구를 함께 설계한다.
+
+5. **P1 - 이미지 업로드/표시 성능 개선 (완료)**
    - **현황**: DevTools Network 기준 첫 로드에서 Drive 썸네일 이미지가 개당 약 300~700KB로 확인되어, `getSnacks` GAS 호출과 함께 간식 목록 표시 체감 속도에 영향을 줄 수 있다.
    - **우선순위 판단**: 현재 다음 작업 1순위로 둔다. 운영자가 기존 이미지는 PhotoScape 등으로 일괄 리사이즈하고, 신규 등록 이미지는 관리자 페이지에서 자동으로 800px 이하 WebP로 변환한다.
    - **권장 순서**: 기존 Drive 원본 이미지 리사이즈/교체 → 관리자 신규 업로드 자동 리사이즈 적용 → Network `Img` 탭에서 전송 크기 재측정 → 그래도 메뉴 첫 로드가 느리면 `getSnacks` 짧은 캐시를 별도 재논의한다.
@@ -60,7 +72,7 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
      - 주문 성공, 관리자/이용자 주문 취소 재고 복구, 간식 추가/수정/재고 변경/판매상태 변경/표시순서 변경/빈 간식ID 자동 채우기 시 `clearSnackReadCache()`로 즉시 무효화한다.
      - 검증: GAS 새 버전 배포 후 일반 키오스크와 게스트 메뉴 첫 진입, 15초 내 다른 브라우저/디바이스 메뉴 재진입, 주문 후 재고 반영, 관리자 재고/판매상태 수정 후 메뉴 반영을 확인한다.
 
-4. **P1 - Apps Script 성능 점검 (완료)**
+6. **P1 - Apps Script 성능 점검 (완료)**
    - Google Sheets 읽기/쓰기 호출 최적화 가능성, 반복 조회, CacheService 적용 후보, 주문 처리 병목을 분석한다.
    - 구현 전 분석과 우선순위 제안이 목적이다.
    - **권장 방향**: 바로 최적화 코드를 넣지 말고, 성능 감사와 안전한 후보 선별부터 진행한다.
@@ -152,7 +164,7 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
      - 일반 사용자와 로컬 게스트의 7~8단계 수동검증은 정상 동작으로 확인했다.
      - GitHub Pages 반영 후 카카오 게스트의 7~8단계 수동검증도 정상 동작으로 확인했다.
 
-5. **P2 - 배달왔삼 주문 흐름 UX 재설계 검토**
+7. **P2 - 배달왔삼 주문 흐름 UX 재설계 검토**
    - 닉네임 입력과 배달지 입력을 `주문자 정보` 화면으로 통합하는 변경이 UX와 기존 데이터 흐름에 적절한지 검토한다.
    - 카카오 로그인, 로컬 게스트 크레딧, 주문 생성/조회/취소/후기 영향까지 확인한다.
    - **선택 방향**: 시작 단계에서 `guestDeviceId`/카카오 `guestKey` 기반 크레딧 조회는 유지하고, 닉네임 입력만 주문 확인 화면으로 늦추는 절충안을 적용한다.
@@ -172,11 +184,11 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
      - 배달지, 카카오 식별자, 크레딧 정보는 새로 저장하지 않고 표시명만 같은 기기 안에 보존한다.
      - 정적 파일 반영을 위해 `service-worker.js` 캐시 버전을 `kiosk-cache-v127`로 올렸다.
 
-6. **P3 - Apps Script 백엔드 구조 유지보수성 검토**
+8. **P3 - Apps Script 백엔드 구조 유지보수성 검토**
    - 기능별 분리 필요성, 결합도, AI 유지보수 용이성, 장기적 백엔드 이전 가능성을 기준으로 현재 구조 유지/부분 분리/전면 분리를 비교한다.
    - 성능 개선이 아니라 유지보수성과 확장성 중심으로 판단한다.
 
-7. **P1 - GAS 안정성 후속 작업 (Claude 조언 검토 결과, 완료)**
+9. **P1 - GAS 안정성 후속 작업 (Claude 조언 검토 결과, 완료)**
    - **진행 대상**
      1. `updateOrderServed()`에 `LockService`를 추가해 주방 제공 상태 변경의 동시 쓰기 경합을 방지한다.
      2. 가능하면 같은 흐름에서 `updateOrderServed()`의 읽기 범위를 전체 시트에서 필요한 주문번호/상태/닉네임 범위 중심으로 축소한다. 관리자 로그에 필요한 이전 상태와 닉네임은 유지해야 한다.
@@ -194,10 +206,8 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
      - `getSnacks` TTL 확대(30초 이상): 15초 서버 캐시는 적용했지만, 현장 재고 표시가 오래 stale 될 수 있어 더 긴 TTL은 운영 측정 후에만 재검토한다.
 
 ### Manual Verification
-* **Pending**: GitHub Pages 반영 후 서비스워커 캐시가 `kiosk-cache-v127`로 갱신되는지 확인한다.
-* **Pending**: 비회원 로컬 게스트 첫 주문에서 주문표시명을 입력하고 완료한 뒤, 같은 브라우저에서 두 번째 주문을 시작했을 때 확인 화면의 주문표시명이 자동으로 유지되는지 확인한다.
 * **Optional deep check**: 같은 `idempotencyKey`로 동일 `placeOrder` 요청을 강제로 2회 전송할 수 있는 환경이 있을 때, 주문내역 행 수, 재고 차감, 일반/게스트 크레딧 차감이 1회만 반영되는지 확인한다. 일반 화면의 버튼 잠금과 정상 주문 흐름은 수동검증 완료.
-* **Completed field checks**: double-order prevention, kitchen new-order sound/filter behavior, order-token guardrails for cancel/review/photo upload, archive sheet column alignment, latest service-worker cache reflection, P1 GAS performance 7~8 validation for regular users/local guests/Kakao guests, P2 local guest pickup/delivery UX flow, Kakao-linked guest display code recheck for kitchen/board/guest-orders/print-bills, `updateOrderServed()` lock/range validation, `getSnacks` 15초 서버 캐시 validation for regular kiosk/guest menu, post-order stock reflection, admin stock/sale-state reflection, order-cancel stock restoration, Pretendard webfont request removal, and admin image upload thumbnail validation.
+* **Completed field checks**: double-order prevention, kitchen new-order sound/filter behavior, order-token guardrails for cancel/review/photo upload, archive sheet column alignment, latest service-worker cache reflection through `kiosk-cache-v127`, P1 GAS performance 7~8 validation for regular users/local guests/Kakao guests, P2 local guest pickup/delivery UX flow, local guest display-name persistence across repeat orders, Kakao-linked guest display code recheck for kitchen/board/guest-orders/print-bills, `updateOrderServed()` lock/range validation, `getSnacks` 15초 서버 캐시 validation for regular kiosk/guest menu, post-order stock reflection, admin stock/sale-state reflection, order-cancel stock restoration, Pretendard webfont request removal, and admin image upload thumbnail validation.
 
 ### Recently Resolved (최근 해결 항목)
 * **P1 - 카카오 연동 게스트 (비회원) 꼬리 재노출 해결 및 말풍선 이모지 접두사 변경** (Development Log - 54)
@@ -218,6 +228,7 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
 * **간식 제공 대상 제한**: 간식의 제공대상(`target`)은 오직 `user` 또는 `guest`만 사용합니다. 과거의 `both` 설정은 사용이 금지되었습니다.
 * **게스트 주문의 사용자 식별자 고정**: 게스트 주문 시 `userId`는 항상 `'guest'` 문자열로 고정하여 일반 회원 주문과 물리적으로 구분하며, 카카오 고유 ID 등으로 대체하지 않습니다.
 * **개인정보 보호 원칙**: 실명, 이메일, 전화번호 등의 개인정보는 일절 수집하지 않으며, 카카오톡 로그인 연동 시에도 원본 카카오 ID나 토큰은 Sheets에 저장하지 않고 솔트가 가미된 단방향 암호화 값인 `guestKey`만 생성하여 저장합니다.
+* **브라우저 저장소 최소화 원칙**: `localStorage`/`sessionStorage`는 주문 편의, 중복 주문 방지, 주문 조회, 게스트 크레딧 중복 사용 방지처럼 필요한 목적에 한해 사용합니다. 표시명은 로컬 기기 안에만 저장하고, 배달지/실명/연락처/원본 카카오 식별자 등은 불필요하게 추가 저장하지 않습니다.
 * **수동 마이그레이션 및 시트 구조 변경 원칙**: 시트 구조 자동 복구나 마이그레이션 함수를 `onOpen` 등의 트리거에 바인딩하여 자동으로 실행시키는 것을 엄격히 금지합니다. 모든 시트 복구/변경은 백업 확보 후, 정확한 레이아웃을 검증한 뒤 앱스 스크립트에서 수동으로만 실행합니다.
 * **주문 아카이빙 운영 루틴**: 주문내역 행 수가 늘어나면 조회 캐시 효과와 시트 읽기 성능이 떨어질 수 있으므로, 운영이 없는 시간에 주방 화면 `운영 도구` -> `지난 주문 보관`을 수동 실행합니다. 기준은 주 1회 또는 주문내역이 약 50건 이상 쌓였을 때를 권장합니다. 시간 기반 자동 트리거는 시트 구조 변경/보관 원칙과 운영 리스크 때문에 별도 결정 전에는 만들지 않습니다.
 * **백엔드 보안 하드닝 수준 보류**: 기관 내부의 비식별 환경 특성상 트랜잭션 롤백 및 동시성 락을 과도하게 도입하는 것은 장애 발생 위험 대비 실익이 낮아 보류(사실상 폐기)하였습니다.
