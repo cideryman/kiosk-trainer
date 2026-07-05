@@ -1,7 +1,5 @@
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-
 :root {
-  --font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', '맑은 고딕', system-ui, sans-serif;
   
   /* 발달장애인을 배려한 부드럽고 명확한 컬러 시스템 */
   --primary-color: #FF9F1C;     /* 따뜻한 주황색 (선택/강조) */

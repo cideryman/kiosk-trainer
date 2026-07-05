@@ -594,9 +594,44 @@ function getUsers(includeInactive) {
 /**
  * 6. 간식 목록 조회
  */
+const SNACKS_READ_CACHE_KEY = 'snacks.readValues.v1';
+const SNACKS_READ_CACHE_TTL_SECONDS = 15;
+
+function getSnackValuesForRead(sheet) {
+  try {
+    const cached = CacheService.getScriptCache().get(SNACKS_READ_CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    }
+  } catch (error) {
+    Logger.log('snacks read cache read failed: ' + (error && error.stack ? error.stack : error));
+  }
+
+  const values = sheet.getDataRange().getValues();
+  try {
+    CacheService
+      .getScriptCache()
+      .put(SNACKS_READ_CACHE_KEY, JSON.stringify(values), SNACKS_READ_CACHE_TTL_SECONDS);
+  } catch (error) {
+    Logger.log('snacks read cache write failed: ' + (error && error.stack ? error.stack : error));
+  }
+  return values;
+}
+
+function clearSnackReadCache() {
+  try {
+    CacheService.getScriptCache().remove(SNACKS_READ_CACHE_KEY);
+  } catch (error) {
+    Logger.log('snacks read cache clear failed: ' + (error && error.stack ? error.stack : error));
+  }
+}
+
 function getSnacks(includeHidden, mode) {
   const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET.SNACKS);
-  const values = sheet.getDataRange().getValues();
+  const values = getSnackValuesForRead(sheet);
   const rows = values.slice(1);
   const shouldIncludeHidden = String(includeHidden || '').trim().toUpperCase() === 'Y';
 
@@ -1187,6 +1222,7 @@ function placeOrder(data) {
         .getRange(item.snackRowIndex + 1, 6)
         .setValue(item.afterStock);
     });
+    clearSnackReadCache();
     clearOrderReadCache();
 
     // 유저 크레딧 차감 반영
@@ -1826,6 +1862,7 @@ function cancelOrder(data) {
           Logger.log('Guest credit refund failed: ' + (walletError && walletError.stack ? walletError.stack : walletError));
         }
       }
+      clearSnackReadCache();
       clearOrderReadCache();
       return {
         success: true,
@@ -1975,6 +2012,7 @@ function userCancelOrder(data) {
           Logger.log('Guest credit refund failed: ' + (walletError && walletError.stack ? walletError.stack : walletError));
         }
       }
+      clearSnackReadCache();
       clearOrderReadCache();
       return {
         success: true,
@@ -2088,6 +2126,7 @@ function updateSnackStock(data) {
       var beforeStock = Number(rows[i][5] || 0);
       sheet.getRange(i + 1, 6).setValue(newStock);
       safeAppendAdminLog('updateSnackStock', 'snack', snackId, rows[i][1], beforeStock, newStock, data.adminMemo);
+      clearSnackReadCache();
       return { success: true, message: '재고를 업데이트했습니다.' };
     }
   }
@@ -2108,6 +2147,7 @@ function updateSnackSale(data) {
       var beforeSaleYn = rows[i][4] || '';
       sheet.getRange(i + 1, 5).setValue(saleYn);
       safeAppendAdminLog('updateSnackSale', 'snack', snackId, rows[i][1], beforeSaleYn, saleYn, data.adminMemo);
+      clearSnackReadCache();
       return { success: true, message: '간식 판매 상태를 업데이트했습니다.', saleYn: saleYn };
     }
   }
@@ -2144,6 +2184,7 @@ function addSnack(data) {
 
   sheet.appendRow(newRow);
   safeAppendAdminLog('addSnack', 'snack', newSnackId, data.name, '', JSON.stringify({ point: Number(data.point || 1), saleYn: data.saleYn || 'Y', stock: Number(data.stock || 0), target: target }), data.adminMemo);
+  clearSnackReadCache();
   return { success: true, message: '신규 간식을 등록했습니다.', snackId: newSnackId };
 }
 
@@ -2233,6 +2274,7 @@ function updateSnack(data) {
         JSON.stringify({ name: name, point: point, imageUrl: imageUrl, saleYn: saleYn, stock: stock, target: target }),
         data.adminMemo
       );
+      clearSnackReadCache();
       return { success: true, message: '간식 정보를 수정했습니다.' };
     }
   }
@@ -2266,6 +2308,7 @@ function updateSnacksOrder(data) {
     }
   }
 
+  clearSnackReadCache();
   return { success: true, message: '표시 순서를 저장했습니다.' };
 }
 
@@ -3462,6 +3505,7 @@ function autoFillEmptySnackIds() {
       filledCount++;
     });
 
+    clearSnackReadCache();
     return {
       success: true,
       filledCount: filledCount,

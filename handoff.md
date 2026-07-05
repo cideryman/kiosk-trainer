@@ -25,6 +25,19 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
      - GAS `uploadImage()`는 이미 WebP를 허용하므로 백엔드 수정은 하지 않는다.
      - 정적 파일 반영을 위해 `service-worker.js` 캐시 버전을 `kiosk-cache-v124`로 상향한다.
      - 검증: 관리자에서 신규/수정 이용자 사진, 신규/수정 간식 이미지를 업로드하고 URL 저장 후 메뉴/관리자 목록 썸네일이 정상 표시되는지 확인한다.
+   - **2단계 적용 결과**
+     - `css/style.css`의 Pretendard CDN `@import`를 제거해 첫 로드 시 `Pretendard-*.woff2` 웹폰트를 내려받지 않도록 했다.
+     - `font-family`에는 `Pretendard` 이름을 남겨, 기기에 Pretendard가 설치되어 있으면 로컬 폰트를 쓰고 없으면 `Apple SD Gothic Neo`, `Malgun Gothic`, `맑은 고딕`, 시스템 기본 폰트로 fallback한다.
+     - 정적 파일 반영을 위해 `service-worker.js` 캐시 버전을 `kiosk-cache-v125`로 상향한다.
+     - 검증: 배포 후 Network 탭에서 `Pretendard-Regular.woff2`, `Pretendard-Bold.woff2`, `Pretendard-ExtraBold.woff2`, `Pretendard-Black.woff2` 요청이 사라졌는지 확인한다.
+   - **3단계 적용 결과**
+     - `getSnacks()`에 Apps Script `CacheService` 기반 15초 서버 캐시를 추가한다.
+     - 일반 키오스크와 배달왔삼 게스트 메뉴가 모두 같은 `getSnacks` API를 사용하므로, 양쪽 메뉴 진입에 동일하게 적용된다.
+     - 첫 호출은 기존처럼 `간식목록` 시트를 읽지만, 15초 안에 다른 디바이스가 일반 키오스크 또는 게스트 메뉴에 진입하면 같은 서버 캐시를 공유해 반복 시트 읽기를 줄인다.
+     - 30초보다 15초를 선택한 이유는 메뉴 진입 속도 개선과 재고 표시 최신성 사이의 균형 때문이다. 일반 키오스크는 현장 재고 정합성 기대치가 더 높고, 배달왔삼도 재고 수량이 작을 수 있어 표시용 재고가 오래 stale 되지 않는 쪽을 우선한다.
+     - 이 캐시는 메뉴 표시용이며, 최종 주문은 `placeOrder()`가 `간식목록` 원본 시트를 다시 읽어 재고/판매상태를 검증하므로 실제 없는 재고가 주문되는 것은 방어한다.
+     - 주문 성공, 관리자/이용자 주문 취소 재고 복구, 간식 추가/수정/재고 변경/판매상태 변경/표시순서 변경/빈 간식ID 자동 채우기 시 `clearSnackReadCache()`로 즉시 무효화한다.
+     - 검증: GAS 새 버전 배포 후 일반 키오스크와 게스트 메뉴 첫 진입, 15초 내 다른 브라우저/디바이스 메뉴 재진입, 주문 후 재고 반영, 관리자 재고/판매상태 수정 후 메뉴 반영을 확인한다.
 
 2. **P1 - Apps Script 성능 점검 (완료)**
    - Google Sheets 읽기/쓰기 호출 최적화 가능성, 반복 조회, CacheService 적용 후보, 주문 처리 병목을 분석한다.
@@ -148,13 +161,14 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
      - 수동검증 결과: 주방 화면에서 제공 완료(Y)와 대기(N) 되돌리기가 정상 동작하는 것으로 확인했다.
    - **지금 하지 않는 항목**
      - `placeOrder()`의 중복 `clearOrderReadCache()` 제거: 첫 번째 호출은 주문 행 기록 후 크레딧 처리 중 예외가 나도 주문 조회 캐시를 비우는 방어선 역할을 할 수 있어 유지한다.
-     - `getSnacks`/`getGuestSettings` 클라이언트 캐시 확대: 호출 수는 줄일 수 있지만 재고/영업상태 표시가 오래 stale 될 수 있어 현재 증상 없이는 우선순위를 낮춘다. 실제 GAS 호출 부하가 다시 커지면 짧은 TTL로 재검토한다.
+     - `getGuestSettings` 클라이언트 캐시 확대: 호출 수는 줄일 수 있지만 영업상태 표시가 stale 될 수 있어 현재 증상 없이는 우선순위를 낮춘다. `getSnacks`는 이미지/폰트 경량화 이후에도 GAS 호출이 병목으로 남아 15초 서버 캐시만 제한적으로 적용했다.
      - 전광판 적응형 폴링: 비영업 시간 부하는 줄일 수 있으나 현재 안정성 후속 작업보다 후순위다. 운영 시간 외 부하가 문제로 확인되면 진행한다.
      - GAS 워밍업 트리거: 콜드 스타트가 반복적으로 운영 문제를 만들 때만 적용한다. 시간 기반 트리거는 코드 변경이 아니라 운영 정책이므로 별도 결정이 필요하다.
-     - `getSnacks` 서버 캐시: 간식 시트 규모가 작고 재고 stale 위험이 있어 현재는 보류한다. 간식 수나 메뉴 진입량이 크게 늘면 다시 검토한다.
+     - `getSnacks` TTL 확대(30초 이상): 15초 서버 캐시는 적용했지만, 현장 재고 표시가 오래 stale 될 수 있어 더 긴 TTL은 운영 측정 후에만 재검토한다.
 
 ### Manual Verification
-* **Pending**: GAS 배포 후 새 주문의 `주문내역` A열 주문시간이 날짜+시간(`2026. 7. 5 오전 10:24:25` 형태)으로 표시되는지 확인한다. 이어서 GitHub Pages 반영 후 P2 카카오 게스트 주문 흐름(저장 프로필 주문표시명 생략, 저장 프로필 없음 상태의 주문표시명 입력, 주문 후 주방/전광판/주문조회 표시)을 확인한다.
+* **Pending**: GAS 새 버전 배포 후 `getSnacks` 15초 서버 캐시를 확인한다. 일반 키오스크/게스트 메뉴 첫 진입은 기존처럼 호출되고, 15초 안의 다른 브라우저/디바이스 진입은 빠르게 응답하는지 본다. 주문 성공 후 재고 차감, 관리자 재고 변경, 판매상태 변경, 주문 취소 재고 복구가 양쪽 메뉴에 반영되는지도 확인한다.
+* **Pending**: GitHub Pages 반영 후 Network 탭에서 `Pretendard-*.woff2` 요청이 사라졌는지, 관리자 사진 업로드 시 신규 이미지는 800px 이하 WebP로 저장되고 메뉴/관리자 썸네일이 정상 표시되는지 확인한다.
 * **Completed field checks**: double-order prevention, kitchen new-order sound/filter behavior, order-token guardrails for cancel/review/photo upload, archive sheet column alignment, latest service-worker cache reflection, P1 GAS performance 7~8 validation for regular users/local guests/Kakao guests, P2 local guest pickup/delivery UX flow, Kakao-linked guest display code recheck for kitchen/board/guest-orders/print-bills, and `updateOrderServed()` lock/range validation.
 
 ### Recently Resolved (최근 해결 항목)
