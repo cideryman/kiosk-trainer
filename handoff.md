@@ -8,6 +8,12 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
 
 ### Active Issues
 * **Critical Issues**: None. There are no currently reproducible critical bugs or pending security failures.
+* **P1 - 카카오 연동 게스트 `(비회원)` 꼬리 재노출 의심**
+  - **배경**: Development Log - 49에서 카카오 연동 게스트 주문은 `authProvider === 'kakao'` 기준으로 `별명`의 ` (비회원)`/` (체험)` 꼬리를 숨기고 말풍선(`💬`) 표시를 붙이도록 처리한 것으로 기록되어 있다.
+  - **사용자 보고**: 주방, 전광판, 주문조회 화면 등에서 카카오 로그인 이용자에게 여전히 `(비회원)` 꼬리가 보이는 사례가 있어 적용이 완전하지 않은 것으로 보인다.
+  - **우선순위**: P2/P3 설계 논의보다 먼저 확인한다. 사용자-facing 표시 버그이며, 카카오 로그인 흐름 검증과 직접 연결된다.
+  - **확인 대상**: `board.html`, `kitchen.html`, `guest-orders.html`, `print-bills.html`, 필요 시 `complete.html`까지 포함한다.
+  - **점검 방향**: 주문 생성 시 `authProvider`/`guestKey`가 주문행에 저장되는지, `getOrdersToday`/`getGuestOrdersByGuestKey` 응답에 `authProvider`가 보존되는지, 각 화면 렌더러가 동일한 닉네임 정제 로직을 실제로 호출하는지 확인한다.
 
 ### Monitoring
 1. **구글 시트 API 연결 안정성 및 폴링 부하 모니터링**
@@ -125,14 +131,15 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
    - 성능 개선이 아니라 유지보수성과 확장성 중심으로 판단한다.
 
 ### Manual Verification
-* **Pending**: GitHub Pages 반영 후 P2 카카오 게스트 주문 흐름 검증. 저장 프로필 주문표시명 생략, 저장 프로필 없음 상태의 주문표시명 입력, 주문 후 주방/전광판/주문조회 표시를 확인한다.
+* **Pending**: P1 카카오 연동 게스트 `(비회원)` 꼬리 재노출 확인 및 수정 후 검증. 카카오 주문과 일반 로컬 게스트 주문을 각각 넣고, 주방/전광판/주문조회/빌지 인쇄에서 카카오 주문은 `이름 💬`, 일반 게스트는 `이름 (비회원)` 형태로 구분되는지 확인한다. 이어서 GitHub Pages 반영 후 P2 카카오 게스트 주문 흐름(저장 프로필 주문표시명 생략, 저장 프로필 없음 상태의 주문표시명 입력, 주문 후 표시)을 확인한다.
 * **Completed field checks**: double-order prevention, kitchen new-order sound/filter behavior, order-token guardrails for cancel/review/photo upload, archive sheet column alignment, latest service-worker cache reflection, P1 GAS performance 7~8 validation for regular users/local guests/Kakao guests, and P2 local guest pickup/delivery UX flow.
 
 ### Recently Resolved (최근 해결 항목)
+* **P2 - 후기 상세 모달 너비 확장 및 답글 영역 여백/정렬 수정** (Development Log - 53)
 * **P2 - 관리자 대리 입력식 후기 답글 기능 및 게스트 노출 1~3단계 구현** (Development Log - 52)
 * **P2 - 주문하기 버튼 더블 클릭 시 비동기 레이스 컨디션에 따른 이중 주문 방지** (Development Log - 51)
 * **P2 - 빌지 인쇄 페이지 내 일반 빌지 / 애니라벨 V3050 라벨지 선택 인쇄 기능 추가** (Development Log - 50)
-* **P2 - 카카오 연동 게스트 (비회원) 문구 생략 및 말풍선(💬) 이모지 표시 연동** (Development Log - 49)
+* **P2 - 카카오 연동 게스트 (비회원) 문구 생략 및 말풍선(💬) 이모지 표시 연동** (Development Log - 49; 재발 의심으로 Active Issues P1에서 재검토)
 * **P2 - admin화면 이용자 크레딧 단축 버튼 추가 및 API 요청 시 행 단위 락 처리** (Development Log - 48)
 * **P2 - GAS 콜드 스타트 대응을 위한 API 타임아웃 20초 연장** (Development Log - 45)
 * **P2 - 관리자 화면 내 비활성 이용자 및 숨긴 간식 완전 숨김 처리** (Development Log - 44)
@@ -2576,3 +2583,51 @@ sequenceDiagram
 
 #### 7. Summary (요약)
 * 훈련생의 정서적 케어와 손님들과의 상호 피드백을 유도할 수 있는 대리 후기 답글 시스템을 백엔드 API, 관리자 모더레이션 페이지, PWA 게스트 보드 전반에 걸쳐 유려한 디자인과 함께 완벽하게 안착시켰습니다.
+
+---
+
+### 작업 기록 [RESOLVED] (Development Log) - 53) 후기 상세 모달 너비 확장 및 답글 영역 여백/정렬 수정
+
+#### 작업명
+> 관리자 전용 후기 화면(reviews.html)에서 후기 상세 모달의 너비를 확장하고, 답글 작성 영역의 좌우 여백 패딩을 보정하여 시각적 비좁음과 정렬 문제를 해소
+
+#### 1. Issue (문제)
+##### 요구사항
+* 금요일에 추가한 후기 답글 창의 가로 폭이 너무 좁고, 단축 버튼과 입력창의 좌우 끝에 여백이 아예 없어서 모달 경계선에 바짝 달라붙어 시각적으로 비좁고 답답하게 느껴진다는 사용자의 개선 요청.
+
+#### 2. Decision (결정)
+##### 해결 방법
+* **모달 너비 확장**
+  - `reviews.html`의 후기 상세 모달(`.admin-modal-content`)의 인라인 스타일 중 `max-width: 600px`를 **`max-width: 800px`**로 변경하여 모달의 가로 공간을 넉넉히 확보.
+* **답글 영역 좌우 여백 보정 및 정렬**
+  - 답글 작성 컨테이너(`#rd-reply-container`)가 상단 본문 영역(padding 30px 적용됨) 바깥에 있어 여백이 소실되었던 문제를 수정하여, 컨테이너에 직접 `padding: 20px 30px 10px 30px;`를 적용. 이로써 상단 영역과 좌우 정렬 라인이 깔끔하게 맞물리도록 개선.
+* **시각적 디테일(Hover/Focus) 추가**
+  - 답글 단축 프리셋 버튼(`btn-reply-preset`) 마우스 오버 시 민트색 테마(`--secondary-color`) 하이라이팅과 부드러운 그림자 효과, 클릭 시 마이크로 애니메이션(`transform: translateY(-1px)`)을 가미함.
+  - 답글 입력 창(`#rd-reply-input`) 포커스 시 테두리가 민트색으로 부드럽게 밝아지는 포커스 글로우 추가.
+
+##### 변경 파일
+* `reviews.html` (모달 max-width 확장, rd-reply-container padding 추가, btn-reply-preset 호버/액티브 효과 및 rd-reply-input 포커스 스타일 정의 추가)
+* `handoff.md` (Recently Resolved 갱신 및 신규 개발로그 53 기록 추가)
+
+#### 3. Verification (검증)
+##### 코드 검증
+* [x] `node check_syntax.js` 구문 무결성 검사 성공.
+* [x] `node --check js/config.js` 구문 분석 성공.
+* [x] `git diff --check` 포맷 무결성 통과.
+
+#### 4. Manual Test (수동 테스트)
+##### 테스트 순서
+1. `js/config.js` 내 `USE_MOCK = true`로 임시 설정하여 로컬 테스트를 준비합니다.
+2. 로컬 웹 서버(`python -m http.server 8081`)를 기동하여 `reviews.html` 화면을 브라우저에서 실행합니다.
+3. 후기 리스트 중 임의의 행을 클릭하여 상세 모달을 열고 다음 사항을 확인합니다:
+   - 모달 너비가 `800px`로 널찍하게 보이며 비좁음 현상이 완벽히 개선되었는지 확인.
+   - 좌측 프리셋 버튼의 왼쪽 시작점과 우측 [답글 저장] 버튼의 오른쪽 끝 지점이 모달 창 끝에 붙지 않고, 상단 본문 영역과 동일하게 **좌우 30px 여백**을 두고 수직 정렬되는지 확인.
+   - 단축 버튼 마우스 오버 시 민트색 전이 및 입체감 그림자가 정상 작동하는지 확인.
+4. 검증 완료 후 `js/config.js`의 `USE_MOCK = false`로 원복 처리하고 로컬 테스트 서버를 종료합니다.
+
+#### 5. Caution (주의사항 / 오류 발생 시 대처방법)
+##### 오류 발생 시 대처방법
+* 없음. 스타일 및 레이아웃 수정 건이므로 백엔드 API 작동 및 정합성에는 영향을 주지 않습니다.
+
+#### 7. Summary (요약)
+* 모달 최대 가로 너비 확장 및 정렬 라인 일치를 위한 30px side padding 적용을 통해, 관리자가 보다 편안하고 직관적으로 후기 답글을 작성할 수 있도록 UX 완성도를 한층 끌어올렸습니다.
