@@ -85,9 +85,26 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
      - 높은 위험/보류 후보: 게스트 크레딧 확인과 차감을 한 번으로 합치거나, 크레딧 차감 순서를 주문 행 쓰기보다 앞으로 이동하는 변경. 실패 시 “주문은 없는데 크레딧만 차감” 또는 “주문은 있는데 실패 응답” 같은 정합성 문제가 생길 수 있어 별도 롤백/복구 설계 전에는 하지 않는다.
      - 권장 다음 행동: `placeOrder` 실제 코딩은 현재 적용한 조회/설정 캐시 묶음을 GAS에 배포해 기본 주문/조회 흐름을 확인한 뒤 진행한다. 이후 첫 코드 후보는 A:B 범위 읽기와 헤더 1행 읽기처럼 데이터 의미를 바꾸지 않는 읽기 범위 축소만 선택한다.
    - **배포 전후 검증 결과**
-     - 1~5단계 GAS 성능 개선 묶음은 운영자가 수동검증했으며, 카카오 연동을 제외한 주문/조회/설정/후기/취소 흐름은 정상 동작으로 확인했다.
-     - 카카오 연동 주문조회/프로필 흐름은 로컬 환경에서 검증이 어려우므로 GitHub Pages 반영 후 별도 확인한다.
+     - 1~5단계 GAS 성능 개선 묶음은 운영자가 수동검증했으며, 주문/조회/설정/후기/취소 흐름은 정상 동작으로 확인했다.
+     - GitHub Pages 반영 후 카카오 연동 주문조회/프로필 흐름도 정상 동작으로 확인했다.
      - 정적 파일 반영을 위해 `service-worker.js` 캐시 버전을 `kiosk-cache-v120`으로 올렸다.
+   - **7단계 `placeOrder` 저위험 읽기 범위 축소 적용 결과 (완료)**
+     - `placeOrder`에서 주문 헤더를 다시 확인할 때 주문시트 전체를 읽지 않고 `getSheetHeaderRow()`로 1행만 읽도록 변경했다.
+     - 주문번호 시퀀스 계산 시 주문시트 전체 A~V 데이터를 읽지 않고 A:B 범위(`주문시간`, `주문번호`)만 읽도록 변경했다.
+     - `ensureOrderHeaders()` 내부도 헤더 확인 시 전체 데이터 대신 1행만 읽도록 변경했다.
+     - 주문 행 쓰기, 재고 차감, 일반/게스트 크레딧 처리, 카카오 프로필 저장 순서는 변경하지 않았다.
+     - 검증: `node check_syntax.js` 통과 후 GAS 배포 묶음 검증 시 일반 주문, 게스트 포장/배달 주문, 카카오 연동 주문 각각 주문번호가 정상 증가하고 주방/전광판에 표시되는지 확인한다.
+   - **8단계 `placeOrder` 주문 행 일괄 쓰기 적용 결과 (완료)**
+     - 여러 상품 주문 시 `주문내역`에 상품 수만큼 `appendRow()`를 반복하지 않고, 주문 행 배열을 만든 뒤 한 번의 `setValues()`로 기록하도록 변경했다.
+     - 기존 S~U 선택 컬럼(`guestDeviceId`, `authProvider`, `guestKey`)과 운영 시트의 현재 마지막 열 길이를 기준으로 행 길이를 맞춘 뒤 기록한다.
+     - 재고 차감, 일반/게스트 크레딧 처리, 카카오 프로필 저장 순서는 변경하지 않았다. 재고 `setValue()` 반복과 게스트 크레딧 확인/차감 분리는 정합성 위험 때문에 그대로 둔다.
+     - 위험도: 중간. 주문 상품이 여러 개인 경우 주문 행 쓰기 호출은 줄지만, 주문 생성 핵심 경로이므로 GAS 배포 후 다중 상품 주문 검증이 필요하다.
+     - 검증: 일반 사용자 2개 이상 상품 주문, 로컬 게스트 2개 이상 상품 주문, 카카오 게스트 2개 이상 상품 주문에서 주문 행 수, 주문번호 동일성, 재고 차감, 크레딧 차감, 주방/전광판 표시를 확인한다.
+   - **P1 성능 점검 마무리 판단**
+     - 권장 구현 범위는 7~8단계까지로 본다. 조회 캐시/헤더 비용/주문번호 읽기 범위/다중 상품 주문 행 쓰기는 성능 개선 효과 대비 위험도가 관리 가능한 범위다.
+     - 게스트 크레딧 확인과 차감 통합, 재고 차감 일괄 쓰기, 주문/크레딧/재고 트랜잭션 순서 재설계는 고위험 항목으로 보류한다.
+     - 일반 사용자와 로컬 게스트의 7~8단계 수동검증은 정상 동작으로 확인했다.
+     - 카카오 게스트 검증은 GitHub Pages 반영과 `service-worker.js` 캐시 버전 갱신 후 별도 확인한다.
 
 2. **P2 - 배달왔삼 주문 흐름 UX 재설계 검토**
    - 닉네임 입력과 배달지 입력을 `주문자 정보` 화면으로 통합하는 변경이 UX와 기존 데이터 흐름에 적절한지 검토한다.
@@ -98,7 +115,7 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
    - 성능 개선이 아니라 유지보수성과 확장성 중심으로 판단한다.
 
 ### Manual Verification
-* **Pending**: None. The previously listed field checks currently appear to work in operation and are treated as completed.
+* **Pending**: GitHub Pages 반영 후 카카오 게스트 2개 이상 상품 주문에서 주문 행 수, 주문번호 동일성, 재고 차감, 크레딧 차감, 주방/전광판 표시를 확인한다.
 * **Completed field checks**: double-order prevention, kitchen new-order sound/filter behavior, order-token guardrails for cancel/review/photo upload, archive sheet column alignment, and latest service-worker cache reflection.
 
 ### Recently Resolved (최근 해결 항목)

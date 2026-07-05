@@ -903,6 +903,11 @@ function getGuestCreditStatus(data) {
   };
 }
 
+function getSheetHeaderRow(sheet) {
+  const lastColumn = Math.max(sheet.getLastColumn(), 1);
+  return sheet.getRange(1, 1, 1, lastColumn).getValues()[0] || [];
+}
+
 /**
  * 7. 주문 접수 및 크레딧/재고 자동 계산 처리
  */
@@ -940,7 +945,7 @@ function placeOrder(data) {
     let guestFee = 0;
 
     ensureOrderHeaders();
-    const headers = orderSheet.getDataRange().getValues()[0] || [];
+    const headers = getSheetHeaderRow(orderSheet);
     const deviceIdIdx = headers.indexOf('guestDeviceId');
     const authProviderIdx = headers.indexOf('authProvider');
     const guestKeyIdx = headers.indexOf('guestKey');
@@ -1087,15 +1092,18 @@ function placeOrder(data) {
     }
 
     const todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyMMdd');
-    const todayOrders = orderSheet.getDataRange().getValues().slice(1).filter(row => {
-      if (!row[0]) return false;
-      try {
-        const orderDate = Utilities.formatDate(new Date(row[0]), Session.getScriptTimeZone(), 'yyMMdd');
-        return orderDate === todayStr;
-      } catch (e) {
-        return false;
-      }
-    });
+    const lastOrderRow = orderSheet.getLastRow();
+    const todayOrders = lastOrderRow > 1
+      ? orderSheet.getRange(2, 1, lastOrderRow - 1, 2).getValues().filter(row => {
+          if (!row[0]) return false;
+          try {
+            const orderDate = Utilities.formatDate(new Date(row[0]), Session.getScriptTimeZone(), 'yyMMdd');
+            return orderDate === todayStr;
+          } catch (e) {
+            return false;
+          }
+        })
+      : [];
     let maxSeq = 0;
     todayOrders.forEach(row => {
       const orderNoStr = String(row[1] || '');
@@ -1117,7 +1125,7 @@ function placeOrder(data) {
       orderToken = 'G-' + orderNo + '-' + randVal;
     }
 
-    orderItems.forEach(item => {
+    const orderRows = orderItems.map(item => {
       // 주문내역 마지막 열에 제공 여부 기본값 'N' 명시적 입력
       const newRow = [
         now, // A: 주문시간
@@ -1151,8 +1159,25 @@ function placeOrder(data) {
       setOptionalCell(authProviderIdx, authProvider);
       setOptionalCell(guestKeyIdx, guestKey);
 
-      orderSheet.appendRow(newRow);
+      return newRow;
+    });
 
+    const maxOrderCols = Math.max(
+      orderSheet.getLastColumn(),
+      ...orderRows.map(row => row.length)
+    );
+    const safeOrderRows = orderRows.map(row => {
+      const safeRow = row.slice();
+      while (safeRow.length < maxOrderCols) {
+        safeRow.push('');
+      }
+      return safeRow;
+    });
+    orderSheet
+      .getRange(orderSheet.getLastRow() + 1, 1, safeOrderRows.length, maxOrderCols)
+      .setValues(safeOrderRows);
+
+    orderItems.forEach(item => {
       // 간식 재고 차감 반영
       snackSheet
         .getRange(item.snackRowIndex + 1, 6)
@@ -3270,7 +3295,7 @@ function ensureOrderHeaders() {
     orderSheet.insertColumnsAfter(orderSheet.getMaxColumns(), REQUIRED_COLS - orderSheet.getMaxColumns());
   }
 
-  const currentHeaders = orderSheet.getDataRange().getValues()[0] || [];
+  const currentHeaders = getSheetHeaderRow(orderSheet);
   let headers = currentHeaders.filter(h => h !== '');
 
   const defaultHeaders = [
