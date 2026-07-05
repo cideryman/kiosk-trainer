@@ -8,12 +8,6 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
 
 ### Active Issues
 * **Critical Issues**: None. There are no currently reproducible critical bugs or pending security failures.
-* **P1 - 카카오 연동 게스트 `(비회원)` 꼬리 재노출 의심**
-  - **배경**: Development Log - 49에서 카카오 연동 게스트 주문은 `authProvider === 'kakao'` 기준으로 `별명`의 ` (비회원)`/` (체험)` 꼬리를 숨기고 말풍선(`💬`) 표시를 붙이도록 처리한 것으로 기록되어 있다.
-  - **사용자 보고**: 주방, 전광판, 주문조회 화면 등에서 카카오 로그인 이용자에게 여전히 `(비회원)` 꼬리가 보이는 사례가 있어 적용이 완전하지 않은 것으로 보인다.
-  - **우선순위**: P2/P3 설계 논의보다 먼저 확인한다. 사용자-facing 표시 버그이며, 카카오 로그인 흐름 검증과 직접 연결된다.
-  - **확인 대상**: `board.html`, `kitchen.html`, `guest-orders.html`, `print-bills.html`, 필요 시 `complete.html`까지 포함한다.
-  - **점검 방향**: 주문 생성 시 `authProvider`/`guestKey`가 주문행에 저장되는지, `getOrdersToday`/`getGuestOrdersByGuestKey` 응답에 `authProvider`가 보존되는지, 각 화면 렌더러가 동일한 닉네임 정제 로직을 실제로 호출하는지 확인한다.
 
 ### Monitoring
 1. **구글 시트 API 연결 안정성 및 폴링 부하 모니터링**
@@ -135,6 +129,7 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
 * **Completed field checks**: double-order prevention, kitchen new-order sound/filter behavior, order-token guardrails for cancel/review/photo upload, archive sheet column alignment, latest service-worker cache reflection, P1 GAS performance 7~8 validation for regular users/local guests/Kakao guests, and P2 local guest pickup/delivery UX flow.
 
 ### Recently Resolved (최근 해결 항목)
+* **P1 - 카카오 연동 게스트 (비회원) 꼬리 재노출 해결 (GAS API 응답 누락 수정)** (Development Log - 54)
 * **P2 - 후기 상세 모달 너비 확장 및 답글 영역 여백/정렬 수정** (Development Log - 53)
 * **P2 - 관리자 대리 입력식 후기 답글 기능 및 게스트 노출 1~3단계 구현** (Development Log - 52)
 * **P2 - 주문하기 버튼 더블 클릭 시 비동기 레이스 컨디션에 따른 이중 주문 방지** (Development Log - 51)
@@ -2631,3 +2626,48 @@ sequenceDiagram
 
 #### 7. Summary (요약)
 * 모달 최대 가로 너비 확장 및 정렬 라인 일치를 위한 30px side padding 적용을 통해, 관리자가 보다 편안하고 직관적으로 후기 답글을 작성할 수 있도록 UX 완성도를 한층 끌어올렸습니다.
+
+---
+
+### 작업 기록 [RESOLVED] (Development Log) - 54) 카카오 연동 게스트 (비회원) 꼬리 재노출 해결 (GAS API 응답 누락 수정)
+
+#### 작업명
+> 구글 Apps Script(GAS) 백엔드 API에서 주문 조회 시 `authProvider`와 `guestKey` 필드를 응답 JSON에 포함하도록 수정하여 카카오 게스트의 별명 정제 로직( (비회원) 꼬리 삭제 및 💬 말풍선 이모지 부착)이 정상 복구되도록 처리
+
+#### 1. Issue (문제)
+##### 요구사항
+* 주방(`kitchen.html`), 호출 전광판(`board.html`), 주문 완료/상태 추적(`complete.html`, `guest-orders.html` 등) 화면에서 카카오 로그인 연동 게스트에 대해 여전히 `(비회원)` 꼬리 문구가 노출되고 있다는 보고.
+* 원인 규명 및 백엔드/프론트엔드 연동 복구 요청.
+
+#### 2. Decision (결정)
+##### 해결 방법
+* **원인 분석**
+  - 프론트엔드 코드(예: `board.html`의 613~616 라인 등)에는 이미 `order.authProvider === 'kakao'` 조건에 맞춰 별명 문자열에서 ` (비회원)`을 정규식으로 지우고 `💬`를 덧붙이도록 구성되어 있었음.
+  - 그러나 백엔드인 구글 Apps Script(`google-apps-script.md`) 내부의 주문 조회 API들(`getOrdersToday`, `getGuestOrdersToday`, `getOrderStatus`)이 주문 시트에서 로우 데이터를 파싱할 때 `authProvider`와 `guestKey` 열의 값을 읽어 프론트엔드로 전달하지 않고 누락하고 있었음.
+* **백엔드 API 속성 맵핑 추가**
+  - `getOrdersToday()`, `getGuestOrdersToday(guestName)`, `getOrderStatus(id)` 함수에서 `authProvider`와 `guestKey` 시트 컬럼(T열, U열)의 인덱스를 찾아 응답 객체에 매핑하여 리턴하도록 확장.
+* **프론트엔드 보강 (대기 중 주문 정보 그룹화 수정)**
+  - 전광판 화면(`board.html`)에서 주문 정보를 `orderNo` 기준으로 그룹화할 때, `authProvider: o.authProvider` 매핑이 누락되어 `isKakao` 판별에 실패하던 버그를 함께 식별하여 수정 완료.
+
+##### 변경 파일
+* `google-apps-script.md` (`getOrdersToday`, `getGuestOrdersToday`, `getOrderStatus` API 내 `authProvider` 및 `guestKey` 데이터 매핑 누적 리턴 구현)
+* `board.html` (주문 정보 로컬 그룹핑 루프 내 `authProvider: o.authProvider || ''` 누락 추가)
+* `handoff.md` (Active Issues 1번 해결 처리, Recently Resolved 갱신 및 신규 개발로그 54 기록 추가)
+
+#### 3. Verification (검증)
+##### 코드 검증
+* [x] `node check_syntax.js` 구문 무결성 검사 성공 (추출된 GAS 코드 JS 엔진 테스트 통과).
+* [x] `git diff --check` 포맷 무결성 통과.
+
+#### 4. Manual Test (수동 테스트)
+##### 테스트 순서
+1. `js/config.js` 및 GAS mock 환경을 통해 오늘 주문 응답 데이터에 `authProvider: 'kakao'`가 포함될 때, 주방 및 전광판 화면에서 `별명 (비회원)` 대신 `별명 💬` 형태로 정상 렌더링되는지 확인합니다.
+2. 실 배포 후 카카오 로그인을 한 게스트 계정으로 주문을 작성한 후 주방, 전광판, 주문 조회, 영수증(빌지) 화면을 모니터링하여 꼬리 텍스트가 노출되지 않는지 최종 교차 확인합니다.
+
+#### 5. Caution (주의사항 / 오류 발생 시 대처방법)
+##### 오류 발생 시 대처방법
+* **구글 Apps Script 웹앱 수동 새 버전 배포 필수**
+  - 백엔드 스크립트(`google-apps-script.md`) 내부의 JSON 스키마 조회가 변경되었으므로, 해당 변경 사항을 실제 Apps Script 콘솔에 복사하여 붙여넣은 뒤 반드시 **"새 버전 배포(New Deployment)"**를 기동해주어야 실 서버에 적용됩니다.
+
+#### 7. Summary (요약)
+* 카카오 로그인 사용자와 일반 로컬 게스트의 화면 표시 식별성을 명확히 분리하고자 한 기획 의도가 백엔드 응답 필드 누락으로 인해 무력화되던 버그를 분석하여 복구시켰습니다.
