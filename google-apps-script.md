@@ -1158,6 +1158,7 @@ function placeOrder(data) {
         .getRange(item.snackRowIndex + 1, 6)
         .setValue(item.afterStock);
     });
+    clearOrderReadCache();
 
     // 유저 크레딧 차감 반영
     let newCredit = currentCredit - totalCredit;
@@ -1187,6 +1188,7 @@ function placeOrder(data) {
       }
     }
 
+    clearOrderReadCache();
     return {
       success: true,
       message: '주문이 완료되었습니다.',
@@ -1212,10 +1214,44 @@ function placeOrder(data) {
 /**
  * 8. 오늘 접수된 주문 내역 조회
  */
+const ORDER_READ_CACHE_KEY = 'orders.readValues.v1';
+const ORDER_READ_CACHE_TTL_SECONDS = 2;
+
+function getOrderValuesForRead(orderSheet) {
+  try {
+    const cached = CacheService.getScriptCache().get(ORDER_READ_CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    }
+  } catch (error) {
+    Logger.log('order read cache read failed: ' + (error && error.stack ? error.stack : error));
+  }
+
+  const values = orderSheet.getDataRange().getValues();
+  try {
+    CacheService
+      .getScriptCache()
+      .put(ORDER_READ_CACHE_KEY, JSON.stringify(values), ORDER_READ_CACHE_TTL_SECONDS);
+  } catch (error) {
+    Logger.log('order read cache write failed: ' + (error && error.stack ? error.stack : error));
+  }
+  return values;
+}
+
+function clearOrderReadCache() {
+  try {
+    CacheService.getScriptCache().remove(ORDER_READ_CACHE_KEY);
+  } catch (error) {
+    Logger.log('order read cache clear failed: ' + (error && error.stack ? error.stack : error));
+  }
+}
+
 function getOrdersToday() {
-  ensureOrderHeaders();
   const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET.ORDERS);
-  const values = sheet.getDataRange().getValues();
+  const values = getOrderValuesForRead(sheet);
   const headers = values[0] || [];
   const rows = values.slice(1);
 
@@ -1268,7 +1304,6 @@ function getOrdersToday() {
  * 8.5. 특정 주문의 진행 상태 단일 조회 API
  */
 function getOrderStatus(id) {
-  ensureOrderHeaders();
   if (!id) {
     return {
       success: false,
@@ -1284,7 +1319,7 @@ function getOrderStatus(id) {
     };
   }
 
-  const values = sheet.getDataRange().getValues();
+  const values = getOrderValuesForRead(sheet);
   const headers = values[0] || [];
   const rows = values.slice(1);
 
@@ -1329,7 +1364,6 @@ function getOrderStatus(id) {
  * 8.6. 게스트 본인의 오늘 주문 목록만 조회 API (보안을 위해 전체가 아닌 검색어 매칭만 반환)
  */
 function getGuestOrdersToday(guestName) {
-  ensureOrderHeaders();
   if (!guestName) {
     return {
       success: false,
@@ -1345,7 +1379,7 @@ function getGuestOrdersToday(guestName) {
     };
   }
 
-  const values = sheet.getDataRange().getValues();
+  const values = getOrderValuesForRead(sheet);
   const headers = values[0] || [];
   const rows = values.slice(1);
 
@@ -1408,7 +1442,6 @@ function getGuestOrdersToday(guestName) {
  * 8.7. 게스트 본인의 주문 토큰 목록으로 조회 API
  */
 function getGuestOrderByToken(data) {
-  ensureOrderHeaders();
   const tokens = data.tokens;
   if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
     return {
@@ -1425,7 +1458,7 @@ function getGuestOrderByToken(data) {
     };
   }
 
-  const values = sheet.getDataRange().getValues();
+  const values = getOrderValuesForRead(sheet);
   const headers = values[0] || [];
   const rows = values.slice(1);
 
@@ -1475,7 +1508,6 @@ function getGuestOrderByToken(data) {
  * 원본 카카오 ID가 아닌 내부 guestKey 기준으로 오늘 주문만 반환합니다.
  */
 function getGuestOrdersByGuestKey(data) {
-  ensureOrderHeaders();
   const authProvider = String(data.authProvider || '').trim().toLowerCase();
   const guestKey = String(data.guestKey || '').trim();
   if (authProvider !== 'kakao' || !guestKey) {
@@ -1493,7 +1525,7 @@ function getGuestOrdersByGuestKey(data) {
     };
   }
 
-  const values = sheet.getDataRange().getValues();
+  const values = getOrderValuesForRead(sheet);
   const headers = values[0] || [];
   const rows = values.slice(1);
 
@@ -1597,6 +1629,7 @@ function updateOrderServed(data) {
   }
 
   if (updatedCount > 0) {
+    clearOrderReadCache();
     return {
       success: true,
       message: `주문번호 ${orderId}의 제공 상태를 '${servedYn}'으로 업데이트했습니다. (총 ${updatedCount}건)`
@@ -1732,6 +1765,7 @@ function cancelOrder(data) {
           Logger.log('Guest credit refund failed: ' + (walletError && walletError.stack ? walletError.stack : walletError));
         }
       }
+      clearOrderReadCache();
       return {
         success: true,
         message: `주문번호 ${orderId}의 주문이 취소되었습니다. 환불 내역: ${refundLogs.join(', ')} (총 ${updatedCount}건)`
@@ -1880,6 +1914,7 @@ function userCancelOrder(data) {
           Logger.log('Guest credit refund failed: ' + (walletError && walletError.stack ? walletError.stack : walletError));
         }
       }
+      clearOrderReadCache();
       return {
         success: true,
         message: `주문이 취소되었습니다. 환불 내역: ${refundLogs.join(', ')} (총 ${updatedCount}건)`
@@ -2342,7 +2377,89 @@ function upsertSettingValue(sheet, key, value) {
   sheet.appendRow([key, value]);
 }
 
+const GUEST_SETTINGS_CACHE_KEY = 'guestSettings.v1';
+const GUEST_SETTINGS_CACHE_TTL_SECONDS = 30;
+
+function getGuestSettingsCache() {
+  try {
+    const cached = CacheService.getScriptCache().get(GUEST_SETTINGS_CACHE_KEY);
+    return cached ? JSON.parse(cached) : null;
+  } catch (error) {
+    Logger.log('getGuestSettings cache read failed: ' + (error && error.stack ? error.stack : error));
+    return null;
+  }
+}
+
+function setGuestSettingsCache(settings) {
+  try {
+    CacheService
+      .getScriptCache()
+      .put(GUEST_SETTINGS_CACHE_KEY, JSON.stringify(settings), GUEST_SETTINGS_CACHE_TTL_SECONDS);
+  } catch (error) {
+    Logger.log('getGuestSettings cache write failed: ' + (error && error.stack ? error.stack : error));
+  }
+}
+
+function clearGuestSettingsCache() {
+  try {
+    CacheService.getScriptCache().remove(GUEST_SETTINGS_CACHE_KEY);
+  } catch (error) {
+    Logger.log('getGuestSettings cache clear failed: ' + (error && error.stack ? error.stack : error));
+  }
+}
+
+function buildGuestSettingsResponse(settings) {
+  const now = new Date();
+  let isGuestOpenNow = false;
+  let remainingSeconds = 0;
+  let message = '';
+
+  if (settings.guestOpen === 'Y') {
+    if (settings.guestCloseAt) {
+      const closeAt = new Date(settings.guestCloseAt);
+      const diff = Math.floor((closeAt.getTime() - now.getTime()) / 1000);
+      if (diff > 0) {
+        isGuestOpenNow = true;
+        remainingSeconds = diff;
+        message = '게스트 주문이 운영 중입니다.';
+      } else {
+        isGuestOpenNow = false;
+        message = '게스트 주문 운영 시간이 종료되었습니다.';
+      }
+    } else {
+      isGuestOpenNow = true;
+      message = '게스트 주문이 운영 중입니다 (종료시각 미설정).';
+    }
+  } else {
+    isGuestOpenNow = false;
+    message = '게스트 주문이 마감되었습니다.';
+  }
+
+  return {
+    success: true,
+    guestOpen: settings.guestOpen,
+    guestCloseAt: settings.guestCloseAt,
+    guestBaseCredit: Number(settings.guestBaseCredit || 10),
+    kakaoGuestBonusCredit: Number(settings.kakaoGuestBonusCredit || 2),
+    guestDeliveryFee: Number(settings.guestDeliveryFee || 3),
+    guestDefaultDeliveryPlace: settings.guestDefaultDeliveryPlace || '사무실 원탁',
+    todayDeliveryTeamEnabled: settings.todayDeliveryTeamEnabled === true || String(settings.todayDeliveryTeamEnabled).toLowerCase() === 'true',
+    todayDeliveryTeamTitle: settings.todayDeliveryTeamTitle || '📦 오늘의 배달팀',
+    todayDeliveryTeamMembers: settings.todayDeliveryTeamMembers || '',
+    todayDeliveryTeamMessage: settings.todayDeliveryTeamMessage || '',
+    guestAllowMultipleOrders: String(settings.guestAllowMultipleOrders || 'TRUE').toUpperCase() !== 'FALSE',
+    isGuestOpenNow,
+    remainingSeconds,
+    message
+  };
+}
+
 function getGuestSettings() {
+  const cachedSettings = getGuestSettingsCache();
+  if (cachedSettings) {
+    return buildGuestSettingsResponse(cachedSettings);
+  }
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET.SETTINGS);
 
@@ -2409,49 +2526,8 @@ function getGuestSettings() {
     upsertSettingValue(sheet, 'guestOrderLimitPolicyVersion', 'creditWalletV1');
   }
 
-  const now = new Date();
-  let isGuestOpenNow = false;
-  let remainingSeconds = 0;
-  let message = '';
-
-  if (settings.guestOpen === 'Y') {
-    if (settings.guestCloseAt) {
-      const closeAt = new Date(settings.guestCloseAt);
-      const diff = Math.floor((closeAt.getTime() - now.getTime()) / 1000);
-      if (diff > 0) {
-        isGuestOpenNow = true;
-        remainingSeconds = diff;
-        message = '게스트 주문이 운영 중입니다.';
-      } else {
-        isGuestOpenNow = false;
-        message = '게스트 주문 운영 시간이 종료되었습니다.';
-      }
-    } else {
-      isGuestOpenNow = true;
-      message = '게스트 주문이 운영 중입니다 (종료시각 미설정).';
-    }
-  } else {
-    isGuestOpenNow = false;
-    message = '게스트 주문이 마감되었습니다.';
-  }
-
-  return {
-    success: true,
-    guestOpen: settings.guestOpen,
-    guestCloseAt: settings.guestCloseAt,
-    guestBaseCredit: Number(settings.guestBaseCredit || 10),
-    kakaoGuestBonusCredit: Number(settings.kakaoGuestBonusCredit || 2),
-    guestDeliveryFee: Number(settings.guestDeliveryFee || 3),
-    guestDefaultDeliveryPlace: settings.guestDefaultDeliveryPlace || '사무실 원탁',
-    todayDeliveryTeamEnabled: settings.todayDeliveryTeamEnabled === true || String(settings.todayDeliveryTeamEnabled).toLowerCase() === 'true',
-    todayDeliveryTeamTitle: settings.todayDeliveryTeamTitle || '📦 오늘의 배달팀',
-    todayDeliveryTeamMembers: settings.todayDeliveryTeamMembers || '',
-    todayDeliveryTeamMessage: settings.todayDeliveryTeamMessage || '',
-    guestAllowMultipleOrders: String(settings.guestAllowMultipleOrders || 'TRUE').toUpperCase() !== 'FALSE',
-    isGuestOpenNow,
-    remainingSeconds,
-    message
-  };
+  setGuestSettingsCache(settings);
+  return buildGuestSettingsResponse(settings);
 }
 
 /**
@@ -2576,6 +2652,7 @@ function updateGuestSettings(data) {
     }
 
     safeAppendAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `크레딧:${guestBaseCredit}, 배달비:${guestDeliveryFee}, 기본배달지:${guestDefaultDeliveryPlace}`, data.adminMemo);
+    clearGuestSettingsCache();
     return { success: true, message: '게스트 설정이 저장되었습니다.' };
   } else {
     return { success: false, message: '알 수 없는 설정 변경 요청입니다.' };
@@ -2604,6 +2681,7 @@ function updateGuestSettings(data) {
   }
 
   safeAppendAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', logBefore, logAfter, data.adminMemo);
+  clearGuestSettingsCache();
 
   return { success: true, message: '게스트 운영 상태가 변경되었습니다.' };
 }
@@ -2751,6 +2829,7 @@ function submitReview(data) {
       orderSheet.getRange(idx + 1, reviewedIdx + 1).setValue(true);
     });
 
+    clearOrderReadCache();
     return {
       success: true,
       message: '리뷰가 성공적으로 등록되었습니다.'
@@ -3141,6 +3220,7 @@ function archiveOldOrders(data) {
 
     safeAppendAdminLog('archiveOldOrders', 'orders', 'archive', '지난 주문 보관', '', `${rowsToArchive.length}건 보관 완료`, memo);
 
+    clearOrderReadCache();
     return {
       success: true,
       message: `${rowsToArchive.length}건의 지난 주문을 성공적으로 보관 처리했습니다.`
@@ -3227,6 +3307,7 @@ function ensureOrderHeaders() {
       orderSheet.insertColumnsAfter(orderSheet.getMaxColumns(), headers.length - orderSheet.getMaxColumns());
     }
     orderSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    clearOrderReadCache();
   }
   return '헤더 보정이 완료되었습니다.';
 }

@@ -27,6 +27,67 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
      5. `placeOrder`는 별도 설계로 다룬다: 주문 생성 중 설정 조회 횟수, 주문내역 전체 조회 필요성, 간식 재고 확인/차감의 락 일관성, 게스트 크레딧 계산과 주문 행 작성 사이 실패 가능성, 주문 행 일괄 쓰기 가능성을 검토한다.
      6. 적용 순서는 분석표 작성 → 캐시 금지 데이터 명시 → 저위험 조회 함수 개선 후보화 → 후기/통계 조회 최적화 → `placeOrder` 별도 설계 → 복사본 또는 낮은 운영 시간 검증 → GAS 새 배포 순으로 진행한다.
    - **금지선**: 주문내역, 크레딧, 재고를 긴 TTL로 캐시하지 않는다. 성능 이유만으로 `placeOrder`를 크게 리팩터링하지 않는다. 락 범위를 줄이기 전에 동시 주문 시나리오를 먼저 검토한다. 운영 시트 컬럼을 성능 개선 명목으로 재배열하지 않는다.
+   - **1단계 호출 지도 결과 (완료)**
+     | 함수 | 시트 접근/쓰기 요약 | 위험도/메모 |
+     | --- | --- | --- |
+     | `getUsers` | `이용자목록` 전체를 `getValues()` 1회 읽음. 쓰기/락 없음. | 저위험. 화면 표시용 짧은 캐시 후보이나 관리자 크레딧 변경 직후 반영성은 주의. |
+     | `getSnacks` | `간식목록` 전체를 `getValues()` 1회 읽음. 쓰기/락 없음. | 저~중위험. 메뉴 표시 캐시는 가능하지만 재고 표시는 stale 가능. 주문 시 `placeOrder`가 재고를 재검증해야 함. |
+     | `getGuestSettings` | `운영설정` 전체를 `getValues()` 1회 읽고, 누락 기본값이 있으면 `appendRow()`/`upsertSettingValue()`로 쓸 수 있음. | 저위험처럼 보이나 순수 조회가 아님. 캐시 전 기본값 보정/설정 저장 시 무효화 정책 필요. |
+     | `resolveGuestCreditWallet` | `게스트크레딧` 전체를 `getValues()` 1회 읽고, 사용/환불/병합 시 `setValues()`/`appendRow()`/`deleteRow()` 수행. | 고위험. 지갑 데이터는 캐시 금지. 크레딧 정확성과 중복 병합 우선. |
+     | `getGuestCreditStatus` | `resolveGuestCreditWallet(create:false)` 래퍼. 결과적으로 `운영설정`과 `게스트크레딧`을 읽을 수 있음. | 중~고위험. 시작 화면 체감에 영향은 있지만 지갑 캐시는 금지. 설정 캐시만 별도 후보. |
+     | `placeOrder` | 락 사용. `간식목록`, `주문내역`, 게스트 설정/크레딧, 일반 이용자 크레딧을 함께 읽고 주문 행/재고/크레딧을 씀. 상품 수만큼 `appendRow()`와 재고 `setValue()` 반복. | 최고위험/최우선 분석 대상. 속도보다 재고·크레딧·중복 주문 일관성이 우선. |
+     | `getOrdersToday` | `ensureOrderHeaders()` 후 `주문내역` 전체를 `getValues()` 1회 읽고 오늘 주문만 메모리 필터링. | 중위험. 주방/전광판 폴링 체감에 영향. 주문 데이터라 긴 캐시는 부적절. |
+     | `getGuestOrderByToken` | `ensureOrderHeaders()` 후 `주문내역` 전체를 `getValues()` 1회 읽고 토큰 매칭. | 중위험. 토큰 수는 작지만 주문 행이 늘면 전체 스캔 비용 증가. |
+     | `getReviewsForAdmin` | `후기내역` 전체를 `getValues()` 1회 읽고 최신순 변환. | 저위험. 짧은 캐시나 프론트 캐시 후보. 답글/공개상태 변경 시 무효화 필요. |
+     | `archiveOldOrders` | 락 사용. `주문내역` 전체 읽기 1회, `주문보관` 일괄 `setValues()`, `주문내역` `clearContent()` 후 일괄 `setValues()`. | 고위험이지만 저빈도. 이미 bulk 처리라 성능보다 백업/검증/낮은 운영 시간 실행이 중요. |
+   - **1단계 관찰**: Apps Script `CacheService`는 현재 사용되지 않는다. 반복 호출이 잦은 조회 함수는 대부분 `getValues()` 1회 구조라 기본 형태는 나쁘지 않지만, `ensureOrderHeaders()`가 조회 API마다 붙어 헤더 검사 비용이 반복되고, `placeOrder`는 주문시트 전체 읽기와 상품별 쓰기가 겹쳐 가장 큰 병목 후보이다.
+   - **2단계 개선 후보 선별 결과 (완료)**
+     1. **1순위 후보 - 주문 조회 API의 반복 헤더 보정 비용 줄이기**
+        - 대상: `getOrdersToday`, `getOrderStatus`, `getGuestOrdersToday`, `getGuestOrderByToken`, `getGuestOrdersByGuestKey`.
+        - 이유: 이 함수들은 읽기 API인데 `ensureOrderHeaders()`가 먼저 실행되어 주문 시트 전체 헤더 확인/보정 흐름이 반복된다. 이후 각 함수가 다시 `getDataRange().getValues()`를 호출하므로, 정상 운영 시에도 중복 읽기 비용이 생긴다.
+        - 호출 빈도: `board.html`은 `getOrdersToday`를 10초마다, `kitchen.html`은 `getOrdersToday`를 30초마다, `complete.html`은 `getOrderStatus`를 5초마다 호출한다. 일반 키오스크 취소 알림도 `getOrdersToday`를 반복 확인한다.
+        - 안전한 방향: 읽기 API에서 무조건 헤더 보정을 실행하지 말고, 쓰기/관리/진단 경로에서만 보정하거나, 헤더가 이미 정상이라는 전제하에 읽기 전용 헤더 해석 헬퍼를 따로 둔다. 단, 실제 운영 시트가 정상이라는 진단 결과를 먼저 확인하고 적용한다.
+     2. **2순위 후보 - `getGuestSettings()`의 짧은 캐시 또는 요청 내 재사용**
+        - 대상: `getGuestSettings`, `getGuestCreditStatus`, `placeOrder`, 게스트/주방/관리자 설정 로딩.
+        - 이유: 운영설정은 자주 읽히고 상대적으로 작지만, 현재 함수가 누락 기본값을 자동으로 쓰는 부작용을 가질 수 있다.
+        - 안전한 방향: 먼저 기본값 보정이 끝난 운영 시트를 기준으로 `getGuestSettings()`를 순수 조회에 가깝게 만들 수 있는지 확인한다. 캐시를 적용한다면 15~60초 짧은 TTL만 사용하고, `updateGuestSettings()`에서 반드시 캐시를 무효화한다.
+     3. **3순위 후보 - `getOrdersToday` 계열의 매우 짧은 서버 캐시 검토**
+        - 대상: 전광판/주방/일반 키오스크가 반복 조회하는 오늘 주문 목록.
+        - 이유: 여러 화면이 동시에 같은 주문 데이터를 읽으면 Google Sheets 전체 스캔이 겹칠 수 있다.
+        - 안전한 방향: 주문 상태 반영성이 중요하므로 긴 캐시는 금지한다. 검토하더라도 2~5초 이하의 초단기 캐시 또는 프론트 호출 간격 조정만 후보로 둔다. 주문 생성/취소/제공 처리 직후에는 stale 데이터가 보일 수 있음을 반드시 수용 가능한지 확인해야 한다.
+     4. **보류 후보 - `placeOrder` 쓰기 최적화**
+        - 대상: 상품 수만큼 반복되는 `appendRow()`와 재고 `setValue()`, 오늘 주문 전체 읽기, 게스트 크레딧 갱신.
+        - 이유: 실제 병목 가능성은 가장 크지만, 재고·크레딧·중복 주문 일관성이 걸린 최고위험 구간이다.
+        - 안전한 방향: 바로 구현하지 않는다. 별도 설계에서 주문 행 일괄 쓰기, 재고 차감 일괄 쓰기, 오늘 주문 번호 계산 범위 축소를 각각 독립 검토한다.
+   - **2단계 판단**: 첫 실제 개선은 `placeOrder`가 아니라 주문 조회 API의 반복 `ensureOrderHeaders()` 비용 제거/분리 설계가 가장 안전하다. 그 다음 `getGuestSettings()` 짧은 캐시를 검토하고, 주문 목록 캐시는 반영 지연 위험 때문에 마지막까지 보수적으로 다룬다.
+   - **3단계 1순위 적용 결과 (완료)**
+     - `getOrdersToday`, `getOrderStatus`, `getGuestOrdersToday`, `getGuestOrderByToken`, `getGuestOrdersByGuestKey`에서 읽기 전 `ensureOrderHeaders()` 호출을 제거했다.
+     - 의도: 조회 API 1회마다 주문내역을 헤더 보정용으로 먼저 읽고, 다시 실제 데이터 조회로 읽는 중복 비용을 줄인다.
+     - 영향 범위: 주문 생성, 취소, 제공 처리, 후기 등록, 보관 처리 같은 쓰기/관리 경로의 `ensureOrderHeaders()` 호출은 유지했다.
+     - 검증: `node check_syntax.js` 통과. GAS 배포 후 전광판, 주방, 완료 화면, 게스트 주문조회에서 주문 상태가 정상 표시되는지 수동 확인 필요.
+   - **4단계 2순위 적용 결과 (완료)**
+     - `getGuestSettings()`에 Apps Script `CacheService` 기반 30초 캐시를 추가했다.
+     - 캐시는 최종 응답 전체가 아니라 원시 설정값만 저장한다. `isGuestOpenNow`, `remainingSeconds`, 운영 메시지는 매 호출마다 `buildGuestSettingsResponse()`에서 현재 시각 기준으로 다시 계산한다.
+     - `updateGuestSettings()` 성공 시 `clearGuestSettingsCache()`를 호출해 게스트 운영 열기/닫기, 기본 크레딧, 배달비, 기본 배달지, 배달팀 설정 변경이 즉시 다음 조회에 반영되도록 했다.
+     - 의도: `guest.html`, `admin.html`, `kitchen.html`, `getGuestCreditStatus`, `placeOrder` 등에서 반복되는 운영설정 시트 읽기 부담을 줄인다.
+     - 검증: `node check_syntax.js` 통과. GAS 배포 묶음 검증 시 게스트 운영 열기/닫기, 기본 배달지/배달팀 설정 저장 후 즉시 재조회, 게스트 시작 화면 크레딧 표시, 주문 가능/마감 판단을 확인한다.
+   - **5단계 3순위 적용 결과 (완료)**
+     - 주문 조회 함수들이 공유하는 `getOrderValuesForRead()`를 추가하고, `CacheService` 기반 2초 캐시를 적용했다.
+     - 대상: `getOrdersToday`, `getOrderStatus`, `getGuestOrdersToday`, `getGuestOrderByToken`, `getGuestOrdersByGuestKey`.
+     - 주문 생성, 제공 상태 변경, 관리자 취소, 이용자 직접 취소, 후기 등록의 `reviewed` 업데이트, 지난 주문 보관, 주문 헤더 보정 성공 시 `clearOrderReadCache()`를 호출해 stale 데이터를 최소화했다.
+     - 캐시 저장 실패(예: 주문 데이터가 커져 CacheService 크기 제한에 걸리는 경우)는 로그만 남기고 기존처럼 시트 직접 조회로 동작한다.
+     - 의도: 전광판/주방/완료 화면/게스트 주문조회가 짧은 시간 안에 같은 주문 데이터를 반복해서 읽을 때 Google Sheets 전체 스캔을 줄인다.
+     - 검증: `node check_syntax.js` 통과. GAS 배포 묶음 검증 시 신규 주문 후 주방/전광판 반영, 제공 완료 후 완료 화면 상태 변경, 게스트 주문조회, 취소 후 상태 반영, 후기 등록 후 `reviewed` 반영을 확인한다.
+   - **6단계 `placeOrder` 별도 설계 결과 (완료, 코드 변경 없음)**
+     - 현재 병목 후보: `ensureOrderHeaders()` 후 다시 주문시트 전체에서 헤더를 읽고, 주문번호 생성을 위해 주문시트 전체를 한 번 더 읽는다. 게스트 주문은 크레딧 지갑을 확인용/차감용으로 두 번 읽을 수 있고, 상품 수만큼 주문 행 `appendRow()`와 재고 `setValue()`가 반복된다.
+     - 낮은 위험 후보: 주문번호 생성에는 A열 주문시간과 B열 주문번호만 필요하므로, 전체 행/열 대신 A:B 범위만 읽도록 줄일 수 있다. 헤더 확인도 전체 데이터가 아니라 1행 범위만 읽는 헬퍼로 줄일 수 있다.
+     - 중간 위험 후보: 여러 상품 주문의 주문 행 쓰기를 `appendRow()` 반복 대신 한 번의 `setValues()`로 묶는 방안. 단, 행 길이와 S~V 선택 컬럼 채움, 실패 시 부분 기록 가능성 검토가 필요하다.
+     - 높은 위험/보류 후보: 게스트 크레딧 확인과 차감을 한 번으로 합치거나, 크레딧 차감 순서를 주문 행 쓰기보다 앞으로 이동하는 변경. 실패 시 “주문은 없는데 크레딧만 차감” 또는 “주문은 있는데 실패 응답” 같은 정합성 문제가 생길 수 있어 별도 롤백/복구 설계 전에는 하지 않는다.
+     - 권장 다음 행동: `placeOrder` 실제 코딩은 현재 적용한 조회/설정 캐시 묶음을 GAS에 배포해 기본 주문/조회 흐름을 확인한 뒤 진행한다. 이후 첫 코드 후보는 A:B 범위 읽기와 헤더 1행 읽기처럼 데이터 의미를 바꾸지 않는 읽기 범위 축소만 선택한다.
+   - **배포 전후 검증 결과**
+     - 1~5단계 GAS 성능 개선 묶음은 운영자가 수동검증했으며, 카카오 연동을 제외한 주문/조회/설정/후기/취소 흐름은 정상 동작으로 확인했다.
+     - 카카오 연동 주문조회/프로필 흐름은 로컬 환경에서 검증이 어려우므로 GitHub Pages 반영 후 별도 확인한다.
+     - 정적 파일 반영을 위해 `service-worker.js` 캐시 버전을 `kiosk-cache-v120`으로 올렸다.
 
 2. **P2 - 배달왔삼 주문 흐름 UX 재설계 검토**
    - 닉네임 입력과 배달지 입력을 `주문자 정보` 화면으로 통합하는 변경이 UX와 기존 데이터 흐름에 적절한지 검토한다.
