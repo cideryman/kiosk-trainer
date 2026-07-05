@@ -167,9 +167,8 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
      - `getSnacks` TTL 확대(30초 이상): 15초 서버 캐시는 적용했지만, 현장 재고 표시가 오래 stale 될 수 있어 더 긴 TTL은 운영 측정 후에만 재검토한다.
 
 ### Manual Verification
-* **Pending**: GAS 새 버전 배포 후 `getSnacks` 15초 서버 캐시를 확인한다. 일반 키오스크/게스트 메뉴 첫 진입은 기존처럼 호출되고, 15초 안의 다른 브라우저/디바이스 진입은 빠르게 응답하는지 본다. 주문 성공 후 재고 차감, 관리자 재고 변경, 판매상태 변경, 주문 취소 재고 복구가 양쪽 메뉴에 반영되는지도 확인한다.
-* **Pending**: GitHub Pages 반영 후 Network 탭에서 `Pretendard-*.woff2` 요청이 사라졌는지, 관리자 사진 업로드 시 신규 이미지는 800px 이하 WebP로 저장되고 메뉴/관리자 썸네일이 정상 표시되는지 확인한다.
-* **Completed field checks**: double-order prevention, kitchen new-order sound/filter behavior, order-token guardrails for cancel/review/photo upload, archive sheet column alignment, latest service-worker cache reflection, P1 GAS performance 7~8 validation for regular users/local guests/Kakao guests, P2 local guest pickup/delivery UX flow, Kakao-linked guest display code recheck for kitchen/board/guest-orders/print-bills, and `updateOrderServed()` lock/range validation.
+* **Pending**: None.
+* **Completed field checks**: double-order prevention, kitchen new-order sound/filter behavior, order-token guardrails for cancel/review/photo upload, archive sheet column alignment, latest service-worker cache reflection, P1 GAS performance 7~8 validation for regular users/local guests/Kakao guests, P2 local guest pickup/delivery UX flow, Kakao-linked guest display code recheck for kitchen/board/guest-orders/print-bills, `updateOrderServed()` lock/range validation, `getSnacks` 15초 서버 캐시 validation for regular kiosk/guest menu, post-order stock reflection, admin stock/sale-state reflection, order-cancel stock restoration, Pretendard webfont request removal, and admin image upload thumbnail validation.
 
 ### Recently Resolved (최근 해결 항목)
 * **P1 - 카카오 연동 게스트 (비회원) 꼬리 재노출 해결 및 말풍선 이모지 접두사 변경** (Development Log - 54)
