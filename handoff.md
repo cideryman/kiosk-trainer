@@ -184,9 +184,23 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
      - 배달지, 카카오 식별자, 크레딧 정보는 새로 저장하지 않고 표시명만 같은 기기 안에 보존한다.
      - 정적 파일 반영을 위해 `service-worker.js` 캐시 버전을 `kiosk-cache-v127`로 올렸다.
 
-8. **P3 - Apps Script 백엔드 구조 유지보수성 검토**
-   - 기능별 분리 필요성, 결합도, AI 유지보수 용이성, 장기적 백엔드 이전 가능성을 기준으로 현재 구조 유지/부분 분리/전면 분리를 비교한다.
-   - 성능 개선이 아니라 유지보수성과 확장성 중심으로 판단한다.
+8. **P3 - Apps Script 백엔드 구조 유지보수성 개선 (1차 파일 분리 완료)**
+   - 약 3,809줄, 함수 73개의 단일 GAS 백업본을 `gas/*.gs` 기능별 파일로 분리했다.
+   - 함수 내용과 `doGet`/`doPost` 액션은 변경하지 않고 파일만 이동했으며, 분리 전후 함수 73개 일치 및 결합 구문 검사를 확인했다.
+   - `00_Config`, `01_Router`, 카카오/게스트, 이용자, 간식, 게스트 크레딧, 주문, 미디어, 운영설정, 후기, 진단 영역으로 나눴다.
+   - **파일 번호 체계**: 앞의 숫자는 GAS 실행 순서를 강제하기 위한 값이 아니라 편집기와 저장소에서 파일을 역할 순서대로 정렬하고, 관련 코드를 빠르게 찾기 위한 분류 번호다.
+     - `00~01`: 전역 설정, 일회성 설정, 외부 요청 라우터
+     - `10~11`: 카카오/게스트 인증과 관리자 로그 같은 운영 기반
+     - `20~21`: 이용자와 간식 기본 데이터
+     - `30~31`: 게스트 크레딧과 주문 공통 처리
+     - `40`: 주문 생성·조회·취소·제공·보관 핵심 업무
+     - `50~70`: 미디어, 운영설정, 후기
+     - `90`: 진단과 점검 도구
+   - 번호 사이를 비워 둔 것은 이후 `41_OrderStats.gs`, `32_Cache.gs`처럼 관련 영역에 새 파일을 끼워 넣기 위한 것이다. 파일을 추가할 때 이 번호 체계를 유지한다.
+   - `00_Setup.gs`는 비밀값이 없는 안내용 파일만 GitHub에서 관리한다. 실제 `setKakaoPropertiesOnce()`와 키 값은 새 GAS 프로젝트 설정 시 GAS 편집기에만 임시로 추가한다.
+   - **운영 원칙**: 파일 분리는 성능 개선이 아니라 탐색성과 변경 안전성을 위한 조치다. 같은 Apps Script 프로젝트 안에서는 기존 Script Properties가 유지되므로 파일 분리만으로 카카오 설정을 다시 실행하지 않는다.
+   - **검증 완료**: 분리본을 같은 GAS 프로젝트에 반영하고 새 버전 배포 후 일반 키오스크, 비회원 게스트, 카카오 게스트, 주방/전광판, 관리자 재고·로그, 후기 흐름이 모두 정상 동작함을 수동 확인했다.
+   - **후속 보류**: 함수 인자, 시트 접근 계층, 서비스/저장소 경계를 바꾸는 구조 리팩터링은 이번 작업에 포함하지 않는다. Firebase 이전을 실제 결정할 때 별도 설계한다.
 
 9. **P1 - GAS 안정성 후속 작업 (Claude 조언 검토 결과, 완료)**
    - **진행 대상**
@@ -279,7 +293,22 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
 ├── kitchen.html          # 주방 실시간 주문 운영 및 게스트 제어 화면
 ├── reviews.html          # 후기 목록 및 노출 모더레이션 화면
 ├── print-bills.html      # 빌지 및 배달 체크리스트 인쇄 화면 (라벨지 대응)
-├── google-apps-script.md # GAS 소스 백업본 (Code.gs)
+├── google-apps-script.md # GAS 분리 구조 및 배포 안내
+├── gas/                  # 기능별 Apps Script 백엔드 소스
+│   ├── 00_Config.gs
+│   ├── 00_Setup.gs
+│   ├── 01_Router.gs
+│   ├── 10_KakaoGuests.gs
+│   ├── 11_AdminLog.gs
+│   ├── 20_Users.gs
+│   ├── 21_Snacks.gs
+│   ├── 30_GuestCredits.gs
+│   ├── 31_OrderShared.gs
+│   ├── 40_Orders.gs
+│   ├── 50_Media.gs
+│   ├── 60_Settings.gs
+│   ├── 70_Reviews.gs
+│   └── 90_Diagnostics.gs
 ├── handoff.md            # 본 파일 (프로젝트 핸드오프 및 개발 기록)
 ├── service-worker.js     # PWA 서비스 워커 (캐시 제어)
 ├── manifest-*.json       # 모드별 PWA 설정 파일 (6종)
@@ -302,8 +331,8 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
 * **`이용자목록`**: `이용자ID`, `별명`, `크레딧`, `사용여부`, `사진url`
 * **`간식목록`**: `간식ID`, `이름`, `포인트`, `사진URL`, `판매여부`, `재고`, `표시순서`, `제공대상`, `범주`
   - `제공대상` 필드는 `user` 또는 `guest` 값만 가집니다.
-* **`주문내역`**: (총 22개 열, A~V열)
-  - `주문시간`(A), `주문번호`(B), `이용자ID`(C), `별명`(D), `간식ID`(E), `간식명`(F), `수량`(G), `차감포인트`(H), `제공여부`(I), `cancelTimestamp`(J), `orderToken`(K), `deliveryType`(L), `deliveryFee`(M), `totalCredit`(N), `reviewed`(O), `deliveryPlace`(P), `cancelReason`(Q), `cancelReasonDetail`(R), `guestDeviceId`(S), `authProvider`(T), `guestKey`(U), `deliveryAddress`(V)
+* **`주문내역`**: (총 23개 열, A~W열)
+  - `주문시간`(A), `주문번호`(B), `이용자ID`(C), `별명`(D), `간식ID`(E), `간식명`(F), `수량`(G), `차감포인트`(H), `제공여부`(I), `cancelTimestamp`(J), `orderToken`(K), `deliveryType`(L), `deliveryFee`(M), `totalCredit`(N), `reviewed`(O), `deliveryPlace`(P), `cancelReason`(Q), `cancelReasonDetail`(R), `guestDeviceId`(S), `authProvider`(T), `guestKey`(U), `deliveryAddress`(V), `idempotencyKey`(W)
 * **`주문보관`**: (총 18개 열, A~R열)
   - `주문시간`(A), `주문번호`(B), `이용자ID`(C), `별명`(D), `간식ID`(E), `간식명`(F), `수량`(G), `차감포인트`(H), `제공여부`(I), `cancelTimestamp`(J), `orderToken`(K), `deliveryType`(L), `deliveryFee`(M), `totalCredit`(N), `reviewed`(O), `deliveryPlace`(P), `cancelReason`(Q), `cancelReasonDetail`(R)
 * **`관리자로그`**: `timestamp`, `action`, `targetType`, `targetId`, `targetName`, `beforeValue`, `afterValue`, `memo`
@@ -318,10 +347,10 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
 * **주문보관 헤더 생성 차이**: GAS의 주문 보관(아카이브) 시트 신규 생성 코드(`archiveOldOrders` 함수 내부)에는 16번째 열이 `'deliveryAddress'`로 하드코딩되어 있습니다. 그러나 실제 운영 엑셀의 `주문보관` 시트 16번째 열은 `deliveryPlace`로 일치되어 있습니다. 실제 운영 상에서는 기존에 있는 `주문보관` 시트에 데이터를 덧붙이므로 문제가 없지만, 코드가 새로 시트를 만들 때는 불일치가 일어날 수 있음을 인지해야 합니다.
 
 ### 주문내역과 주문보관 정합성 확인 결과
-* **열 범위 비교**: `주문내역`은 총 22개 열(A~V열), `주문보관`은 총 18개 열(A~R열)을 사용합니다.
+* **열 범위 비교**: `주문내역`은 총 23개 열(A~W열), `주문보관`은 총 18개 열(A~R열)을 사용합니다.
 * **아카이브 복사 범위**: `archiveOldOrders` 함수 실행 시 주문내역에서 18개 열(`slice(0, 18)`)을 잘라내어 주문보관 시트에 복사합니다.
 * **정합성 검증**: 주문내역의 A~R열과 주문보관의 A~R열은 열 순서와 의미가 완전히 동일합니다. 따라서 보관 처리 시 데이터 열이 밀리거나 꼬일 위험은 없습니다.
-* **의도적 제외 필드**: 주문보관 처리 시 게스트 개인 식별 정보(S열 `guestDeviceId`, T열 `authProvider`, U열 `guestKey`) 및 legacy 호환용 배송지(V열 `deliveryAddress`)는 슬라이싱에 의해 의도적으로 아카이브에서 제외됩니다.
+* **의도적 제외 필드**: 주문보관 처리 시 게스트 개인 식별 정보(S열 `guestDeviceId`, T열 `authProvider`, U열 `guestKey`), legacy 호환용 배송지(V열 `deliveryAddress`), 멱등성 키(W열 `idempotencyKey`)는 슬라이싱에 의해 의도적으로 아카이브에서 제외됩니다.
 
 ---
 

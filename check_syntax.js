@@ -1,17 +1,22 @@
 const fs = require('fs');
+const path = require('path');
 const { spawnSync } = require('child_process');
 
-const sourcePath = 'google-apps-script.md';
+const sourceDir = 'gas';
 const tempPath = 'temp.js';
 
-let content = fs.readFileSync(sourcePath, 'utf8').replace(/^\uFEFF/, '');
+const sourceFiles = fs.readdirSync(sourceDir)
+  .filter(fileName => fileName.endsWith('.gs'))
+  .sort();
 
-const fencedCode = content.match(/```(?:javascript|js)?\s*([\s\S]*?)```/i);
-let jsCode = fencedCode ? fencedCode[1] : content;
+if (sourceFiles.length === 0) {
+  console.error(`No GAS source files found in ${sourceDir}.`);
+  process.exit(1);
+}
 
-jsCode = jsCode
-  .replace(/^\s*\\\\javascript\s*\r?\n/, '')
-  .replace(/^\s*\\javascript\s*\r?\n/, '');
+const jsCode = sourceFiles
+  .map(fileName => fs.readFileSync(path.join(sourceDir, fileName), 'utf8').replace(/^\uFEFF/, ''))
+  .join('\n');
 
 fs.writeFileSync(tempPath, jsCode);
 
@@ -19,10 +24,12 @@ const result = spawnSync(process.execPath, ['--check', tempPath], {
   encoding: 'utf8',
 });
 
+fs.unlinkSync(tempPath);
+
 if (result.status !== 0) {
   if (result.stdout) process.stdout.write(result.stdout);
   if (result.stderr) process.stderr.write(result.stderr);
   process.exit(result.status || 1);
 }
 
-console.log(`GAS syntax check passed. Extracted source written to ${tempPath}.`);
+console.log(`GAS syntax check passed for ${sourceFiles.length} files.`);

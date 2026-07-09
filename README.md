@@ -118,7 +118,8 @@
 2. **Apps Script 백엔드 구축**
    - 구글 스프레드시트를 하나 생성합니다.
    - 상단 메뉴의 `확장 프로그램` -> `Apps Script`를 클릭합니다.
-   - [google-apps-script.md](./google-apps-script.md) 파일에 백업된 JavaScript 코드를 복사하여 스크립트 에디터에 붙여넣습니다.
+   - [gas](./gas) 폴더의 `.gs` 파일과 같은 이름으로 Apps Script 파일을 만든 뒤 각 파일의 코드를 복사합니다. 모든 파일은 하나의 Apps Script 프로젝트 안에 있어야 합니다.
+   - `00_Setup.gs`에는 비밀값을 커밋하지 않습니다. 새 GAS 프로젝트를 만든 경우에만 GAS 편집기에서 `setKakaoPropertiesOnce()` 같은 일회성 설정 함수를 추가해 실행합니다.
    - `새 배포`를 진행하여 발급받은 웹앱 URL을 `js/config.js`의 `API_URL` 값에 설정합니다.
    - 카카오 선택 로그인을 운영하려면 Apps Script 프로젝트 속성에 `KAKAO_REST_API_KEY`, `KAKAO_GUEST_KEY_SALT`를 저장합니다. 카카오 콘솔에서 Client Secret을 켠 경우에만 `KAKAO_CLIENT_SECRET`도 저장합니다.
    - 카카오 Redirect URI는 GAS 주소가 아니라 실제 사용자가 여는 정적 앱의 `guest.html` 주소로 등록합니다.
