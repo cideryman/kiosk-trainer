@@ -4,6 +4,7 @@ const API_URL = "https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2lj
 // 게스트 기본 설정 상수
 const GUEST_DEFAULT_CREDIT = 10;
 const GUEST_DELIVERY_FEE = 3;
+const GUEST_ORDER_COMPLETION_GRACE_MINUTES = 5;
 
 // 로컬 테스트용 Mock 데이터 강제 사용 여부
 // - 주의: 테스트 시에는 true, 실제 운영 배포 시에는 false로 설정해야 합니다.
@@ -310,6 +311,7 @@ function getMockFallback(action, options) {
         kakaoGuestBonusCredit: settings.kakaoGuestBonusCredit ?? 2,
         guestDeliveryFee: settings.guestDeliveryFee,
         guestDefaultDeliveryPlace: settings.guestDefaultDeliveryPlace ?? '사무실 원탁',
+        guestOrderGraceMinutes: GUEST_ORDER_COMPLETION_GRACE_MINUTES,
         isGuestOpenNow,
         remainingSeconds,
         message
@@ -507,8 +509,19 @@ function getMockFallback(action, options) {
       }
       if (gSettings.guestCloseAt) {
         const closeAt = new Date(gSettings.guestCloseAt);
-        if (new Date() >= closeAt) {
-          return { success: false, message: '게스트 주문 운영 시간이 종료되었습니다.' };
+        const now = new Date();
+        if (now >= closeAt) {
+          const startedAt = new Date(options.body?.orderStartedAt || '');
+          const graceEndsAt = new Date(
+            closeAt.getTime() + GUEST_ORDER_COMPLETION_GRACE_MINUTES * 60 * 1000
+          );
+          const canCompleteStartedOrder =
+            !Number.isNaN(startedAt.getTime()) &&
+            startedAt <= closeAt &&
+            now <= graceEndsAt;
+          if (!canCompleteStartedOrder) {
+            return { success: false, message: '주문 운영 종료 후 완료 가능 시간이 지났습니다.' };
+          }
         }
       }
 

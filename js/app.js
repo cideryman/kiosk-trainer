@@ -425,10 +425,46 @@ function updateViewportHeight() {
   document.documentElement.style.setProperty('--vh', `${vh}px`);
 }
 
+function initAdminActionMenus() {
+  const menus = Array.from(document.querySelectorAll('details.admin-action-menu'));
+  if (menus.length === 0) return;
+
+  const closeMenus = (exceptMenu = null) => {
+    menus.forEach(menu => {
+      if (menu !== exceptMenu) menu.open = false;
+    });
+  };
+
+  menus.forEach(menu => {
+    menu.addEventListener('toggle', () => {
+      if (menu.open) closeMenus(menu);
+    });
+  });
+
+  document.querySelectorAll('.admin-header-actions').forEach(actionGroup => {
+    actionGroup.addEventListener('click', event => {
+      if (event.target.closest('button, a')) {
+        closeMenus();
+      }
+    });
+  });
+
+  document.addEventListener('click', event => {
+    if (!event.target.closest('.admin-action-menu')) {
+      closeMenus();
+    }
+  });
+
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeMenus();
+  });
+}
+
 window.addEventListener('resize', updateViewportHeight);
 
 window.addEventListener('DOMContentLoaded', () => {
   updateViewportHeight();
+  initAdminActionMenus();
 
   document.body.addEventListener('click', (e) => {
     if (e.target.closest('button') || 

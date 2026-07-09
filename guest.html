@@ -259,7 +259,10 @@
             <img src="assets/closed-character.png" alt="마감 안내 캐릭터" style="width: 130px; height: 130px; object-fit: contain;">
           </div>
           <div style="font-size: 22px; font-weight: 850; color: #9B2C2C; line-height: 1.4; word-break: keep-all;" id="closed-notice-text">게스트 주문이 마감되었습니다.</div>
-          <div style="font-size: 16px; font-weight: 700; color: var(--text-muted); margin-top: 8px;">아래 버튼으로 기존 주문을 확인할 수 있습니다.</div>
+          <div id="closed-notice-help" style="font-size: 16px; font-weight: 700; color: var(--text-muted); margin-top: 8px;">메뉴를 미리 보거나 기존 주문을 확인할 수 있습니다.</div>
+          <button type="button" class="btn btn-secondary" id="btn-closed-menu-preview" style="display: none; width: 100%; min-height: 52px; margin-top: 16px; font-size: 18px; box-shadow: none;">
+            🛵 메뉴 미리보기
+          </button>
           <div style="margin-top: 16px; display: flex; justify-content: center;">
             <button type="button" class="btn btn-gray" id="btn-refresh-closed-status" style="min-height: 40px; font-size: 14px; font-weight: 800; padding: 4px 14px; border: 1.5px solid var(--border-color); background-color: white; box-shadow: none; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-sm);">
               <span id="refresh-icon" style="display: inline-block; transition: transform 0.4s ease;">🔄</span> 상태 새로고침
@@ -472,8 +475,10 @@
         sessionStorage.setItem('guestPreviewMode', 'Y');
         sessionStorage.removeItem('guestRemainingCredit');
         sessionStorage.removeItem('guestCreditLimit');
+        sessionStorage.removeItem('guestOrderStartedAt');
       } else {
         sessionStorage.removeItem('guestPreviewMode');
+        sessionStorage.removeItem('guestOrderStartedAt');
       }
 
       const viewSelect = document.getElementById('view-select');
@@ -504,6 +509,8 @@
       const klhCredit = document.getElementById('klh-credit');
       const gpeCreditInfo = document.getElementById('gpe-credit-info');
       const btnRefreshClosedStatus = document.getElementById('btn-refresh-closed-status');
+      const btnClosedMenuPreview = document.getElementById('btn-closed-menu-preview');
+      const closedNoticeHelp = document.getElementById('closed-notice-help');
       const refreshIcon = document.getElementById('refresh-icon');
 
       const closedNotice = document.getElementById('guest-closed-notice');
@@ -886,6 +893,23 @@
         }
       }
 
+      function applyGuestClosedUi(message, allowMenuPreview) {
+        closedNotice.style.display = 'block';
+        closedNoticeText.textContent = message || '게스트 주문이 마감되었습니다.';
+        if (closedNoticeHelp) {
+          closedNoticeHelp.textContent = allowMenuPreview
+            ? '메뉴를 미리 보거나 기존 주문을 확인할 수 있습니다.'
+            : '기존 주문만 확인할 수 있습니다.';
+        }
+        if (btnClosedMenuPreview) {
+          btnClosedMenuPreview.style.display = allowMenuPreview ? 'block' : 'none';
+        }
+        btnNewOrder.style.display = 'none';
+        guideText.style.display = 'none';
+        const teamSec = document.getElementById('today-delivery-team-section');
+        if (teamSec) teamSec.style.display = 'none';
+      }
+
       // 운영 상태 확인
       async function loadSettings() {
         try {
@@ -920,18 +944,13 @@
 
             if (!isGuestOpen) {
               // 마감 상태
-              closedNotice.style.display = 'block';
-              closedNoticeText.textContent = settingsRes.message || '게스트 주문이 마감되었습니다.';
-              btnNewOrder.disabled = true;
-              btnNewOrder.style.opacity = '0.4';
-              btnNewOrder.style.cursor = 'not-allowed';
-              guideText.style.display = 'none';
-              const teamSec = document.getElementById('today-delivery-team-section');
-              if (teamSec) teamSec.style.display = 'none';
+              applyGuestClosedUi(settingsRes.message, true);
             } else {
               // 운영 중 - 남은 시간 표시
               closedNotice.style.display = 'none';
               guideText.style.display = 'block';
+              if (btnClosedMenuPreview) btnClosedMenuPreview.style.display = 'none';
+              btnNewOrder.style.display = '';
               btnNewOrder.disabled = false;
               btnNewOrder.style.opacity = '1';
               btnNewOrder.style.cursor = 'pointer';
@@ -947,14 +966,7 @@
                     // 시간 만료 - 마감 상태로 전환
                     isGuestOpen = false;
                     remainingTimeBox.style.display = 'none';
-                    closedNotice.style.display = 'block';
-                    closedNoticeText.textContent = '게스트 주문 운영 시간이 종료되었습니다.';
-                    btnNewOrder.disabled = true;
-                    btnNewOrder.style.opacity = '0.4';
-                    btnNewOrder.style.cursor = 'not-allowed';
-                    guideText.style.display = 'none';
-                    const teamSec = document.getElementById('today-delivery-team-section');
-                    if (teamSec) teamSec.style.display = 'none';
+                    applyGuestClosedUi('게스트 주문 운영 시간이 종료되었습니다.', true);
                     return;
                   }
                   updateTimerDisplay(remaining);
@@ -969,14 +981,10 @@
               return;
             }
             isGuestOpen = false;
-            closedNotice.style.display = 'block';
-            closedNoticeText.textContent = (settingsRes && settingsRes.message) || '운영 상태를 확인할 수 없어 잠시 주문을 받을 수 없습니다.';
-            btnNewOrder.disabled = true;
-            btnNewOrder.style.opacity = '0.4';
-            btnNewOrder.style.cursor = 'not-allowed';
-            guideText.style.display = 'none';
-            const teamSec = document.getElementById('today-delivery-team-section');
-            if (teamSec) teamSec.style.display = 'none';
+            applyGuestClosedUi(
+              (settingsRes && settingsRes.message) || '운영 상태를 확인할 수 없어 잠시 주문을 받을 수 없습니다.',
+              false
+            );
           }
         } catch (e) {
           console.warn('게스트 운영 설정 조회 실패:', e);
@@ -987,14 +995,7 @@
           }
           // API 실패 시 운영 보호를 위해 새 주문 차단 (내 주문 확인하기는 가능)
           isGuestOpen = false;
-          closedNotice.style.display = 'block';
-          closedNoticeText.textContent = '운영 상태를 확인할 수 없어 잠시 주문을 받을 수 없습니다.';
-          btnNewOrder.disabled = true;
-          btnNewOrder.style.opacity = '0.4';
-          btnNewOrder.style.cursor = 'not-allowed';
-          guideText.style.display = 'none';
-          const teamSec = document.getElementById('today-delivery-team-section');
-          if (teamSec) teamSec.style.display = 'none';
+          applyGuestClosedUi('운영 상태를 확인할 수 없어 잠시 주문을 받을 수 없습니다.', false);
         }
       }
 
@@ -1390,6 +1391,12 @@
         });
       }
 
+      if (btnClosedMenuPreview) {
+        AppState.bindCardTap(btnClosedMenuPreview, () => {
+          window.location.href = 'menu.html?browse=guest';
+        });
+      }
+
       // 마감 카드 수동 새로고침 버튼 바인딩
       if (btnRefreshClosedStatus) {
         AppState.bindCardTap(btnRefreshClosedStatus, async () => {
@@ -1437,6 +1444,9 @@
         if (!isGuestOpen && !isGuestPreviewMode) {
           alert('게스트 주문이 마감된 상태입니다.');
           return;
+        }
+        if (!isGuestPreviewMode && !sessionStorage.getItem('guestOrderStartedAt')) {
+          sessionStorage.setItem('guestOrderStartedAt', new Date().toISOString());
         }
         const guestAuth = isGuestPreviewMode ? null : AppState.getGuestAuth();
         if (!isGuestPreviewMode) {

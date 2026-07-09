@@ -87,6 +87,10 @@
     let snacks = [];
     let cart = []; // { snackId, name, point, quantity }
 
+    function isGuestMenuBrowseMode() {
+      return new URLSearchParams(window.location.search).get('browse') === 'guest';
+    }
+
     function isGuestPreviewMode() {
       return sessionStorage.getItem('guestPreviewMode') === 'Y' || !!(user && user.previewMode);
     }
@@ -109,6 +113,45 @@
       notice.style.cssText = 'width:100%;box-sizing:border-box;text-align:center;padding:12px 14px;background-color:#E0F7F5;border:3px solid #2EC4B6;border-radius:var(--radius-sm);font-size:16px;font-weight:850;color:#005F59;line-height:1.45;word-break:keep-all;margin-bottom:8px;';
       notice.innerHTML = '🛵 배달왔삼 미리보기입니다.<br><span style="font-size:14px;font-weight:750;">실제 주문은 접수되지 않습니다.</span>';
       mainContent.insertBefore(notice, mainContent.firstElementChild);
+    }
+
+    function prepareGuestMenuBrowseMode() {
+      user = {
+        userId: 'guest',
+        nickname: '메뉴 미리보기',
+        credit: 0,
+        browseMode: true,
+      };
+      cart = [];
+
+      document.title = '배달왔삼 - 메뉴 미리보기';
+      const title = document.querySelector('.kiosk-title');
+      if (title) title.textContent = '🛵 배달왔삼 메뉴';
+
+      const badgeContainer = document.getElementById('user-badge-container');
+      if (badgeContainer) {
+        badgeContainer.innerHTML = '<span class="user-badge">메뉴 미리보기</span>';
+      }
+
+      const creditBadge = document.querySelector('.credit-badge');
+      if (creditBadge) creditBadge.style.display = 'none';
+
+      const guideText = document.querySelector('.guide-text');
+      if (guideText) {
+        guideText.innerHTML = '현재 준비 중인 <span>간식 메뉴</span>입니다.<br><span style="font-size:16px;color:var(--text-muted);">주문 운영이 시작되면 배달왔삼에서 주문할 수 있어요.</span>';
+      }
+
+      const cartSummary = document.querySelector('.cart-summary');
+      if (cartSummary) cartSummary.style.display = 'none';
+
+      const btnBack = document.getElementById('btn-back');
+      if (btnBack) {
+        btnBack.textContent = '배달왔삼으로 돌아가기';
+        btnBack.style.flex = '1';
+      }
+
+      const btnNext = document.getElementById('btn-next');
+      if (btnNext) btnNext.style.display = 'none';
     }
 
     function renderCreditUI() {
@@ -230,7 +273,7 @@
       snackGrid.innerHTML = '';
 
       try {
-        const isGuest = (user && user.userId === 'guest');
+        const isGuest = isGuestMenuBrowseMode() || (user && user.userId === 'guest');
         const mode = isGuest ? 'guest' : 'user';
         const response = await fetchAPI('getSnacks', { params: { mode } });
         if (response && response.success && Array.isArray(response.snacks)) {
@@ -248,7 +291,7 @@
           });
           
           // 장바구니 초기화 (이전 장바구니가 남아있다면 복구)
-          cart = AppState.getCart();
+          cart = isGuestMenuBrowseMode() ? [] : AppState.getCart();
           
           renderSnacks();
           updateCartSummary();
@@ -274,12 +317,12 @@
       snacks.forEach(snack => {
         // 현재 장바구니에 담긴 수량 확인
         const cartItem = cart.find(item => item.snackId === snack.snackId);
-        const quantity = cartItem ? cartItem.quantity : 0;
+        const quantity = isGuestMenuBrowseMode() ? 0 : (cartItem ? cartItem.quantity : 0);
 
         const isSoldOut = snack.stock === 0;
 
         const card = document.createElement('div');
-        card.className = `snack-card ${quantity > 0 ? 'has-items' : ''} ${isSoldOut ? 'sold-out' : ''}`;
+        card.className = `snack-card ${isGuestMenuBrowseMode() ? 'browse-only' : ''} ${quantity > 0 ? 'has-items' : ''} ${isSoldOut ? 'sold-out' : ''}`;
         card.id = `snack-card-${snack.snackId}`;
 
         // 이미지 구성 (없으면 이모지)
@@ -308,8 +351,19 @@
         const emojiHTML = `<div class="snack-img-placeholder" style="${imgUrl ? 'display:none;' : 'display:flex;'}">${safeSnackEmoji}</div>`;
 
         // 남은 재고 텍스트 설정
-        const stockText = isSoldOut ? '품절' : `남은 수량 ${snack.stock}개`;
+        const stockText = isSoldOut
+          ? '품절'
+          : (isGuestMenuBrowseMode() ? '판매 중' : `남은 수량 ${snack.stock}개`);
         const stockColor = isSoldOut ? 'var(--danger-color)' : 'var(--text-muted)';
+        const counterHTML = isGuestMenuBrowseMode()
+          ? ''
+          : `
+            <div class="counter-group">
+              <button class="btn-counter btn-counter-minus" id="btn-minus-${snack.snackId}" aria-label="감소">-</button>
+              <div class="counter-value" id="val-${snack.snackId}">${quantity}</div>
+              <button class="btn-counter btn-counter-plus" id="btn-plus-${snack.snackId}" aria-label="증가" ${isSoldOut ? 'disabled' : ''}>+</button>
+            </div>
+          `;
 
         card.innerHTML = `
           <div class="snack-img-container">
@@ -323,15 +377,12 @@
               ${AppState.escapeHtml(stockText)}
             </div>
             
-            <div class="counter-group">
-              <button class="btn-counter btn-counter-minus" id="btn-minus-${snack.snackId}" aria-label="감소">-</button>
-              <div class="counter-value" id="val-${snack.snackId}">${quantity}</div>
-              <button class="btn-counter btn-counter-plus" id="btn-plus-${snack.snackId}" aria-label="증가" ${isSoldOut ? 'disabled' : ''}>+</button>
-            </div>
+            ${counterHTML}
           </div>
         `;
 
         snackGrid.appendChild(card);
+        if (isGuestMenuBrowseMode()) return;
 
         // 이벤트 리스너 바인딩 (터치 지터 보정 적용)
         const minusBtn = card.querySelector(`#btn-minus-${snack.snackId}`);
@@ -448,6 +499,7 @@
 
     // 5. 하단 카트 요약 정보 갱신
     function updateCartSummary() {
+      if (isGuestMenuBrowseMode()) return;
       const cartCount = document.getElementById('cart-count');
       const cartTotal = document.getElementById('cart-total');
       const btnNext = document.getElementById('btn-next');
@@ -505,6 +557,19 @@
 
     // 초기 바인딩
     window.addEventListener('DOMContentLoaded', () => {
+      if (isGuestMenuBrowseMode()) {
+        prepareGuestMenuBrowseMode();
+        loadSnacks();
+
+        AppState.bindCardTap(document.getElementById('btn-back'), () => {
+          window.location.href = 'guest.html';
+        });
+        document.getElementById('btn-retry').addEventListener('click', () => {
+          loadSnacks();
+        });
+        return;
+      }
+
       checkUserSession();
       refreshGuestCreditStatus();
       loadSnacks();

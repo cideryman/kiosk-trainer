@@ -975,6 +975,7 @@
         orderPayload.deliveryType = deliveryType;
         orderPayload.deliveryFee = deliveryFee;
         orderPayload.deliveryPlace = deliveryPlace;
+        orderPayload.orderStartedAt = sessionStorage.getItem('guestOrderStartedAt') || '';
         orderPayload.guestDeviceId = AppState.getGuestDeviceId();
         if (user.authProvider === 'kakao' && user.guestKey) {
           orderPayload.authProvider = 'kakao';
@@ -1047,6 +1048,7 @@
           }
 
           clearOrderIdempotencyKey();
+          sessionStorage.removeItem('guestOrderStartedAt');
           AppState.clearCart();
           setTimeout(() => { window.location.href = 'complete.html'; }, 500);
         } else {

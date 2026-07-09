@@ -362,6 +362,14 @@ body {
   opacity: 0.6;
 }
 
+.snack-card.browse-only {
+  cursor: default;
+}
+
+.snack-card.browse-only:hover {
+  transform: none;
+}
+
 .snack-card.sold-out .snack-img-container::after {
   content: '품절';
   position: absolute;
@@ -772,6 +780,11 @@ body {
 
 .admin-action-menu[open] summary::after {
   content: "▲";
+}
+
+.admin-action-menu[open] summary {
+  background-color: #1E293B;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
 }
 
 .admin-action-menu-panel {

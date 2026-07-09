@@ -226,10 +226,28 @@ This document is compiled for AI agents (like Antigravity) to easily grasp the p
      - `getSnacks` TTL 확대(30초 이상): 15초 서버 캐시는 적용했지만, 현장 재고 표시가 오래 stale 될 수 있어 더 긴 TTL은 운영 측정 후에만 재검토한다.
 
 ### Manual Verification
+* **배달왔삼 마감·메뉴 미리보기·주문 유예 확인**: 관리 화면의 `외부 화면 > 배달왔삼`이 실제 `guest.html`을 열고, 운영 중에는 정상 주문 버튼이 보이는지 확인한다. 예약 종료 또는 즉시 마감 상태에서는 `메뉴 미리보기`가 읽기 전용 한 페이지로 열리며 수량·장바구니·주문 버튼이 없는지 확인한다. 예약 종료 전에 시작한 주문은 종료 후 5분 안에 접수되고, `즉시 마감` 후 제출과 예약 종료 5분 후 제출은 거절되는지 확인한다.
 * **Optional deep check**: 같은 `idempotencyKey`로 동일 `placeOrder` 요청을 강제로 2회 전송할 수 있는 환경이 있을 때, 주문내역 행 수, 재고 차감, 일반/게스트 크레딧 차감이 1회만 반영되는지 확인한다. 일반 화면의 버튼 잠금과 정상 주문 흐름은 수동검증 완료.
 * **Completed field checks**: double-order prevention, kitchen new-order sound/filter behavior, order-token guardrails for cancel/review/photo upload, archive sheet column alignment, latest service-worker cache reflection through `kiosk-cache-v127`, P1 GAS performance 7~8 validation for regular users/local guests/Kakao guests, P2 local guest pickup/delivery UX flow, local guest display-name persistence across repeat orders, Kakao-linked guest display code recheck for kitchen/board/guest-orders/print-bills, `updateOrderServed()` lock/range validation, `getSnacks` 15초 서버 캐시 validation for regular kiosk/guest menu, post-order stock reflection, admin stock/sale-state reflection, order-cancel stock restoration, Pretendard webfont request removal, and admin image upload thumbnail validation.
 
 ### Recently Resolved (최근 해결 항목)
+* **P1 - 배달왔삼 실제 화면 통합, 마감 메뉴 보기, 예약 종료 주문 유예**
+  - 관리자·주방·후기 화면의 `배달왔삼 미리보기` 링크를 실제 `guest.html`을 여는 `배달왔삼` 링크로 통일했다.
+  - 운영 마감이 확인된 경우 `guest.html`에 `메뉴 미리보기` 버튼을 표시하고 `menu.html?browse=guest` 읽기 전용 화면으로 이동한다.
+  - 읽기 전용 화면은 게스트 대상 간식의 이미지, 이름, 포인트, 판매 가능 여부만 표시하며 이용자 세션, 크레딧 조회, 장바구니, 수량 조절, 주문 확인을 만들지 않는다.
+  - 운영 상태 API가 실패한 경우에는 실제 마감인지 확인할 수 없으므로 메뉴 미리보기 버튼을 노출하지 않는다.
+  - 실제 주문 시작 시 `orderStartedAt`을 세션에 기록한다. 예약 종료 전에 시작한 주문은 종료 후 5분까지 GAS `placeOrder()`가 접수한다.
+  - 관리자의 `즉시 마감`은 `guestOpen=N`이므로 진행 중 주문도 즉시 거절한다. 예약 종료 후 5분이 지났거나 시작 시각이 없거나 종료 후인 요청도 거절한다.
+  - 프론트 Mock도 같은 마감 유예 판정을 사용하도록 동기화했다.
+  - 정적 파일 반영을 위해 `service-worker.js` 캐시 버전을 `kiosk-cache-v130`으로 상향했다. GAS 새 버전 배포가 필요하다.
+  - **로컬 검증 완료**: 실제 운영 마감 응답에서 메뉴 미리보기 버튼 노출과 읽기 전용 화면 이동을 확인했다. 읽기 전용 화면은 게스트 간식 9개를 표시하면서 수량 조절·장바구니·주문 버튼이 없고, 기존 주문 메뉴는 수량 조절 기능이 그대로 유지됐다. GAS 함수는 운영 중 허용, 예약 종료 후 5분 이내 허용, 5분 경과·종료 후 시작·즉시 마감 거절의 경계값 테스트를 통과했다.
+* **P1 - 관리 화면 상단 하위 메뉴 배타 동작 개선**
+  - 관리자·주방·후기 화면의 `.admin-action-menu`에 공통 동작을 적용해 하위 메뉴가 한 번에 하나만 열리도록 했다.
+  - `운영 도구` 또는 `외부 화면`이 열린 상태에서 알림, 오늘의 운영 결과, 관리자, 후기 등 다른 상단 버튼을 누르면 열린 메뉴가 즉시 닫힌다.
+  - 메뉴 항목 선택, 메뉴 바깥 클릭, `Esc` 키 입력으로도 모든 하위 메뉴를 닫는다.
+  - 열린 메뉴 버튼은 배경색과 외곽선으로 활성 상태를 표시한다.
+  - 정적 파일 변경은 배달왔삼 마감 메뉴 개선과 함께 `service-worker.js` 캐시 버전 `kiosk-cache-v130`에 포함했다.
+  - **로컬 검증 완료**: 주방 화면의 `운영 도구`/`외부 화면` 상호 전환, 알림 버튼 클릭, 바깥 클릭, `Esc` 닫기를 확인했고 관리자·후기 화면에서도 메뉴 열기와 바깥 클릭 닫기가 정상 동작했다.
 * **P1 - 카카오 연동 게스트 (비회원) 꼬리 재노출 해결 및 말풍선 이모지 접두사 변경** (Development Log - 54)
 * **P2 - 후기 상세 모달 너비 확장 및 답글 영역 여백/정렬 수정** (Development Log - 53)
 * **P2 - 관리자 대리 입력식 후기 답글 기능 및 게스트 노출 1~3단계 구현** (Development Log - 52)

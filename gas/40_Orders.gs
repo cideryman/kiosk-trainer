@@ -58,10 +58,12 @@ function placeOrder(data) {
 
     if (isGuest) {
       guestSettings = getGuestSettings();
-      if (!guestSettings.isGuestOpenNow) {
+      if (!canCompleteStartedGuestOrder(guestSettings, data.orderStartedAt)) {
         return {
           success: false,
-          message: guestSettings.message || '게스트 주문이 마감되었습니다.',
+          message: guestSettings.guestOpen === 'Y'
+            ? '주문 운영 종료 후 완료 가능 시간이 지났습니다.'
+            : (guestSettings.message || '게스트 주문이 마감되었습니다.'),
         };
       }
 

@@ -83,10 +83,33 @@ function buildGuestSettingsResponse(settings) {
     todayDeliveryTeamMembers: settings.todayDeliveryTeamMembers || '',
     todayDeliveryTeamMessage: settings.todayDeliveryTeamMessage || '',
     guestAllowMultipleOrders: String(settings.guestAllowMultipleOrders || 'TRUE').toUpperCase() !== 'FALSE',
+    guestOrderGraceMinutes: GUEST_ORDER_COMPLETION_GRACE_MINUTES,
     isGuestOpenNow,
     remainingSeconds,
     message
   };
+}
+
+function canCompleteStartedGuestOrder(settings, orderStartedAt, nowValue) {
+  if (!settings || settings.guestOpen !== 'Y') return false;
+  if (settings.isGuestOpenNow) return true;
+  if (!settings.guestCloseAt || !orderStartedAt) return false;
+
+  const closeAt = new Date(settings.guestCloseAt);
+  const startedAt = new Date(orderStartedAt);
+  const now = nowValue instanceof Date ? nowValue : new Date(nowValue || new Date());
+  if (
+    isNaN(closeAt.getTime()) ||
+    isNaN(startedAt.getTime()) ||
+    isNaN(now.getTime())
+  ) {
+    return false;
+  }
+
+  const graceEndsAt = new Date(
+    closeAt.getTime() + GUEST_ORDER_COMPLETION_GRACE_MINUTES * 60 * 1000
+  );
+  return startedAt.getTime() <= closeAt.getTime() && now.getTime() <= graceEndsAt.getTime();
 }
 
 function getGuestSettings() {

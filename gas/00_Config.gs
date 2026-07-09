@@ -18,6 +18,7 @@ const REVIEW_IMAGE_FOLDER_ID = '1uykUeSeuwxtJvVVK_J7t-3JHY7yq0q_o'; // 기본적
 
 // 게스트 최대 가상 크레딧
 const GUEST_MAX_CREDIT = 10;
+const GUEST_ORDER_COMPLETION_GRACE_MINUTES = 5;
 
 // 관리자 화면에서만 사용하는 변경 API 목록입니다.
 const ADMIN_ACTIONS = [
