@@ -785,20 +785,93 @@
       }
     }
 
-    /* 주방 제공완료 테이블: 모바일 최적화 */
+    .completed-mobile-card {
+      display: none;
+    }
+
+    /* 주방 제공완료 목록: 모바일 카드형 배치 */
     @media (max-width: 768px) {
-      /* 테이블 셀 패딩/폰트 축소 */
-      .admin-table th, .admin-table td {
-        padding: 8px 4px;
-        font-size: 13px;
-      }
-      /* 사용포인트(5열) 숨기기 */
-      table:has(#order-table-body) th:nth-child(5),
-      table:has(#order-table-body) td:nth-child(5) {
+      table:has(#order-table-body) thead {
         display: none;
       }
-      /* 되돌리기 버튼 축소 */
-      .btn-undo-action {
+
+      #order-table-body tr.completed-order-row {
+        display: block;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      #order-table-body tr.completed-order-row > td:not(.completed-mobile-card) {
+        display: none;
+      }
+
+      #order-table-body .completed-mobile-card {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-rows: auto auto;
+        gap: 5px 8px;
+        align-items: center;
+        padding: 0;
+        border: 0;
+      }
+
+      .completed-card-header,
+      .completed-card-detail {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex-wrap: wrap;
+      }
+
+      .completed-card-header {
+        grid-column: 1;
+        grid-row: 1;
+        font-size: 12px;
+      }
+
+      .completed-card-detail {
+        grid-column: 1;
+        grid-row: 2;
+        font-size: 13px;
+      }
+
+      .completed-card-user {
+        font-weight: 800;
+        color: var(--text-main);
+      }
+
+      .completed-card-snack {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 700;
+      }
+
+      .completed-card-quantity {
+        flex-shrink: 0;
+        font-weight: 900;
+      }
+
+      .completed-card-status {
+        flex-basis: 100%;
+        color: var(--danger-color);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .completed-card-action {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        min-width: 58px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .completed-card-action .btn-undo-action {
+        min-height: 36px;
         padding: 4px 8px;
         font-size: 12px;
       }
@@ -823,9 +896,9 @@
           <a class="admin-external-link board" href="board.html" target="_blank" rel="noopener" title="전광판 열기">🖥️ 전광판</a>
         </nav>
         <div class="admin-header-actions">
-          <button class="btn-small-action" id="btnEnableSound" style="min-height: 48px; background-color: #334155; color: white; border: none;">🔊 알림</button>
+          <button class="btn-small-action" id="btnEnableSound" type="button" aria-pressed="false" title="알림음 켜기" style="min-height: 48px; background-color: #334155; color: white; border: none;">🔊 알림 켜기</button>
           <button class="btn-small-action" onclick="openTodaySummaryModal()" style="min-height: 48px; background-color: #334155; color: white; border: none;">📊 오늘의 운영 결과</button>
-          <button class="btn-small-action" onclick="window.open('print-bills.html', '_blank')" style="min-height: 48px; background-color: #ED8936; color: white; border: none;">🖨️ 빌지 인쇄</button>
+          <button class="btn-small-action" onclick="window.open('print-bills.html', '_blank')" style="min-height: 48px; background-color: #334155; color: white; border: none;">🖨️ 빌지 인쇄</button>
           <details class="admin-action-menu">
             <summary>운영 도구</summary>
             <div class="admin-action-menu-panel">
@@ -840,10 +913,10 @@
 
     <section class="admin-auth-bar" data-admin-auth aria-label="관리자 잠금 해제">
       <div class="admin-auth-info">
-        <span class="admin-auth-icon" aria-hidden="true">🔒</span>
+        <span class="admin-auth-icon" data-admin-auth-icon role="img" aria-label="관리자 잠금 상태">🔒</span>
         <div>
           <strong class="admin-auth-title">관리자 잠금</strong>
-          <span class="admin-auth-status" data-admin-auth-status>변경 작업을 하려면 잠금을 해제하세요.</span>
+          <span class="admin-auth-status" data-admin-auth-status>변경 전 잠금 해제 필요</span>
         </div>
       </div>
       <div class="admin-auth-actions" data-admin-auth-actions>
@@ -1438,11 +1511,74 @@
       return NEW_ORDER_SOUND_PATHS.default;
     }
 
+    let isNewOrderSoundEnabled = false;
+    let kitchenAudioContext = null;
+    let pendingOrderSoundTimer = null;
+    let activeOrderAudio = null;
+
+    function getKitchenAudioContext() {
+      const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextCtor) return null;
+      if (!kitchenAudioContext || kitchenAudioContext.state === 'closed') {
+        kitchenAudioContext = new AudioContextCtor();
+      }
+      return kitchenAudioContext;
+    }
+
+    function updateSoundToggleButton() {
+      const button = document.getElementById('btnEnableSound');
+      if (!button) return;
+      button.setAttribute('aria-pressed', String(isNewOrderSoundEnabled));
+      button.textContent = isNewOrderSoundEnabled ? '🔊 알림 끄기' : '🔇 알림 켜기';
+      button.title = isNewOrderSoundEnabled ? '알림음 끄기' : '알림음 켜기';
+      button.style.backgroundColor = isNewOrderSoundEnabled ? '#0F766E' : '#334155';
+    }
+
+    function stopPendingOrderSound() {
+      if (pendingOrderSoundTimer) {
+        clearTimeout(pendingOrderSoundTimer);
+        pendingOrderSoundTimer = null;
+      }
+      if (activeOrderAudio) {
+        activeOrderAudio.pause();
+        activeOrderAudio.currentTime = 0;
+        activeOrderAudio = null;
+      }
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+    }
+
+    async function toggleNewOrderSound() {
+      if (isNewOrderSoundEnabled) {
+        isNewOrderSoundEnabled = false;
+        stopPendingOrderSound();
+        updateSoundToggleButton();
+        return;
+      }
+
+      try {
+        const audioContext = getKitchenAudioContext();
+        if (audioContext && audioContext.state === 'suspended') {
+          await audioContext.resume();
+        }
+        isNewOrderSoundEnabled = true;
+        updateSoundToggleButton();
+        const utterance = new SpeechSynthesisUtterance('음성 알림이 활성화되었습니다.');
+        window.speechSynthesis?.speak(utterance);
+      } catch (error) {
+        console.warn('알림음 활성화 실패:', error);
+        isNewOrderSoundEnabled = false;
+        updateSoundToggleButton();
+      }
+    }
+
     // 신규 주문 발생 시 띵동 알림음 후 배달의민족 커스텀 알림음 재생
     function playNewOrderSound(soundPath) {
+      if (!isNewOrderSoundEnabled) return;
+
       try {
         const customSoundPath = soundPath || NEW_ORDER_SOUND_PATHS.default;
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const audioCtx = getKitchenAudioContext();
+        if (!audioCtx) return;
 
         // 첫 번째 음 (딩 - High A)
         const osc1 = audioCtx.createOscillator();
@@ -1475,10 +1611,18 @@
         osc2.stop(audioCtx.currentTime + 0.9);
 
         // 딩동 소리 재생이 끝날 즈음(약 1초 후)에 원장님 커스텀 목소리 재생
-        setTimeout(() => {
+        if (pendingOrderSoundTimer) clearTimeout(pendingOrderSoundTimer);
+        pendingOrderSoundTimer = setTimeout(() => {
+          pendingOrderSoundTimer = null;
+          if (!isNewOrderSoundEnabled) return;
           const audio = new Audio(customSoundPath);
+          activeOrderAudio = audio;
+          audio.addEventListener('ended', () => {
+            if (activeOrderAudio === audio) activeOrderAudio = null;
+          }, { once: true });
           audio.play().catch(e => {
             console.warn("오디오 자동 재생 차단:", e);
+            if (activeOrderAudio === audio) activeOrderAudio = null;
           });
         }, 1000);
 
@@ -2547,15 +2691,33 @@
             statusHtml = `<div style="color: var(--danger-color); font-weight: 800; font-size: 13px; margin-top: 4px;">[상태: 취소]<br>사유: ${esc(order.cancelReason || '사유 없음')}${reasonDetail}</div>`;
           }
 
+          const actionHtml = !isCanceled
+            ? `<button class="btn-undo-action" onclick="${callAttr(`undoCompleteOrder(${orderNoArg})`)}">되돌리기</button>`
+            : `<span style="color: var(--danger-color); font-weight: 800;">취소됨</span>`;
+
           tr.style = rowStyle;
+          tr.className = 'completed-order-row';
           tr.innerHTML = `
-            <td><strong>${esc(formatTime(isCanceled ? order.cancelTimestamp : order.timestamp))}</strong></td>
-            <td>${numberPrefix}${esc(displayNickname)}${deliveryBadge}${deliveryPlaceText}</td>
-            <td>${esc(order.snackName)}${statusHtml}</td>
-            <td style="text-align: center; font-weight: 800;">${qtyVal}개</td>
-            <td style="text-align: right; font-weight: 800; color: var(--primary-color);">${esc(AppState.formatPoint(pointVal))}</td>
-            <td style="text-align: center;">
-              ${!isCanceled ? `<button class="btn-undo-action" onclick="${callAttr(`undoCompleteOrder(${orderNoArg})`)}">되돌리기</button>` : `<span style="color: var(--danger-color); font-weight: 800;">취소됨</span>`}
+            <td class="completed-time-cell"><strong>${esc(formatTime(isCanceled ? order.cancelTimestamp : order.timestamp))}</strong></td>
+            <td class="completed-user-cell">${numberPrefix}${esc(displayNickname)}${deliveryBadge}${deliveryPlaceText}</td>
+            <td class="completed-snack-cell">${esc(order.snackName)}${statusHtml}</td>
+            <td class="completed-quantity-cell" style="text-align: center; font-weight: 800;">${qtyVal}개</td>
+            <td class="completed-points-cell" style="text-align: right; font-weight: 800; color: var(--primary-color);">${esc(AppState.formatPoint(pointVal))}</td>
+            <td class="completed-action-cell" style="text-align: center;">${actionHtml}</td>
+            <td class="completed-mobile-card">
+              <div class="completed-card-header">
+                <strong>${esc(formatTime(isCanceled ? order.cancelTimestamp : order.timestamp))}</strong>
+                ${numberPrefix}
+                <span class="completed-card-user">${esc(displayNickname)}</span>
+                ${deliveryBadge}
+                ${deliveryPlaceText}
+              </div>
+              <div class="completed-card-detail">
+                <span class="completed-card-snack">${esc(order.snackName)}</span>
+                <span class="completed-card-quantity">${qtyVal}개</span>
+                ${isCanceled ? `<div class="completed-card-status">[상태: 취소] 사유: ${esc(order.cancelReason || '사유 없음')}${order.cancelReason === '기타' && order.cancelReasonDetail ? ` · 상세: ${esc(order.cancelReasonDetail)}` : ''}</div>` : ''}
+              </div>
+              <div class="completed-card-action">${actionHtml}</div>
             </td>
           `;
           tbody.appendChild(tr);
@@ -3119,15 +3281,8 @@
 
       const btnEnableSound = document.getElementById('btnEnableSound');
       if (btnEnableSound) {
-        btnEnableSound.addEventListener('click', () => {
-          const utterance = new SpeechSynthesisUtterance('음성 알림이 활성화되었습니다.');
-          speechSynthesis.speak(utterance);
-          
-          try {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            audioCtx.resume();
-          } catch(e) {}
-        });
+        btnEnableSound.addEventListener('click', toggleNewOrderSound);
+        updateSoundToggleButton();
       }
     });
   </script>

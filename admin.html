@@ -720,8 +720,29 @@
       z-index: 10;
     }
 
+    .user-credit-compact {
+      display: none;
+    }
+
     /* 모바일 화면에서 테이블 조작 버튼 축소 */
     @media (max-width: 768px) {
+      .admin-tabs {
+        display: flex;
+        width: 100%;
+        gap: 4px;
+        margin-bottom: 14px;
+      }
+
+      .admin-tab-btn {
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 10px 4px;
+        font-size: 15px;
+        line-height: 1.1;
+        white-space: nowrap;
+        word-break: keep-all;
+      }
+
       .admin-table th, .admin-table td {
         padding: 8px 4px;
         font-size: 13px;
@@ -753,6 +774,243 @@
       table:has(#snack-management-body) th:nth-child(5) {
         display: none;
       }
+
+      /* 간식 관리: 모바일에서는 재고 게이지와 빠른 조정을 한 행에 배치 */
+      table:has(#snack-management-body) thead {
+        display: none;
+      }
+
+      #snack-management-body tr[data-snack-row] {
+        display: grid;
+        grid-template-columns: minmax(76px, 0.85fr) minmax(64px, 0.65fr) minmax(112px, 1.3fr);
+        grid-template-rows: minmax(48px, auto);
+        grid-template-areas: "identity stock adjust";
+        gap: 0 6px;
+        align-items: stretch;
+        padding: 6px 4px;
+        background-color: white;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      #snack-management-body tr[data-snack-row] > td {
+        min-width: 0;
+        padding: 4px 0;
+        border: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #snack-management-body tr[data-snack-row] > .snack-identity-cell { grid-area: identity; }
+      #snack-management-body tr[data-snack-row] > .snack-stock-cell { grid-area: stock; }
+      #snack-management-body tr[data-snack-row] > .snack-adjust-cell { grid-area: adjust; }
+      #snack-management-body tr[data-snack-row] > .snack-price-cell,
+      #snack-management-body tr[data-snack-row] > .snack-manage-cell {
+        display: none !important;
+      }
+
+      .snack-identity-content {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        width: 100%;
+      }
+
+      .snack-identity-content > div:first-child {
+        flex-shrink: 0;
+      }
+
+      .snack-identity-content strong {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 12px;
+      }
+
+      .snack-stock-cell .admin-stock-gauge-container {
+        gap: 4px;
+        max-width: 100%;
+      }
+
+      .snack-stock-cell .admin-stock-gauge-wrapper {
+        width: 55px;
+        height: 10px;
+      }
+
+      .snack-stock-value {
+        min-width: 28px !important;
+        font-size: 12px;
+      }
+
+      .snack-adjust-controls {
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 2px !important;
+        width: 100%;
+      }
+
+      .snack-adjust-controls .credit-adjust-btn {
+        min-width: 0;
+        width: 100%;
+        min-height: 30px;
+        padding: 3px 1px;
+        font-size: 11px;
+        line-height: 1;
+      }
+
+      /* 이용자 관리: 모바일에서는 이용자 한 명을 2행 카드처럼 배치 */
+      table:has(#user-management-body) thead {
+        display: none;
+      }
+
+      #user-management-body tr[data-user-row] {
+        display: grid;
+        grid-template-columns: minmax(76px, 0.85fr) minmax(54px, 0.65fr) minmax(116px, 1.3fr);
+        grid-template-rows: minmax(48px, auto);
+        grid-template-areas: "identity credit adjust";
+        gap: 0 6px;
+        align-items: stretch;
+        padding: 6px 4px;
+        background-color: white;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      #user-management-body tr[data-user-row] > td {
+        min-width: 0;
+        padding: 4px 0;
+        border: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #user-management-body tr[data-user-row] > .user-identity-cell { grid-area: identity; }
+      #user-management-body tr[data-user-row] > .user-credit-cell { grid-area: credit; white-space: nowrap; }
+      #user-management-body tr[data-user-row] > .user-adjust-cell { grid-area: adjust; }
+      #user-management-body tr[data-user-row] > .user-target-cell,
+      #user-management-body tr[data-user-row] > .user-manage-cell {
+        display: none !important;
+      }
+
+      .user-identity-content {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .user-identity-content strong {
+        max-width: calc(100% - 42px);
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 12px;
+      }
+
+      .user-adjust-controls {
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 2px !important;
+        width: 100%;
+      }
+
+      .user-adjust-controls .credit-adjust-btn {
+        min-width: 0;
+        width: 100%;
+        min-height: 30px;
+        padding: 3px 1px;
+        font-size: 11px;
+        line-height: 1;
+      }
+
+      .user-target-controls {
+        display: flex !important;
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 3px !important;
+        width: 100%;
+      }
+
+      .user-target-controls .admin-inline-input,
+      .user-target-controls .btn-small-action {
+        width: 100% !important;
+        min-width: 0;
+        padding-left: 2px;
+        padding-right: 2px;
+      }
+
+      #user-management-body tr[data-user-row] .user-manage-cell .btn-small-action {
+        width: 100%;
+        min-width: 0;
+        min-height: 36px;
+        padding-left: 3px;
+        padding-right: 3px;
+        white-space: normal;
+        line-height: 1.1;
+      }
+
+      #user-management-body tr.user-group-row {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      #user-management-body tr.user-group-row > td {
+        grid-column: 1;
+      }
+
+      .user-credit-full {
+        display: none;
+      }
+
+      .user-credit-compact {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+      }
+    }
+
+    @media (max-width: 360px) {
+      #user-management-body tr[data-user-row] {
+        grid-template-columns: 76px 54px minmax(0, 1fr);
+        grid-template-rows: minmax(48px, auto);
+        grid-template-areas: "identity credit adjust";
+      }
+
+      .user-adjust-controls {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .user-identity-content .admin-avatar,
+      .user-identity-content .admin-avatar-initial {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 14px !important;
+      }
+
+      .user-identity-content strong {
+        max-width: 32px;
+      }
+
+      #user-management-body tr[data-user-row] > .user-credit-cell {
+        font-size: 15px !important;
+      }
+
+      #snack-management-body tr[data-snack-row] {
+        grid-template-columns: 76px 64px minmax(0, 1fr);
+      }
+
+      #snack-management-body tr[data-snack-row] .snack-stock-cell .admin-stock-gauge-wrapper {
+        width: 48px;
+      }
+
+      #snack-management-body tr[data-snack-row] .snack-identity-content strong {
+        max-width: 32px;
+      }
+
     }
     /* admin-stock-gauge */
     .admin-stock-gauge-container {
@@ -800,17 +1058,13 @@
     <header class="kiosk-header admin-header page-admin">
       <h1 class="admin-screen-title">⚙️ 주간매점 관리자 설정</h1>
       <div class="kiosk-header-top">
+        <nav class="admin-external-links" aria-label="외부 화면 바로가기">
+          <a class="admin-external-link kiosk" href="index.html?type=kiosk" target="_blank" rel="noopener" title="일반 키오스크 열기">🛒 키오스크</a>
+          <a class="admin-external-link guest" href="guest.html" target="_blank" rel="noopener" title="배달왔삼 열기">🛵 배달왔삼</a>
+          <a class="admin-external-link board" href="board.html" target="_blank" rel="noopener" title="전광판 열기">🖥️ 전광판</a>
+        </nav>
         <div class="admin-header-actions">
           <button class="btn-small-action" onclick="openDiagnoseModal()" style="min-height: 48px; background-color: #4A5568; color: white; border: none;">🛠️ 운영 점검</button>
-          <details class="admin-action-menu">
-            <summary>외부 화면</summary>
-            <div class="admin-action-menu-panel">
-              <button class="btn-small-action" onclick="window.open('index.html?type=kiosk', '_blank')" style="background-color: #F59E0B; color: white; border: none;">🛒 일반 키오스크</button>
-              <button class="btn-small-action" onclick="window.open('guest.html', '_blank')" style="background-color: #0F766E; color: white; border: none;">🛵 배달왔삼</button>
-              <button class="btn-small-action" onclick="window.open('print-bills.html', '_blank')" style="background-color: #ED8936; color: white; border: none;">🖨️ 빌지 인쇄</button>
-              <button class="btn-small-action" onclick="window.open('board.html', '_blank')" style="background-color: #7C3AED; color: white; border: none;">🖥️ 전광판 보기</button>
-            </div>
-          </details>
           <button class="btn btn-primary" id="btn-manual-refresh" style="min-height: 48px; font-size: 16px; width: auto; padding: 0 16px; margin: 0;">
             🔄 새로고침
           </button>
@@ -820,10 +1074,10 @@
 
     <section class="admin-auth-bar" data-admin-auth aria-label="관리자 잠금 해제">
       <div class="admin-auth-info">
-        <span class="admin-auth-icon" aria-hidden="true">🔒</span>
+        <span class="admin-auth-icon" data-admin-auth-icon role="img" aria-label="관리자 잠금 상태">🔒</span>
         <div>
           <strong class="admin-auth-title">관리자 잠금</strong>
-          <span class="admin-auth-status" data-admin-auth-status>변경 작업을 하려면 잠금을 해제하세요.</span>
+          <span class="admin-auth-status" data-admin-auth-status>변경 전 잠금 해제 필요</span>
         </div>
       </div>
       <div class="admin-auth-actions" data-admin-auth-actions>
@@ -844,8 +1098,8 @@
       
       <!-- 탭 메뉴 -->
       <div class="admin-tabs" style="margin-top: 10px;">
-        <button class="admin-tab-btn active" id="btn-tab-users" onclick="switchTab('tab-users')">🪙 이용자 관리</button>
-        <button class="admin-tab-btn" id="btn-tab-snacks" onclick="switchTab('tab-snacks')">🍪 간식 관리</button>
+        <button class="admin-tab-btn active" id="btn-tab-users" onclick="switchTab('tab-users')">🪙 이용자</button>
+        <button class="admin-tab-btn" id="btn-tab-snacks" onclick="switchTab('tab-snacks')">🍪 간식</button>
         <button class="admin-tab-btn" id="btn-tab-snack-order" onclick="switchTab('tab-snack-order')">🔢 간식 순서</button>
       </div>
 
@@ -858,7 +1112,7 @@
               <div style="display: flex; gap: 10px; align-items: center;">
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 800; cursor: pointer; user-select: none; padding: 6px 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background-color: white;">
                   <input type="checkbox" id="toggle-inactive-users" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--primary-color);">
-                  비활성 이용자 표시
+                  숨김 보기
                 </label>
                 <button class="btn btn-secondary" onclick="openAddUserModal()" style="min-height: 52px; font-size: 18px; font-weight: 800; margin: 0; width: auto; padding: 0 20px; box-shadow: var(--shadow-btn-sec); white-space: nowrap;">➕ 신규 이용자 등록</button>
               </div>
@@ -907,7 +1161,7 @@
               <div style="display: flex; gap: 10px; align-items: center;">
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 800; cursor: pointer; user-select: none; padding: 6px 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background-color: white;">
                   <input type="checkbox" id="toggle-hidden-snacks" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--secondary-color);">
-                  숨긴 간식 표시
+                  숨김 보기
                 </label>
                 <button class="btn btn-secondary" onclick="openAddSnackModal()" style="min-height: 52px; font-size: 18px; font-weight: 800; margin: 0; width: auto; padding: 0 20px; box-shadow: var(--shadow-btn-sec); white-space: nowrap;">➕ 신규 간식 등록</button>
               </div>
@@ -1739,29 +1993,29 @@
           : `<div class="admin-avatar-initial" style="background-color: ${safeAvatarBgColor}; width: 36px; height: 36px; font-size: 16px;">${safeInitial}</div>`;
 
         tr.innerHTML = `
-          <td onclick="${callAttr(`openEditUserModal(${userIdArg})`)}" class="admin-clickable-cell">
-            <div style="display: flex; align-items: center; gap: 10px;">
+          <td onclick="${callAttr(`openEditUserModal(${userIdArg})`)}" class="admin-clickable-cell user-identity-cell">
+            <div class="user-identity-content">
               ${avatarHtml}
               <strong>${safeNickname} 님</strong>
             </div>
           </td>
-          <td style="font-weight: 800; font-size: 18px; color: var(--primary-color);">${credit} 크레딧</td>
-          <td style="text-align: center;">
-            <div style="display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;">
-              <button class="credit-adjust-btn minus" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, -5)`)}">-5</button>
-              <button class="credit-adjust-btn minus" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, -1)`)}">-1</button>
-              <button class="credit-adjust-btn plus" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, 1)`)}">+1</button>
-              <button class="credit-adjust-btn plus" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, 5)`)}">+5</button>
+          <td class="user-credit-cell" aria-label="보유 크레딧 ${credit}개" style="font-weight: 800; font-size: 18px; color: var(--primary-color);"><span class="user-credit-full">${credit} 크레딧</span><span class="user-credit-compact">🪙 ${credit}</span></td>
+          <td class="user-adjust-cell" style="text-align: center;">
+            <div class="user-adjust-controls" style="display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;">
+              <button class="credit-adjust-btn minus" title="5 크레딧 차감" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, -5)`)}">-5</button>
+              <button class="credit-adjust-btn minus" title="1 크레딧 차감" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, -1)`)}">-1</button>
+              <button class="credit-adjust-btn plus" title="1 크레딧 추가" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, 1)`)}">+1</button>
+              <button class="credit-adjust-btn plus" title="5 크레딧 추가" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, 5)`)}">+5</button>
             </div>
           </td>
-          <td style="text-align: center;">
-            <div style="display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <input type="number" id="${attr(creditInputId(userId))}" class="admin-inline-input" value="${credit}" min="0" style="width: 60px;">
+          <td class="user-target-cell" style="text-align: center;">
+            <div class="user-target-controls" style="display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <input type="number" id="${attr(creditInputId(userId))}" class="admin-inline-input" value="${credit}" min="0" style="width: 60px;" aria-label="${safeNickname} 목표 크레딧">
               <button class="btn-small-action" onclick="${callAttr(`manualAdjustCredit(${userIdArg})`)}">변경</button>
             </div>
           </td>
-          <td style="text-align: center;">
-            <button class="btn-small-action" style="background-color: var(--secondary-color);" onclick="${callAttr(`openEditUserModal(${userIdArg})`)}">수정</button>
+          <td class="user-manage-cell" style="text-align: center;">
+            <button class="btn-small-action" style="background-color: var(--secondary-color);" title="${safeNickname} 정보 수정" onclick="${callAttr(`openEditUserModal(${userIdArg})`)}">수정</button>
           </td>
         `;
         tbody.appendChild(tr);
@@ -2151,8 +2405,8 @@
         `;
 
         tr.innerHTML = `
-          <td onclick="${callAttr(`openEditSnackModal(${snackIdArg})`)}" class="admin-clickable-cell">
-            <div style="display: flex; align-items: center; gap: 10px;">
+          <td onclick="${callAttr(`openEditSnackModal(${snackIdArg})`)}" class="admin-clickable-cell snack-identity-cell">
+            <div class="snack-identity-content">
               <div style="position: relative; width: 36px; height: 36px;">
                 ${imgHTML}
                 ${emojiHTML}
@@ -2160,24 +2414,24 @@
               <strong>${safeSnackName}</strong>
             </div>
           </td>
-          <td style="text-align: center; vertical-align: middle;">
+          <td class="snack-stock-cell" style="text-align: center; vertical-align: middle;">
             <div class="admin-stock-gauge-container">
               ${gaugeHTML}
-              <span style="font-weight: 800; color: ${isSoldOut ? 'var(--danger-color)' : 'var(--secondary-hover)'}; flex-shrink: 0; min-width: 32px; text-align: left;">
+              <span class="snack-stock-value" style="font-weight: 800; color: ${isSoldOut ? 'var(--danger-color)' : 'var(--secondary-hover)'}; flex-shrink: 0; min-width: 32px; text-align: left;">
                 ${stock}개
               </span>
             </div>
           </td>
-          <td style="font-weight: 700; vertical-align: middle;">${point} 크레딧</td>
-          <td style="text-align: center; vertical-align: middle;">
-            <div class="admin-flex-nowrap">
-              <button class="credit-adjust-btn minus" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, -5)`)}">-5</button>
-              <button class="credit-adjust-btn minus" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, -1)`)}">-1</button>
-              <button class="credit-adjust-btn plus" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, 1)`)}">+1</button>
-              <button class="credit-adjust-btn plus" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, 5)`)}">+5</button>
+          <td class="snack-price-cell" style="font-weight: 700; vertical-align: middle;">${point} 크레딧</td>
+          <td class="snack-adjust-cell" style="text-align: center; vertical-align: middle;">
+            <div class="snack-adjust-controls admin-flex-nowrap">
+              <button class="credit-adjust-btn minus" title="5개 차감" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, -5)`)}">-5</button>
+              <button class="credit-adjust-btn minus" title="1개 차감" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, -1)`)}">-1</button>
+              <button class="credit-adjust-btn plus" title="1개 추가" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, 1)`)}">+1</button>
+              <button class="credit-adjust-btn plus" title="5개 추가" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, 5)`)}">+5</button>
             </div>
           </td>
-          <td style="text-align: center; vertical-align: middle;">
+          <td class="snack-manage-cell" style="text-align: center; vertical-align: middle;">
             <div class="admin-flex-nowrap">
               <input type="number" id="${attr(stockInputId(snackId))}" class="admin-inline-input" value="${stock}" min="0" style="width: 50px; padding: 4px;">
               <button class="btn-small-action" onclick="${callAttr(`manualAdjustStock(${snackIdArg})`)}">변경</button>

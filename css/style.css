@@ -964,6 +964,9 @@ body {
 
   .admin-header-actions {
     width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
     justify-content: stretch;
   }
 
@@ -989,7 +992,28 @@ body {
   .admin-header-actions > .btn-small-action,
   .admin-header-actions > .btn,
   .admin-action-menu {
-    flex: 1 1 100%;
+    width: 100% !important;
+    min-width: 0;
+  }
+
+  .page-admin .admin-header-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .page-kitchen .admin-header-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .page-kitchen .admin-header-actions > .btn-small-action {
+    padding-left: 4px;
+    padding-right: 4px;
+    font-size: 12px;
+    white-space: normal;
+    line-height: 1.2;
+  }
+
+  .page-kitchen .admin-action-menu {
+    grid-column: 1 / -1;
   }
 
   .admin-action-menu-panel {
@@ -1939,30 +1963,51 @@ input:checked + .tts-slider:before {
 
 @media (max-width: 767px) {
   .admin-auth-bar {
-    align-items: stretch;
-    flex-wrap: wrap;
-    gap: 10px;
-    padding: 12px 16px;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 8px 12px;
   }
 
   .admin-auth-info {
-    width: 100%;
-    min-width: 0;
+    width: 36px;
+    min-width: 36px;
+    flex: 0 0 36px;
+    margin-right: 0;
+  }
+
+  .admin-auth-info > div {
+    display: none;
   }
 
   .admin-auth-actions {
-    flex-basis: 100%;
-    width: 100%;
+    flex: 1 1 auto;
+    flex-basis: auto;
+    width: auto;
+    min-height: 42px;
+    flex-wrap: wrap;
   }
 
   .admin-auth-form {
     width: 100%;
+    flex: 1 1 100%;
+    gap: 6px;
   }
 
   .admin-auth-password {
     width: auto;
     min-width: 0;
     flex: 1;
+    height: 42px;
+    padding: 0 10px;
+    font-size: 14px;
+  }
+
+  .admin-auth-submit,
+  .admin-auth-lock {
+    min-height: 42px;
+    padding: 0 10px;
+    font-size: 14px;
   }
 
   .admin-auth-lock {
@@ -1972,6 +2017,8 @@ input:checked + .tts-slider:before {
   .admin-auth-error {
     position: static;
     width: 100%;
+    flex: 1 1 100%;
+    margin-top: 2px;
     text-align: left;
   }
 }

@@ -610,14 +610,19 @@ const AdminAuth = {
     const form = this.root.querySelector('[data-admin-auth-form]');
     const lockButton = this.root.querySelector('[data-admin-auth-lock]');
     const status = this.root.querySelector('[data-admin-auth-status]');
+    const icon = this.root.querySelector('[data-admin-auth-icon]');
 
     this.root.classList.toggle('is-unlocked', unlocked);
+    if (icon) {
+      icon.textContent = unlocked ? '🔓' : '🔒';
+      icon.setAttribute('aria-label', unlocked ? '관리자 잠금 해제됨' : '관리자 잠금 상태');
+    }
     if (form) form.hidden = unlocked;
     if (lockButton) lockButton.hidden = !unlocked;
     if (status) {
       status.textContent = unlocked
         ? '관리자 권한 사용 중'
-        : '변경 작업을 하려면 잠금을 해제하세요.';
+        : '변경 전 잠금 해제 필요';
     }
     if (unlocked) this.setError('');
   }

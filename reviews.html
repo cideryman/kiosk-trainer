@@ -908,15 +908,12 @@
     <header class="kiosk-header admin-header page-reviews">
       <h1 class="admin-screen-title">💬 후기 관리 화면</h1>
       <div class="kiosk-header-top">
+        <nav class="admin-external-links" aria-label="외부 화면 바로가기">
+          <a class="admin-external-link kiosk" href="index.html?type=kiosk" target="_blank" rel="noopener" title="일반 키오스크 열기">🛒 키오스크</a>
+          <a class="admin-external-link guest" href="guest.html" target="_blank" rel="noopener" title="배달왔삼 열기">🛵 배달왔삼</a>
+          <a class="admin-external-link board" href="board.html" target="_blank" rel="noopener" title="전광판 열기">🖥️ 전광판</a>
+        </nav>
         <div class="admin-header-actions">
-          <details class="admin-action-menu">
-            <summary>외부 화면</summary>
-            <div class="admin-action-menu-panel">
-              <button class="btn-small-action" onclick="window.open('board.html', '_blank')" style="background-color: #7C3AED; color: white; border: none;">🖥️ 전광판 보기</button>
-              <button class="btn-small-action" onclick="window.open('index.html?type=kiosk', '_blank')" style="background-color: #F59E0B; color: white; border: none;">🛒 일반 키오스크</button>
-              <button class="btn-small-action" onclick="window.open('guest.html', '_blank')" style="background-color: #0F766E; color: white; border: none;">🛵 배달왔삼</button>
-            </div>
-          </details>
           <button class="btn btn-primary" id="btn-manual-refresh" style="min-height: 48px; font-size: 16px; width: auto; padding: 0 16px; margin: 0;">
             🔄 새로고침
           </button>
@@ -926,10 +923,10 @@
 
     <section class="admin-auth-bar" data-admin-auth aria-label="관리자 잠금 해제">
       <div class="admin-auth-info">
-        <span class="admin-auth-icon" aria-hidden="true">🔒</span>
+        <span class="admin-auth-icon" data-admin-auth-icon role="img" aria-label="관리자 잠금 상태">🔒</span>
         <div>
           <strong class="admin-auth-title">관리자 잠금</strong>
-          <span class="admin-auth-status" data-admin-auth-status>변경 작업을 하려면 잠금을 해제하세요.</span>
+          <span class="admin-auth-status" data-admin-auth-status>변경 전 잠금 해제 필요</span>
         </div>
       </div>
       <div class="admin-auth-actions" data-admin-auth-actions>
@@ -957,7 +954,7 @@
               <div style="display: flex; gap: 10px; align-items: center;">
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 800; cursor: pointer; user-select: none; padding: 6px 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background-color: white; margin: 0;">
                   <input type="checkbox" id="toggle-private-reviews" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--secondary-color);">
-                  비공개 후기 표시
+                  숨김 보기
                 </label>
               </div>
             </div>
@@ -1136,7 +1133,7 @@
       });
 
       if (renderedCount === 0) {
-        container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1; width: 100%; padding: 40px 0;">표시할 후기가 없습니다. (비공개 후기 표시를 체크해보세요)</div>';
+        container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1; width: 100%; padding: 40px 0;">표시할 후기가 없습니다. (숨김 보기를 체크해보세요)</div>';
       }
     }
 
