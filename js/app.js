@@ -519,7 +519,7 @@ const AdminAuth = {
       if (input) input.value = '';
     }
     this.render();
-    this.setError(options.message || '관리자 권한이 잠겼습니다.');
+    this.setError(options.message || '');
     if (options.focus) this.focus(options.message || '관리자 키를 다시 입력해 주세요.');
     if (typeof this.options.onLock === 'function') {
       this.options.onLock();

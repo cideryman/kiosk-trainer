@@ -780,14 +780,16 @@
           <span class="admin-auth-status" data-admin-auth-status>변경 작업을 하려면 잠금을 해제하세요.</span>
         </div>
       </div>
-      <form class="admin-auth-form" data-admin-auth-form>
-        <input class="admin-auth-username" type="text" name="username" value="kiosk-admin" autocomplete="username" aria-label="관리자 계정" tabindex="-1">
-        <label class="admin-auth-label" for="admin-auth-password-admin">관리자 키</label>
-        <input class="admin-auth-password" id="admin-auth-password-admin" data-admin-auth-password name="password" type="password" autocomplete="current-password" placeholder="관리자 키 입력" required>
-        <button class="btn btn-secondary admin-auth-submit" data-admin-auth-submit type="submit">잠금 해제</button>
-      </form>
-      <button class="btn btn-gray admin-auth-lock" data-admin-auth-lock type="button" hidden>잠그기</button>
-      <div class="admin-auth-error" data-admin-auth-error role="alert" hidden></div>
+      <div class="admin-auth-actions" data-admin-auth-actions>
+        <form class="admin-auth-form" data-admin-auth-form>
+          <input class="admin-auth-username" type="text" name="username" value="kiosk-admin" autocomplete="username" aria-label="관리자 계정" tabindex="-1">
+          <label class="admin-auth-label" for="admin-auth-password-admin">관리자 키</label>
+          <input class="admin-auth-password" id="admin-auth-password-admin" data-admin-auth-password name="password" type="password" autocomplete="current-password" placeholder="관리자 키 입력" required>
+          <button class="btn btn-secondary admin-auth-submit" data-admin-auth-submit type="submit">잠금 해제</button>
+        </form>
+        <button class="btn btn-gray admin-auth-lock" data-admin-auth-lock type="button" hidden>잠그기</button>
+        <div class="admin-auth-error" data-admin-auth-error role="alert" hidden></div>
+      </div>
     </section>
 
     <!-- 바디 -->
