@@ -742,6 +742,38 @@
         font-size: 12px;
       }
     }
+    /* admin-stock-gauge */
+    .admin-stock-gauge-container {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      max-width: 150px;
+      justify-content: center;
+    }
+    .admin-stock-gauge-wrapper {
+      position: relative;
+      width: 80px;
+      height: 12px;
+      background-color: #EDF2F7;
+      border: 1.5px solid var(--border-color);
+      border-radius: 6px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .admin-stock-gauge-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+    .admin-flex-nowrap {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+      flex-wrap: nowrap !important;
+    }
   </style>
 </head>
 <body>
@@ -809,22 +841,22 @@
       <div id="tab-users" class="admin-tab-content active">
         <div class="snack-admin-layout">
           <div>
-            <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color);">🪙 이용자 크레딧 관리</div>
-            <div id="user-api-warning" class="error-box" style="display: none; margin-bottom: 16px; font-size: 16px;"></div>
-            <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-              <input type="text" id="search-user-input" placeholder="🔍 이용자 별명을 입력해 찾으세요..." class="search-input" style="flex: 1; min-width: 280px; padding: 12px; font-size: 18px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); font-weight: 700; margin: 0;">
-              <label style="display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 800; cursor: pointer; user-select: none; padding: 6px 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background-color: white;">
-                <input type="checkbox" id="toggle-inactive-users" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--primary-color);">
-                비활성 이용자 표시
-              </label>
-              <button class="btn btn-secondary" onclick="openAddUserModal()" style="min-height: 52px; font-size: 18px; font-weight: 800; margin: 0; width: auto; padding: 0 20px; box-shadow: var(--shadow-btn-sec); white-space: nowrap;">➕ 신규 이용자 등록</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+              <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color); margin-bottom: 0;">🪙 이용자 크레딧 관리</div>
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 800; cursor: pointer; user-select: none; padding: 6px 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background-color: white;">
+                  <input type="checkbox" id="toggle-inactive-users" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--primary-color);">
+                  비활성 이용자 표시
+                </label>
+                <button class="btn btn-secondary" onclick="openAddUserModal()" style="min-height: 52px; font-size: 18px; font-weight: 800; margin: 0; width: auto; padding: 0 20px; box-shadow: var(--shadow-btn-sec); white-space: nowrap;">➕ 신규 이용자 등록</button>
+              </div>
             </div>
+            <div id="user-api-warning" class="error-box" style="display: none; margin-bottom: 16px; font-size: 16px;"></div>
             <div class="table-responsive">
               <table class="admin-table">
                 <thead>
                   <tr>
                     <th>이용자</th>
-                    <th style="text-align: center;">상태</th>
                     <th>보유 크레딧</th>
                     <th style="text-align: center;">증감 조정</th>
                     <th style="text-align: center;">목표 크레딧</th>
@@ -873,11 +905,10 @@
                 <thead>
                   <tr>
                     <th>간식명</th>
-                    <th style="text-align: center;">판매대상</th>
-                    <th style="text-align: center;">상태</th>
+                    <th style="text-align: center; width: 160px;">재고</th>
                     <th>가격</th>
-                    <th style="text-align: center;">현재 재고</th>
-                    <th style="text-align: center;">재고 조정</th>
+                    <th style="text-align: center;">수량 조정</th>
+                    <th style="text-align: center;">재고 반영 및 관리</th>
                   </tr>
                 </thead>
                 <tbody id="snack-management-body">
@@ -1360,7 +1391,6 @@
 
     let currentUsers = [];
     let currentSnacks = [];
-    let userSearchQuery = "";
     let isModalOpen = false;
     const ADMIN_TOKEN_STORAGE_KEY = AdminAuth.storageKey;
 
@@ -1644,18 +1674,13 @@
       
       tbody.innerHTML = '';
       
-      const filteredUsers = users.filter(u => {
-        if (!userSearchQuery) return true;
-        return String(u.nickname || '').toLowerCase().includes(userSearchQuery.toLowerCase());
-      });
-      
-      if (filteredUsers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">해당하는 이용자가 없습니다.</td></tr>';
+      if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">이용자가 없습니다.</td></tr>';
         return;
       }
       
-      const activeUsers = filteredUsers.filter(user => isUserActive(user));
-      const inactiveUsers = filteredUsers.filter(user => !isUserActive(user));
+      const activeUsers = users.filter(user => isUserActive(user));
+      const inactiveUsers = users.filter(user => !isUserActive(user));
 
       appendUserGroupRows(tbody, '활성 이용자', activeUsers);
 
@@ -1673,12 +1698,12 @@
     function appendUserGroupRows(tbody, title, users) {
       const groupRow = document.createElement('tr');
       groupRow.className = 'user-group-row';
-      groupRow.innerHTML = `<td colspan="6">${esc(title)} <span style="color: var(--text-muted); font-size: 14px;">${users.length}명</span></td>`;
+      groupRow.innerHTML = `<td colspan="5">${esc(title)} <span style="color: var(--text-muted); font-size: 14px;">${users.length}명</span></td>`;
       tbody.appendChild(groupRow);
 
       if (users.length === 0) {
         const emptyRow = document.createElement('tr');
-        emptyRow.innerHTML = `<td colspan="6" class="empty-state">${esc(title)}가 없습니다.</td>`;
+        emptyRow.innerHTML = `<td colspan="5" class="empty-state">${esc(title)}가 없습니다.</td>`;
         tbody.appendChild(emptyRow);
         return;
       }
@@ -1712,9 +1737,6 @@
               ${avatarHtml}
               <strong>${safeNickname} 님</strong>
             </div>
-          </td>
-          <td style="text-align: center;">
-            <span class="status-badge ${isActive ? 'active' : 'inactive'}">${isActive ? '🟢 활성' : '🔴 비활성'}</span>
           </td>
           <td style="font-weight: 800; font-size: 18px; color: var(--primary-color);">${credit} 크레딧</td>
           <td style="text-align: center;">
@@ -2067,12 +2089,12 @@
     function appendSnackGroupRows(tbody, title, snacks) {
       const groupRow = document.createElement('tr');
       groupRow.className = 'user-group-row';
-      groupRow.innerHTML = `<td colspan="6">${esc(title)} <span style="color: var(--text-muted); font-size: 14px;">${snacks.length}개</span></td>`;
+      groupRow.innerHTML = `<td colspan="5">${esc(title)} <span style="color: var(--text-muted); font-size: 14px;">${snacks.length}개</span></td>`;
       tbody.appendChild(groupRow);
 
       if (snacks.length === 0) {
         const emptyRow = document.createElement('tr');
-        emptyRow.innerHTML = `<td colspan="6" class="empty-state">${esc(title)}이 없습니다.</td>`;
+        emptyRow.innerHTML = `<td colspan="5" class="empty-state">${esc(title)}이 없습니다.</td>`;
         tbody.appendChild(emptyRow);
         return;
       }
@@ -2100,13 +2122,26 @@
           : ``;
         const emojiHTML = `<div class="admin-avatar-initial" style="background-color: #F1F5F9; border: 1.5px solid var(--border-color); color: var(--text-main); width: 36px; height: 36px; font-size: 18px; border-radius: 6px; display: flex; justify-content: center; align-items: center; ${imgUrl ? 'display:none;' : ''}">${safeSnackEmoji}</div>`;
 
-        const targetVal = String(snack.target || 'user').trim().toLowerCase();
-        let targetLabel = '일반';
-        let targetClass = 'target-user';
-        if (targetVal === 'guest') {
-          targetLabel = '게스트';
-          targetClass = 'target-guest';
+        // 게이지 백분율 및 색상 계산: min(stock / 10, 1) * 100
+        const percent = Math.min(Math.max(stock, 0) / 10, 1) * 100;
+        let gaugeColor = '';
+        if (stock >= 10) {
+          gaugeColor = '#38A169'; // 녹색
+        } else if (stock >= 4) {
+          gaugeColor = '#D69E2E'; // 황색/주황색
+        } else if (stock >= 1) {
+          gaugeColor = '#E53E3E'; // 적색
         }
+
+        const gaugeFillHTML = stock > 0
+          ? `<div class="admin-stock-gauge-fill" style="width: ${percent}%; background-color: ${gaugeColor};"></div>`
+          : '';
+
+        const gaugeHTML = `
+          <div class="admin-stock-gauge-wrapper" title="현재 재고: ${stock}개 (기준: 10개)">
+            ${gaugeFillHTML}
+          </div>
+        `;
 
         tr.innerHTML = `
           <td onclick="${callAttr(`openEditSnackModal(${snackIdArg})`)}" class="admin-clickable-cell">
@@ -2118,27 +2153,30 @@
               <strong>${safeSnackName}</strong>
             </div>
           </td>
-          <td style="text-align: center;">
-            <span class="status-badge ${targetClass}">${targetLabel}</span>
+          <td style="text-align: center; vertical-align: middle;">
+            <div class="admin-stock-gauge-container">
+              ${gaugeHTML}
+              <span style="font-weight: 800; color: ${isSoldOut ? 'var(--danger-color)' : 'var(--secondary-hover)'}; flex-shrink: 0; min-width: 32px; text-align: left;">
+                ${stock}개
+              </span>
+            </div>
           </td>
-          <td style="text-align: center;">
-            <span class="status-badge ${isActive ? 'active' : 'inactive'}">${isActive ? '판매중' : '숨김'}</span>
-          </td>
-          <td style="font-weight: 700;">${point} 크레딧</td>
-          <td style="text-align: center; font-weight: 800; color: ${isSoldOut ? 'var(--danger-color)' : 'var(--secondary-hover)'};">
-            ${stock}개
-          </td>
-          <td style="text-align: center;">
-            <div style="display: flex; justify-content: center; align-items: center; gap: 8px;">
+          <td style="font-weight: 700; vertical-align: middle;">${point} 크레딧</td>
+          <td style="text-align: center; vertical-align: middle;">
+            <div class="admin-flex-nowrap">
               <button class="credit-adjust-btn minus" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, -5)`)}">-5</button>
               <button class="credit-adjust-btn minus" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, -1)`)}">-1</button>
-              <input type="number" id="${attr(stockInputId(snackId))}" class="admin-inline-input" value="${stock}">
-              <button class="btn-small-action" onclick="${callAttr(`manualAdjustStock(${snackIdArg})`)}">수정</button>
               <button class="credit-adjust-btn plus" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, 1)`)}">+1</button>
               <button class="credit-adjust-btn plus" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, 5)`)}">+5</button>
-              <button class="credit-adjust-btn" style="background-color: #FFF3E0; border-color: #FFE0B2; color: #E65100; font-size: 14px;" onclick="${callAttr(`setSoldOut(${snackIdArg})`)}">품절</button>
-              <button class="btn-small-action" style="background-color: var(--secondary-color);" onclick="${callAttr(`openEditSnackModal(${snackIdArg})`)}">정보 수정</button>
-              <button class="${isActive ? 'btn-danger-action' : 'btn-small-action'}" onclick="${callAttr(`updateSnackSaleAction(${snackIdArg}, ${isActive ? jsString('N') : jsString('Y')}, ${jsString(snackName)})`)}">${isActive ? '숨기기' : '판매중'}</button>
+            </div>
+          </td>
+          <td style="text-align: center; vertical-align: middle;">
+            <div class="admin-flex-nowrap">
+              <input type="number" id="${attr(stockInputId(snackId))}" class="admin-inline-input" value="${stock}" min="0" style="width: 50px; padding: 4px;">
+              <button class="btn-small-action" onclick="${callAttr(`manualAdjustStock(${snackIdArg})`)}">변경</button>
+              <button class="credit-adjust-btn" style="background-color: #FFF3E0; border-color: #FFE0B2; color: #E65100; font-size: 13px; padding: 4px 6px; margin: 0;" onclick="${callAttr(`setSoldOut(${snackIdArg})`)}">품절</button>
+              <button class="btn-small-action" style="background-color: var(--secondary-color);" onclick="${callAttr(`openEditSnackModal(${snackIdArg})`)}">수정</button>
+              <button class="${isActive ? 'btn-danger-action' : 'btn-small-action'}" onclick="${callAttr(`updateSnackSaleAction(${snackIdArg}, ${isActive ? jsString('N') : jsString('Y')}, ${jsString(snackName)})`)}">${isActive ? '숨김' : '판매'}</button>
             </div>
           </td>
         `;
@@ -2811,14 +2849,7 @@
         });
       }
 
-      // 이용자 검색 바인딩
-      const searchInput = document.getElementById('search-user-input');
-      if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-          userSearchQuery = e.target.value;
-          renderUsersManagement(currentUsers);
-        });
-      }
+
 
       // 비활성 이용자 토글 바인딩
       const toggleInactiveUsers = document.getElementById('toggle-inactive-users');

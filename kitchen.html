@@ -312,6 +312,110 @@
       font-size: 20px;
       font-weight: 900;
     }
+
+    /* 현재 간식 재고 현황 */
+    .snack-stock-groups {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .snack-stock-group {
+      min-width: 0;
+      padding: 12px;
+      background-color: #F8FAFC;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-sm);
+    }
+
+    .snack-stock-group-title {
+      margin-bottom: 8px;
+      font-size: 16px;
+      font-weight: 900;
+      color: var(--text-main);
+    }
+
+    .snack-stock-group.guest .snack-stock-group-title {
+      color: #0F766E;
+    }
+
+    .snack-stock-group.user .snack-stock-group-title {
+      color: #C05621;
+    }
+
+    .snack-stock-items {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .snack-stock-item {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 44px;
+      padding: 8px 10px;
+      background-color: #FFFFFF;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+    }
+
+    .snack-stock-item.is-zero {
+      color: #9B2C2C;
+      background-color: #FFF5F5;
+      border-color: #FEB2B2;
+    }
+
+    .snack-stock-gauge {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      z-index: 0;
+      transition: width 0.3s ease;
+    }
+
+    .snack-stock-name {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .snack-stock-value {
+      position: relative;
+      z-index: 1;
+      flex: 0 0 auto;
+      font-size: 17px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .snack-stock-empty,
+    .snack-stock-message {
+      padding: 10px 4px;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .snack-stock-message.is-error {
+      color: var(--danger-color);
+    }
+
+    @media (max-width: 767px) {
+      .snack-stock-groups {
+        grid-template-columns: 1fr;
+      }
+    }
     
     /* 대기 중인 주문 그룹 레이아웃 */
     .pending-group-container {
@@ -694,24 +798,21 @@
     <header class="kiosk-header admin-header page-kitchen">
       <h1 class="admin-screen-title">🍳 오늘 주문 운영</h1>
       <div class="kiosk-header-top">
+        <nav class="admin-external-links" aria-label="외부 화면 바로가기">
+          <a class="admin-external-link kiosk" href="index.html?type=kiosk" target="_blank" rel="noopener" title="일반 키오스크 열기">🛒 키오스크</a>
+          <a class="admin-external-link guest" href="guest.html" target="_blank" rel="noopener" title="배달왔삼 열기">🛵 배달왔삼</a>
+          <a class="admin-external-link board" href="board.html" target="_blank" rel="noopener" title="전광판 열기">🖥️ 전광판</a>
+        </nav>
         <div class="admin-header-actions">
           <button class="btn-small-action" id="btnEnableSound" style="min-height: 48px; background-color: #334155; color: white; border: none;">🔊 알림</button>
           <button class="btn-small-action" onclick="openTodaySummaryModal()" style="min-height: 48px; background-color: #334155; color: white; border: none;">📊 오늘의 운영 결과</button>
+          <button class="btn-small-action" onclick="window.open('print-bills.html', '_blank')" style="min-height: 48px; background-color: #ED8936; color: white; border: none;">🖨️ 빌지 인쇄</button>
           <details class="admin-action-menu">
             <summary>운영 도구</summary>
             <div class="admin-action-menu-panel">
               <button class="btn-small-action" onclick="openDiagnoseModal()" style="background-color: #4A5568; color: white; border: none;">🛠️ 운영 점검</button>
-              <button class="btn-small-action" onclick="window.open('print-bills.html', '_blank')" style="background-color: #ED8936; color: white; border: none;">🖨️ 빌지 인쇄</button>
               <button class="btn-small-action" id="btn-download-csv">CSV 다운로드</button>
               <button class="btn-small-action" id="btn-archive-old-orders" style="background-color: #4A5568; color: white; border: none;">지난 주문 보관 📁</button>
-            </div>
-          </details>
-          <details class="admin-action-menu">
-            <summary>외부 화면</summary>
-            <div class="admin-action-menu-panel">
-              <button class="btn-small-action" onclick="window.open('index.html?type=kiosk', '_blank')" style="background-color: #F59E0B; color: white; border: none;">🛒 일반 키오스크</button>
-              <button class="btn-small-action" onclick="window.open('guest.html', '_blank')" style="background-color: #0F766E; color: white; border: none;">🛵 배달왔삼</button>
-              <button class="btn-small-action" onclick="window.open('board.html', '_blank')" style="background-color: #7C3AED; color: white; border: none;">🖥️ 전광판 보기</button>
             </div>
           </details>
         </div>
@@ -1388,6 +1489,95 @@
       }
     }
 
+    function renderSnackStock(snacks) {
+      const stockListEl = document.getElementById('snack-stock-list');
+      if (!stockListEl) return;
+
+      const groups = {
+        user: [],
+        guest: []
+      };
+
+      snacks.forEach(snack => {
+        const target = snack.target === 'guest' ? 'guest' : 'user';
+        groups[target].push(snack);
+      });
+
+      Object.values(groups).forEach(group => {
+        group.sort((a, b) => {
+          const orderDiff = Number(a.displayOrder || 0) - Number(b.displayOrder || 0);
+          return orderDiff || String(a.name || '').localeCompare(String(b.name || ''), 'ko');
+        });
+      });
+
+      const renderGroup = (target, title) => {
+        const items = groups[target];
+        const itemMarkup = items.length > 0
+          ? items.map(snack => {
+            const stock = Number(snack.stock || 0);
+            const zeroClass = stock <= 0 ? ' is-zero' : '';
+            
+            // 게이지 백분율 계산: min(stock / 10, 1) * 100
+            const percent = Math.min(Math.max(stock, 0) / 10, 1) * 100;
+            
+            // 상태별 색상
+            let gaugeColor = '';
+            if (stock >= 10) {
+              gaugeColor = '#DEF7EC'; // 연한 초록색
+            } else if (stock >= 4) {
+              gaugeColor = '#FEF3C7'; // 연한 노란색
+            } else if (stock >= 1) {
+              gaugeColor = '#FEE2E2'; // 연한 빨간색
+            }
+            
+            const gaugeMarkup = stock > 0
+              ? `<div class="snack-stock-gauge" style="width: ${percent}%; background-color: ${gaugeColor};"></div>`
+              : '';
+
+            return `
+              <div class="snack-stock-item${zeroClass}">
+                ${gaugeMarkup}
+                <span class="snack-stock-name" title="${attr(snack.name || '')}">${esc(snack.name || '-')}</span>
+                <span class="snack-stock-value">${stock}개</span>
+              </div>
+            `;
+          }).join('')
+          : '<div class="snack-stock-empty">표시할 간식이 없습니다.</div>';
+
+        return `
+          <section class="snack-stock-group ${target}">
+            <h3 class="snack-stock-group-title">${title}</h3>
+            <div class="snack-stock-items">${itemMarkup}</div>
+          </section>
+        `;
+      };
+
+      stockListEl.innerHTML = `
+        <div class="snack-stock-groups">
+          ${renderGroup('user', '일반 키오스크')}
+          ${renderGroup('guest', '배달왔삼')}
+        </div>
+      `;
+    }
+
+    async function loadSnackStock() {
+      const stockListEl = document.getElementById('snack-stock-list');
+      if (!stockListEl) return;
+
+      stockListEl.innerHTML = '<div class="snack-stock-message">불러오는 중...</div>';
+
+      try {
+        const snacksRes = await fetchAPI('getSnacks');
+        if (!snacksRes || !snacksRes.success || !Array.isArray(snacksRes.snacks)) {
+          throw new Error('간식 재고 응답 결과가 올바르지 않습니다.');
+        }
+        renderSnackStock(snacksRes.snacks);
+      } catch (error) {
+        console.error('간식 재고 조회 실패:', error);
+        stockListEl.innerHTML = '<div class="snack-stock-message is-error">재고를 불러오지 못했습니다.</div>';
+      }
+    }
+
     // 주문 데이터 및 집계 로드
     async function loadAdminData() {
       const pendingContainer = document.getElementById('pending-orders-group');
@@ -1398,10 +1588,7 @@
       const tbody = document.getElementById('order-table-body');
       tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px; font-weight: 700;">데이터를 불러오는 중...</td></tr>';
 
-      const stockListEl = document.getElementById('snack-stock-list');
-      if (stockListEl) {
-        stockListEl.innerHTML = '<div style="padding: 10px; text-align: center; font-weight: 700;">불러오는 중...</div>';
-      }
+      loadSnackStock();
 
       try {
         const [ordersRes, usersRes] = await Promise.all([
@@ -1426,7 +1613,7 @@
           throw new Error('주문 API 응답 결과가 올바르지 않습니다.');
         }
 
-        // 3. 간식 재고 데이터 처리 (kitchen.html에서는 제거됨)
+        // 3. 간식 재고는 loadSnackStock()에서 독립적으로 처리합니다.
 
         // 4. 후기 데이터 처리 (kitchen.html에서는 제거됨)
 
@@ -1444,9 +1631,6 @@
         if (pendingGroup) {
           pendingGroup.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--danger-color); font-weight: 700;">대기 목록 데이터를 불러오지 못했습니다.</div>`;
         }
-        if (stockListEl) {
-          stockListEl.innerHTML = `<div style="padding: 10px; text-align: center; color: var(--danger-color); font-weight: 700;">불러오기 실패</div>`;
-        }
       } finally {
         // 데이터 로드가 완료(성공 혹은 실패)된 후에 다음 새로고침 타이머 리셋 및 기동
         if (!refreshPaused) {
@@ -1454,8 +1638,6 @@
         }
       }
     }
-
-    // 주문 운영 화면에서는 간식 재고 관리 렌더러를 사용하지 않습니다.
 
     // 일괄 처리 UI 갱신
     function updateBulkActionBar(hasPending) {
