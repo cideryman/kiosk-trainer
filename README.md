@@ -81,8 +81,10 @@
 ├── admin.html            # 이용자 크레딧 조정 및 간식 설정 화면
 ├── print-bills.html      # 주문 영수증 빌지 인쇄 및 배송 체크리스트 페이지
 ├── service-worker.js     # PWA 서비스 워커 (정적 캐시 파일 저장 및 PWA 구동)
-├── google-apps-script.md # 구글 앱스 스크립트 백엔드(GAS API) 최종 배포 소스코드
-├── handoff.md            # 신규 기획 사항 정리 및 수동 검증용 체크리스트 문서
+├── google-apps-script.md # GAS 기능별 파일 반영 및 배포 안내
+├── gas/                  # 기능별 Apps Script 백엔드 소스
+├── handoff.md            # 프로젝트 현재 상태와 세부 문서 목차의 유일한 입구
+├── docs/handoff/         # 작업, 구조, 결정, DB, 검증, 로그, 에셋 세부 문서
 ├── css/
 │   └── style.css         # 중앙 집중식 디자인 시스템 스타일시트
 └── js/
@@ -96,15 +98,18 @@
 
 시스템을 운영하려면 아래 탭(시트)으로 구성된 구글 스프레드시트가 필요합니다. 일부 보조 탭은 기능 사용 시 GAS가 자동 생성/보정합니다.
 
-1. **`이용자목록`**: `userId` (고유ID), `nickname` (별명), `credit` (잔액), `useYn` (활성화 여부: Y/N), `imageUrl` (사용자 사진 Drive ID)
-2. **`간식목록`**: `snackId` (고유ID), `name` (간식명), `point` (가격), `imageUrl` (간식 사진 Drive ID), `saleYn` (판매여부: Y/N), `stock` (재고량), `displayOrder` (정렬순서), `target` (노출대상: user/guest)
-3. **`주문내역`**: `timestamp` (주문 일시), `orderNo` (주문번호), `userId`, `nickname`, `snackId`, `snackName`, `quantity` (주문수량), `point` (차감포인트), `servedYn` (N:접수, P:준비, R:출발/완료, Y:제공완료, C:취소), `cancelTimestamp`, `orderToken`, `deliveryType` (pickup/delivery), `deliveryFee` (배달료), `totalCredit` (주문 총 차감 크레딧), `reviewed` (후기여부), `deliveryPlace` (배달 목적지), `guestDeviceId`, `authProvider`, `guestKey`
-4. **`관리자로그`**: 관리자 로그인 정보 및 재고/크레딧 수정 로그 추적
-5. **`운영설정`**: `key` (설정항목), `value` (설정값) - 게스트 운영 상태(open/closed), 남은 시간, 기본 배달 정보 및 오늘의 배달팀 데이터 관리
-6. **`후기내역`**: `id`, `orderNo`, `nickname`, `rating`, `tags` (선택된 태그), `comment` (한마디), `imageUrl` (후기 사진), `createdAt`, `useYn` (후기 노출 여부: Y/N)
-7. **`게스트프로필`**: `guestKey`, `displayName`, `deliveryPlace`, `updatedAt` - 카카오 연결 사용자가 선택 저장에 동의한 경우에만 마지막 주문표시명과 배송지를 보관합니다.
-8. **`게스트크레딧`**: `periodKey`, `guestDeviceId`, `guestKey`, `baseCredit`, `bonusCredit`, `creditLimit`, `usedCredit`, `remainingCredit`, `updatedAt` - 오늘 하루 게스트 크레딧 사용량을 기기/카카오 연결 기준으로 묶어 관리합니다.
-9. **`주문보관`**: 오래된 주문을 보관하는 아카이브 탭입니다.
+1. **`이용자목록`**: `이용자ID`, `별명`, `크레딧`, `사용여부`, `사진url`
+2. **`간식목록`**: `간식ID`, `이름`, `포인트`, `사진URL`, `판매여부`, `재고`, `표시순서`, `제공대상`, `범주`
+3. **`주문내역`**: A~W 23개 열. `주문시간`부터 `deliveryPlace`, 게스트 식별 필드, legacy `deliveryAddress`, `idempotencyKey`까지 저장합니다.
+4. **`주문보관`**: A~R 18개 열. `주문내역`의 앞 18개 열을 보관합니다.
+5. **`관리자로그`**: `timestamp`, `action`, `targetType`, `targetId`, `targetName`, `beforeValue`, `afterValue`, `memo`
+6. **`운영설정`**: `key`, `value`
+7. **`후기내역`**: `createdAt`, `orderId`, `guestName`, `stamp`, `tags`, `comment`, `isPublic`, `imageUrl`, `replyText`, `replyCreatedAt`
+8. **`게스트프로필`**: `guestKey`, `displayName`, `deliveryPlace`, `updatedAt`
+9. **`게스트크레딧`**: `periodKey`, `guestDeviceId`, `guestKey`, `baseCredit`, `bonusCredit`, `creditLimit`, `usedCredit`, `remainingCredit`, `updatedAt`
+10. **`설정`**: 현재 헤더가 비어 있는 미사용 시트입니다.
+
+정확한 열 위치와 코드 호환 주의사항은 [실제 Google Sheets DB 구조](docs/handoff/database-schema.md)를 기준으로 확인합니다.
 
 ---
 

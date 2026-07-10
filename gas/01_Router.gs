@@ -50,9 +50,9 @@ function doGet(e) {
 function doPost(e) {
   try {
     var JSON_STRING = e && e.postData ? e.postData.contents : '{}';
-    Logger.log('doPost Request: ' + JSON_STRING);
     var data = JSON.parse(JSON_STRING || '{}');
     var action = data.action;
+    Logger.log('doPost Action: ' + String(action || '(unknown)'));
 
     if (ADMIN_ACTIONS.indexOf(action) !== -1) {
       const auth = verifyAdminToken(data);
@@ -61,7 +61,9 @@ function doPost(e) {
       }
     }
 
-    if (action === 'placeOrder') {
+    if (action === 'verifyAdminAccess') {
+      return jsonResponse(verifyAdminAccess());
+    } else if (action === 'placeOrder') {
       return jsonResponse(placeOrder(data));
     } else if (action === 'updateOrderServed') {
       return jsonResponse(updateOrderServed(data));

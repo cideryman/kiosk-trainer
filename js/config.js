@@ -173,7 +173,7 @@ async function fetchAPI(action, options = {}) {
   }
 
   try {
-    safeLog("API Request", { url, options: fetchOptions });
+    safeLog("API Request", { url, method, action });
     const response = await fetch(url, fetchOptions);
     clearTimeout(timeoutId);
 
@@ -1204,6 +1204,11 @@ function getMockFallback(action, options) {
       saveMockSnacks(snacks);
       res = { success: true, filledCount: filled, message: `${filled}개의 빈 간식ID를 자동으로 채웠습니다.` };
     }
+  } else if (action === 'verifyAdminAccess') {
+    const adminToken = String(options.body?.adminToken || '').trim();
+    res = adminToken
+      ? { success: true, message: '관리자 권한이 확인되었습니다.' }
+      : { success: false, message: '관리자 권한이 없습니다.' };
   } else if (action === 'diagnoseSystem') {
     const adminToken = options.body?.adminToken;
     if (!adminToken) {

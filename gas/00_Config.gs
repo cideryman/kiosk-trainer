@@ -22,6 +22,7 @@ const GUEST_ORDER_COMPLETION_GRACE_MINUTES = 5;
 
 // 관리자 화면에서만 사용하는 변경 API 목록입니다.
 const ADMIN_ACTIONS = [
+  'verifyAdminAccess',
   'updateOrderServed',
   'updateUserCredit',
   'addUser',
@@ -67,5 +68,12 @@ function verifyAdminToken(data) {
 
   return {
     success: true,
+  };
+}
+
+function verifyAdminAccess() {
+  return {
+    success: true,
+    message: '관리자 권한이 확인되었습니다.',
   };
 }

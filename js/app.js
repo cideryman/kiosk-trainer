@@ -419,6 +419,158 @@ const AppState = {
   }
 };
 
+const AdminAuth = {
+  storageKey: 'kioskAdminToken',
+  root: null,
+  options: {},
+
+  init(options = {}) {
+    this.root = document.querySelector('[data-admin-auth]');
+    this.options = options;
+    if (!this.root) return;
+
+    const form = this.root.querySelector('[data-admin-auth-form]');
+    const lockButton = this.root.querySelector('[data-admin-auth-lock]');
+
+    if (form && !form.dataset.bound) {
+      form.dataset.bound = 'true';
+      form.addEventListener('submit', event => this.submit(event));
+    }
+    if (lockButton && !lockButton.dataset.bound) {
+      lockButton.dataset.bound = 'true';
+      lockButton.addEventListener('click', () => this.lock());
+    }
+
+    if (typeof USE_MOCK !== 'undefined' && USE_MOCK && !this.getToken()) {
+      sessionStorage.setItem(this.storageKey, 'mock-admin-token');
+    }
+    this.render();
+  },
+
+  getToken() {
+    return String(sessionStorage.getItem(this.storageKey) || '').trim();
+  },
+
+  isUnlocked() {
+    return Boolean(this.getToken());
+  },
+
+  requireToken() {
+    const token = this.getToken();
+    if (token) return token;
+    this.focus('상단에서 관리자 잠금을 먼저 해제해 주세요.');
+    throw new Error('관리자 잠금 해제가 필요합니다.');
+  },
+
+  async submit(event) {
+    event.preventDefault();
+    if (!this.root) return;
+
+    const input = this.root.querySelector('[data-admin-auth-password]');
+    const submitButton = this.root.querySelector('[data-admin-auth-submit]');
+    const token = String(input?.value || '').trim();
+    if (!token) {
+      this.focus('관리자 키를 입력해 주세요.');
+      return;
+    }
+
+    this.setError('');
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = '확인 중...';
+    }
+
+    try {
+      const res = await fetchAPI('verifyAdminAccess', {
+        method: 'POST',
+        body: { adminToken: token }
+      });
+      if (!res?.success) {
+        sessionStorage.removeItem(this.storageKey);
+        if (input) input.value = '';
+        this.render();
+        this.focus(res?.message || '관리자 키가 일치하지 않습니다.');
+        return;
+      }
+
+      sessionStorage.setItem(this.storageKey, token);
+      if (input) input.value = '';
+      this.render();
+      AppState.vibrate(40);
+      if (typeof this.options.onUnlock === 'function') {
+        this.options.onUnlock();
+      }
+    } catch (error) {
+      sessionStorage.removeItem(this.storageKey);
+      this.render();
+      this.focus(error?.message || '관리자 권한을 확인하지 못했습니다.');
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = '잠금 해제';
+      }
+    }
+  },
+
+  lock(options = {}) {
+    sessionStorage.removeItem(this.storageKey);
+    if (this.root) {
+      const input = this.root.querySelector('[data-admin-auth-password]');
+      if (input) input.value = '';
+    }
+    this.render();
+    this.setError(options.message || '관리자 권한이 잠겼습니다.');
+    if (options.focus) this.focus(options.message || '관리자 키를 다시 입력해 주세요.');
+    if (typeof this.options.onLock === 'function') {
+      this.options.onLock();
+    }
+  },
+
+  handleDenied(res) {
+    const message = String(res?.message || '');
+    if (!message.includes('관리자 권한') && !message.includes('권한')) return false;
+    this.lock({
+      message: '관리자 키가 만료되었거나 일치하지 않습니다.',
+      focus: true
+    });
+    return true;
+  },
+
+  focus(message = '') {
+    if (!this.root) return;
+    if (message) this.setError(message);
+    const input = this.root.querySelector('[data-admin-auth-password]');
+    if (input) input.focus();
+    this.root.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  },
+
+  setError(message) {
+    if (!this.root) return;
+    const error = this.root.querySelector('[data-admin-auth-error]');
+    if (!error) return;
+    error.textContent = message;
+    error.hidden = !message;
+  },
+
+  render() {
+    if (!this.root) return;
+    const unlocked = this.isUnlocked();
+    const form = this.root.querySelector('[data-admin-auth-form]');
+    const lockButton = this.root.querySelector('[data-admin-auth-lock]');
+    const status = this.root.querySelector('[data-admin-auth-status]');
+
+    this.root.classList.toggle('is-unlocked', unlocked);
+    if (form) form.hidden = unlocked;
+    if (lockButton) lockButton.hidden = !unlocked;
+    if (status) {
+      status.textContent = unlocked
+        ? '관리자 권한 사용 중'
+        : '변경 작업을 하려면 잠금을 해제하세요.';
+    }
+    if (unlocked) this.setError('');
+  }
+};
+
 // 모바일 브라우저의 100vh 스크롤 이슈 방지용 --vh 커스텀 프로퍼티 정의
 function updateViewportHeight() {
   let vh = window.innerHeight * 0.01;
@@ -465,6 +617,9 @@ window.addEventListener('resize', updateViewportHeight);
 window.addEventListener('DOMContentLoaded', () => {
   updateViewportHeight();
   initAdminActionMenus();
+  if (typeof AdminAuth !== 'undefined') {
+    AdminAuth.init();
+  }
 
   document.body.addEventListener('click', (e) => {
     if (e.target.closest('button') || 

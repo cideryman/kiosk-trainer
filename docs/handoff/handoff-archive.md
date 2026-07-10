@@ -2,6 +2,8 @@
 
 This file preserves historical development logs moved out of handoff.md on 2026-07-06 so the active handoff stays easier to scan.
 
+[현재 핸드오프로 돌아가기](../../handoff.md)
+
 ---
 
 ### 작업 기록 [RESOLVED] (Development Log) - 22) 시스템 운영 점검 (진단) 도구 구현

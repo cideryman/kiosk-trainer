@@ -772,6 +772,24 @@
       </div>
     </header>
 
+    <section class="admin-auth-bar" data-admin-auth aria-label="관리자 잠금 해제">
+      <div class="admin-auth-info">
+        <span class="admin-auth-icon" aria-hidden="true">🔒</span>
+        <div>
+          <strong class="admin-auth-title">관리자 잠금</strong>
+          <span class="admin-auth-status" data-admin-auth-status>변경 작업을 하려면 잠금을 해제하세요.</span>
+        </div>
+      </div>
+      <form class="admin-auth-form" data-admin-auth-form>
+        <input class="admin-auth-username" type="text" name="username" value="kiosk-admin" autocomplete="username" aria-label="관리자 계정" tabindex="-1">
+        <label class="admin-auth-label" for="admin-auth-password-admin">관리자 키</label>
+        <input class="admin-auth-password" id="admin-auth-password-admin" data-admin-auth-password name="password" type="password" autocomplete="current-password" placeholder="관리자 키 입력" required>
+        <button class="btn btn-secondary admin-auth-submit" data-admin-auth-submit type="submit">잠금 해제</button>
+      </form>
+      <button class="btn btn-gray admin-auth-lock" data-admin-auth-lock type="button" hidden>잠그기</button>
+      <div class="admin-auth-error" data-admin-auth-error role="alert" hidden></div>
+    </section>
+
     <!-- 바디 -->
     <main class="kiosk-body">
       <!-- 상단 요약 카드 제거됨 -->
@@ -819,16 +837,11 @@
 
 
           <div>
-            <div class="admin-section-title" style="color: var(--text-muted); border-left-color: var(--border-color);">🔐 관리자 변경 설정</div>
+            <div class="admin-section-title" style="color: var(--text-muted); border-left-color: var(--border-color);">📝 관리자 변경 메모</div>
             <div class="form-panel">
-              <div class="token-status" id="admin-token-status">관리자 비밀번호 상태 확인 중</div>
               <div class="form-field">
                 <label for="admin-change-memo">다음 관리자 변경 로그에 남길 메모</label>
                 <input type="text" id="admin-change-memo" placeholder="예: 월초 충전, 테스트 조정">
-              </div>
-              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <button class="btn-small-action" onclick="setAdminTokenManually()">비밀번호 다시 입력</button>
-                <button class="btn-danger-action" onclick="clearAdminTokenManual()">저장된 비밀번호 지우기</button>
               </div>
             </div>
           </div>
@@ -1124,6 +1137,10 @@
   <script>
     // --- 시스템 운영 점검 (진단) 모달 제어 함수 ---
     function openDiagnoseModal() {
+      if (!AdminAuth.isUnlocked()) {
+        AdminAuth.focus('운영 점검 전에 관리자 잠금을 해제해 주세요.');
+        return;
+      }
       const modal = document.getElementById('modal-system-diagnose');
       if (modal) {
         modal.style.display = 'flex';
@@ -1152,7 +1169,7 @@
       resultsList.innerHTML = '';
 
       try {
-        const adminToken = sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) || '';
+        const adminToken = AdminAuth.requireToken();
 
         // 1. GAS 기본 통신 및 상세 진단 요청
         const res = await fetchAPI('diagnoseSystem', {
@@ -1341,7 +1358,7 @@
     let currentSnacks = [];
     let userSearchQuery = "";
     let isModalOpen = false;
-    const ADMIN_TOKEN_STORAGE_KEY = 'kioskAdminToken';
+    const ADMIN_TOKEN_STORAGE_KEY = AdminAuth.storageKey;
 
     function esc(value) {
       return AppState.escapeHtml(value);
@@ -1373,45 +1390,11 @@
     }
 
     function updateAdminTokenStatus() {
-      const statusEl = document.getElementById('admin-token-status');
-      if (!statusEl) return;
-      const token = sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY);
-      statusEl.textContent = token ? '이번 관리자 세션에 비밀번호가 입력되어 있습니다.' : '아직 비밀번호가 입력되지 않았습니다.';
-    }
-
-    function setAdminTokenManually() {
-      const token = prompt('관리자 비밀번호를 입력해 주세요.');
-      if (!token) return;
-      sessionStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token.trim());
-      updateAdminTokenStatus();
-      AppState.vibrate(40);
-    }
-
-    function clearAdminTokenManual() {
-      sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
-      updateAdminTokenStatus();
-      AppState.vibrate(40);
+      AdminAuth.render();
     }
 
     function getAdminToken() {
-      let token = sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY);
-      if (token) return token;
-
-      if (typeof USE_MOCK !== 'undefined' && USE_MOCK) {
-        sessionStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, 'mock-admin-token');
-        updateAdminTokenStatus();
-        return 'mock-admin-token';
-      }
-
-      token = prompt('관리자 비밀번호를 입력해 주세요.');
-      if (!token) {
-        throw new Error('관리자 비밀번호가 필요합니다.');
-      }
-
-      token = token.trim();
-      sessionStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token);
-      updateAdminTokenStatus();
-      return token;
+      return AdminAuth.requireToken();
     }
 
     function withAdminToken(body) {
@@ -1423,11 +1406,7 @@
     }
 
     function clearAdminTokenIfDenied(res) {
-      const message = String(res?.message || '');
-      if (message.includes('관리자 권한') || message.includes('권한')) {
-        sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
-        updateAdminTokenStatus();
-      }
+      AdminAuth.handleDenied(res);
     }
 
     // 탭 전환 기능
@@ -2800,6 +2779,12 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
+      AdminAuth.init({
+        onUnlock: () => {
+          loadAdminData();
+          loadGuestOpsPanel();
+        }
+      });
       updateAdminTokenStatus();
       loadAdminData();
       loadGuestOpsPanel();
