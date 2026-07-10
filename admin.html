@@ -741,6 +741,18 @@
         padding: 6px 8px;
         font-size: 12px;
       }
+      /* 간식 관리 테이블: 모바일에서 수량 조정(4열)·재고 반영(5열) 숨김 */
+      #snack-management-body td:nth-child(4),
+      #snack-management-body td:nth-child(5),
+      #snack-management-body ~ thead th:nth-child(4),
+      #snack-management-body ~ thead th:nth-child(5) {
+        display: none;
+      }
+      /* thead도 같은 테이블 내에서 숨기기 */
+      table:has(#snack-management-body) th:nth-child(4),
+      table:has(#snack-management-body) th:nth-child(5) {
+        display: none;
+      }
     }
     /* admin-stock-gauge */
     .admin-stock-gauge-container {
@@ -963,12 +975,7 @@
 
     </main>
 
-    <!-- 관리자 푸터 (키오스크 홈으로 바로가는 편리 버튼) -->
-    <footer class="kiosk-footer">
-      <button class="btn btn-gray" id="btn-goto-kiosk" style="min-height: 56px; font-size: 20px;">
-        🛒 키오스크 화면으로 가기
-      </button>
-    </footer>
+
   </div>
 
   <!-- 신규 이용자 추가 모달 -->
@@ -2841,13 +2848,7 @@
         });
       }
 
-      // 키오스크 모드로 돌아가기
-      const btnGotoKiosk = document.getElementById('btn-goto-kiosk');
-      if (btnGotoKiosk) {
-        btnGotoKiosk.addEventListener('click', () => {
-          window.location.href = 'index.html?type=kiosk';
-        });
-      }
+
 
 
 

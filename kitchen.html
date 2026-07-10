@@ -784,6 +784,25 @@
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
       }
     }
+
+    /* 주방 제공완료 테이블: 모바일 최적화 */
+    @media (max-width: 768px) {
+      /* 테이블 셀 패딩/폰트 축소 */
+      .admin-table th, .admin-table td {
+        padding: 8px 4px;
+        font-size: 13px;
+      }
+      /* 사용포인트(5열) 숨기기 */
+      table:has(#order-table-body) th:nth-child(5),
+      table:has(#order-table-body) td:nth-child(5) {
+        display: none;
+      }
+      /* 되돌리기 버튼 축소 */
+      .btn-undo-action {
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1027,12 +1046,7 @@
 
     </main>
 
-    <!-- 관리자 푸터 (키오스크 홈으로 바로가는 편리 버튼) -->
-    <footer class="kiosk-footer">
-      <button class="btn btn-gray" id="btn-goto-kiosk" style="min-height: 56px; font-size: 20px;">
-        🛒 키오스크 화면으로 가기
-      </button>
-    </footer>
+
   </div>
 
   <!-- 무관한 모달 제거됨 -->
@@ -3057,14 +3071,7 @@
         });
       }
 
-      // 키오스크 모드로 돌아가기
-      const btnGotoKiosk = document.getElementById('btn-goto-kiosk');
-      if (btnGotoKiosk) {
-        btnGotoKiosk.addEventListener('click', () => {
-          clearInterval(refreshTimer);
-          window.location.href = 'index.html?type=kiosk';
-        });
-      }
+
 
       // 게스트 운영 관리 버튼 바인딩
       const btnGuestOpen20 = document.getElementById('btn-guest-open20');
