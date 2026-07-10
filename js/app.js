@@ -43,14 +43,66 @@ const AppState = {
     localStorage.removeItem('guestAuth');
   },
 
+  getLocalDateKey() {
+    try {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Seoul',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(new Date());
+    } catch (e) {
+      return new Date().toISOString().slice(0, 10);
+    }
+  },
+
+  getLocalGuestDisplayNameRecord() {
+    const raw = String(localStorage.getItem('localGuestDisplayName') || '').trim();
+    if (!raw) return null;
+
+    let record = null;
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        record = {
+          dateKey: String(parsed.dateKey || '').trim(),
+          displayName: String(parsed.displayName || '').trim()
+        };
+      }
+    } catch (e) {
+      // 이전 버전의 문자열 저장값은 오늘 확정된 표시명으로 한 번만 마이그레이션합니다.
+      record = {
+        dateKey: this.getLocalDateKey(),
+        displayName: raw
+      };
+      localStorage.setItem('localGuestDisplayName', JSON.stringify(record));
+    }
+
+    if (!record || !record.displayName) {
+      this.clearLocalGuestDisplayName();
+      return null;
+    }
+
+    if (!record.dateKey || record.dateKey !== this.getLocalDateKey()) {
+      this.clearLocalGuestDisplayName();
+      return null;
+    }
+
+    return record;
+  },
+
   getLocalGuestDisplayName() {
-    return String(localStorage.getItem('localGuestDisplayName') || '').trim();
+    const record = this.getLocalGuestDisplayNameRecord();
+    return record ? record.displayName : '';
   },
 
   setLocalGuestDisplayName(name) {
     const displayName = String(name || '').trim();
     if (displayName) {
-      localStorage.setItem('localGuestDisplayName', displayName);
+      localStorage.setItem('localGuestDisplayName', JSON.stringify({
+        dateKey: this.getLocalDateKey(),
+        displayName
+      }));
     } else {
       localStorage.removeItem('localGuestDisplayName');
     }

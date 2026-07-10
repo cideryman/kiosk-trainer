@@ -210,6 +210,9 @@
             <div id="guest-name-entry-box" style="display: flex; flex-direction: column; gap: 8px;">
               <label for="guest-name-confirm-input" style="font-size: 16px; font-weight: 800; color: var(--text-main);">주문표시명</label>
               <input type="text" id="guest-name-confirm-input" class="guest-input" style="width: 100%; box-sizing: border-box; font-size: 18px; min-height: 48px; font-weight: 800; text-align: left; padding: 8px 12px; margin-top: 0;" placeholder="예: OO반점" maxlength="20" autocomplete="off">
+              <div id="local-guest-name-policy" hidden style="font-size: 14px; font-weight: 800; color: #3A2A00; background-color: #FFFBEA; border: 2px solid #F6C453; border-radius: var(--radius-sm); padding: 10px; text-align: center; line-height: 1.4; word-break: keep-all;">
+                오늘의 주문표시는 <strong id="local-guest-name-value"></strong>로 유지됩니다. 다음 날 변경할 수 있어요.
+              </div>
               <button type="button" class="btn btn-gray" id="btn-confirm-random-name" style="width: 100%; min-height: 44px; font-size: 15px; font-weight: 850; box-shadow: none; background-color: #E0F7F5; color: #006D67; border: 2px solid #2EC4B6;">
                 랜덤 이름 쓰기
               </button>
@@ -376,11 +379,30 @@
       if (!user || user.userId !== 'guest') return;
       user.nickname = name;
       user.needsGuestInfo = false;
-      if (!(user.authProvider === 'kakao' && user.guestKey)) {
-        AppState.setLocalGuestDisplayName(name);
-      }
       AppState.setSelectedUser(user);
       renderUserBadge();
+    }
+
+    function applyLocalGuestDisplayNamePolicy() {
+      if (!user || user.userId !== 'guest') return;
+      const input = document.getElementById('guest-name-confirm-input');
+      const randomButton = document.getElementById('btn-confirm-random-name');
+      const policyNotice = document.getElementById('local-guest-name-policy');
+      const policyValue = document.getElementById('local-guest-name-value');
+      const isLocalGuest = !isGuestPreviewMode() && !(user.authProvider === 'kakao' && user.guestKey);
+      const savedName = isLocalGuest ? AppState.getLocalGuestDisplayName() : '';
+      const isLocked = Boolean(savedName);
+
+      if (isLocked && input) {
+        input.value = savedName;
+      }
+      if (input) {
+        input.readOnly = isLocked;
+        input.setAttribute('aria-readonly', String(isLocked));
+      }
+      if (randomButton) randomButton.hidden = isLocked;
+      if (policyNotice) policyNotice.hidden = !isLocked;
+      if (policyValue) policyValue.textContent = savedName;
     }
 
     function isGuestPreviewMode() {
@@ -848,6 +870,7 @@
             if (guestNameInput) {
               guestNameInput.value = user.needsGuestInfo ? '' : (user.nickname || '');
             }
+            applyLocalGuestDisplayNamePolicy();
           }
 
           if (btnConfirmRandomName && guestNameInput) {
@@ -908,7 +931,15 @@
 
       const isGuest = (user.userId === 'guest');
       if (isGuest) {
-        const guestName = getGuestOrderDisplayName();
+        let guestName = getGuestOrderDisplayName();
+        const savedLocalName = !(user.authProvider === 'kakao' && user.guestKey)
+          ? AppState.getLocalGuestDisplayName()
+          : '';
+        if (savedLocalName) {
+          guestName = savedLocalName;
+          const guestNameInput = document.getElementById('guest-name-confirm-input');
+          if (guestNameInput) guestNameInput.value = savedLocalName;
+        }
         if (!guestName) {
           const errorBox = document.getElementById('error-message-box');
           const guestNameInput = document.getElementById('guest-name-confirm-input');
@@ -1003,6 +1034,9 @@
           }
           user.credit = responseRemainPoints;
           AppState.setSelectedUser(user);
+          if (isGuest && !(user.authProvider === 'kakao' && user.guestKey)) {
+            AppState.setLocalGuestDisplayName(user.nickname);
+          }
 
           const lastOrder = {
             userId:       user.userId,

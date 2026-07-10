@@ -355,6 +355,9 @@
           </div>
 
           <input type="text" id="guest-name-input" class="guest-input" placeholder="예: OO반점" maxlength="20" autocomplete="off">
+          <div id="local-guest-name-policy" hidden style="font-size: 14px; font-weight: 800; color: #3A2A00; background-color: #FFFBEA; border: 2px solid #F6C453; border-radius: var(--radius-sm); padding: 10px; text-align: center; line-height: 1.4; word-break: keep-all;">
+            오늘의 주문표시는 <strong id="local-guest-name-value"></strong>로 유지됩니다. 다음 날 변경할 수 있어요.
+          </div>
           <div style="font-size: 15px; font-weight: 800; color: var(--secondary-hover); text-align: center; margin-top: -8px; line-height: 1.4; word-break: keep-all;">
             부르기 쉬운 주문표시명을 적어주세요.<br>
             예: OO반점, 김OO
@@ -502,6 +505,8 @@
       const kakaoAuthStatus = document.getElementById('kakao-auth-status');
       const kakaoInputHint = document.getElementById('kakao-input-hint');
       const btnRandomName = document.getElementById('btn-random-name');
+      const localGuestNamePolicy = document.getElementById('local-guest-name-policy');
+      const localGuestNameValue = document.getElementById('local-guest-name-value');
 
       // 신규 상단 프로필 바 및 새로고침 변수
       const kakaoLoggedInHeader = document.getElementById('kakao-logged-in-header');
@@ -677,6 +682,23 @@
             kakaoInputHint.style.display = 'none';
           }
         }
+        applyLocalGuestDisplayNamePolicy();
+      }
+
+      function applyLocalGuestDisplayNamePolicy() {
+        if (!input) return;
+        const isLocalGuest = !isGuestPreviewMode && !AppState.getGuestAuth();
+        const savedName = isLocalGuest ? AppState.getLocalGuestDisplayName() : '';
+        const isLocked = Boolean(savedName);
+
+        if (isLocked) {
+          input.value = savedName;
+        }
+        input.readOnly = isLocked;
+        input.setAttribute('aria-readonly', String(isLocked));
+        if (btnRandomName) btnRandomName.hidden = isLocked;
+        if (localGuestNamePolicy) localGuestNamePolicy.hidden = !isLocked;
+        if (localGuestNameValue) localGuestNameValue.textContent = savedName;
       }
 
       function applyRememberedGuestProfile(profile) {
@@ -1131,6 +1153,7 @@
         input.value = rememberedGuestProfile && rememberedGuestProfile.displayName
           ? rememberedGuestProfile.displayName
           : '';
+        applyLocalGuestDisplayNamePolicy();
       }
 
       function showStep(step) {
@@ -1480,6 +1503,8 @@
             input.value = localGuestDisplayName;
           }
         }
+
+        applyLocalGuestDisplayNamePolicy();
 
         const guestName = input.value.trim();
         const needsGuestInfo = !guestName;

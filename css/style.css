@@ -738,12 +738,98 @@ body {
   font-weight: 800;
 }
 
+.admin-screen-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .admin-header-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
   align-items: center;
+}
+
+.admin-header .kiosk-header-top {
+  justify-content: flex-end;
+}
+
+.admin-screen-nav {
+  display: flex;
+  gap: 6px;
+  padding: 8px 0 0;
+  background-color: #F8FAFC;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+.admin-screen-tab {
+  flex: 1 1 0;
+  min-width: 132px;
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border: 2px solid transparent;
+  border-bottom: 0;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  background-color: white;
+  color: var(--text-muted);
+  font-size: 15px;
+  font-weight: 900;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.admin-screen-tab[data-screen="admin"] {
+  border-color: rgba(26, 54, 93, 0.28);
+  color: #1A365D;
+}
+
+.admin-screen-tab[data-screen="kitchen"] {
+  border-color: rgba(221, 107, 32, 0.32);
+  color: #C05621;
+}
+
+.admin-screen-tab[data-screen="reviews"] {
+  border-color: rgba(56, 161, 105, 0.32);
+  color: #2F855A;
+}
+
+.admin-screen-tab:hover,
+.admin-screen-tab:focus-visible {
+  filter: brightness(0.97);
+  outline: 3px solid rgba(66, 153, 225, 0.24);
+  outline-offset: -3px;
+}
+
+.admin-screen-tab.is-active[data-screen="admin"] {
+  background-color: #1A365D;
+  border-color: #1A365D;
+  color: white;
+}
+
+.admin-screen-tab.is-active[data-screen="kitchen"] {
+  background-color: #DD6B20;
+  border-color: #DD6B20;
+  color: white;
+}
+
+.admin-screen-tab.is-active[data-screen="reviews"] {
+  background-color: #38A169;
+  border-color: #38A169;
+  color: white;
 }
 
 .admin-action-menu {
@@ -810,7 +896,23 @@ body {
 }
 
 @media (max-width: 640px) {
+  .admin-screen-nav {
+    padding: 6px 0 0;
+  }
+
+  .admin-screen-tab {
+    flex: 0 0 132px;
+    min-width: 132px;
+    padding: 0 10px;
+    font-size: 14px;
+  }
+
   .admin-header-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .admin-header .kiosk-header-top {
     justify-content: stretch;
   }
 

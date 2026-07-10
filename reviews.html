@@ -684,16 +684,17 @@
 </head>
 <body>
   <div class="kiosk-container" style="height: auto; min-height: 100vh;">
+    <nav class="admin-screen-nav" aria-label="관리 화면 전환">
+      <a class="admin-screen-tab" data-screen="admin" href="admin.html">⚙️ 관리자</a>
+      <a class="admin-screen-tab" data-screen="kitchen" href="kitchen.html">🍳 주방</a>
+      <a class="admin-screen-tab is-active" data-screen="reviews" href="reviews.html" aria-current="page">💬 후기</a>
+    </nav>
+
     <!-- 관리자 헤더 -->
     <header class="kiosk-header admin-header page-reviews">
+      <h1 class="admin-screen-title">💬 후기 관리 화면</h1>
       <div class="kiosk-header-top">
-        <div>
-          <h1 style="font-size: 26px;">💬 후기 관리 화면</h1>
-          <p style="font-size: 14px; margin: 4px 0 0 0; color: #E2E8F0;">이용자가 남긴 후기를 확인하고 화면에 표시하거나 숨길 수 있습니다.</p>
-        </div>
         <div class="admin-header-actions">
-          <button class="btn-small-action" onclick="window.location.href='admin.html'" style="min-height: 48px; background-color: #1A365D; color: white; border: none;">⚙️ 관리자</button>
-          <button class="btn-small-action" onclick="window.location.href='kitchen.html'" style="min-height: 48px; background-color: #DD6B20; color: white; border: none;">🍳 주문 운영</button>
           <details class="admin-action-menu">
             <summary>외부 화면</summary>
             <div class="admin-action-menu-panel">
