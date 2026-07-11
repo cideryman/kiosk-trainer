@@ -95,6 +95,8 @@ function doPost(e) {
       return jsonResponse(updateGuestSettings(data));
     } else if (action === 'submitReview') {
       return jsonResponse(submitReview(data));
+    } else if (action === 'auditArchiveOldOrders') {
+      return jsonResponse(auditArchiveOldOrders(data));
     } else if (action === 'archiveOldOrders') {
       return jsonResponse(archiveOldOrders(data));
     } else if (action === 'getReviewsForAdmin') {

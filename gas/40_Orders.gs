@@ -398,7 +398,7 @@ function getOrdersToday() {
   const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET.ORDERS);
   const values = getOrderValuesForRead(sheet);
   const headers = values[0] || [];
-  const rows = values.slice(1);
+  const rows = values.slice(1).filter(row => row.some(value => value !== ''));
 
   const reviewedIdx = headers.indexOf('reviewed');
   const rIdx = reviewedIdx !== -1 ? reviewedIdx : 14;
@@ -446,6 +446,7 @@ function getOrdersToday() {
   return {
     success: true,
     orders,
+    orderSheetRowCount: rows.length,
   };
 }
 
@@ -1112,9 +1113,130 @@ function userCancelOrder(data) {
 }
 
 /**
+ * 보관 전 읽기 전용 점검.
+ * 시트를 변경하지 않고 헤더 차이와 주문번호+간식ID 중복만 확인한다.
+ */
+function auditArchiveOldOrders() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const orderSheet = ss.getSheetByName(SHEET.ORDERS);
+    const archiveSheet = ss.getSheetByName(SHEET.ARCHIVE);
+    if (!orderSheet) {
+      return { success: false, message: '주문내역 시트를 찾을 수 없습니다.' };
+    }
+    if (!archiveSheet) {
+      return {
+        success: true,
+        dryRun: true,
+        message: '주문보관 시트가 없습니다. 보관된 주문은 없습니다.',
+        summary: {
+          orderRows: Math.max(orderSheet.getLastRow() - 1, 0),
+          archiveRows: 0,
+          headersEqual: false,
+          missingInArchive: [],
+          extraInArchive: [],
+          overlapKeys: 0,
+          duplicateArchiveKeys: 0,
+          archiveOnlyKeys: 0,
+          orderOnlyKeys: 0,
+          sampleDuplicateKeys: []
+        }
+      };
+    }
+
+    const orderValues = orderSheet.getDataRange().getValues();
+    const archiveValues = archiveSheet.getDataRange().getValues();
+    const orderHeader = orderValues[0] || [];
+    const archiveHeader = archiveValues[0] || [];
+    const orderRows = orderValues.slice(1).filter(row => row.some(value => value !== ''));
+    const archiveRows = archiveValues.slice(1).filter(row => row.some(value => value !== ''));
+    const orderNoIndex = orderHeader.indexOf('주문번호');
+    const snackIdIndex = orderHeader.indexOf('간식ID');
+    const archiveOrderNoIndex = archiveHeader.indexOf('주문번호');
+    const archiveSnackIdIndex = archiveHeader.indexOf('간식ID');
+
+    const keyFor = (row, orderNoCol, snackIdCol) => {
+      if (orderNoCol < 0 || snackIdCol < 0) return '';
+      const orderNo = String(row[orderNoCol] == null ? '' : row[orderNoCol]).trim();
+      const snackId = String(row[snackIdCol] == null ? '' : row[snackIdCol]).trim();
+      return orderNo && snackId ? `${orderNo}|${snackId}` : '';
+    };
+    const orderKeys = new Set();
+    const archiveKeyCounts = new Map();
+    let orderRowsWithoutKey = 0;
+    let archiveRowsWithoutKey = 0;
+
+    orderRows.forEach(row => {
+      const key = keyFor(row, orderNoIndex, snackIdIndex);
+      if (key) orderKeys.add(key);
+      else orderRowsWithoutKey += 1;
+    });
+    archiveRows.forEach(row => {
+      const key = keyFor(row, archiveOrderNoIndex, archiveSnackIdIndex);
+      if (key) archiveKeyCounts.set(key, (archiveKeyCounts.get(key) || 0) + 1);
+      else archiveRowsWithoutKey += 1;
+    });
+
+    let overlapKeys = 0;
+    let archiveOnlyKeys = 0;
+    let duplicateArchiveKeys = 0;
+    const sampleDuplicateKeys = [];
+    archiveKeyCounts.forEach((count, key) => {
+      if (orderKeys.has(key)) overlapKeys += 1;
+      else archiveOnlyKeys += 1;
+      if (count > 1) {
+        duplicateArchiveKeys += 1;
+        if (sampleDuplicateKeys.length < 10) {
+          sampleDuplicateKeys.push(`${key} (${count}건)`);
+        }
+      }
+    });
+
+    let orderOnlyKeys = 0;
+    orderKeys.forEach(key => {
+      if (!archiveKeyCounts.has(key)) orderOnlyKeys += 1;
+    });
+
+    const missingInArchive = orderHeader.filter(header => header && archiveHeader.indexOf(header) === -1);
+    const extraInArchive = archiveHeader.filter(header => header && orderHeader.indexOf(header) === -1);
+
+    return {
+      success: true,
+      dryRun: true,
+      message: '보관 전 점검이 완료되었습니다. 시트는 변경되지 않았습니다.',
+      summary: {
+        orderRows: orderRows.length,
+        archiveRows: archiveRows.length,
+        orderColumns: orderHeader.length,
+        archiveColumns: archiveHeader.length,
+        headersEqual: JSON.stringify(orderHeader) === JSON.stringify(archiveHeader),
+        missingInArchive,
+        extraInArchive,
+        overlapKeys,
+        duplicateArchiveKeys,
+        archiveOnlyKeys,
+        orderOnlyKeys,
+        orderRowsWithoutKey,
+        archiveRowsWithoutKey,
+        sampleDuplicateKeys
+      }
+    };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+}
+
+/**
  * 25. 지난 주문 보관 (아카이빙) API
  */
 function archiveOldOrders(data) {
+  if (!data || data.archiveConfirm !== '주문보관확인') {
+    return {
+      success: false,
+      message: '보관 데이터 점검 후 명시적인 확인이 있어야 실행할 수 있습니다.'
+    };
+  }
+
   ensureOrderHeaders();
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(10000)) {
@@ -1132,81 +1254,156 @@ function archiveOldOrders(data) {
       return { success: false, message: '주문내역 시트를 찾을 수 없습니다.' };
     }
 
-    let archiveSheet = ss.getSheetByName(SHEET.ARCHIVE);
-    if (!archiveSheet) {
-      archiveSheet = ss.insertSheet(SHEET.ARCHIVE);
-      archiveSheet.appendRow([
-        '주문시간', '주문번호', '이용자ID', '별명', '간식ID', '간식명', '수량',
-        '차감포인트', '제공여부', 'cancelTimestamp', 'orderToken', 'deliveryType', 'deliveryFee', 'totalCredit', 'reviewed', 'deliveryAddress', 'cancelReason', 'cancelReasonDetail'
-      ]);
-    }
-
     const orderValues = orderSheet.getDataRange().getValues();
-    if (orderValues.length <= 1) {
+    if (orderValues.length === 0) {
       return {
         success: true,
         message: '보관할 지난 주문이 없습니다.'
       };
     }
 
-    const header = orderValues[0];
+    const header = orderValues[0].map(value => String(value == null ? '' : value).trim());
     const rows = orderValues.slice(1);
+    const timestampIndex = header.indexOf('주문시간');
+    const targetColumnCount = header.length;
+
+    const normalizeRow = (row) => {
+      const safeRow = [...row];
+      while (safeRow.length < targetColumnCount) safeRow.push('');
+      return safeRow.slice(0, targetColumnCount);
+    };
+
+    const getKey = (row, headerRow) => {
+      const orderNoCol = headerRow.indexOf('주문번호');
+      const snackIdCol = headerRow.indexOf('간식ID');
+      if (orderNoCol < 0 || snackIdCol < 0) return '';
+      const orderNo = String(row[orderNoCol] == null ? '' : row[orderNoCol]).trim();
+      const snackId = String(row[snackIdCol] == null ? '' : row[snackIdCol]).trim();
+      return orderNo && snackId ? `${orderNo}|${snackId}` : '';
+    };
+
+    const mapRowByHeader = (row, sourceHeader) => {
+      const sourceIndexes = {};
+      sourceHeader.forEach((name, index) => {
+        const normalizedName = String(name == null ? '' : name).trim();
+        if (normalizedName && sourceIndexes[normalizedName] === undefined) {
+          sourceIndexes[normalizedName] = index;
+        }
+      });
+      return header.map(name => {
+        const sourceIndex = sourceIndexes[name];
+        return sourceIndex === undefined ? '' : row[sourceIndex];
+      });
+    };
+
+    let archiveSheet = ss.getSheetByName(SHEET.ARCHIVE);
+    const archiveValues = archiveSheet ? archiveSheet.getDataRange().getValues() : [];
+    const archiveHeader = archiveValues.length > 0
+      ? archiveValues[0].map(value => String(value == null ? '' : value).trim())
+      : [];
+    const archiveRows = archiveValues.length > 1 ? archiveValues.slice(1) : [];
 
     // 오늘 날짜의 자정 기준 시각 구하기
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const rowsToArchive = [];
+    // 같은 주문 키가 있으면 주문내역의 최신 23열 데이터를 우선한다.
+    const archiveByKey = new Map();
+    const fallbackArchiveRows = [];
     const rowsToKeep = [header];
+    let movedOrderRows = 0;
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      const timestamp = new Date(row[0]);
+      const timestampValue = timestampIndex >= 0 ? row[timestampIndex] : '';
+      const timestamp = timestampValue instanceof Date ? new Date(timestampValue) : new Date(timestampValue);
       if (!isNaN(timestamp.getTime()) && timestamp < today) {
-        // 행의 열 개수를 18개로 맞춰 안전하게 아카이빙
-        const safeRow = [...row];
-        while (safeRow.length < 18) {
-          safeRow.push('');
+        const key = getKey(row, header);
+        if (key) {
+          archiveByKey.set(key, normalizeRow(row));
+        } else {
+          // 키가 없는 행은 중복 판단이 불가능하므로 삭제하지 않고 보관한다.
+          fallbackArchiveRows.push(normalizeRow(row));
         }
-        rowsToArchive.push(safeRow.slice(0, 18));
+        movedOrderRows += 1;
       } else {
-        rowsToKeep.push(row);
+        rowsToKeep.push(normalizeRow(row));
       }
     }
 
-    if (rowsToArchive.length === 0) {
+    // 기존 보관 시트에만 있는 행은 유지한다. 이미 주문내역에서 가져온 키는 덮어쓰지 않는다.
+    archiveRows.forEach(row => {
+      const key = getKey(row, archiveHeader);
+      if (key) {
+        if (!archiveByKey.has(key)) {
+          archiveByKey.set(key, mapRowByHeader(row, archiveHeader));
+        }
+      } else if (row.some(value => value !== '')) {
+        fallbackArchiveRows.push(mapRowByHeader(row, archiveHeader));
+      }
+    });
+
+    const rowsToArchive = [...archiveByKey.values(), ...fallbackArchiveRows];
+    if (movedOrderRows === 0 && rowsToArchive.length === 0) {
       return {
         success: true,
         message: '보관할 지난 주문이 없습니다.'
       };
     }
 
-    // 아카이브 시트에 일괄 추가 (setValues)
-    const lastRow = archiveSheet.getLastRow();
-    const colCount = 18; // 아카이브 시트의 컬럼 수
-    archiveSheet.getRange(lastRow + 1, 1, rowsToArchive.length, colCount).setValues(rowsToArchive);
-
-    // 주문내역 시트 일괄 덮어쓰기 (clearContent 후 setValues)
-    orderSheet.clearContent();
-
-    // rowsToKeep의 각 행 길이를 헤더 길이에 맞추어 안전한 setValues 실행
-    const maxCols = header.length;
-    const safeRowsToKeep = rowsToKeep.map(row => {
-      const safeRow = [...row];
-      while (safeRow.length < maxCols) {
-        safeRow.push('');
-      }
-      return safeRow.slice(0, maxCols);
+    // 쓰기 전에 최종 보관 키 중복을 확인한다.
+    const archiveKeys = new Set();
+    rowsToArchive.forEach(row => {
+      const key = getKey(row, header);
+      if (key) archiveKeys.add(key);
     });
+    if (archiveKeys.size !== rowsToArchive.filter(row => getKey(row, header)).length) {
+      return {
+        success: false,
+        message: '최종 보관 목록에서 중복 주문 키가 발견되어 작업을 중단했습니다.'
+      };
+    }
 
-    orderSheet.getRange(1, 1, safeRowsToKeep.length, maxCols).setValues(safeRowsToKeep);
+    if (!archiveSheet) {
+      archiveSheet = ss.insertSheet(SHEET.ARCHIVE);
+    }
+    if (archiveSheet.getMaxColumns() < targetColumnCount) {
+      archiveSheet.insertColumnsAfter(
+        archiveSheet.getMaxColumns(),
+        targetColumnCount - archiveSheet.getMaxColumns()
+      );
+    }
 
-    safeAppendAdminLog('archiveOldOrders', 'orders', 'archive', '지난 주문 보관', '', `${rowsToArchive.length}건 보관 완료`, memo);
+    // 기존 보관 시트를 자동 백업한 뒤에만 원본을 다시 쓴다.
+    let backupSheetName = '';
+    if (archiveSheet.getLastRow() > 0) {
+      const timeKey = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd_HHmmss');
+      backupSheetName = `${SHEET.ARCHIVE}_자동백업_${timeKey}`;
+      let suffix = 1;
+      while (ss.getSheetByName(backupSheetName)) {
+        backupSheetName = `${SHEET.ARCHIVE}_자동백업_${timeKey}_${suffix}`;
+        suffix += 1;
+      }
+      archiveSheet.copyTo(ss).setName(backupSheetName);
+    }
+
+    // 보관 시트 쓰기가 성공한 뒤에만 주문내역을 정리한다.
+    archiveSheet.clearContents();
+    archiveSheet.getRange(1, 1, 1, targetColumnCount).setValues([header]);
+    if (rowsToArchive.length > 0) {
+      archiveSheet.getRange(2, 1, rowsToArchive.length, targetColumnCount).setValues(rowsToArchive);
+    }
+
+    const safeRowsToKeep = rowsToKeep.map(normalizeRow);
+    orderSheet.clearContents();
+    orderSheet.getRange(1, 1, safeRowsToKeep.length, targetColumnCount).setValues(safeRowsToKeep);
+
+    safeAppendAdminLog('archiveOldOrders', 'orders', 'archive', '지난 주문 보관', '', `${movedOrderRows}건 보관 완료`, memo);
 
     clearOrderReadCache();
     return {
       success: true,
-      message: `${rowsToArchive.length}건의 지난 주문을 성공적으로 보관 처리했습니다.`
+      message: `${movedOrderRows}건의 지난 주문을 성공적으로 보관 처리했습니다. (보관 시트 총 ${rowsToArchive.length}건${backupSheetName ? `, 자동 백업: ${backupSheetName}` : ''})`
     };
   } catch (error) {
     return {

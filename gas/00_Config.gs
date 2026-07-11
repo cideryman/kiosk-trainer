@@ -36,6 +36,7 @@ const ADMIN_ACTIONS = [
   'updateSnacksOrder',
   // 'uploadImage', // 게스트 후기 사진 업로드를 위해 허용 (함수 내에서 개별 보안 검증 수행)
   'updateGuestSettings',
+  'auditArchiveOldOrders',
   'archiveOldOrders',
   'getReviewsForAdmin',
   'autoFillEmptySnackIds',

@@ -472,9 +472,11 @@ function getMockFallback(action, options) {
   } else if (action === 'getOrdersToday') {
     // 로컬 스토리지에 저장된 테스트용 주문 내역이 있으면 그것을 병합
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
+    const mockOrders = [...localOrders, ...MOCK_DATA.getOrdersToday.orders];
     res = {
       success: true,
-      orders: [...localOrders, ...MOCK_DATA.getOrdersToday.orders].map(o => ({ ...o, orderToken: '', reviewed: o.reviewed || false }))
+      orders: mockOrders.map(o => ({ ...o, orderToken: '', reviewed: o.reviewed || false })),
+      orderSheetRowCount: mockOrders.length
     };
   } else if (action === 'placeOrder') {
     // 주문 완료 시 로컬 스토리지에 임시 주문 추가 (관리자 화면에서 확인 가능하게)

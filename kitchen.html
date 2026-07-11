@@ -904,7 +904,8 @@
             <div class="admin-action-menu-panel">
               <button class="btn-small-action" onclick="openDiagnoseModal()" style="background-color: #4A5568; color: white; border: none;">🛠️ 운영 점검</button>
               <button class="btn-small-action" id="btn-download-csv">CSV 다운로드</button>
-              <button class="btn-small-action" id="btn-archive-old-orders" style="background-color: #4A5568; color: white; border: none;">지난 주문 보관 📁</button>
+              <button class="btn-small-action" id="btn-audit-archive" style="background-color: #4A5568; color: white; border: none;">🔎 보관 점검</button>
+              <button class="btn-small-action" id="btn-archive-old-orders" disabled title="보관 점검을 통과한 뒤 활성화됩니다." style="background-color: #4A5568; color: white; border: none;">지난 주문 보관 (점검 필요)</button>
             </div>
           </details>
         </div>
@@ -943,6 +944,9 @@
           <div class="summary-card-title">오늘 총 주문 건수</div>
           <div class="summary-card-value" id="stat-total-orders">0건</div>
         </div>
+      </div>
+      <div id="order-archive-health" class="order-archive-health" role="status" aria-live="polite" hidden>
+        <span id="order-archive-health-text"></span>
       </div>
 
       <!-- 게스트 운영 관리 패널 -->
@@ -1766,6 +1770,7 @@
         // 2. 주문 내역 데이터 처리
         if (ordersRes && ordersRes.success && Array.isArray(ordersRes.orders)) {
           currentOrders = ordersRes.orders;
+          updateOrderArchiveHealth(ordersRes.orderSheetRowCount);
           renderData(currentOrders);
         } else {
           throw new Error('주문 API 응답 결과가 올바르지 않습니다.');
@@ -2214,6 +2219,7 @@
         }
         if (ordersRes && ordersRes.success && Array.isArray(ordersRes.orders)) {
           currentOrders = ordersRes.orders;
+          updateOrderArchiveHealth(ordersRes.orderSheetRowCount);
           renderData(currentOrders);
         }
       } catch (e) {
@@ -2798,6 +2804,26 @@
       }
     }
 
+    function updateOrderArchiveHealth(rowCount) {
+      const healthEl = document.getElementById('order-archive-health');
+      const textEl = document.getElementById('order-archive-health-text');
+      if (!healthEl || !textEl) return;
+
+      const count = Number(rowCount);
+      healthEl.hidden = true;
+      healthEl.className = 'order-archive-health';
+      textEl.textContent = '';
+
+      if (!Number.isFinite(count) || count < 100) return;
+
+      const isCritical = count >= 300;
+      healthEl.hidden = false;
+      healthEl.classList.add(isCritical ? 'is-critical' : 'is-warning');
+      textEl.textContent = isCritical
+        ? `🔴 주문내역 ${count}행 - 주문보관이 필요합니다.`
+        : `⚠️ 주문내역 ${count}행 - 주문보관을 권장합니다.`;
+    }
+
     function csvCell(value) {
       const text = String(value ?? '');
       return `"${text.replace(/"/g, '""')}"`;
@@ -3195,11 +3221,79 @@
         });
       }
 
+      // 지난 주문 보관 전 읽기 전용 점검
+      let archiveAuditPassed = false;
+      const btnAuditArchive = document.getElementById('btn-audit-archive');
+      if (btnAuditArchive) {
+        btnAuditArchive.addEventListener('click', async () => {
+          archiveAuditPassed = false;
+          const btnArchiveBeforeAudit = document.getElementById('btn-archive-old-orders');
+          if (btnArchiveBeforeAudit) {
+            btnArchiveBeforeAudit.disabled = true;
+            btnArchiveBeforeAudit.textContent = '지난 주문 보관 (점검 필요)';
+          }
+          try {
+            const adminToken = getAdminToken();
+            btnAuditArchive.disabled = true;
+            btnAuditArchive.textContent = '점검 중... ⏳';
+            const res = await fetchAPI('auditArchiveOldOrders', {
+              method: 'POST',
+              body: { adminToken }
+            });
+            if (!res || !res.success) {
+              clearAdminTokenIfDenied(res);
+              alert(res?.message || '보관 점검에 실패했습니다.');
+              return;
+            }
+            const summary = res.summary || {};
+            const missing = (summary.missingInArchive || []).join(', ') || '없음';
+            const extra = (summary.extraInArchive || []).join(', ') || '없음';
+            const samples = (summary.sampleDuplicateKeys || []).join(', ') || '없음';
+            archiveAuditPassed = summary.headersEqual === true
+              && Number(summary.duplicateArchiveKeys || 0) === 0
+              && Number(summary.orderRowsWithoutKey || 0) === 0
+              && Number(summary.archiveRowsWithoutKey || 0) === 0;
+            alert([
+              '보관 전 점검 완료 (시트 변경 없음)',
+              `주문내역: ${summary.orderRows || 0}행 / ${summary.orderColumns || 0}열`,
+              `주문보관: ${summary.archiveRows || 0}행 / ${summary.archiveColumns || 0}열`,
+              `양쪽 중복 주문 키: ${summary.overlapKeys || 0}개`,
+              `보관 시트 내부 중복 키: ${summary.duplicateArchiveKeys || 0}개`,
+              `주문내역에만 있는 키: ${summary.orderOnlyKeys || 0}개`,
+              `보관 시트에만 있는 키: ${summary.archiveOnlyKeys || 0}개`,
+              `보관 시트에 없는 헤더: ${missing}`,
+              `보관 시트에만 있는 헤더: ${extra}`,
+              `중복 예시: ${samples}`,
+              `보관 실행 가능: ${archiveAuditPassed ? '예' : '아니오'}`
+            ].join('\n'));
+            if (btnArchiveBeforeAudit && archiveAuditPassed) {
+              btnArchiveBeforeAudit.disabled = false;
+              btnArchiveBeforeAudit.textContent = '지난 주문 보관 📁';
+            }
+          } catch (e) {
+            console.error(e);
+            alert(e.message || '보관 점검 중 오류가 발생했습니다.');
+          } finally {
+            btnAuditArchive.disabled = false;
+            btnAuditArchive.textContent = '🔎 보관 점검';
+            if (btnArchiveBeforeAudit && !archiveAuditPassed) {
+              btnArchiveBeforeAudit.disabled = true;
+              btnArchiveBeforeAudit.textContent = '지난 주문 보관 (점검 필요)';
+            }
+          }
+        });
+      }
+
       // 지난 주문 보관 버튼 바인딩
       const btnArchive = document.getElementById('btn-archive-old-orders');
       if (btnArchive) {
         btnArchive.addEventListener('click', async () => {
           if (!confirm('오늘 이전의 지난 모든 주문을 보관함으로 이동하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) {
+            return;
+          }
+          const archiveConfirm = prompt('실행하려면 다음 확인 문구를 그대로 입력하세요.\n주문보관확인');
+          if (archiveConfirm !== '주문보관확인') {
+            alert('확인 문구가 일치하지 않아 보관을 취소했습니다.');
             return;
           }
           try {
@@ -3212,23 +3306,26 @@
               method: 'POST',
               body: {
                 adminToken,
-                adminMemo
+                adminMemo,
+                archiveConfirm
               }
             });
             
             if (res && res.success) {
               alert(res.message || '지난 주문 보관이 완료되었습니다.');
+              archiveAuditPassed = false;
               loadAdminData(); // 데이터 새로고침
             } else {
               clearAdminTokenIfDenied(res);
               alert(res?.message || '지난 주문 보관에 실패했습니다.');
+              btnArchive.disabled = !archiveAuditPassed;
             }
           } catch (e) {
             console.error(e);
             alert(e.message || '지난 주문 보관 중 오류가 발생했습니다.');
           } finally {
-            btnArchive.disabled = false;
-            btnArchive.textContent = '지난 주문 보관 📁';
+            btnArchive.disabled = !archiveAuditPassed;
+            btnArchive.textContent = archiveAuditPassed ? '지난 주문 보관 📁' : '지난 주문 보관 (점검 필요)';
           }
         });
       }
