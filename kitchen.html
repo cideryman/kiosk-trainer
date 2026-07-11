@@ -969,7 +969,17 @@
             <div>⏰ 마감 예정: <span id="guest-ops-close-time">-</span></div>
             <div>⏳ 남은 시간: <span id="guest-ops-remaining">-</span></div>
           </div>
-          
+        </div>
+        <div class="guest-open-presets">
+          <button class="btn-small-action" id="btn-guest-open20">⏱ 20분 열기</button>
+          <button class="btn-small-action" id="btn-guest-open30">⏱ 30분 열기</button>
+          <button class="btn-small-action" id="btn-guest-open60">⏱ 1시간 열기</button>
+          <button class="btn-danger-action" id="btn-guest-close">🛑 지금 마감</button>
+        </div>
+        <button class="guest-settings-toggle" id="btn-toggle-guest-settings" type="button" aria-expanded="false" aria-controls="guest-ops-settings">
+          ⚙ 운영 설정 펼치기
+        </button>
+        <div class="guest-ops-settings-panel" id="guest-ops-settings" hidden>
           <div class="guest-ops-base-settings">
             <div class="guest-ops-setting">
               <span>기본 🪙</span>
@@ -984,8 +994,7 @@
               <input type="text" id="input-guest-delivery-place" class="admin-inline-input" value="사무실 원탁">
             </div>
           </div>
-          
-          <!-- 오늘의 배달팀 설정 추가 -->
+
           <div class="guest-team-settings">
             <div class="guest-team-header">
               <div class="guest-team-title">📦 오늘의 배달팀 설정</div>
@@ -1015,19 +1024,13 @@
               <input type="text" id="input-team-message" class="admin-inline-input" placeholder="맛있게 준비해서 배달하겠습니다!">
             </div>
           </div>
-        </div>
-        <div class="guest-open-presets">
-          <button class="btn-small-action" id="btn-guest-open20">⏱ 20분 열기</button>
-          <button class="btn-small-action" id="btn-guest-open30">⏱ 30분 열기</button>
-          <button class="btn-small-action" id="btn-guest-open60">⏱ 1시간 열기</button>
-          <button class="btn-danger-action" id="btn-guest-close">🛑 지금 마감</button>
-        </div>
-        <!-- 직접 입력 열기 추가 -->
-        <div class="guest-custom-open">
-          <span>⏱ 직접 열기:</span>
-          <input type="number" id="input-custom-minutes" class="admin-inline-input" value="10" min="1">
-          <span>분 동안</span>
-          <button class="btn-small-action" id="btn-guest-open-custom">열기</button>
+
+          <div class="guest-custom-open">
+            <span>⏱ 직접 열기:</span>
+            <input type="number" id="input-custom-minutes" class="admin-inline-input" value="10" min="1">
+            <span>분 동안</span>
+            <button class="btn-small-action" id="btn-guest-open-custom">열기</button>
+          </div>
         </div>
       </div>
 
@@ -2931,6 +2934,17 @@
       AppState.vibrate(40);
     }
 
+    function toggleGuestSettings() {
+      const panel = document.getElementById('guest-ops-settings');
+      const button = document.getElementById('btn-toggle-guest-settings');
+      if (!panel || !button) return;
+
+      const isExpanded = panel.hidden;
+      panel.hidden = !isExpanded;
+      button.setAttribute('aria-expanded', String(isExpanded));
+      button.textContent = isExpanded ? '⚙ 운영 설정 접기' : '⚙ 운영 설정 펼치기';
+    }
+
     function activateKitchenTab(tabId) {
       document.querySelectorAll('[data-kitchen-tab]').forEach((button) => {
         const isActive = button.dataset.kitchenTab === tabId;
@@ -3236,6 +3250,11 @@
         btnToggleRefresh.addEventListener('click', () => {
           toggleRefreshPause();
         });
+      }
+
+      const btnToggleGuestSettings = document.getElementById('btn-toggle-guest-settings');
+      if (btnToggleGuestSettings) {
+        btnToggleGuestSettings.addEventListener('click', toggleGuestSettings);
       }
 
       const btnDownloadCsv = document.getElementById('btn-download-csv');

@@ -1162,6 +1162,40 @@ body {
   text-align: center;
 }
 
+.guest-settings-toggle {
+  align-self: flex-start;
+  min-height: 44px;
+  margin-top: 2px;
+  padding: 0 16px;
+  color: var(--text-main);
+  background-color: #F8FAFC;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.guest-settings-toggle:hover,
+.guest-settings-toggle:focus-visible {
+  border-color: var(--secondary-color);
+  background-color: #F0FFFE;
+  outline: none;
+}
+
+.guest-ops-settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 2px;
+  padding-top: 12px;
+  border-top: 2px dashed var(--border-color);
+}
+
+.guest-ops-settings-panel[hidden] {
+  display: none;
+}
+
 /* 주방 화면 업무 탭 */
 .kitchen-content-tabs {
   display: flex;
@@ -1381,6 +1415,10 @@ body {
 
   .guest-team-header .btn-small-action {
     flex: 0 0 auto;
+  }
+
+  .guest-settings-toggle {
+    width: 100%;
   }
 
   .guest-team-meta {
