@@ -897,7 +897,7 @@
         </nav>
         <div class="admin-header-actions">
           <button class="btn-small-action" id="btnEnableSound" type="button" aria-pressed="false" title="알림음 켜기" style="min-height: 48px; background-color: #334155; color: white; border: none;">🔊 알림 켜기</button>
-          <button class="btn-small-action" onclick="openTodaySummaryModal()" style="min-height: 48px; background-color: #334155; color: white; border: none;">📊 오늘의 운영 결과</button>
+          <button class="btn-small-action" onclick="openTodaySummaryModal()" style="min-height: 48px; background-color: #334155; color: white; border: none;">📊 운영 결과</button>
           <button class="btn-small-action" onclick="window.open('print-bills.html', '_blank')" style="min-height: 48px; background-color: #334155; color: white; border: none;">🖨️ 빌지 인쇄</button>
           <details class="admin-action-menu">
             <summary>운영 도구</summary>
@@ -908,11 +908,18 @@
               <button class="btn-small-action" id="btn-archive-old-orders" disabled title="보관 점검을 통과한 뒤 활성화됩니다." style="background-color: #4A5568; color: white; border: none;">지난 주문 보관 (점검 필요)</button>
             </div>
           </details>
+          <span class="admin-toolbar-spacer" aria-hidden="true"></span>
+          <button class="admin-toolbar-lock" data-admin-toolbar-lock type="button" hidden title="관리자 잠그기" aria-label="관리자 잠그기">🔑</button>
         </div>
       </div>
     </header>
 
     <section class="admin-auth-bar" data-admin-auth aria-label="관리자 잠금 해제">
+      <div class="admin-auth-gate-visual">
+        <img class="admin-auth-gate-image" src="icons/admin-512.png" alt="관리자 안내 이미지">
+        <div class="admin-auth-gate-title">관리자 로그인</div>
+        <p class="admin-auth-gate-description">관리자 키를 입력하면 주방 운영 화면이 표시됩니다.</p>
+      </div>
       <div class="admin-auth-info">
         <span class="admin-auth-icon" data-admin-auth-icon role="img" aria-label="관리자 잠금 상태">🔒</span>
         <div>
@@ -937,11 +944,11 @@
       <!-- 상단 요약 카드 (총 매출 크레딧, 총 주문 건수) -->
       <div class="summary-grid" style="margin-bottom: 10px;">
         <div class="summary-card" style="border-left: 5px solid var(--primary-color);">
-          <div class="summary-card-title">오늘 누적 사용 크레딧</div>
-          <div class="summary-card-value" id="stat-total-points">0 크레딧</div>
+          <div class="summary-card-title">오늘 누적 크레딧</div>
+          <div class="summary-card-value" id="stat-total-points">🪙 0</div>
         </div>
         <div class="summary-card" style="border-left: 5px solid var(--secondary-color);">
-          <div class="summary-card-title">오늘 총 주문 건수</div>
+          <div class="summary-card-title">오늘 총 주문</div>
           <div class="summary-card-value" id="stat-total-orders">0건</div>
         </div>
       </div>
@@ -950,75 +957,77 @@
       </div>
 
       <!-- 게스트 운영 관리 패널 -->
-      <div id="guest-ops-panel" style="margin-bottom: 16px; background-color: var(--card-bg); border: 3px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; box-shadow: var(--shadow-sm);">
-        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 14px;">
-          <div style="font-size: 20px; font-weight: 850; color: var(--text-main);">🎫 게스트 주문 운영</div>
-          <div id="guest-ops-status-badge" style="padding: 6px 14px; border-radius: 999px; font-size: 15px; font-weight: 900; border: 2px solid #CED4DA; background-color: #F8F9FA; color: var(--text-muted);">
+      <div id="guest-ops-panel" class="guest-ops-panel">
+        <div class="guest-ops-header">
+          <div class="guest-ops-title">🎫 게스트 주문 운영</div>
+          <div id="guest-ops-status-badge" class="guest-ops-status-badge">
             로딩 중...
           </div>
         </div>
-        <div id="guest-ops-info" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; font-size: 16px; font-weight: 700; color: var(--text-muted);">
-          <div>⏰ 마감 예정: <span id="guest-ops-close-time">-</span></div>
-          <div>⏳ 남은 시간: <span id="guest-ops-remaining">-</span></div>
+        <div id="guest-ops-info" class="guest-ops-info">
+          <div class="guest-ops-status-grid">
+            <div>⏰ 마감 예정: <span id="guest-ops-close-time">-</span></div>
+            <div>⏳ 남은 시간: <span id="guest-ops-remaining">-</span></div>
+          </div>
           
-          <div style="display: flex; gap: 12px; align-items: center; margin-top: 4px; flex-wrap: wrap; font-size: 15px; font-weight: 700; color: var(--text-main);">
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span>🪙 기본 크레딧:</span>
-              <input type="number" id="input-guest-credit" class="admin-inline-input" value="10" min="0" style="width: 70px; text-align: center; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;">
+          <div class="guest-ops-base-settings">
+            <div class="guest-ops-setting">
+              <span>기본 🪙</span>
+              <input type="number" id="input-guest-credit" class="admin-inline-input" value="10" min="0">
             </div>
-            <div style="display: flex; align-items: center; gap: 6px;">
+            <div class="guest-ops-setting">
               <span>배달비:</span>
-              <input type="number" id="input-guest-fee" class="admin-inline-input" value="3" min="0" style="width: 70px; text-align: center; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;">
+              <input type="number" id="input-guest-fee" class="admin-inline-input" value="3" min="0">
             </div>
-            <div style="display: flex; align-items: center; gap: 6px;">
+            <div class="guest-ops-setting guest-ops-setting-wide">
               <span>기본 배달지:</span>
-              <input type="text" id="input-guest-delivery-place" class="admin-inline-input" value="사무실 원탁" style="width: 140px; text-align: left; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;">
+              <input type="text" id="input-guest-delivery-place" class="admin-inline-input" value="사무실 원탁">
             </div>
           </div>
           
           <!-- 오늘의 배달팀 설정 추가 -->
-          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 2px dashed var(--border-color);">
-            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-              <div style="font-size: 16px; font-weight: 800; color: var(--text-main);">📦 오늘의 배달팀 설정</div>
-              <button class="btn-small-action" onclick="saveGuestSettings()" style="background-color: var(--secondary-color); color: white; border: none; min-height: 38px;">설정 저장</button>
+          <div class="guest-team-settings">
+            <div class="guest-team-header">
+              <div class="guest-team-title">📦 오늘의 배달팀 설정</div>
+              <button class="btn-small-action" onclick="saveGuestSettings()">설정 저장</button>
             </div>
-            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 15px; font-weight: 700; color: var(--text-main);">
-              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 700;">
-                <input type="checkbox" id="input-team-enabled" style="width: 18px; height: 18px; accent-color: var(--secondary-color);"> 표시하기
+            <div class="guest-team-meta">
+              <label>
+                <input type="checkbox" id="input-team-enabled"> 표시
               </label>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <span>타이틀:</span>
-                <input type="text" id="input-team-title" class="admin-inline-input" style="width: 160px; text-align: left; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;" placeholder="📦 오늘의 배달팀">
+              <div class="guest-ops-setting guest-team-title-field">
+                <span>제목:</span>
+                <input type="text" id="input-team-title" class="admin-inline-input" placeholder="📦 오늘의 배달팀">
               </div>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; font-size: 15px; font-weight: 700; color: var(--text-main);">
-              <label style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+            <div class="guest-team-role-fields">
+              <label>
                 <span style="white-space: nowrap;">배달 담당:</span>
-                <input type="text" id="input-team-delivery-members" class="admin-inline-input" style="flex: 1; min-width: 0; text-align: left; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;" placeholder="예: 이인, 안태근">
+                <input type="text" id="input-team-delivery-members" class="admin-inline-input" placeholder="예: 이인, 안태근">
               </label>
-              <label style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+              <label>
                 <span style="white-space: nowrap;">상품 준비:</span>
-                <input type="text" id="input-team-prep-members" class="admin-inline-input" style="flex: 1; min-width: 0; text-align: left; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;" placeholder="예: 박상민, 김동환">
+                <input type="text" id="input-team-prep-members" class="admin-inline-input" placeholder="예: 박상민, 김동환">
               </label>
             </div>
-            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 15px; font-weight: 700; color: var(--text-main);">
+            <div class="guest-team-message">
               <span>한마디:</span>
-              <input type="text" id="input-team-message" class="admin-inline-input" style="flex: 1; min-width: 200px; text-align: left; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;" placeholder="맛있게 준비해서 배달하겠습니다!">
+              <input type="text" id="input-team-message" class="admin-inline-input" placeholder="맛있게 준비해서 배달하겠습니다!">
             </div>
           </div>
         </div>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px;">
-          <button class="btn-small-action" id="btn-guest-open20" style="flex: 1; min-height: 48px; font-size: 16px; background-color: #38A169; white-space: nowrap;">⏱ 20분 열기</button>
-          <button class="btn-small-action" id="btn-guest-open30" style="flex: 1; min-height: 48px; font-size: 16px; background-color: #2B6CB0; white-space: nowrap;">⏱ 30분 열기</button>
-          <button class="btn-small-action" id="btn-guest-open60" style="flex: 1; min-height: 48px; font-size: 16px; background-color: #7C3AED; color: white; border: none; white-space: nowrap;">⏱ 1시간 열기</button>
-          <button class="btn-danger-action" id="btn-guest-close" style="flex: 1; min-height: 48px; font-size: 16px; white-space: nowrap;">🛑 지금 마감</button>
+        <div class="guest-open-presets">
+          <button class="btn-small-action" id="btn-guest-open20">⏱ 20분 열기</button>
+          <button class="btn-small-action" id="btn-guest-open30">⏱ 30분 열기</button>
+          <button class="btn-small-action" id="btn-guest-open60">⏱ 1시간 열기</button>
+          <button class="btn-danger-action" id="btn-guest-close">🛑 지금 마감</button>
         </div>
         <!-- 직접 입력 열기 추가 -->
-        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 10px; border-top: 1px dashed var(--border-color); font-size: 15px; font-weight: 700; color: var(--text-main);">
-          <span>⏱ 직접 입력 열기:</span>
-          <input type="number" id="input-custom-minutes" class="admin-inline-input" value="10" min="1" style="width: 80px; text-align: center; padding: 6px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;">
+        <div class="guest-custom-open">
+          <span>⏱ 직접 열기:</span>
+          <input type="number" id="input-custom-minutes" class="admin-inline-input" value="10" min="1">
           <span>분 동안</span>
-          <button class="btn-small-action" id="btn-guest-open-custom" style="background-color: var(--secondary-color); color: white; border: none; min-height: 38px; padding: 0 16px;">열기</button>
+          <button class="btn-small-action" id="btn-guest-open-custom">열기</button>
         </div>
       </div>
 
@@ -1036,90 +1045,90 @@
         </div>
       </section>
 
-      <!-- 탭 메뉴 제거됨 (단일 페이지 화면) -->
+      <!-- 주방 업무 탭 -->
+      <nav class="kitchen-content-tabs" role="tablist" aria-label="주방 업무 구분">
+        <button class="kitchen-content-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="tab-orders" data-kitchen-tab="tab-orders">📋 주문</button>
+        <button class="kitchen-content-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-stats" data-kitchen-tab="tab-stats">📊 통계</button>
+        <button class="kitchen-content-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-stock" data-kitchen-tab="tab-stock">📦 재고</button>
+      </nav>
 
-      <!-- Tab 1: 주문 처리 현황 -->
-      <div id="tab-orders" class="admin-tab-content active">
-        <!-- 양단 레이아웃 (PC에서는 2열, 모바일은 1열 종종배치) -->
-        <div class="admin-layout">
-          <!-- 메인: 주문 상세 및 대시보드 제어 -->
-          <div class="admin-main">
-            <!-- 미제공 간식 총량 집계 보드 -->
-            <div class="admin-summary-board" id="admin-summary-board" style="display: none; margin-bottom: 20px;">
+      <!-- 주문 탭: 대기 주문과 제공 완료 목록 -->
+      <section id="tab-orders" class="kitchen-tab-panel is-active" role="tabpanel">
+        <div class="kitchen-order-content">
+          <!-- 미제공 간식 총량 집계 보드 -->
+          <div class="admin-summary-board" id="admin-summary-board" style="display: none; margin-bottom: 20px;">
+            <!-- JS 동적 생성 -->
+          </div>
+
+          <!-- 대기 중인 주문 카드 목록 -->
+          <div style="margin-bottom: 25px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 10px;">
+              <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color); margin-bottom: 0;">⏳ 간식 챙겨주기 (제공 대기)</div>
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <label for="delivery-filter" style="font-size: 15px; font-weight: 800; color: var(--text-muted);">수령방식:</label>
+                <select id="delivery-filter" onchange="filterDeliveryOrders()" style="padding: 6px 12px; font-size: 15px; font-weight: 700; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;">
+                  <option value="all">전체보기</option>
+                  <option value="pickup">포장만 보기</option>
+                  <option value="delivery">배달만 보기</option>
+                </select>
+              </div>
+            </div>
+            <div id="pending-orders-group" class="pending-group-container">
               <!-- JS 동적 생성 -->
-            </div>
-
-            <!-- 대기 중인 주문 카드 목록 -->
-            <div style="margin-bottom: 25px;">
-              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 10px;">
-                <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color); margin-bottom: 0;">⏳ 간식 챙겨주기 (제공 대기)</div>
-                <div style="display: flex; gap: 6px; align-items: center;">
-                  <label for="delivery-filter" style="font-size: 15px; font-weight: 800; color: var(--text-muted);">수령방식:</label>
-                  <select id="delivery-filter" onchange="filterDeliveryOrders()" style="padding: 6px 12px; font-size: 15px; font-weight: 700; border: 2px solid var(--border-color); border-radius: var(--radius-sm); outline: none;">
-                    <option value="all">전체보기</option>
-                    <option value="pickup">포장만 보기</option>
-                    <option value="delivery">배달만 보기</option>
-                  </select>
-                </div>
-              </div>
-              <div id="pending-orders-group" class="pending-group-container">
-                <!-- JS 동적 생성 -->
-              </div>
-            </div>
-
-            <!-- 제공 완료 목록 -->
-            <div>
-              <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color);">✅ 제공 완료 목록 (오늘)</div>
-              <div class="table-responsive">
-                <table class="admin-table">
-                  <thead>
-                    <tr>
-                      <th>주문 시간</th>
-                      <th>이용자</th>
-                      <th>간식명</th>
-                      <th style="text-align: center;">수량</th>
-                      <th style="text-align: right;">사용포인트</th>
-                      <th style="text-align: center;">작업</th>
-                    </tr>
-                  </thead>
-                  <tbody id="order-table-body">
-                    <!-- JS 동적 생성 -->
-                  </tbody>
-                </table>
-              </div>
             </div>
           </div>
 
-          <!-- 사이드: 집계 정보 -->
-          <div class="admin-side">
-            <!-- 1. 간식별 집계 -->
-            <div>
-              <div class="admin-section-title">간식별 집계 (인기순)</div>
-              <div class="stat-list" id="snack-stats">
-                <!-- JS 동적 생성 -->
-              </div>
-            </div>
-
-            <!-- 2. 이용자별 집계 -->
-            <div style="margin-top: 10px;">
-              <div class="admin-section-title">이용자별 주문 건수</div>
-              <div class="stat-list" id="user-stats">
-                <!-- JS 동적 생성 -->
-              </div>
-            </div>
-
-            <!-- 3. 현재 간식 재고 현황 -->
-            <div style="margin-top: 20px;">
-              <div class="admin-section-title">현재 간식 재고 현황</div>
-              <div class="stat-list" id="snack-stock-list">
-                <!-- JS 동적 생성 -->
-              </div>
+          <!-- 제공 완료 목록 -->
+          <div>
+            <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color);">✅ 제공 완료 목록 (오늘)</div>
+            <div class="table-responsive">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>주문 시간</th>
+                    <th>이용자</th>
+                    <th>간식명</th>
+                    <th style="text-align: center;">수량</th>
+                    <th style="text-align: right;">사용포인트</th>
+                    <th style="text-align: center;">작업</th>
+                  </tr>
+                </thead>
+                <tbody id="order-table-body">
+                  <!-- JS 동적 생성 -->
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- 기타 탭 제거됨 -->
+      <!-- 통계 탭 -->
+      <section id="tab-stats" class="kitchen-tab-panel" role="tabpanel" hidden>
+        <div class="kitchen-stats-grid">
+          <section class="kitchen-data-section">
+            <div class="admin-section-title">간식별 집계 (인기순)</div>
+            <div class="stat-list" id="snack-stats">
+              <!-- JS 동적 생성 -->
+            </div>
+          </section>
+          <section class="kitchen-data-section">
+            <div class="admin-section-title">이용자별 주문 건수</div>
+            <div class="stat-list" id="user-stats">
+              <!-- JS 동적 생성 -->
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- 재고 탭 -->
+      <section id="tab-stock" class="kitchen-tab-panel" role="tabpanel" hidden>
+        <section class="kitchen-data-section">
+          <div class="admin-section-title">현재 간식 재고 현황</div>
+          <div class="stat-list" id="snack-stock-list">
+            <!-- JS 동적 생성 -->
+          </div>
+        </section>
+      </section>
 
     </main>
 
@@ -2763,7 +2772,7 @@
         }
       });
 
-      document.getElementById('stat-total-points').textContent = AppState.formatPoint(totalPoints);
+      document.getElementById('stat-total-points').textContent = `🪙 ${totalPoints}`;
 
       // 오늘 총 주문 건수: 중복되지 않은 고유 orderNo의 총 개수 (취소된 주문 제외 활성 주문 기준)
       const uniqueOrderNos = new Set(activeOrders.map(o => o.orderNo));
@@ -2920,6 +2929,20 @@
       }
       resetRefreshTimer();
       AppState.vibrate(40);
+    }
+
+    function activateKitchenTab(tabId) {
+      document.querySelectorAll('[data-kitchen-tab]').forEach((button) => {
+        const isActive = button.dataset.kitchenTab === tabId;
+        button.classList.toggle('is-active', isActive);
+        button.setAttribute('aria-selected', String(isActive));
+      });
+
+      document.querySelectorAll('.kitchen-tab-panel').forEach((panel) => {
+        const isActive = panel.id === tabId;
+        panel.hidden = !isActive;
+        panel.classList.toggle('is-active', isActive);
+      });
     }
 
     // 주문 운영 화면에서는 이용자/간식 추가 및 수정 모달을 사용하지 않습니다.
@@ -3191,11 +3214,12 @@
         onUnlock: () => {
           loadAdminData();
           loadGuestOpsPanel();
+        },
+        onLock: (options = {}) => {
+          if (options.reload !== false) window.location.reload();
         }
       });
       updateAdminTokenStatus();
-      loadAdminData();
-      loadGuestOpsPanel();
 
       // 수동 새로고침 버튼
       const btnManualRefresh = document.getElementById('btn-manual-refresh');
@@ -3381,6 +3405,12 @@
         btnEnableSound.addEventListener('click', toggleNewOrderSound);
         updateSoundToggleButton();
       }
+
+      document.querySelectorAll('[data-kitchen-tab]').forEach((button) => {
+        button.addEventListener('click', () => {
+          activateKitchenTab(button.dataset.kitchenTab);
+        });
+      });
     });
   </script>
 </body>

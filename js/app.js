@@ -492,11 +492,19 @@ const AdminAuth = {
       lockButton.dataset.bound = 'true';
       lockButton.addEventListener('click', () => this.lock());
     }
+    document.querySelectorAll('[data-admin-toolbar-lock]').forEach(button => {
+      if (button.dataset.bound) return;
+      button.dataset.bound = 'true';
+      button.addEventListener('click', () => this.lock());
+    });
 
     if (typeof USE_MOCK !== 'undefined' && USE_MOCK && !this.getToken()) {
       sessionStorage.setItem(this.storageKey, 'mock-admin-token');
     }
     this.render();
+    if (this.isUnlocked() && typeof this.options.onUnlock === 'function') {
+      this.options.onUnlock();
+    }
   },
 
   getToken() {
@@ -574,7 +582,7 @@ const AdminAuth = {
     this.setError(options.message || '');
     if (options.focus) this.focus(options.message || '관리자 키를 다시 입력해 주세요.');
     if (typeof this.options.onLock === 'function') {
-      this.options.onLock();
+      this.options.onLock(options);
     }
   },
 
@@ -583,7 +591,8 @@ const AdminAuth = {
     if (!message.includes('관리자 권한') && !message.includes('권한')) return false;
     this.lock({
       message: '관리자 키가 만료되었거나 일치하지 않습니다.',
-      focus: true
+      focus: true,
+      reload: false
     });
     return true;
   },
@@ -613,12 +622,18 @@ const AdminAuth = {
     const icon = this.root.querySelector('[data-admin-auth-icon]');
 
     this.root.classList.toggle('is-unlocked', unlocked);
+    this.root.classList.toggle('is-gate', !unlocked);
+    document.body.classList.toggle('admin-auth-locked', !unlocked);
+    document.body.classList.toggle('admin-auth-unlocked', unlocked);
     if (icon) {
       icon.textContent = unlocked ? '🔓' : '🔒';
       icon.setAttribute('aria-label', unlocked ? '관리자 잠금 해제됨' : '관리자 잠금 상태');
     }
     if (form) form.hidden = unlocked;
     if (lockButton) lockButton.hidden = !unlocked;
+    document.querySelectorAll('[data-admin-toolbar-lock]').forEach(button => {
+      button.hidden = !unlocked;
+    });
     if (status) {
       status.textContent = unlocked
         ? '관리자 권한 사용 중'

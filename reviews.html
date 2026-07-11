@@ -914,14 +914,21 @@
           <a class="admin-external-link board" href="board.html" target="_blank" rel="noopener" title="전광판 열기">🖥️ 전광판</a>
         </nav>
         <div class="admin-header-actions">
+          <span class="admin-toolbar-spacer" aria-hidden="true"></span>
           <button class="btn btn-primary" id="btn-manual-refresh" style="min-height: 48px; font-size: 16px; width: auto; padding: 0 16px; margin: 0;">
             🔄 새로고침
           </button>
+          <button class="admin-toolbar-lock" data-admin-toolbar-lock type="button" hidden title="관리자 잠그기" aria-label="관리자 잠그기">🔑</button>
         </div>
       </div>
     </header>
 
     <section class="admin-auth-bar" data-admin-auth aria-label="관리자 잠금 해제">
+      <div class="admin-auth-gate-visual">
+        <img class="admin-auth-gate-image" src="icons/admin-512.png" alt="관리자 안내 이미지">
+        <div class="admin-auth-gate-title">관리자 로그인</div>
+        <p class="admin-auth-gate-description">관리자 키를 입력하면 후기 관리 화면이 표시됩니다.</p>
+      </div>
       <div class="admin-auth-info">
         <span class="admin-auth-icon" data-admin-auth-icon role="img" aria-label="관리자 잠금 상태">🔒</span>
         <div>
@@ -960,6 +967,9 @@
             </div>
             <div id="review-cards-container" class="reviews-card-grid">
               <!-- JS 동적 생성 -->
+            </div>
+            <div class="reviews-load-more-wrap">
+              <button class="btn btn-gray reviews-load-more" id="btn-load-more-reviews" type="button" hidden>후기 더 보기</button>
             </div>
           </div>
         </div>
@@ -1037,28 +1047,44 @@
       }
     }
 
+    const REVIEWS_PAGE_SIZE = 20;
+    let visibleReviewCount = REVIEWS_PAGE_SIZE;
+
+    function updateReviewLoadMoreButton(totalVisibleReviews) {
+      const button = document.getElementById('btn-load-more-reviews');
+      if (!button) return;
+
+      const remainingCount = Math.max(0, totalVisibleReviews - visibleReviewCount);
+      button.hidden = remainingCount === 0;
+      if (remainingCount > 0) {
+        button.textContent = `후기 더 보기 (${Math.min(REVIEWS_PAGE_SIZE, remainingCount)}개)`;
+      }
+    }
+
     function renderReviews(reviews) {
       const container = document.getElementById('review-cards-container');
       if (!container) return;
 
+      cachedReviews = reviews;
       container.innerHTML = '';
 
       if (reviews.length === 0) {
         container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1; width: 100%; padding: 40px 0;">등록된 후기가 없습니다.</div>';
+        updateReviewLoadMoreButton(0);
         return;
       }
 
-      cachedReviews = reviews;
-
       const showPrivate = document.getElementById('toggle-private-reviews')?.checked;
-      let renderedCount = 0;
+      const filteredReviews = reviews
+        .map((review, index) => ({ review, index }))
+        .filter(({ review }) => {
+          const isPub = review.isPublic === true || String(review.isPublic).toUpperCase() === 'TRUE' || review.isPublic === 'Y';
+          return isPub || showPrivate;
+        });
+      const visibleReviews = filteredReviews.slice(0, visibleReviewCount);
 
-      reviews.forEach((review, index) => {
+      visibleReviews.forEach(({ review, index }) => {
         const isPub = review.isPublic === true || String(review.isPublic).toUpperCase() === 'TRUE' || review.isPublic === 'Y';
-        if (!isPub && !showPrivate) {
-          return;
-        }
-        renderedCount++;
         
         const pubLabel = isPub ? '공개' : '비공개';
         const pubClass = isPub ? 'active' : 'inactive';
@@ -1132,7 +1158,8 @@
         container.appendChild(card);
       });
 
-      if (renderedCount === 0) {
+      updateReviewLoadMoreButton(filteredReviews.length);
+      if (visibleReviews.length === 0) {
         container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1; width: 100%; padding: 40px 0;">표시할 후기가 없습니다. (숨김 보기를 체크해보세요)</div>';
       }
     }
@@ -1144,10 +1171,12 @@
     // 초기 이벤트 설정
     window.addEventListener('DOMContentLoaded', () => {
       AdminAuth.init({
-        onUnlock: () => loadAdminData()
+        onUnlock: () => loadAdminData(),
+        onLock: (options = {}) => {
+          if (options.reload !== false) window.location.reload();
+        }
       });
       updateAdminTokenStatus();
-      loadAdminData();
 
       const btnManualRefresh = document.getElementById('btn-manual-refresh');
       if (btnManualRefresh) {
@@ -1161,6 +1190,15 @@
       const togglePrivateReviews = document.getElementById('toggle-private-reviews');
       if (togglePrivateReviews) {
         togglePrivateReviews.addEventListener('change', () => {
+          renderReviews(cachedReviews);
+          AppState.vibrate(30);
+        });
+      }
+
+      const btnLoadMoreReviews = document.getElementById('btn-load-more-reviews');
+      if (btnLoadMoreReviews) {
+        btnLoadMoreReviews.addEventListener('click', () => {
+          visibleReviewCount += REVIEWS_PAGE_SIZE;
           renderReviews(cachedReviews);
           AppState.vibrate(30);
         });

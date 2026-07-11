@@ -1068,11 +1068,17 @@
           <button class="btn btn-primary" id="btn-manual-refresh" style="min-height: 48px; font-size: 16px; width: auto; padding: 0 16px; margin: 0;">
             🔄 새로고침
           </button>
+          <button class="admin-toolbar-lock" data-admin-toolbar-lock type="button" hidden title="관리자 잠그기" aria-label="관리자 잠그기">🔑</button>
         </div>
       </div>
     </header>
 
     <section class="admin-auth-bar" data-admin-auth aria-label="관리자 잠금 해제">
+      <div class="admin-auth-gate-visual">
+        <img class="admin-auth-gate-image" src="icons/admin-512.png" alt="관리자 안내 이미지">
+        <div class="admin-auth-gate-title">관리자 로그인</div>
+        <p class="admin-auth-gate-description">관리자 키를 입력하면 관리 화면이 표시됩니다.</p>
+      </div>
       <div class="admin-auth-info">
         <span class="admin-auth-icon" data-admin-auth-icon role="img" aria-label="관리자 잠금 상태">🔒</span>
         <div>
@@ -3083,14 +3089,12 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       AdminAuth.init({
-        onUnlock: () => {
-          loadAdminData();
-          loadGuestOpsPanel();
+        onUnlock: () => loadAdminData(),
+        onLock: (options = {}) => {
+          if (options.reload !== false) window.location.reload();
         }
       });
       updateAdminTokenStatus();
-      loadAdminData();
-      loadGuestOpsPanel();
 
       // 수동 새로고침 버튼
       const btnManualRefresh = document.getElementById('btn-manual-refresh');
