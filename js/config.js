@@ -87,7 +87,7 @@ let MOCK_GUEST_APPLICATIONS = [
     relationType: 'VOLUNTEER',
     relationDetail: '',
     phone: '01012345678',
-    deliveryPlace: '복지관 2층 사무실',
+    deliveryPlace: '원당로 OO반점',
     deliveryDetail: '도착하면 담당자에게 알려주세요.',
     preferredDays: '수요일, 금요일',
     message: '오후 운영일을 선호합니다.',

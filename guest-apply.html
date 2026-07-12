@@ -424,6 +424,8 @@
       .step::before { position: absolute; left: -18px; top: 0; margin: 0; }
       .operation-row { grid-template-columns: 105px minmax(0, 1fr); }
       .application-form { padding: 18px; }
+      .day-options { gap: 6px; }
+      .day-option span { padding: 7px 8px; font-size: 13px; white-space: nowrap; }
     }
 
     @media (max-width: 340px) {
@@ -433,7 +435,7 @@
         padding: 0 8px;
       }
       .operation-row { grid-template-columns: 1fr; gap: 4px; }
-      .day-option span { padding-inline: 10px; }
+      .day-option span { padding-inline: 6px; font-size: 12px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -586,7 +588,7 @@
           </div>
           <div class="form-field">
             <label for="applicant-place">배달받을 장소 <span class="required">필수</span></label>
-            <input id="applicant-place" name="deliveryPlace" type="text" maxlength="80" autocomplete="off" placeholder="예: 복지관 2층 사무실" required>
+            <input id="applicant-place" name="deliveryPlace" type="text" maxlength="80" autocomplete="off" placeholder="예: 원당로 OO반점" required>
           </div>
           <div class="form-field full">
             <label for="applicant-delivery-detail">상세 위치 또는 전달 방법</label>
