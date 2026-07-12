@@ -1,0 +1,29 @@
+name: Handoff check
+
+on:
+  push:
+    paths:
+      - handoff.md
+      - docs/handoff/**
+      - gas/12_GuestApplications.gs
+      - service-worker.js
+      - scripts/check-handoff.js
+      - .github/workflows/handoff-check.yml
+  pull_request:
+    paths:
+      - handoff.md
+      - docs/handoff/**
+      - gas/12_GuestApplications.gs
+      - service-worker.js
+      - scripts/check-handoff.js
+      - .github/workflows/handoff-check.yml
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/check-handoff.js
