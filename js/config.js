@@ -5,6 +5,8 @@ const API_URL = "https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2lj
 const GUEST_DEFAULT_CREDIT = 10;
 const GUEST_DELIVERY_FEE = 3;
 const GUEST_ORDER_COMPLETION_GRACE_MINUTES = 5;
+const ADMIN_MAX_USER_CREDIT = 15;
+const ADMIN_MAX_SNACK_STOCK = 30;
 
 // 로컬 테스트용 Mock 데이터 강제 사용 여부
 // - 주의: 테스트 시에는 true, 실제 운영 배포 시에는 false로 설정해야 합니다.
@@ -30,7 +32,7 @@ const MOCK_DATA = {
       { userId: "user001", nickname: "이니", credit: 10, useYn: "Y", imageUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" },
       { userId: "user002", nickname: "준이", credit: 15, useYn: "Y", imageUrl: "" },
       { userId: "user003", nickname: "민이", credit: 8, useYn: "Y", imageUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80" },
-      { userId: "user004", nickname: "후니", credit: 20, useYn: "Y", imageUrl: "" },
+      { userId: "user004", nickname: "후니", credit: 15, useYn: "Y", imageUrl: "" },
       { userId: "user005", nickname: "수지", credit: 12, useYn: "Y", imageUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80" },
       { userId: "user006", nickname: "영이", credit: 5, useYn: "Y", imageUrl: "" }
     ]
@@ -707,6 +709,9 @@ function getMockFallback(action, options) {
   } else if (action === 'updateUserCredit') {
     const userId = options.body?.userId;
     const credit = Number(options.body?.credit || 0);
+    if (!Number.isFinite(credit) || credit < 0 || credit > ADMIN_MAX_USER_CREDIT) {
+      res = { success: false, message: `이용자 크레딧은 0~${ADMIN_MAX_USER_CREDIT} 범위로 입력해 주세요.` };
+    } else {
     const users = MOCK_DATA.getUsers.users;
     const user = users.find(u => String(u.userId) === String(userId));
     if (user) {
@@ -722,11 +727,15 @@ function getMockFallback(action, options) {
       success: true,
       message: "크레딧을 업데이트했습니다."
     };
+    }
   } else if (action === 'addUser') {
     const nickname = options.body?.nickname || "새 이용자";
     const credit = Number(options.body?.credit || 0);
     const imageUrl = options.body?.imageUrl || "";
     const useYn = options.body?.useYn || "Y";
+    if (!Number.isFinite(credit) || credit < 0 || credit > ADMIN_MAX_USER_CREDIT) {
+      res = { success: false, message: `이용자 크레딧은 0~${ADMIN_MAX_USER_CREDIT} 범위로 입력해 주세요.` };
+    } else {
     const users = MOCK_DATA.getUsers.users;
     const maxId = users.reduce((max, u) => {
       const match = String(u.userId || '').match(/(\d+)$/);
@@ -747,6 +756,7 @@ function getMockFallback(action, options) {
       message: "신규 이용자를 등록했습니다.",
       userId: newUserId
     };
+    }
   } else if (action === 'updateUserActive') {
     const userId = options.body?.userId;
     const useYn = String(options.body?.useYn || 'N').toUpperCase() === 'Y' ? 'Y' : 'N';
@@ -765,6 +775,9 @@ function getMockFallback(action, options) {
   } else if (action === 'updateSnackStock') {
     const snackId = Number(options.body?.snackId);
     const stock = Number(options.body?.stock || 0);
+    if (!Number.isFinite(stock) || stock < 0 || stock > ADMIN_MAX_SNACK_STOCK) {
+      res = { success: false, message: `간식 재고는 0~${ADMIN_MAX_SNACK_STOCK} 범위로 입력해 주세요.` };
+    } else {
     const snacks = getMockSnacks();
     const snack = snacks.find(s => s.snackId === snackId);
     if (snack) {
@@ -776,6 +789,7 @@ function getMockFallback(action, options) {
       success: true,
       message: "재고를 업데이트했습니다."
     };
+    }
   } else if (action === 'updateSnackSale') {
     const snackId = Number(options.body?.snackId);
     const saleYn = String(options.body?.saleYn || 'N').toUpperCase() === 'Y' ? 'Y' : 'N';
@@ -800,6 +814,9 @@ function getMockFallback(action, options) {
     const saleYn = options.body?.saleYn || "Y";
     const target = options.body?.target || "user";
     const snacks = getMockSnacks();
+    if (!Number.isFinite(stock) || stock < 0 || stock > ADMIN_MAX_SNACK_STOCK) {
+      res = { success: false, message: `간식 재고는 0~${ADMIN_MAX_SNACK_STOCK} 범위로 입력해 주세요.` };
+    } else {
     const maxId = snacks.reduce((max, s) => s.snackId > max ? s.snackId : max, 0);
     const newSnackId = maxId + 1;
     const newSnack = {
@@ -819,6 +836,7 @@ function getMockFallback(action, options) {
       message: "신규 간식을 등록했습니다.",
       snackId: newSnackId
     };
+    }
   } else if (action === 'updateSnack') {
     const snackId = Number(options.body?.snackId);
     const name = options.body?.name;
@@ -829,7 +847,9 @@ function getMockFallback(action, options) {
     const target = options.body?.target || 'user';
     const snacks = getMockSnacks();
     const snack = snacks.find(s => s.snackId === snackId);
-    if (snack) {
+    if (!Number.isFinite(stock) || stock < 0 || stock > ADMIN_MAX_SNACK_STOCK) {
+      res = { success: false, message: `간식 재고는 0~${ADMIN_MAX_SNACK_STOCK} 범위로 입력해 주세요.` };
+    } else if (snack) {
       appendMockAdminLog('updateSnack', 'snack', snackId, name, 
         JSON.stringify({ name: snack.name, point: snack.point, imageUrl: snack.imageUrl, saleYn: snack.saleYn, stock: snack.stock, target: snack.target }),
         JSON.stringify({ name, point, imageUrl, saleYn, stock, target }), 
@@ -856,7 +876,9 @@ function getMockFallback(action, options) {
     const useYn = options.body?.useYn || 'Y';
     const users = MOCK_DATA.getUsers.users;
     const user = users.find(u => String(u.userId) === String(userId));
-    if (user) {
+    if (!Number.isFinite(credit) || credit < 0 || credit > ADMIN_MAX_USER_CREDIT) {
+      res = { success: false, message: `이용자 크레딧은 0~${ADMIN_MAX_USER_CREDIT} 범위로 입력해 주세요.` };
+    } else if (user) {
       appendMockAdminLog('updateUser', 'user', userId, nickname,
         JSON.stringify({ nickname: user.nickname, credit: user.credit, imageUrl: user.imageUrl, useYn: user.useYn }),
         JSON.stringify({ nickname, credit, imageUrl, useYn }),

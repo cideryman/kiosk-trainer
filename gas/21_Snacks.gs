@@ -122,6 +122,10 @@ function updateSnackStock(data) {
   var snackId = Number(data.snackId);
   var newStock = Number(data.stock);
 
+  if (!isFinite(newStock) || newStock < 0 || newStock > ADMIN_MAX_SNACK_STOCK) {
+    return { success: false, message: '간식 재고는 0~' + ADMIN_MAX_SNACK_STOCK + ' 범위로 입력해 주세요.' };
+  }
+
   for (var i = 1; i < rows.length; i++) {
     if (Number(rows[i][0]) === snackId) {
       var beforeStock = Number(rows[i][5] || 0);
@@ -171,6 +175,11 @@ function addSnack(data) {
   var newSnackId = maxId + 1;
   var rawTarget = String(data.target || 'user').trim().toLowerCase();
   var target = rawTarget === 'guest' ? 'guest' : 'user';
+  var initialStock = Number(data.stock || 0);
+
+  if (!isFinite(initialStock) || initialStock < 0 || initialStock > ADMIN_MAX_SNACK_STOCK) {
+    return { success: false, message: '간식 재고는 0~' + ADMIN_MAX_SNACK_STOCK + ' 범위로 입력해 주세요.' };
+  }
 
   var newRow = [
     newSnackId,
@@ -178,13 +187,13 @@ function addSnack(data) {
     Number(data.point || 1),
     data.imageUrl || "",
     data.saleYn || "Y",
-    Number(data.stock || 0),
+    initialStock,
     0, // displayOrder
     target
   ];
 
   sheet.appendRow(newRow);
-  safeAppendAdminLog('addSnack', 'snack', newSnackId, data.name, '', JSON.stringify({ point: Number(data.point || 1), saleYn: data.saleYn || 'Y', stock: Number(data.stock || 0), target: target }), data.adminMemo);
+  safeAppendAdminLog('addSnack', 'snack', newSnackId, data.name, '', JSON.stringify({ point: Number(data.point || 1), saleYn: data.saleYn || 'Y', stock: initialStock, target: target }), data.adminMemo);
   clearSnackReadCache();
   return { success: true, message: '신규 간식을 등록했습니다.', snackId: newSnackId };
 }
@@ -209,6 +218,9 @@ function updateSnack(data) {
   }
   if (!name) {
     return { success: false, message: '간식 이름이 필요합니다.' };
+  }
+  if (!isFinite(stock) || stock < 0 || stock > ADMIN_MAX_SNACK_STOCK) {
+    return { success: false, message: '간식 재고는 0~' + ADMIN_MAX_SNACK_STOCK + ' 범위로 입력해 주세요.' };
   }
 
   for (var i = 1; i < rows.length; i++) {

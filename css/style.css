@@ -2468,15 +2468,21 @@ body.admin-auth-locked .kiosk-container > *:not(.admin-auth-bar) {
 }
 
 .admin-toolbar-lock {
-  min-width: 48px;
+  min-width: 88px;
   min-height: 48px;
   padding: 0 12px;
   border: none;
   border-radius: var(--radius-sm);
   background-color: #334155;
   color: white;
-  font-size: 21px;
+  font-size: 16px;
+  font-weight: 800;
   line-height: 1;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
 }
@@ -2488,7 +2494,7 @@ body.admin-auth-locked .kiosk-container > *:not(.admin-auth-bar) {
   outline-offset: 2px;
 }
 
-.admin-toolbar-spacer {
+  .admin-toolbar-spacer {
   display: none;
 }
 
@@ -2620,6 +2626,14 @@ body.admin-auth-locked .kiosk-container > *:not(.admin-auth-bar) {
     flex-wrap: nowrap;
     gap: 8px;
     padding: 8px 12px;
+  }
+
+  .admin-toolbar-lock {
+    min-width: 0;
+    padding-left: 5px;
+    padding-right: 5px;
+    font-size: 13px;
+    gap: 2px;
   }
 
   .admin-auth-info {

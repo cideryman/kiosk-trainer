@@ -46,6 +46,10 @@ function updateUserCredit(data) {
   var userId = data.userId;
   var newCredit = Number(data.credit);
 
+  if (!isFinite(newCredit) || newCredit < 0 || newCredit > ADMIN_MAX_USER_CREDIT) {
+    return { success: false, message: '이용자 크레딧은 0~' + ADMIN_MAX_USER_CREDIT + ' 범위로 입력해 주세요.' };
+  }
+
   for (var i = 1; i < rows.length; i++) {
     if (String(rows[i][0]) === String(userId)) {
       var beforeCredit = Number(rows[i][2] || 0);
@@ -68,6 +72,10 @@ function addUser(data) {
   if (!nickname) {
     return { success: false, message: '이용자 별명이 필요합니다.' };
   }
+  var initialCredit = Number(data.credit || 0);
+  if (!isFinite(initialCredit) || initialCredit < 0 || initialCredit > ADMIN_MAX_USER_CREDIT) {
+    return { success: false, message: '이용자 크레딧은 0~' + ADMIN_MAX_USER_CREDIT + ' 범위로 입력해 주세요.' };
+  }
 
   var maxNumber = 0;
   for (var i = 1; i < rows.length; i++) {
@@ -83,11 +91,11 @@ function addUser(data) {
   sheet.appendRow([
     newUserId,
     nickname,
-    Number(data.credit || 0),
+    initialCredit,
     data.useYn || 'Y',
     data.imageUrl || ''
   ]);
-  safeAppendAdminLog('addUser', 'user', newUserId, nickname, '', JSON.stringify({ credit: Number(data.credit || 0), useYn: data.useYn || 'Y' }), data.adminMemo);
+  safeAppendAdminLog('addUser', 'user', newUserId, nickname, '', JSON.stringify({ credit: initialCredit, useYn: data.useYn || 'Y' }), data.adminMemo);
 
   return {
     success: true,
@@ -135,6 +143,9 @@ function updateUser(data) {
   }
   if (!nickname) {
     return { success: false, message: '이용자 별명이 필요합니다.' };
+  }
+  if (!isFinite(credit) || credit < 0 || credit > ADMIN_MAX_USER_CREDIT) {
+    return { success: false, message: '이용자 크레딧은 0~' + ADMIN_MAX_USER_CREDIT + ' 범위로 입력해 주세요.' };
   }
 
   for (var i = 1; i < rows.length; i++) {

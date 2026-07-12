@@ -86,40 +86,7 @@
       display: block;
     }
 
-    /* 관리자 조절 버튼 및 입력창 스타일 */
-    .credit-adjust-btn {
-      padding: 6px 12px;
-      font-size: 16px;
-      font-weight: 800;
-      border: 2px solid var(--border-color);
-      background-color: #F8F9FA;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      transition: all 0.15s ease-in-out;
-    }
-    .credit-adjust-btn:active {
-      transform: scale(0.95);
-      background-color: #CBD5E1;
-    }
-    .credit-adjust-btn.plus {
-      background-color: #E6FFFA;
-      border-color: #81E6D9;
-      color: #234E52;
-    }
-    .credit-adjust-btn.minus {
-      background-color: #FFF5F5;
-      border-color: #FEB2B2;
-      color: #742A2A;
-    }
-    .admin-inline-input {
-      width: 60px;
-      padding: 6px;
-      font-size: 16px;
-      font-weight: 700;
-      text-align: center;
-      border: 2px solid var(--border-color);
-      border-radius: var(--radius-sm);
-    }
+    /* 관리자 인라인 게이지 편집 스타일 */
     .btn-small-action {
       padding: 6px 12px;
       font-size: 14px;
@@ -148,6 +115,19 @@
     .btn-danger-action:active {
       transform: scale(0.95);
       background-color: #FED7D7;
+    }
+    .admin-row-action {
+      box-sizing: border-box;
+      min-height: 34px;
+      padding: 5px 8px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+    .admin-row-action.btn-small-action {
+      border: 2px solid transparent;
     }
 
     .form-panel {
@@ -613,12 +593,21 @@
       border: 1.5px solid var(--border-color); background-color: #F8F9FA;
       font-size: 16px; font-weight: 800; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
+      touch-action: manipulation;
       transition: background-color 0.1s;
     }
     .snack-order-btn:hover { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
     .snack-order-btn:active { transform: scale(0.9); }
+    .snack-order-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+    .snack-order-btn:disabled:hover { background-color: #F8F9FA; color: inherit; border-color: var(--border-color); }
     .snack-order-badge { font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 999px; border: 1.5px solid; flex-shrink: 0; }
     .snack-order-badge.hidden-badge { color: #744210; background-color: #FFFAF0; border-color: #FBD38D; }
+
+    @media (max-width: 640px) {
+      .snack-order-list { grid-template-columns: 1fr; gap: 8px; }
+      .snack-order-item { min-height: 104px; padding: 10px; }
+      .snack-order-btn { height: 40px; font-size: 18px; }
+    }
 
     /* 일괄 제공 컨트롤 바 */
     .bulk-action-bar {
@@ -747,45 +736,21 @@
         padding: 8px 4px;
         font-size: 13px;
       }
-      .credit-adjust-btn {
-        padding: 4px 6px;
-        font-size: 12px;
-        min-width: 32px;
-        height: auto;
-      }
-      .admin-inline-input {
-        width: 45px;
-        font-size: 14px;
-        padding: 4px;
-      }
       .btn-small-action {
         padding: 6px 8px;
         font-size: 12px;
       }
-      /* 간식 관리 테이블: 모바일에서 수량 조정(4열)·재고 반영(5열) 숨김 */
-      #snack-management-body td:nth-child(4),
-      #snack-management-body td:nth-child(5),
-      #snack-management-body ~ thead th:nth-child(4),
-      #snack-management-body ~ thead th:nth-child(5) {
-        display: none;
-      }
-      /* thead도 같은 테이블 내에서 숨기기 */
-      table:has(#snack-management-body) th:nth-child(4),
-      table:has(#snack-management-body) th:nth-child(5) {
-        display: none;
-      }
-
-      /* 간식 관리: 모바일에서는 재고 게이지와 빠른 조정을 한 행에 배치 */
+      /* 간식 관리: 모바일에서는 간식·재고·관리만 한 행에 배치 */
       table:has(#snack-management-body) thead {
         display: none;
       }
 
       #snack-management-body tr[data-snack-row] {
         display: grid;
-        grid-template-columns: minmax(76px, 0.85fr) minmax(64px, 0.65fr) minmax(112px, 1.3fr);
+        grid-template-columns: minmax(100px, 1.2fr) minmax(90px, 1fr) minmax(88px, 0.95fr);
         grid-template-rows: minmax(48px, auto);
-        grid-template-areas: "identity stock adjust";
-        gap: 0 6px;
+        grid-template-areas: "identity stock manage";
+        gap: 0 4px;
         align-items: stretch;
         padding: 6px 4px;
         background-color: white;
@@ -798,14 +763,13 @@
         border: 0;
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
       }
 
       #snack-management-body tr[data-snack-row] > .snack-identity-cell { grid-area: identity; }
       #snack-management-body tr[data-snack-row] > .snack-stock-cell { grid-area: stock; }
-      #snack-management-body tr[data-snack-row] > .snack-adjust-cell { grid-area: adjust; }
-      #snack-management-body tr[data-snack-row] > .snack-price-cell,
-      #snack-management-body tr[data-snack-row] > .snack-manage-cell {
+      #snack-management-body tr[data-snack-row] > .snack-manage-cell { grid-area: manage; }
+      #snack-management-body tr[data-snack-row] > .snack-price-cell {
         display: none !important;
       }
 
@@ -832,44 +796,75 @@
       .snack-stock-cell .admin-stock-gauge-container {
         gap: 4px;
         max-width: 100%;
+        justify-content: flex-start;
       }
 
       .snack-stock-cell .admin-stock-gauge-wrapper {
-        width: 55px;
+        width: 48px;
         height: 10px;
       }
 
-      .snack-stock-value {
-        min-width: 28px !important;
+      .admin-gauge-control {
+        gap: 4px;
+      }
+
+      .admin-gauge-value {
+        min-width: 34px;
         font-size: 12px;
       }
 
-      .snack-adjust-controls {
-        display: grid !important;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 2px !important;
-        width: 100%;
+      .admin-gauge-editor {
+        grid-template-columns: minmax(48px, 1fr) auto;
+        gap: 3px;
       }
 
-      .snack-adjust-controls .credit-adjust-btn {
+      .admin-gauge-editor .admin-gauge-range {
         min-width: 0;
-        width: 100%;
-        min-height: 30px;
-        padding: 3px 1px;
-        font-size: 11px;
-        line-height: 1;
       }
 
-      /* 이용자 관리: 모바일에서는 이용자 한 명을 2행 카드처럼 배치 */
+      .admin-gauge-editor .admin-gauge-output {
+        grid-column: auto;
+      }
+
+      .gauge-confirm-btn,
+      .gauge-cancel-btn {
+        min-height: 30px;
+        padding: 3px 5px;
+        font-size: 12px;
+      }
+
+      .snack-stock-value {
+        min-width: 30px !important;
+        font-size: 12px;
+      }
+
+      #snack-management-body tr[data-snack-row] > .snack-manage-cell {
+        justify-content: flex-end;
+        padding-right: 8px !important;
+      }
+
+      #snack-management-body .snack-manage-cell .admin-flex-nowrap {
+        gap: 3px;
+        margin-left: auto;
+      }
+
+      #snack-management-body .snack-manage-cell .admin-row-action,
+      #user-management-body .user-manage-cell .admin-row-action {
+        min-height: 34px;
+        padding: 3px 6px;
+        font-size: 12px;
+      }
+
+      /* 이용자 관리: 모바일에서는 이용자·크레딧·관리만 한 행에 배치 */
       table:has(#user-management-body) thead {
         display: none;
       }
 
       #user-management-body tr[data-user-row] {
         display: grid;
-        grid-template-columns: minmax(76px, 0.85fr) minmax(54px, 0.65fr) minmax(116px, 1.3fr);
+        grid-template-columns: minmax(76px, 0.85fr) minmax(96px, 0.95fr) minmax(88px, 1fr);
         grid-template-rows: minmax(48px, auto);
-        grid-template-areas: "identity credit adjust";
+        grid-template-areas: "identity credit manage";
         gap: 0 6px;
         align-items: stretch;
         padding: 6px 4px;
@@ -888,9 +883,8 @@
 
       #user-management-body tr[data-user-row] > .user-identity-cell { grid-area: identity; }
       #user-management-body tr[data-user-row] > .user-credit-cell { grid-area: credit; white-space: nowrap; }
-      #user-management-body tr[data-user-row] > .user-adjust-cell { grid-area: adjust; }
-      #user-management-body tr[data-user-row] > .user-target-cell,
-      #user-management-body tr[data-user-row] > .user-manage-cell {
+      #user-management-body tr[data-user-row] > .user-manage-cell { grid-area: manage; }
+      #user-management-body tr[data-user-row] > .user-target-cell {
         display: none !important;
       }
 
@@ -911,38 +905,6 @@
         font-size: 12px;
       }
 
-      .user-adjust-controls {
-        display: grid !important;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 2px !important;
-        width: 100%;
-      }
-
-      .user-adjust-controls .credit-adjust-btn {
-        min-width: 0;
-        width: 100%;
-        min-height: 30px;
-        padding: 3px 1px;
-        font-size: 11px;
-        line-height: 1;
-      }
-
-      .user-target-controls {
-        display: flex !important;
-        flex-direction: column;
-        align-items: stretch !important;
-        gap: 3px !important;
-        width: 100%;
-      }
-
-      .user-target-controls .admin-inline-input,
-      .user-target-controls .btn-small-action {
-        width: 100% !important;
-        min-width: 0;
-        padding-left: 2px;
-        padding-right: 2px;
-      }
-
       #user-management-body tr[data-user-row] .user-manage-cell .btn-small-action {
         width: 100%;
         min-width: 0;
@@ -951,6 +913,22 @@
         padding-right: 3px;
         white-space: normal;
         line-height: 1.1;
+      }
+
+      #user-management-body tr[data-user-row] .user-manage-cell .gauge-edit-trigger {
+        min-height: 34px;
+        width: calc(100% - 8px);
+        margin-left: auto;
+        margin-right: 8px;
+      }
+
+      #user-management-body tr[data-user-row] > .user-manage-cell {
+        justify-content: flex-end;
+        padding-right: 0 !important;
+      }
+
+      #user-management-body tr[data-user-row] .user-manage-cell .gauge-confirm-btn {
+        width: auto !important;
       }
 
       #user-management-body tr.user-group-row {
@@ -975,13 +953,9 @@
 
     @media (max-width: 360px) {
       #user-management-body tr[data-user-row] {
-        grid-template-columns: 76px 54px minmax(0, 1fr);
+        grid-template-columns: 76px minmax(88px, 0.95fr) minmax(80px, 1fr);
         grid-template-rows: minmax(48px, auto);
-        grid-template-areas: "identity credit adjust";
-      }
-
-      .user-adjust-controls {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-areas: "identity credit manage";
       }
 
       .user-identity-content .admin-avatar,
@@ -1000,11 +974,11 @@
       }
 
       #snack-management-body tr[data-snack-row] {
-        grid-template-columns: 76px 64px minmax(0, 1fr);
+        grid-template-columns: 102px 84px minmax(0, 1fr);
       }
 
       #snack-management-body tr[data-snack-row] .snack-stock-cell .admin-stock-gauge-wrapper {
-        width: 48px;
+        width: 45px;
       }
 
       #snack-management-body tr[data-snack-row] .snack-identity-content strong {
@@ -1035,6 +1009,64 @@
       height: 100%;
       border-radius: 4px;
       transition: width 0.3s ease;
+    }
+    .admin-gauge-control {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      min-width: 0;
+    }
+    .admin-gauge-value {
+      min-width: 42px;
+      color: var(--secondary-hover);
+      white-space: nowrap;
+      text-align: left;
+    }
+    .admin-gauge-control.user .admin-gauge-value {
+      color: #B7791F;
+    }
+    .admin-gauge-value.is-zero {
+      color: var(--danger-color);
+    }
+    .admin-gauge-editor {
+      display: grid;
+      grid-template-columns: minmax(70px, 1fr) auto;
+      align-items: center;
+      gap: 5px;
+      width: 100%;
+      min-width: 0;
+    }
+    .admin-gauge-range {
+      width: 100%;
+      min-width: 70px;
+      accent-color: var(--secondary-color);
+      cursor: ew-resize;
+    }
+    .admin-gauge-range.user {
+      accent-color: #D69E2E;
+    }
+    .admin-gauge-output {
+      min-width: 42px;
+      font-size: 15px;
+      font-weight: 800;
+      white-space: nowrap;
+      color: var(--text-main);
+    }
+    .gauge-confirm-btn,
+    .gauge-cancel-btn {
+      min-height: 34px;
+      padding: 5px 8px;
+      white-space: nowrap;
+    }
+    .gauge-cancel-btn {
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: #F8F9FA;
+      color: var(--text-muted);
+      font-weight: 800;
+      cursor: pointer;
     }
     .admin-flex-nowrap {
       display: flex;
@@ -1068,7 +1100,7 @@
           <button class="btn btn-primary" id="btn-manual-refresh" style="min-height: 48px; font-size: 16px; width: auto; padding: 0 16px; margin: 0;">
             🔄 새로고침
           </button>
-          <button class="admin-toolbar-lock" data-admin-toolbar-lock type="button" hidden title="관리자 잠그기" aria-label="관리자 잠그기">🔑</button>
+          <button class="admin-toolbar-lock" data-admin-toolbar-lock type="button" hidden title="관리자 나가기" aria-label="관리자 나가기">🚪 나가기</button>
         </div>
       </div>
     </header>
@@ -1130,8 +1162,6 @@
                   <tr>
                     <th>이용자</th>
                     <th>보유 크레딧</th>
-                    <th style="text-align: center;">증감 조정</th>
-                    <th style="text-align: center;">목표 크레딧</th>
                     <th style="text-align: center;">관리</th>
                   </tr>
                 </thead>
@@ -1179,8 +1209,7 @@
                     <th>간식명</th>
                     <th style="text-align: center; width: 160px;">재고</th>
                     <th>가격</th>
-                    <th style="text-align: center;">수량 조정</th>
-                    <th style="text-align: center;">재고 반영 및 관리</th>
+                    <th style="text-align: center;">관리</th>
                   </tr>
                 </thead>
                 <tbody id="snack-management-body">
@@ -1252,7 +1281,7 @@
         </div>
         <div class="form-field">
           <label for="new-user-credit">초기 크레딧</label>
-          <input type="number" id="new-user-credit" min="0" value="10">
+          <input type="number" id="new-user-credit" min="0" max="15" value="10">
         </div>
         <div class="form-field">
           <label for="new-user-image">사진 등록</label>
@@ -1292,7 +1321,7 @@
         </div>
         <div class="form-field">
           <label for="new-snack-stock">초기 입고 재고량</label>
-          <input type="number" id="new-snack-stock" min="0" value="10">
+          <input type="number" id="new-snack-stock" min="0" max="30" value="10">
         </div>
         <div class="form-field">
           <label for="new-snack-target">판매 대상</label>
@@ -1324,7 +1353,7 @@
         </div>
         <div class="form-field">
           <label for="edit-user-credit">크레딧</label>
-          <input type="number" id="edit-user-credit" min="0">
+          <input type="number" id="edit-user-credit" min="0" max="15">
         </div>
         <div class="form-field">
           <label for="edit-user-image">사진 등록 (구글 드라이브 등)</label>
@@ -1376,7 +1405,7 @@
         </div>
         <div class="form-field">
           <label for="edit-snack-stock">재고 수량</label>
-          <input type="number" id="edit-snack-stock" min="0">
+          <input type="number" id="edit-snack-stock" min="0" max="30">
         </div>
         <div class="form-field">
           <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">판매 상태</label>
@@ -1659,6 +1688,9 @@
     let currentUsers = [];
     let currentSnacks = [];
     let isModalOpen = false;
+    let activeGaugeEdit = null;
+    const ADMIN_UI_MAX_USER_CREDIT = 15;
+    const ADMIN_UI_MAX_SNACK_STOCK = 30;
     const ADMIN_TOKEN_STORAGE_KEY = AdminAuth.storageKey;
 
     function esc(value) {
@@ -1677,12 +1709,144 @@
       return JSON.stringify(String(value ?? ''));
     }
 
-    function creditInputId(userId) {
-      return `input-credit-${encodeURIComponent(String(userId ?? ''))}`;
+    function gaugeRangeId(type, id) {
+      return `gauge-range-${type}-${encodeURIComponent(String(id ?? ''))}`;
     }
 
-    function stockInputId(snackId) {
-      return `input-stock-${encodeURIComponent(String(snackId ?? ''))}`;
+    function gaugeOutputId(type, id) {
+      return `gauge-output-${type}-${encodeURIComponent(String(id ?? ''))}`;
+    }
+
+    function getGaugeEditorMax(type, value) {
+      return type === 'user' ? ADMIN_UI_MAX_USER_CREDIT : ADMIN_UI_MAX_SNACK_STOCK;
+    }
+
+    function getGaugeVisual(type, value) {
+      const numericValue = Math.max(0, Number(value) || 0);
+      const percent = Math.min(numericValue / 10, 1) * 100;
+      let color = '#D69E2E';
+      if (type === 'user') {
+        if (numericValue === 0) color = '#DC2626';
+        else if (numericValue <= 3) color = '#F59E0B';
+        else color = '#D69E2E';
+      } else if (numericValue >= 10) {
+        color = '#38A169';
+      } else if (numericValue >= 4) {
+        color = '#D69E2E';
+      } else if (numericValue > 0) {
+        color = '#E53E3E';
+      }
+      return { percent, color };
+    }
+
+    function gaugeValueLabel(type, value) {
+      const numericValue = Math.max(0, Number(value) || 0);
+      return type === 'user' ? `🪙 ${numericValue}` : `${numericValue}개`;
+    }
+
+    function renderGaugeControl(type, id, value, label) {
+      const stringId = String(id ?? '');
+      const numericValue = Math.max(0, Number(value) || 0);
+      const isEditing = activeGaugeEdit && activeGaugeEdit.type === type && activeGaugeEdit.id === stringId;
+      const displayValue = isEditing ? activeGaugeEdit.draftValue : numericValue;
+      const visual = getGaugeVisual(type, displayValue);
+      const rangeId = gaugeRangeId(type, stringId);
+      const outputId = gaugeOutputId(type, stringId);
+      const rowKey = attr(`${type}:${stringId}`);
+
+      if (isEditing) {
+        const max = getGaugeEditorMax(type, displayValue);
+        const editorValue = Math.min(max, Math.max(0, Number(displayValue) || 0));
+        return `
+          <div class="admin-gauge-editor" data-gauge-edit-row="${rowKey}">
+            <input type="range" id="${attr(rangeId)}" class="admin-gauge-range ${type}" min="0" max="${max}" step="1" value="${editorValue}" aria-label="${attr(label)} 조정" oninput="${callAttr(`previewGaugeValue(${jsString(type)}, ${jsString(stringId)}, this.value, this)`)}">
+            <output id="${attr(outputId)}" class="admin-gauge-output" for="${attr(rangeId)}">${esc(gaugeValueLabel(type, editorValue))}</output>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="admin-gauge-control ${type}" aria-label="${attr(label)} ${attr(gaugeValueLabel(type, numericValue))}">
+          <div class="admin-stock-gauge-wrapper admin-gauge-display" title="${attr(label)}: ${numericValue} (기준: 10)">
+            ${numericValue > 0 ? `<div class="admin-stock-gauge-fill" style="width: ${visual.percent}%; background-color: ${visual.color};"></div>` : ''}
+          </div>
+          <strong class="admin-gauge-value ${numericValue === 0 ? 'is-zero' : ''}">${esc(gaugeValueLabel(type, numericValue))}</strong>
+        </div>
+      `;
+    }
+
+    function previewGaugeValue(type, id, value, input) {
+      const numericValue = Math.max(0, Number(value) || 0);
+      const output = document.getElementById(gaugeOutputId(type, id));
+      if (activeGaugeEdit && activeGaugeEdit.type === type && activeGaugeEdit.id === String(id)) {
+        activeGaugeEdit.draftValue = numericValue;
+      }
+      if (output) output.textContent = gaugeValueLabel(type, numericValue);
+    }
+
+    function getGaugeSource(type, id) {
+      const collection = type === 'user' ? currentUsers : currentSnacks;
+      return collection.find(item => String(type === 'user' ? item.userId : item.snackId) === String(id)) || null;
+    }
+
+    function getGaugeSourceValue(type, item) {
+      return Number(item?.[type === 'user' ? 'credit' : 'stock'] || 0);
+    }
+
+    function renderActiveGaugeTable(type) {
+      if (type === 'user') renderUsersManagement(currentUsers);
+      else renderSnacksManagement(currentSnacks);
+    }
+
+    function beginGaugeEdit(type, id) {
+      const stringId = String(id ?? '');
+      const source = getGaugeSource(type, stringId);
+      if (!source) return;
+      if (activeGaugeEdit && (activeGaugeEdit.type !== type || activeGaugeEdit.id !== stringId)) {
+        const currentInput = document.getElementById(gaugeRangeId(activeGaugeEdit.type, activeGaugeEdit.id));
+        const currentValue = Number(currentInput?.value ?? activeGaugeEdit.originalValue);
+        if (currentValue !== activeGaugeEdit.originalValue && !confirm('현재 변경 내용을 버릴까요?')) return;
+      }
+      const originalValue = getGaugeSourceValue(type, source);
+      activeGaugeEdit = { type, id: stringId, originalValue, draftValue: originalValue };
+      renderActiveGaugeTable(type);
+      requestAnimationFrame(() => document.getElementById(gaugeRangeId(type, stringId))?.focus());
+    }
+
+    function cancelGaugeEdit(type, id) {
+      if (!activeGaugeEdit || activeGaugeEdit.type !== type || activeGaugeEdit.id !== String(id)) return;
+      activeGaugeEdit = null;
+      renderActiveGaugeTable(type);
+    }
+
+    async function confirmGaugeEdit(type, id) {
+      if (!activeGaugeEdit || activeGaugeEdit.type !== type || activeGaugeEdit.id !== String(id)) return;
+      const input = document.getElementById(gaugeRangeId(type, id));
+      const limit = type === 'user' ? ADMIN_UI_MAX_USER_CREDIT : ADMIN_UI_MAX_SNACK_STOCK;
+      const value = Math.min(limit, Math.max(0, Number(input?.value || 0)));
+      const editState = activeGaugeEdit;
+      activeGaugeEdit = null;
+      const success = type === 'user'
+        ? await updateUserCreditAction(id, value)
+        : await updateSnackStockAction(id, value);
+      if (!success) {
+        activeGaugeEdit = editState;
+        renderActiveGaugeTable(type);
+      }
+    }
+
+    function closeGaugeEditFromOutside(event) {
+      if (!activeGaugeEdit || event.target.closest('[data-gauge-edit-row]') || event.target.closest('.admin-table')) return;
+      const input = document.getElementById(gaugeRangeId(activeGaugeEdit.type, activeGaugeEdit.id));
+      const currentValue = Number(input?.value ?? activeGaugeEdit.originalValue);
+      if (currentValue !== activeGaugeEdit.originalValue && !confirm('변경 내용을 저장하지 않고 나갈까요?')) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      const type = activeGaugeEdit.type;
+      activeGaugeEdit = null;
+      renderActiveGaugeTable(type);
     }
 
     function getAdminMemo() {
@@ -1942,7 +2106,7 @@
       tbody.innerHTML = '';
       
       if (users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">이용자가 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" class="empty-state">이용자가 없습니다.</td></tr>';
         return;
       }
       
@@ -1965,12 +2129,12 @@
     function appendUserGroupRows(tbody, title, users) {
       const groupRow = document.createElement('tr');
       groupRow.className = 'user-group-row';
-      groupRow.innerHTML = `<td colspan="5">${esc(title)} <span style="color: var(--text-muted); font-size: 14px;">${users.length}명</span></td>`;
+      groupRow.innerHTML = `<td colspan="3">${esc(title)} <span style="color: var(--text-muted); font-size: 14px;">${users.length}명</span></td>`;
       tbody.appendChild(groupRow);
 
       if (users.length === 0) {
         const emptyRow = document.createElement('tr');
-        emptyRow.innerHTML = `<td colspan="5" class="empty-state">${esc(title)}가 없습니다.</td>`;
+        emptyRow.innerHTML = `<td colspan="3" class="empty-state">${esc(title)}가 없습니다.</td>`;
         tbody.appendChild(emptyRow);
         return;
       }
@@ -2005,23 +2169,11 @@
               <strong>${safeNickname} 님</strong>
             </div>
           </td>
-          <td class="user-credit-cell" aria-label="보유 크레딧 ${credit}개" style="font-weight: 800; font-size: 18px; color: var(--primary-color);"><span class="user-credit-full">${credit} 크레딧</span><span class="user-credit-compact">🪙 ${credit}</span></td>
-          <td class="user-adjust-cell" style="text-align: center;">
-            <div class="user-adjust-controls" style="display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;">
-              <button class="credit-adjust-btn minus" title="5 크레딧 차감" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, -5)`)}">-5</button>
-              <button class="credit-adjust-btn minus" title="1 크레딧 차감" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, -1)`)}">-1</button>
-              <button class="credit-adjust-btn plus" title="1 크레딧 추가" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, 1)`)}">+1</button>
-              <button class="credit-adjust-btn plus" title="5 크레딧 추가" onclick="${callAttr(`quickAdjustCredit(${userIdArg}, 5)`)}">+5</button>
-            </div>
-          </td>
-          <td class="user-target-cell" style="text-align: center;">
-            <div class="user-target-controls" style="display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <input type="number" id="${attr(creditInputId(userId))}" class="admin-inline-input" value="${credit}" min="0" style="width: 60px;" aria-label="${safeNickname} 목표 크레딧">
-              <button class="btn-small-action" onclick="${callAttr(`manualAdjustCredit(${userIdArg})`)}">변경</button>
-            </div>
-          </td>
+          <td class="user-credit-cell" aria-label="보유 크레딧 ${credit}개" style="font-weight: 800; font-size: 18px; color: var(--primary-color);">${renderGaugeControl('user', userId, credit, `${nickname} 보유 크레딧`)}</td>
           <td class="user-manage-cell" style="text-align: center;">
-            <button class="btn-small-action" style="background-color: var(--secondary-color);" title="${safeNickname} 정보 수정" onclick="${callAttr(`openEditUserModal(${userIdArg})`)}">수정</button>
+            ${activeGaugeEdit?.type === 'user' && activeGaugeEdit.id === userId
+              ? `<div class="admin-flex-nowrap gauge-action-group"><button type="button" class="btn-small-action gauge-confirm-btn" onclick="${callAttr(`confirmGaugeEdit('user', ${userIdArg})`)}">확인</button><button type="button" class="gauge-cancel-btn" onclick="${callAttr(`cancelGaugeEdit('user', ${userIdArg})`)}">취소</button></div>`
+              : `<button class="btn-small-action admin-row-action gauge-edit-trigger" style="background-color: var(--secondary-color);" title="${safeNickname} 크레딧 수정" onclick="${callAttr(`beginGaugeEdit('user', ${userIdArg})`)}">수정</button>`}
           </td>
         `;
         tbody.appendChild(tr);
@@ -2044,21 +2196,8 @@
       }
     }
 
-    async function quickAdjustCredit(userId, change) {
-      const user = currentUsers.find(u => String(u.userId) === String(userId));
-      if (!user) return;
-      const newCredit = Math.max(0, Number(user.credit) + change);
-      await updateUserCreditAction(userId, newCredit);
-    }
-
-    async function manualAdjustCredit(userId) {
-      const input = document.getElementById(creditInputId(userId));
-      if (!input) return;
-      const newCredit = Math.max(0, Number(input.value || 0));
-      await updateUserCreditAction(userId, newCredit);
-    }
-
     async function updateUserCreditAction(userId, credit) {
+      credit = Math.min(ADMIN_UI_MAX_USER_CREDIT, Math.max(0, Number(credit) || 0));
       setUserRowLoading(userId, true);
       try {
         const res = await fetchAPI('updateUserCredit', {
@@ -2069,13 +2208,16 @@
           AppState.vibrate(50);
           AppState.playClickSound();
           await loadAdminData();
+          return true;
         } else {
           clearAdminTokenIfDenied(res);
           alert("크레딧 반영에 실패했습니다: " + (res?.message || "오류"));
+          return false;
         }
       } catch (error) {
         console.error("크레딧 업데이트 에러:", error);
         alert("크레딧 반영 중 통신 에러가 발생했습니다.");
+        return false;
       } finally {
         setUserRowLoading(userId, false);
       }
@@ -2087,7 +2229,7 @@
       const imageInput = document.getElementById('new-user-image');
 
       const nickname = nicknameInput.value.trim();
-      const credit = Math.max(0, Number(creditInput.value || 0));
+      const credit = Math.min(ADMIN_UI_MAX_USER_CREDIT, Math.max(0, Number(creditInput.value || 0)));
       const imageUrl = imageInput.value.trim();
 
       if (!nickname) {
@@ -2172,13 +2314,16 @@
           // 드래그&드롭 리스너 재등록을 위해 패널을 다시 렌더링
           renderSnackOrderPanel(currentSnacks, target);
           AppState.vibrate(30);
+          return true;
         } else {
           clearAdminTokenIfDenied(res);
           alert('순서 저장 실패: ' + (res?.message || '오류'));
+          return false;
         }
       } catch (err) {
         console.error('순서 저장 에러:', err);
         alert('순서 저장 중 통신 오류가 발생했습니다.');
+        return false;
       }
     }
 
@@ -2233,8 +2378,8 @@
           <span class="snack-order-emoji">${esc(emoji)}</span>
           <span class="snack-order-name">${esc(snack.name)}</span>
           <div class="snack-order-btns">
-            <button class="snack-order-btn" title="앞으로 이동" onclick="moveSnackOrder(this, -1, '${target}')">◀</button>
-            <button class="snack-order-btn" title="뒤로 이동" onclick="moveSnackOrder(this, 1, '${target}')">▶</button>
+            <button class="snack-order-btn" type="button" title="위로 이동" aria-label="위로 이동" ${idx === 0 ? 'disabled' : ''} onclick="moveSnackOrder(this, -1, '${target}')">▲</button>
+            <button class="snack-order-btn" type="button" title="아래로 이동" aria-label="아래로 이동" ${idx === sorted.length - 1 ? 'disabled' : ''} onclick="moveSnackOrder(this, 1, '${target}')">▼</button>
           </div>
         `;
 
@@ -2263,7 +2408,8 @@
           ids.splice(fromIdx, 1);
           ids.splice(toIdx, 0, String(fromId));
           renderSnackOrderPanelFromIds(ids, target);
-          await saveSnackOrderToServer(ids, target);
+          const saved = await saveSnackOrderToServer(ids, target);
+          if (!saved) renderSnackOrderPanel(currentSnacks, target);
         });
 
         listEl.appendChild(item);
@@ -2290,8 +2436,8 @@
           <span class="snack-order-emoji">${esc(emoji)}</span>
           <span class="snack-order-name">${esc(snack.name)}</span>
           <div class="snack-order-btns">
-            <button class="snack-order-btn" title="앞으로 이동" onclick="moveSnackOrder(this, -1, '${target}')">◀</button>
-            <button class="snack-order-btn" title="뒤로 이동" onclick="moveSnackOrder(this, 1, '${target}')">▶</button>
+            <button class="snack-order-btn" type="button" title="위로 이동" aria-label="위로 이동" ${idx === 0 ? 'disabled' : ''} onclick="moveSnackOrder(this, -1, '${target}')">▲</button>
+            <button class="snack-order-btn" type="button" title="아래로 이동" aria-label="아래로 이동" ${idx === reordered.length - 1 ? 'disabled' : ''} onclick="moveSnackOrder(this, 1, '${target}')">▼</button>
           </div>
         `;
         
@@ -2310,7 +2456,8 @@
       if (newIdx < 0 || newIdx >= ids.length) return;
       [ids[idx], ids[newIdx]] = [ids[newIdx], ids[idx]];
       renderSnackOrderPanelFromIds(ids, target);
-      await saveSnackOrderToServer(ids, target);
+      const saved = await saveSnackOrderToServer(ids, target);
+      if (!saved) renderSnackOrderPanel(currentSnacks, target);
       AppState.playClickSound();
     }
 
@@ -2325,7 +2472,7 @@
       tbody.innerHTML = '';
       
       if (snacks.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">등록된 간식이 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">등록된 간식이 없습니다.</td></tr>';
         return;
       }
 
@@ -2356,12 +2503,12 @@
     function appendSnackGroupRows(tbody, title, snacks) {
       const groupRow = document.createElement('tr');
       groupRow.className = 'user-group-row';
-      groupRow.innerHTML = `<td colspan="5">${esc(title)} <span style="color: var(--text-muted); font-size: 14px;">${snacks.length}개</span></td>`;
+      groupRow.innerHTML = `<td colspan="4">${esc(title)} <span style="color: var(--text-muted); font-size: 14px;">${snacks.length}개</span></td>`;
       tbody.appendChild(groupRow);
 
       if (snacks.length === 0) {
         const emptyRow = document.createElement('tr');
-        emptyRow.innerHTML = `<td colspan="5" class="empty-state">${esc(title)}이 없습니다.</td>`;
+        emptyRow.innerHTML = `<td colspan="4" class="empty-state">${esc(title)}이 없습니다.</td>`;
         tbody.appendChild(emptyRow);
         return;
       }
@@ -2370,7 +2517,6 @@
         const tr = document.createElement('tr');
         tr.setAttribute('data-snack-row', String(snack.snackId ?? ''));
         
-        const isSoldOut = snack.stock === 0;
         const isActive = isSnackActive(snack);
         const rawImgUrl = snack.imageUrl || '';
         const imgUrl = rawImgUrl ? AppState.convertDriveImageUrl(rawImgUrl) : '';
@@ -2389,27 +2535,6 @@
           : ``;
         const emojiHTML = `<div class="admin-avatar-initial" style="background-color: #F1F5F9; border: 1.5px solid var(--border-color); color: var(--text-main); width: 36px; height: 36px; font-size: 18px; border-radius: 6px; display: flex; justify-content: center; align-items: center; ${imgUrl ? 'display:none;' : ''}">${safeSnackEmoji}</div>`;
 
-        // 게이지 백분율 및 색상 계산: min(stock / 10, 1) * 100
-        const percent = Math.min(Math.max(stock, 0) / 10, 1) * 100;
-        let gaugeColor = '';
-        if (stock >= 10) {
-          gaugeColor = '#38A169'; // 녹색
-        } else if (stock >= 4) {
-          gaugeColor = '#D69E2E'; // 황색/주황색
-        } else if (stock >= 1) {
-          gaugeColor = '#E53E3E'; // 적색
-        }
-
-        const gaugeFillHTML = stock > 0
-          ? `<div class="admin-stock-gauge-fill" style="width: ${percent}%; background-color: ${gaugeColor};"></div>`
-          : '';
-
-        const gaugeHTML = `
-          <div class="admin-stock-gauge-wrapper" title="현재 재고: ${stock}개 (기준: 10개)">
-            ${gaugeFillHTML}
-          </div>
-        `;
-
         tr.innerHTML = `
           <td onclick="${callAttr(`openEditSnackModal(${snackIdArg})`)}" class="admin-clickable-cell snack-identity-cell">
             <div class="snack-identity-content">
@@ -2422,28 +2547,15 @@
           </td>
           <td class="snack-stock-cell" style="text-align: center; vertical-align: middle;">
             <div class="admin-stock-gauge-container">
-              ${gaugeHTML}
-              <span class="snack-stock-value" style="font-weight: 800; color: ${isSoldOut ? 'var(--danger-color)' : 'var(--secondary-hover)'}; flex-shrink: 0; min-width: 32px; text-align: left;">
-                ${stock}개
-              </span>
+              ${renderGaugeControl('snack', snackId, stock, `${snackName} 재고`)}
             </div>
           </td>
           <td class="snack-price-cell" style="font-weight: 700; vertical-align: middle;">${point} 크레딧</td>
-          <td class="snack-adjust-cell" style="text-align: center; vertical-align: middle;">
-            <div class="snack-adjust-controls admin-flex-nowrap">
-              <button class="credit-adjust-btn minus" title="5개 차감" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, -5)`)}">-5</button>
-              <button class="credit-adjust-btn minus" title="1개 차감" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, -1)`)}">-1</button>
-              <button class="credit-adjust-btn plus" title="1개 추가" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, 1)`)}">+1</button>
-              <button class="credit-adjust-btn plus" title="5개 추가" onclick="${callAttr(`quickAdjustStock(${snackIdArg}, 5)`)}">+5</button>
-            </div>
-          </td>
           <td class="snack-manage-cell" style="text-align: center; vertical-align: middle;">
             <div class="admin-flex-nowrap">
-              <input type="number" id="${attr(stockInputId(snackId))}" class="admin-inline-input" value="${stock}" min="0" style="width: 50px; padding: 4px;">
-              <button class="btn-small-action" onclick="${callAttr(`manualAdjustStock(${snackIdArg})`)}">변경</button>
-              <button class="credit-adjust-btn" style="background-color: #FFF3E0; border-color: #FFE0B2; color: #E65100; font-size: 13px; padding: 4px 6px; margin: 0;" onclick="${callAttr(`setSoldOut(${snackIdArg})`)}">품절</button>
-              <button class="btn-small-action" style="background-color: var(--secondary-color);" onclick="${callAttr(`openEditSnackModal(${snackIdArg})`)}">수정</button>
-              <button class="${isActive ? 'btn-danger-action' : 'btn-small-action'}" onclick="${callAttr(`updateSnackSaleAction(${snackIdArg}, ${isActive ? jsString('N') : jsString('Y')}, ${jsString(snackName)})`)}">${isActive ? '숨김' : '판매'}</button>
+              ${activeGaugeEdit?.type === 'snack' && activeGaugeEdit.id === String(snackId)
+                ? `<button type="button" class="btn-small-action gauge-confirm-btn" onclick="${callAttr(`confirmGaugeEdit('snack', ${snackIdArg})`)}">확인</button><button type="button" class="gauge-cancel-btn" onclick="${callAttr(`cancelGaugeEdit('snack', ${snackIdArg})`)}">취소</button>`
+                : `<button class="btn-small-action admin-row-action gauge-edit-trigger" style="background-color: var(--secondary-color);" title="${safeSnackName} 재고 수정" onclick="${callAttr(`beginGaugeEdit('snack', ${snackIdArg})`)}">수정</button><button class="${isActive ? 'btn-danger-action' : 'btn-small-action'} admin-row-action" onclick="${callAttr(`updateSnackSaleAction(${snackIdArg}, ${isActive ? jsString('N') : jsString('Y')}, ${jsString(snackName)})`)}">${isActive ? '숨김' : '판매'}</button>`}
             </div>
           </td>
         `;
@@ -2451,25 +2563,8 @@
       });
     }
 
-    async function quickAdjustStock(snackId, change) {
-      const snack = currentSnacks.find(s => String(s.snackId) === String(snackId));
-      if (!snack) return;
-      const newStock = Math.max(0, Number(snack.stock) + change);
-      await updateSnackStockAction(snackId, newStock);
-    }
-
-    async function manualAdjustStock(snackId) {
-      const input = document.getElementById(stockInputId(snackId));
-      if (!input) return;
-      const newStock = Math.max(0, Number(input.value || 0));
-      await updateSnackStockAction(snackId, newStock);
-    }
-
-    async function setSoldOut(snackId) {
-      await updateSnackStockAction(snackId, 0);
-    }
-
     async function updateSnackStockAction(snackId, stock) {
+      stock = Math.min(ADMIN_UI_MAX_SNACK_STOCK, Math.max(0, Number(stock) || 0));
       setSnackRowLoading(snackId, true);
       try {
         const res = await fetchAPI('updateSnackStock', {
@@ -2480,13 +2575,16 @@
           AppState.vibrate(50);
           AppState.playClickSound();
           await loadAdminData();
+          return true;
         } else {
           clearAdminTokenIfDenied(res);
           alert("재고 반영에 실패했습니다: " + (res?.message || "오류"));
+          return false;
         }
       } catch (error) {
         console.error("재고 업데이트 에러:", error);
         alert("재고 반영 중 통신 에러가 발생했습니다.");
+        return false;
       } finally {
         setSnackRowLoading(snackId, false);
       }
@@ -2531,7 +2629,7 @@
       const name = nameInput.value.trim();
       const point = Number(pointInput.value || 1);
       const imageUrl = imageInput.value.trim();
-      const stock = Number(stockInput.value || 0);
+      const stock = Math.min(ADMIN_UI_MAX_SNACK_STOCK, Math.max(0, Number(stockInput.value || 0)));
       const target = targetInput ? targetInput.value : 'user';
       
       if (!name) {
@@ -2649,7 +2747,7 @@
     async function updateUserAction() {
       const userId = document.getElementById('edit-user-id').value;
       const nickname = document.getElementById('edit-user-nickname').value.trim();
-      const credit = Number(document.getElementById('edit-user-credit').value || 0);
+      const credit = Math.min(ADMIN_UI_MAX_USER_CREDIT, Math.max(0, Number(document.getElementById('edit-user-credit').value || 0)));
       const imageUrl = document.getElementById('edit-user-image').value.trim();
       const activeRadio = document.querySelector('input[name="edit-user-active"]:checked');
       const useYn = activeRadio ? activeRadio.value : 'Y';
@@ -2714,7 +2812,7 @@
       const name = document.getElementById('edit-snack-name').value.trim();
       const point = Number(document.getElementById('edit-snack-point').value || 1);
       const imageUrl = document.getElementById('edit-snack-image').value.trim();
-      const stock = Number(document.getElementById('edit-snack-stock').value || 0);
+      const stock = Math.min(ADMIN_UI_MAX_SNACK_STOCK, Math.max(0, Number(document.getElementById('edit-snack-stock').value || 0)));
       const saleYn = document.getElementById('edit-snack-sale').value;
       const target = document.getElementById('edit-snack-target').value;
 
@@ -3088,6 +3186,7 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
+      document.addEventListener('pointerdown', closeGaugeEditFromOutside, true);
       AdminAuth.init({
         onUnlock: () => loadAdminData(),
         onLock: (options = {}) => {
