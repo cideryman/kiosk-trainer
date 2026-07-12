@@ -7,8 +7,8 @@ const GUEST_DELIVERY_FEE = 3;
 const GUEST_ORDER_COMPLETION_GRACE_MINUTES = 5;
 const ADMIN_MAX_USER_CREDIT = 15;
 const ADMIN_MAX_SNACK_STOCK = 30;
-const MOCK_GUEST_APPLICATION_CAPACITY = 5;
-const MOCK_GUEST_APPLICATION_FULL_MESSAGE = '1차 시범 이용 신청 5명이 모두 접수되어 현재 모집을 마감했습니다. 추가 모집은 기관 담당자에게 문의해 주세요.';
+const MOCK_GUEST_APPLICATION_DEFAULT_CAPACITY = 5;
+const MOCK_GUEST_APPLICATION_MAX_CAPACITY = 100;
 
 // 로컬 테스트용 Mock 데이터 강제 사용 여부
 // - 주의: 테스트 시에는 true, 실제 운영 배포 시에는 false로 설정해야 합니다.
@@ -78,6 +78,7 @@ const MOCK_GUEST_APPLICATION_SETTINGS = {
   serviceArea: '복지관과 사전에 협의된 장소',
   usageGuide: '이용 신청과 관리자 확인을 완료한 뒤, 안내받은 배달왔삼 주문 페이지에서 직접 주문합니다.',
   preferredDayOptions: ['수요일'],
+  capacity: MOCK_GUEST_APPLICATION_DEFAULT_CAPACITY,
   closedMessage: '현재 이용 신청을 받고 있지 않습니다.'
 };
 
@@ -113,16 +114,31 @@ function getMockGuestApplicationCounts(applications) {
   return counts;
 }
 
-function getMockGuestApplicationCapacityState(applications = MOCK_GUEST_APPLICATIONS) {
+function getMockGuestApplicationCapacity(value) {
+  const capacity = Number(String(value === undefined || value === null ? '' : value).trim());
+  return Number.isInteger(capacity) && capacity >= 1 && capacity <= MOCK_GUEST_APPLICATION_MAX_CAPACITY
+    ? capacity
+    : MOCK_GUEST_APPLICATION_DEFAULT_CAPACITY;
+}
+
+function getMockGuestApplicationFullMessage(capacity) {
+  return `1차 시범 이용 신청 ${capacity}명이 모두 접수되어 현재 모집을 마감했습니다. 추가 모집은 기관 담당자에게 문의해 주세요.`;
+}
+
+function getMockGuestApplicationCapacityState(
+  applications = MOCK_GUEST_APPLICATIONS,
+  capacityValue = MOCK_GUEST_APPLICATION_SETTINGS.capacity
+) {
+  const capacity = getMockGuestApplicationCapacity(capacityValue);
   const activeCount = applications.reduce((count, application) => {
     if (application.anonymizedAt) return count;
     return ['PENDING', 'APPROVED'].includes(String(application.status || '').toUpperCase())
       ? count + 1
       : count;
   }, 0);
-  const remainingSlots = Math.max(0, MOCK_GUEST_APPLICATION_CAPACITY - activeCount);
+  const remainingSlots = Math.max(0, capacity - activeCount);
   return {
-    capacity: MOCK_GUEST_APPLICATION_CAPACITY,
+    capacity,
     activeCount,
     remainingSlots,
     applicationFull: remainingSlots === 0
@@ -143,7 +159,7 @@ function getMockGuestApplicationSettingsResponse() {
     applicationClosedReason,
     ...capacityState,
     closedMessage: applicationClosedReason === 'FULL'
-      ? MOCK_GUEST_APPLICATION_FULL_MESSAGE
+      ? getMockGuestApplicationFullMessage(capacityState.capacity)
       : configuredClosedMessage,
     configuredClosedMessage
   };
@@ -408,7 +424,7 @@ function getMockFallback(action, options) {
       res = {
         success: false,
         code: 'APPLICATION_FULL',
-        message: MOCK_GUEST_APPLICATION_FULL_MESSAGE,
+        message: getMockGuestApplicationFullMessage(settings.capacity),
         capacity: settings.capacity,
         activeCount: settings.activeCount,
         remainingSlots: 0
@@ -474,7 +490,7 @@ function getMockFallback(action, options) {
         res = {
           success: false,
           code: 'APPLICATION_FULL',
-          message: '현재 1차 시범 신청 정원 5명이 모두 차 있어 승인할 수 없습니다. 먼저 다른 신청을 반려 또는 중지해 주세요.'
+          message: `현재 1차 시범 신청 정원 ${capacityState.capacity}명이 모두 차 있어 승인할 수 없습니다. 먼저 다른 신청을 반려 또는 중지해 주세요.`
         };
       } else {
         if (nextStatus) {
@@ -491,16 +507,23 @@ function getMockFallback(action, options) {
       }
     }
   } else if (action === 'updateGuestApplicationSettings') {
-    MOCK_GUEST_APPLICATION_SETTINGS.applicationOpen = Boolean(options.body?.applicationOpen);
-    MOCK_GUEST_APPLICATION_SETTINGS.target = options.body?.target || '';
-    MOCK_GUEST_APPLICATION_SETTINGS.operatingDays = options.body?.operatingDays || '';
-    MOCK_GUEST_APPLICATION_SETTINGS.orderTime = options.body?.orderTime || '';
-    MOCK_GUEST_APPLICATION_SETTINGS.deliveryTime = options.body?.deliveryTime || '';
-    MOCK_GUEST_APPLICATION_SETTINGS.serviceArea = options.body?.serviceArea || '';
-    MOCK_GUEST_APPLICATION_SETTINGS.usageGuide = options.body?.usageGuide || '';
-    MOCK_GUEST_APPLICATION_SETTINGS.preferredDayOptions = String(options.body?.preferredDayOptions || '').split(',').map(day => day.trim()).filter(Boolean);
-    MOCK_GUEST_APPLICATION_SETTINGS.closedMessage = options.body?.closedMessage || '';
-    res = { success: true, message: 'Mock 신청 설정이 저장되었습니다.' };
+    const hasCapacityInput = options.body?.capacity !== undefined && options.body?.capacity !== null && String(options.body.capacity).trim() !== '';
+    const capacityInput = hasCapacityInput ? Number(options.body.capacity) : null;
+    if (hasCapacityInput && (!Number.isInteger(capacityInput) || capacityInput < 1 || capacityInput > MOCK_GUEST_APPLICATION_MAX_CAPACITY)) {
+      res = { success: false, message: '모집 정원은 1명부터 100명 사이의 정수로 입력해 주세요.' };
+    } else {
+      MOCK_GUEST_APPLICATION_SETTINGS.applicationOpen = Boolean(options.body?.applicationOpen);
+      MOCK_GUEST_APPLICATION_SETTINGS.target = options.body?.target || '';
+      MOCK_GUEST_APPLICATION_SETTINGS.operatingDays = options.body?.operatingDays || '';
+      MOCK_GUEST_APPLICATION_SETTINGS.orderTime = options.body?.orderTime || '';
+      MOCK_GUEST_APPLICATION_SETTINGS.deliveryTime = options.body?.deliveryTime || '';
+      MOCK_GUEST_APPLICATION_SETTINGS.serviceArea = options.body?.serviceArea || '';
+      MOCK_GUEST_APPLICATION_SETTINGS.usageGuide = options.body?.usageGuide || '';
+      MOCK_GUEST_APPLICATION_SETTINGS.preferredDayOptions = String(options.body?.preferredDayOptions || '').split(',').map(day => day.trim()).filter(Boolean);
+      if (hasCapacityInput) MOCK_GUEST_APPLICATION_SETTINGS.capacity = capacityInput;
+      MOCK_GUEST_APPLICATION_SETTINGS.closedMessage = options.body?.closedMessage || '';
+      res = { success: true, message: 'Mock 신청 설정이 저장되었습니다.' };
+    }
   } else if (action === 'auditExpiredGuestApplications') {
     res = { success: true, count: 0, applications: [], message: '익명화할 만료 신청 정보가 없습니다.' };
   } else if (action === 'anonymizeExpiredGuestApplications') {

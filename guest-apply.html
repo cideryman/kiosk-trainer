@@ -640,6 +640,10 @@
       const queryParams = new URLSearchParams(window.location.search);
       const useLocalMock = queryParams.get('mock') === '1';
       const useLocalMockFull = queryParams.get('mockFull') === '1';
+      const localMockCapacityValue = Number(queryParams.get('mockCapacity'));
+      const localMockCapacity = Number.isInteger(localMockCapacityValue) && localMockCapacityValue >= 1 && localMockCapacityValue <= 100
+        ? localMockCapacityValue
+        : 5;
       let applicationSettings = null;
 
       function createRequestId() {
@@ -721,15 +725,15 @@
       }
 
       function getMockSettings() {
-        const activeCount = useLocalMockFull ? 5 : 1;
-        const remainingSlots = Math.max(0, 5 - activeCount);
+        const activeCount = useLocalMockFull ? localMockCapacity : Math.min(1, localMockCapacity);
+        const remainingSlots = Math.max(0, localMockCapacity - activeCount);
         return {
           success: true,
           applicationOpen: !useLocalMockFull,
           applicationOpenConfigured: true,
           applicationFull: useLocalMockFull,
           applicationClosedReason: useLocalMockFull ? 'FULL' : '',
-          capacity: 5,
+          capacity: localMockCapacity,
           activeCount,
           remainingSlots,
           target: '영주시장애인복지관 봉사자·후원자와 관리자가 이용 가능하다고 인정한 관계자',
@@ -740,7 +744,7 @@
           usageGuide: '이용 신청과 관리자 확인을 완료한 뒤, 안내받은 배달왔삼 주문 페이지에서 직접 주문합니다.',
           preferredDayOptions: ['수요일'],
           closedMessage: useLocalMockFull
-            ? '1차 시범 이용 신청 5명이 모두 접수되어 현재 모집을 마감했습니다. 추가 모집은 기관 담당자에게 문의해 주세요.'
+            ? `1차 시범 이용 신청 ${localMockCapacity}명이 모두 접수되어 현재 모집을 마감했습니다. 추가 모집은 기관 담당자에게 문의해 주세요.`
             : '현재 이용 신청을 받고 있지 않습니다.',
           configuredClosedMessage: '현재 이용 신청을 받고 있지 않습니다.'
         };

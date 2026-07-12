@@ -103,7 +103,9 @@
 
 ### 이용 신청용 운영설정 키
 
-`guestApplicationOpen`, `guestApplicationTarget`, `guestApplicationOperatingDays`, `guestApplicationOrderTime`, `guestApplicationDeliveryTime`, `guestApplicationArea`, `guestApplicationUsage`, `guestApplicationDayOptions`, `guestApplicationClosedMessage`
+`guestApplicationOpen`, `guestApplicationTarget`, `guestApplicationOperatingDays`, `guestApplicationOrderTime`, `guestApplicationDeliveryTime`, `guestApplicationArea`, `guestApplicationUsage`, `guestApplicationDayOptions`, `guestApplicationCapacity`, `guestApplicationClosedMessage`
+
+`guestApplicationCapacity`는 기본 5이며 관리자 화면에서 1~100명 사이 정수로 조절합니다. 현재 활성 신청 수보다 낮춰도 기존 신청 행은 유지하고 신규 접수만 마감합니다.
 
 `운영설정`은 키가 추가되는 세로형 구조이므로 신규 키 반영 후 기존 A1:B15 사용 범위보다 행 수가 늘어납니다.
 

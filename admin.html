@@ -1637,16 +1637,20 @@
                 <label class="application-open-toggle"><input type="checkbox" id="application-setting-open"> 이용 신청 받기</label>
               </div>
               <div class="application-field">
+                <label for="application-setting-capacity">모집 정원</label>
+                <input id="application-setting-capacity" type="number" min="1" max="100" step="1" inputmode="numeric" required aria-describedby="application-capacity-summary">
+              </div>
+              <div class="application-field full">
                 <label>1차 모집 현황</label>
                 <div class="application-capacity-summary" id="application-capacity-summary" role="status">확인 중</div>
-              </div>
-              <div class="application-field">
-                <label for="application-setting-days">운영 요일</label>
-                <input id="application-setting-days" type="text" maxlength="100">
               </div>
               <div class="application-field full">
                 <label for="application-setting-target">이용 대상</label>
                 <input id="application-setting-target" type="text" maxlength="160">
+              </div>
+              <div class="application-field">
+                <label for="application-setting-days">운영 요일</label>
+                <input id="application-setting-days" type="text" maxlength="100">
               </div>
               <div class="application-field">
                 <label for="application-setting-order-time">주문 시간</label>
@@ -1656,7 +1660,7 @@
                 <label for="application-setting-delivery-time">배달 시간</label>
                 <input id="application-setting-delivery-time" type="text" maxlength="100">
               </div>
-              <div class="application-field full">
+              <div class="application-field">
                 <label for="application-setting-area">배달 가능 지역</label>
                 <input id="application-setting-area" type="text" maxlength="160">
               </div>
@@ -2405,6 +2409,7 @@
         ? settings.applicationOpen === true
         : settings.applicationOpenConfigured === true;
       if (openInput) openInput.checked = configuredOpen;
+      setValue('application-setting-capacity', settings.capacity || 5);
       setValue('application-setting-target', settings.target);
       setValue('application-setting-days', settings.operatingDays);
       setValue('application-setting-order-time', settings.orderTime);
@@ -2589,12 +2594,15 @@
       const button = document.getElementById('btn-save-application-settings');
       if (button) button.disabled = true;
       try {
+        const capacityInput = document.getElementById('application-setting-capacity');
+        if (!capacityInput?.reportValidity()) return;
         const readValue = id => document.getElementById(id)?.value.trim() || '';
         const res = await fetchAPI('updateGuestApplicationSettings', {
           method: 'POST',
           body: {
             adminToken: getAdminToken(),
             applicationOpen: Boolean(document.getElementById('application-setting-open')?.checked),
+            capacity: readValue('application-setting-capacity'),
             target: readValue('application-setting-target'),
             operatingDays: readValue('application-setting-days'),
             orderTime: readValue('application-setting-order-time'),
