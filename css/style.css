@@ -758,6 +758,44 @@ body {
   align-items: center;
 }
 
+.admin-toolbar-action {
+  min-height: 48px !important;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background-color: #334155;
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  animation: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-header-actions .admin-toolbar-action:not(#btnEnableSound) {
+  background-color: #334155 !important;
+  color: white !important;
+  border: none !important;
+  box-shadow: var(--shadow-sm) !important;
+  animation: none !important;
+}
+
+.admin-toolbar-action:hover,
+.admin-toolbar-action:focus-visible {
+  background-color: #1E293B;
+  color: white;
+  outline: 3px solid rgba(66, 153, 225, 0.3);
+  outline-offset: 2px;
+}
+
 .admin-header .kiosk-header-top {
   justify-content: space-between;
   gap: 16px;
@@ -1308,6 +1346,13 @@ body {
     min-width: 0;
   }
 
+  .admin-header-actions .admin-toolbar-action {
+    padding-left: 5px;
+    padding-right: 5px;
+    font-size: 12px;
+    gap: 2px;
+  }
+
   .page-admin .admin-header-actions {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1326,6 +1371,14 @@ body {
 
   .page-kitchen .admin-action-menu {
     grid-column: auto;
+    z-index: 55;
+  }
+
+  .page-kitchen .admin-action-menu summary {
+    padding-left: 5px;
+    padding-right: 5px;
+    font-size: 12px;
+    gap: 3px;
   }
 
   .admin-toolbar-spacer {
@@ -1341,9 +1394,32 @@ body {
   }
 
   .admin-action-menu-panel {
-    position: static;
-    margin-top: 6px;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: auto;
+    width: min(220px, calc(100vw - 24px));
     min-width: 0;
+    max-width: calc(100vw - 24px);
+    margin-top: 0;
+  }
+
+  .admin-action-menu-panel .btn-small-action {
+    min-height: 38px;
+    padding: 0 8px;
+    font-size: 12px;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background-color: #4A5568 !important;
+    color: white !important;
+    border: none !important;
+  }
+
+  .admin-action-menu-panel .btn-small-action:disabled {
+    opacity: 0.6;
   }
 
   .guest-ops-panel {

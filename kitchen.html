@@ -896,16 +896,16 @@
           <a class="admin-external-link board" href="board.html" target="_blank" rel="noopener" title="전광판 열기">🖥️ 전광판</a>
         </nav>
         <div class="admin-header-actions">
-          <button class="btn-small-action" id="btnEnableSound" type="button" aria-pressed="false" title="알림음 켜기" style="min-height: 48px; background-color: #334155; color: white; border: none;">🔊 알림 켜기</button>
-          <button class="btn-small-action" onclick="openTodaySummaryModal()" style="min-height: 48px; background-color: #334155; color: white; border: none;">📊 운영 결과</button>
-          <button class="btn-small-action" onclick="window.open('print-bills.html', '_blank')" style="min-height: 48px; background-color: #334155; color: white; border: none;">🖨️ 빌지 인쇄</button>
+          <button class="btn-small-action admin-toolbar-action" id="btnEnableSound" type="button" aria-pressed="false" title="알림음 켜기">🔊 알림 켜기</button>
+          <button class="btn-small-action admin-toolbar-action" onclick="openTodaySummaryModal()">📊 운영 결과</button>
+          <button class="btn-small-action admin-toolbar-action" onclick="window.open('print-bills.html', '_blank')">🖨️ 빌지 인쇄</button>
           <details class="admin-action-menu">
             <summary>운영 도구</summary>
             <div class="admin-action-menu-panel">
               <button class="btn-small-action" onclick="openDiagnoseModal()" style="background-color: #4A5568; color: white; border: none;">🛠️ 운영 점검</button>
               <button class="btn-small-action" id="btn-download-csv">CSV 다운로드</button>
               <button class="btn-small-action" id="btn-audit-archive" style="background-color: #4A5568; color: white; border: none;">🔎 보관 점검</button>
-              <button class="btn-small-action" id="btn-archive-old-orders" disabled title="보관 점검을 통과한 뒤 활성화됩니다." style="background-color: #4A5568; color: white; border: none;">지난 주문 보관 (점검 필요)</button>
+              <button class="btn-small-action" id="btn-archive-old-orders" disabled title="보관 점검을 통과한 뒤 활성화됩니다." style="background-color: #4A5568; color: white; border: none;">주문보관</button>
             </div>
           </details>
           <span class="admin-toolbar-spacer" aria-hidden="true"></span>
