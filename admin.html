@@ -228,6 +228,26 @@
       accent-color: #0F766E;
     }
 
+    .application-capacity-summary {
+      display: flex;
+      align-items: center;
+      min-height: 42px;
+      padding: 9px 11px;
+      border: 2px solid #99F6E4;
+      border-radius: var(--radius-sm);
+      background: #F0FDFA;
+      color: #0F766E;
+      font-size: 14px;
+      font-weight: 850;
+      line-height: 1.35;
+    }
+
+    .application-capacity-summary.full {
+      border-color: #FDA29B;
+      background: #FEF3F2;
+      color: #B42318;
+    }
+
     .application-list {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1617,6 +1637,10 @@
                 <label class="application-open-toggle"><input type="checkbox" id="application-setting-open"> 이용 신청 받기</label>
               </div>
               <div class="application-field">
+                <label>1차 모집 현황</label>
+                <div class="application-capacity-summary" id="application-capacity-summary" role="status">확인 중</div>
+              </div>
+              <div class="application-field">
                 <label for="application-setting-days">운영 요일</label>
                 <input id="application-setting-days" type="text" maxlength="100">
               </div>
@@ -2360,13 +2384,27 @@
     }
 
     function renderGuestApplicationSettings(settings) {
-      if (!settings || guestApplicationSettingsDirty) return;
+      if (!settings) return;
+      const capacitySummary = document.getElementById('application-capacity-summary');
+      if (capacitySummary) {
+        const capacity = Math.max(1, Number(settings.capacity) || 5);
+        const activeCount = Math.max(0, Number(settings.activeCount) || 0);
+        const remainingSlots = Math.max(0, Number(settings.remainingSlots) || 0);
+        capacitySummary.textContent = settings.applicationFull
+          ? `1차 ${capacity}명 접수 완료 · 자동 마감`
+          : `1차 ${capacity}명 · 접수 ${activeCount}명 · 남음 ${remainingSlots}명`;
+        capacitySummary.classList.toggle('full', settings.applicationFull === true);
+      }
+      if (guestApplicationSettingsDirty) return;
       const setValue = (id, value) => {
         const element = document.getElementById(id);
         if (element) element.value = value || '';
       };
       const openInput = document.getElementById('application-setting-open');
-      if (openInput) openInput.checked = settings.applicationOpen === true;
+      const configuredOpen = settings.applicationOpenConfigured === undefined
+        ? settings.applicationOpen === true
+        : settings.applicationOpenConfigured === true;
+      if (openInput) openInput.checked = configuredOpen;
       setValue('application-setting-target', settings.target);
       setValue('application-setting-days', settings.operatingDays);
       setValue('application-setting-order-time', settings.orderTime);
@@ -2374,7 +2412,7 @@
       setValue('application-setting-area', settings.serviceArea);
       setValue('application-setting-usage', settings.usageGuide);
       setValue('application-setting-day-options', (settings.preferredDayOptions || []).join(', '));
-      setValue('application-setting-closed-message', settings.closedMessage);
+      setValue('application-setting-closed-message', settings.configuredClosedMessage || settings.closedMessage);
     }
 
     function renderGuestApplications(applications) {

@@ -5,6 +5,7 @@
 ## 배달왔삼 캐릭터와 이미지
 
 - ChatGPT와 Google Gemini의 생성형 이미지 도구를 활용해 제작했습니다.
+- 신청 페이지의 `assets/delivery-banner.png`, `assets/meaning-1.jpg`, `assets/meaning-2.jpg`, `assets/meaning-3.jpg`는 OpenAI ChatGPT 이미지 생성 도구로 제작했습니다.
 - 영주시 장애인복지관 주간보호 배달왔삼 프로젝트에서 기획, 선택, 수정했습니다.
 - 외부 유명 캐릭터, 상표, 라이선스 이미지를 원본으로 복제하지 않습니다.
 

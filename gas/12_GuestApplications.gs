@@ -28,11 +28,14 @@ const GUEST_APPLICATION_STATUS = {
 };
 
 const GUEST_APPLICATION_RETENTION_DAYS = 30;
+const GUEST_APPLICATION_CAPACITY = 5;
+const GUEST_APPLICATION_FULL_MESSAGE = '1차 시범 이용 신청 5명이 모두 접수되어 현재 모집을 마감했습니다. 추가 모집은 기관 담당자에게 문의해 주세요.';
+const GUEST_APPLICATION_ADMIN_FULL_MESSAGE = '현재 1차 시범 신청 정원 5명이 모두 차 있어 승인할 수 없습니다. 먼저 다른 신청을 반려 또는 중지해 주세요.';
 const GUEST_APPLICATION_DATE_HEADERS = [
   'createdAt', 'consentAt', 'contactedAt', 'reviewedAt',
   'retentionUntil', 'anonymizedAt', 'updatedAt'
 ];
-const GUEST_APPLICATION_SETTINGS_CACHE_KEY = 'guestApplicationSettings.v1';
+const GUEST_APPLICATION_SETTINGS_CACHE_KEY = 'guestApplicationSettings.v2';
 const GUEST_APPLICATION_SETTINGS_CACHE_TTL_SECONDS = 30;
 const GUEST_APPLICATION_SETTINGS_DEFAULTS = {
   guestApplicationOpen: 'N',
@@ -44,6 +47,15 @@ const GUEST_APPLICATION_SETTINGS_DEFAULTS = {
   guestApplicationUsage: '이용 신청과 관리자 확인을 완료한 뒤, 안내받은 배달왔삼 주문 페이지에서 직접 주문합니다.',
   guestApplicationDayOptions: '수요일',
   guestApplicationClosedMessage: '현재 이용 신청을 받고 있지 않습니다. 기관 담당자에게 문의해 주세요.',
+};
+const GUEST_APPLICATION_SETTINGS_LEGACY_DEFAULTS = {
+  guestApplicationTarget: '복지관 봉사자·후원자와 관리자가 인정하는 기타 관계자',
+  guestApplicationOperatingDays: '운영일 별도 안내',
+  guestApplicationOrderTime: '운영일에 별도 안내',
+  guestApplicationDeliveryTime: '주문 확인 후 순차 배달',
+  guestApplicationArea: '복지관과 협의된 장소',
+  guestApplicationUsage: '승인 후 안내받은 배달왔삼 주문 페이지에서 직접 주문',
+  guestApplicationDayOptions: '월요일,화요일,수요일,목요일,금요일',
 };
 
 function ensureGuestApplicationSheet() {
@@ -98,7 +110,9 @@ function setupGuestApplicationSheet() {
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
     .map(value => String(value || '').trim());
   formatGuestApplicationSheet(sheet, headers);
-  return '이용신청 시트 준비 완료: ' + sheet.getName() + ' / ' + GUEST_APPLICATION_HEADERS.length + '열';
+  const migratedSettingsCount = migrateGuestApplicationLegacySettings();
+  return '이용신청 시트 준비 완료: ' + sheet.getName() + ' / ' + GUEST_APPLICATION_HEADERS.length
+    + '열 / 신청 설정 보정 ' + migratedSettingsCount + '건';
 }
 
 function getGuestApplicationHeaderMap(headers) {
@@ -198,6 +212,41 @@ function readGuestApplicationSettings() {
   return settings;
 }
 
+// 명시적으로 초기화 함수를 실행했을 때만 예전 기본 문구를 최신 기본값으로 옮깁니다.
+// 관리자가 직접 저장한 다른 값은 건드리지 않습니다.
+function migrateGuestApplicationLegacySettings() {
+  const sheet = getGuestApplicationSettingsSheet();
+  const values = sheet.getDataRange().getValues();
+  const existingValues = {};
+
+  values.slice(1).forEach(row => {
+    const key = String(row[0] || '').trim();
+    if (key) existingValues[key] = unprotectGuestApplicationSheetValue(row[1]);
+  });
+
+  const valuesToWrite = {};
+  Object.keys(GUEST_APPLICATION_SETTINGS_DEFAULTS).forEach(key => {
+    if (!Object.prototype.hasOwnProperty.call(existingValues, key)) {
+      valuesToWrite[key] = GUEST_APPLICATION_SETTINGS_DEFAULTS[key];
+      return;
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(GUEST_APPLICATION_SETTINGS_LEGACY_DEFAULTS, key)
+      && String(existingValues[key] || '') === String(GUEST_APPLICATION_SETTINGS_LEGACY_DEFAULTS[key])
+    ) {
+      valuesToWrite[key] = GUEST_APPLICATION_SETTINGS_DEFAULTS[key];
+    }
+  });
+
+  const migratedKeys = Object.keys(valuesToWrite);
+  if (migratedKeys.length > 0) {
+    setGuestApplicationSettingsValues(valuesToWrite);
+    clearGuestApplicationSettingsCache();
+  }
+  return migratedKeys.length;
+}
+
 function parseGuestApplicationDayOptions(value) {
   const source = Array.isArray(value) ? value : String(value || '').split(/[\n,]/);
   const result = [];
@@ -208,10 +257,47 @@ function parseGuestApplicationDayOptions(value) {
   return result.slice(0, 10);
 }
 
-function buildGuestApplicationSettingsResponse(settings) {
+function getGuestApplicationObjects(table) {
+  return table.rows
+    .filter(row => String(row[table.map.applicationId] || '').trim())
+    .map(row => guestApplicationRowToObject(row, table.map));
+}
+
+function isGuestApplicationCapacityStatus(status) {
+  const normalized = String(status || '').trim().toUpperCase();
+  return normalized === GUEST_APPLICATION_STATUS.PENDING || normalized === GUEST_APPLICATION_STATUS.APPROVED;
+}
+
+function getGuestApplicationCapacityState(applications) {
+  const activeCount = (applications || []).reduce((count, application) => {
+    if (application.anonymizedAt) return count;
+    return isGuestApplicationCapacityStatus(application.status) ? count + 1 : count;
+  }, 0);
+  const remainingSlots = Math.max(0, GUEST_APPLICATION_CAPACITY - activeCount);
+  return {
+    capacity: GUEST_APPLICATION_CAPACITY,
+    activeCount,
+    remainingSlots,
+    applicationFull: remainingSlots === 0,
+  };
+}
+
+function buildGuestApplicationSettingsResponse(settings, capacityState) {
+  const configuredOpen = String(settings.guestApplicationOpen || 'N').toUpperCase() === 'Y';
+  const capacity = capacityState || getGuestApplicationCapacityState([]);
+  const applicationFull = capacity.applicationFull === true;
+  const applicationOpen = configuredOpen && !applicationFull;
+  const configuredClosedMessage = String(settings.guestApplicationClosedMessage || '');
+  const applicationClosedReason = !configuredOpen ? 'MANUAL' : (applicationFull ? 'FULL' : '');
   return {
     success: true,
-    applicationOpen: String(settings.guestApplicationOpen || 'N').toUpperCase() === 'Y',
+    applicationOpen,
+    applicationOpenConfigured: configuredOpen,
+    applicationFull,
+    applicationClosedReason,
+    capacity: capacity.capacity,
+    activeCount: capacity.activeCount,
+    remainingSlots: capacity.remainingSlots,
     target: String(settings.guestApplicationTarget || ''),
     operatingDays: String(settings.guestApplicationOperatingDays || ''),
     orderTime: String(settings.guestApplicationOrderTime || ''),
@@ -219,7 +305,8 @@ function buildGuestApplicationSettingsResponse(settings) {
     serviceArea: String(settings.guestApplicationArea || ''),
     usageGuide: String(settings.guestApplicationUsage || ''),
     preferredDayOptions: parseGuestApplicationDayOptions(settings.guestApplicationDayOptions),
-    closedMessage: String(settings.guestApplicationClosedMessage || ''),
+    closedMessage: applicationClosedReason === 'FULL' ? GUEST_APPLICATION_FULL_MESSAGE : configuredClosedMessage,
+    configuredClosedMessage,
   };
 }
 
@@ -229,7 +316,12 @@ function getGuestApplicationSettings() {
     const cached = cache.get(GUEST_APPLICATION_SETTINGS_CACHE_KEY);
     if (cached) return JSON.parse(cached);
 
-    const response = buildGuestApplicationSettingsResponse(readGuestApplicationSettings());
+    const table = getGuestApplicationRows(ensureGuestApplicationSheet());
+    const applications = getGuestApplicationObjects(table);
+    const response = buildGuestApplicationSettingsResponse(
+      readGuestApplicationSettings(),
+      getGuestApplicationCapacityState(applications)
+    );
     cache.put(
       GUEST_APPLICATION_SETTINGS_CACHE_KEY,
       JSON.stringify(response),
@@ -376,8 +468,10 @@ function submitGuestApplication(data) {
       }
     }
 
-    const currentSettings = buildGuestApplicationSettingsResponse(readGuestApplicationSettings());
-    if (!currentSettings.applicationOpen) {
+    const applications = getGuestApplicationObjects(table);
+    const capacityState = getGuestApplicationCapacityState(applications);
+    const currentSettings = buildGuestApplicationSettingsResponse(readGuestApplicationSettings(), capacityState);
+    if (!currentSettings.applicationOpenConfigured) {
       return {
         success: false,
         code: 'APPLICATION_CLOSED',
@@ -408,6 +502,17 @@ function submitGuestApplication(data) {
       }
     }
 
+    if (capacityState.applicationFull) {
+      return {
+        success: false,
+        code: 'APPLICATION_FULL',
+        message: GUEST_APPLICATION_FULL_MESSAGE,
+        capacity: capacityState.capacity,
+        activeCount: capacityState.activeCount,
+        remainingSlots: 0,
+      };
+    }
+
     const now = new Date();
     const applicationId = createGuestApplicationId(table.rows, table.map, now);
     const application = {
@@ -433,10 +538,13 @@ function submitGuestApplication(data) {
     };
 
     sheet.appendRow(guestApplicationObjectToRow(application, table.headers));
+    clearGuestApplicationSettingsCache();
     return {
       success: true,
       applicationId,
       status: GUEST_APPLICATION_STATUS.PENDING,
+      capacity: capacityState.capacity,
+      remainingSlots: Math.max(0, capacityState.remainingSlots - 1),
       message: '이용 신청이 접수되었습니다. 관리자가 확인 후 연락드립니다.',
     };
   } finally {
@@ -470,9 +578,8 @@ function getGuestApplicationsForAdmin(data) {
   const table = getGuestApplicationRows(sheet);
   const filter = String((data && data.status) || 'ALL').trim().toUpperCase();
   const statusRank = { PENDING: 0, APPROVED: 1, REJECTED: 2, INACTIVE: 3 };
-  const applications = table.rows
-    .filter(row => String(row[table.map.applicationId] || '').trim())
-    .map(row => guestApplicationRowToObject(row, table.map));
+  const applications = getGuestApplicationObjects(table);
+  const capacityState = getGuestApplicationCapacityState(applications);
 
   applications.sort((a, b) => {
     const rankDiff = (statusRank[a.status] === undefined ? 9 : statusRank[a.status]) - (statusRank[b.status] === undefined ? 9 : statusRank[b.status]);
@@ -484,7 +591,7 @@ function getGuestApplicationsForAdmin(data) {
   return {
     success: true,
     counts: getGuestApplicationStatusCounts(applications, new Date()),
-    settings: buildGuestApplicationSettingsResponse(readGuestApplicationSettings()),
+    settings: buildGuestApplicationSettingsResponse(readGuestApplicationSettings(), capacityState),
     applications: visible.map(application => ({
       applicationId: application.applicationId,
       createdAt: application.createdAt,
@@ -546,6 +653,23 @@ function updateGuestApplication(data) {
 
     const application = found.object;
     const previousStatus = application.status;
+    if (
+      nextStatus
+      && !isGuestApplicationCapacityStatus(previousStatus)
+      && isGuestApplicationCapacityStatus(nextStatus)
+    ) {
+      const capacityState = getGuestApplicationCapacityState(getGuestApplicationObjects(table));
+      if (capacityState.applicationFull) {
+        return {
+          success: false,
+          code: 'APPLICATION_FULL',
+          message: GUEST_APPLICATION_ADMIN_FULL_MESSAGE,
+          capacity: capacityState.capacity,
+          activeCount: capacityState.activeCount,
+          remainingSlots: 0,
+        };
+      }
+    }
     const now = new Date();
     if (nextStatus) {
       application.status = nextStatus;
@@ -565,6 +689,7 @@ function updateGuestApplication(data) {
     const rowNumber = found.rowIndex + 2;
     sheet.getRange(rowNumber, 1, 1, table.headers.length)
       .setValues([guestApplicationObjectToRow(application, table.headers)]);
+    clearGuestApplicationSettingsCache();
     safeAppendAdminLog(
       'updateGuestApplication',
       'guestApplication',

@@ -466,7 +466,7 @@
           </div>
         </div>
         <div class="hero-image-wrap">
-          <img class="hero-image" src="assets/delivery-banner.png" alt="배달왔삼 배달 활동 일러스트">
+          <img class="hero-image" src="assets/delivery-banner.png" alt="배달왔삼 배달 활동 일러스트" decoding="async" fetchpriority="high">
         </div>
       </div>
     </section>
@@ -481,7 +481,7 @@
         <div class="meaning-grid">
           <article class="meaning-item">
             <div class="meaning-img-wrap">
-              <img class="meaning-card-img" src="assets/meaning-1.jpg" alt="주문 확인 과정 일러스트">
+              <img class="meaning-card-img" src="assets/meaning-1.jpg" alt="주문 확인 과정 일러스트" loading="lazy" decoding="async">
             </div>
             <div class="meaning-card-body">
               <strong>주문을 확인합니다</strong>
@@ -490,7 +490,7 @@
           </article>
           <article class="meaning-item">
             <div class="meaning-img-wrap">
-              <img class="meaning-card-img" src="assets/meaning-2.jpg" alt="음료 제조 과정 일러스트">
+              <img class="meaning-card-img" src="assets/meaning-2.jpg" alt="음료 제조 과정 일러스트" loading="lazy" decoding="async">
             </div>
             <div class="meaning-card-body">
               <strong>정성껏 준비합니다</strong>
@@ -499,7 +499,7 @@
           </article>
           <article class="meaning-item">
             <div class="meaning-img-wrap">
-              <img class="meaning-card-img" src="assets/meaning-3.jpg" alt="지역사회 배달 과정 일러스트">
+              <img class="meaning-card-img" src="assets/meaning-3.jpg" alt="지역사회 배달 과정 일러스트" loading="lazy" decoding="async">
             </div>
             <div class="meaning-card-body">
               <strong>직접 전합니다</strong>
@@ -536,6 +536,7 @@
         </div>
         <dl class="operation-grid">
           <div class="operation-row"><dt>이용 대상</dt><dd id="info-target">확인 중</dd></div>
+          <div class="operation-row"><dt>모집 정원</dt><dd id="info-capacity">확인 중</dd></div>
           <div class="operation-row"><dt>운영 요일</dt><dd id="info-days">확인 중</dd></div>
           <div class="operation-row"><dt>주문 시간</dt><dd id="info-order-time">확인 중</dd></div>
           <div class="operation-row"><dt>배달 시간</dt><dd id="info-delivery-time">확인 중</dd></div>
@@ -636,7 +637,9 @@
       const closedPanel = document.getElementById('application-closed');
       const successPanel = document.getElementById('application-success');
       const requestStorageKey = 'guestApplicationRequestId';
-      const useLocalMock = new URLSearchParams(window.location.search).get('mock') === '1';
+      const queryParams = new URLSearchParams(window.location.search);
+      const useLocalMock = queryParams.get('mock') === '1';
+      const useLocalMockFull = queryParams.get('mockFull') === '1';
       let applicationSettings = null;
 
       function createRequestId() {
@@ -692,12 +695,25 @@
         setText('info-delivery-time', settings.deliveryTime);
         setText('info-area', settings.serviceArea);
         setText('info-usage', settings.usageGuide);
+        const capacity = Math.max(1, Number(settings.capacity) || 5);
+        const remainingSlots = Math.max(0, Number(settings.remainingSlots) || 0);
+        setText(
+          'info-capacity',
+          settings.applicationFull
+            ? `1차 ${capacity}명 모집 완료`
+            : `1차 ${capacity}명 · 남은 ${remainingSlots}명`
+        );
         renderDayOptions(settings.preferredDayOptions);
 
         const state = document.getElementById('application-state');
         const isOpen = settings.applicationOpen === true;
-        state.textContent = isOpen ? '이용 신청 운영 중' : '이용 신청 마감';
+        state.textContent = isOpen
+          ? `신청 가능 · ${remainingSlots}명 남음`
+          : (settings.applicationFull ? '1차 모집 마감' : '이용 신청 마감');
         state.className = `application-state ${isOpen ? 'open' : 'closed'}`;
+        document.querySelectorAll('[data-open-application]').forEach(button => {
+          button.textContent = isOpen ? '배달왔삼 이용 신청하기' : '신청 마감 안내 보기';
+        });
         submitButton.disabled = !isOpen;
         form.hidden = !isOpen;
         closedPanel.style.display = isOpen ? 'none' : 'block';
@@ -705,9 +721,17 @@
       }
 
       function getMockSettings() {
+        const activeCount = useLocalMockFull ? 5 : 1;
+        const remainingSlots = Math.max(0, 5 - activeCount);
         return {
           success: true,
-          applicationOpen: true,
+          applicationOpen: !useLocalMockFull,
+          applicationOpenConfigured: true,
+          applicationFull: useLocalMockFull,
+          applicationClosedReason: useLocalMockFull ? 'FULL' : '',
+          capacity: 5,
+          activeCount,
+          remainingSlots,
           target: '영주시장애인복지관 봉사자·후원자와 관리자가 이용 가능하다고 인정한 관계자',
           operatingDays: '매주 수요일',
           orderTime: '운영일 오전 10시부터 오전 11시 30분까지\n\n운영 일정에 따라 주문 시간이 달라질 수 있으며, 정확한 시간은 별도로 안내합니다.',
@@ -715,7 +739,10 @@
           serviceArea: '복지관과 사전에 협의된 장소',
           usageGuide: '이용 신청과 관리자 확인을 완료한 뒤, 안내받은 배달왔삼 주문 페이지에서 직접 주문합니다.',
           preferredDayOptions: ['수요일'],
-          closedMessage: '현재 이용 신청을 받고 있지 않습니다.'
+          closedMessage: useLocalMockFull
+            ? '1차 시범 이용 신청 5명이 모두 접수되어 현재 모집을 마감했습니다. 추가 모집은 기관 담당자에게 문의해 주세요.'
+            : '현재 이용 신청을 받고 있지 않습니다.',
+          configuredClosedMessage: '현재 이용 신청을 받고 있지 않습니다.'
         };
       }
 
@@ -727,6 +754,12 @@
         } catch (error) {
           renderSettings({
             applicationOpen: false,
+            applicationOpenConfigured: false,
+            applicationFull: false,
+            applicationClosedReason: 'ERROR',
+            capacity: 5,
+            activeCount: 0,
+            remainingSlots: 0,
             target: '기관 담당자에게 문의해 주세요.',
             operatingDays: '-',
             orderTime: '-',
@@ -795,10 +828,15 @@
             ? { success: true, applicationId: 'APP-PREVIEW-001', message: '로컬 미리보기 신청입니다.' }
             : await fetchAPI('submitGuestApplication', { method: 'POST', body });
           if (!res?.success) {
-            if (res?.code === 'APPLICATION_CLOSED') {
+            if (res?.code === 'APPLICATION_CLOSED' || res?.code === 'APPLICATION_FULL') {
+              const applicationFull = res.code === 'APPLICATION_FULL';
               renderSettings({
                 ...applicationSettings,
                 applicationOpen: false,
+                applicationFull,
+                applicationClosedReason: applicationFull ? 'FULL' : 'MANUAL',
+                activeCount: applicationFull ? (Number(res.activeCount) || Number(res.capacity) || 5) : applicationSettings.activeCount,
+                remainingSlots: applicationFull ? 0 : applicationSettings.remainingSlots,
                 closedMessage: res.message || '현재 이용 신청을 받고 있지 않습니다.'
               });
             }
