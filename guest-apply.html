@@ -76,21 +76,19 @@
 
     .hero {
       min-height: 0;
-      display: flex;
-      align-items: flex-start;
       background-color: #F8FCFB;
-      background-image: url("assets/delivery-banner.png");
-      background-repeat: no-repeat;
-      background-position: center 2%;
-      background-size: min(820px, 90vw) auto;
       border-bottom: 1px solid var(--line);
+      padding: 60px 0;
     }
     .hero-inner {
-      width: min(1120px, calc(100% - 36px));
+      width: min(1120px, calc(100% - 48px));
       margin: 0 auto;
-      padding: clamp(320px, 40vw, 405px) 0 34px;
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 48px;
+      align-items: center;
     }
-    .hero-copy { max-width: 650px; }
+    .hero-copy { max-width: 100%; }
     .hero-kicker {
       margin: 0 0 8px;
       color: var(--teal);
@@ -99,7 +97,7 @@
     }
     .hero h1 {
       margin: 0;
-      font-size: 56px;
+      font-size: 52px;
       line-height: 1.12;
       font-weight: 950;
       word-break: keep-all;
@@ -107,8 +105,8 @@
     .hero p {
       margin: 16px 0 0;
       color: var(--muted);
-      font-size: 20px;
-      line-height: 1.6;
+      font-size: 19px;
+      line-height: 1.65;
       font-weight: 700;
       word-break: keep-all;
     }
@@ -136,6 +134,23 @@
     .primary-action:hover { background: #0B5F59; }
     .primary-action:disabled { background: #94A3B8; cursor: not-allowed; }
     .secondary-action { background: white; color: var(--ink); border-color: var(--line); }
+    .hero-image-wrap {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+    }
+    .hero-image {
+      width: 100%;
+      max-width: 480px;
+      height: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 10px 24px rgba(15, 118, 110, 0.08));
+      transition: transform 0.3s ease;
+    }
+    .hero-image:hover {
+      transform: translateY(-4px);
+    }
 
     .section {
       padding: 76px 18px;
@@ -210,7 +225,7 @@
       border-bottom: 1px solid #FED7AA;
     }
     .operation-row dt { margin: 0; color: #9A3412; font-size: 14px; font-weight: 900; }
-    .operation-row dd { margin: 0; color: var(--ink); font-size: 15px; line-height: 1.5; font-weight: 750; word-break: keep-all; }
+    .operation-row dd { margin: 0; color: var(--ink); font-size: 15px; line-height: 1.5; font-weight: 750; word-break: keep-all; white-space: pre-wrap; }
     .application-state {
       display: inline-flex;
       align-items: center;
@@ -349,11 +364,21 @@
       .apply-brand img { width: 34px; height: 34px; }
       .header-link { min-height: 38px; padding: 7px 9px; font-size: 13px; }
       .hero {
-        min-height: 0;
-        background-position: center 2%;
-        background-size: 500px auto;
+        padding: 40px 0;
       }
-      .hero-inner { width: calc(100% - 32px); padding: 250px 0 34px; }
+      .hero-inner {
+        grid-template-columns: 1fr;
+        gap: 28px;
+        width: calc(100% - 32px);
+        padding: 0;
+      }
+      .hero-image-wrap {
+        order: -1;
+        padding: 0 16px;
+      }
+      .hero-image {
+        max-width: 400px;
+      }
       .hero h1 { font-size: 36px; }
       .hero p { font-size: 17px; }
       .section h2 { font-size: 30px; }
@@ -375,8 +400,9 @@
     @media (max-width: 340px) {
       .apply-brand span { display: none; }
       .hero h1 { font-size: 31px; }
-      .hero { background-size: 430px auto; }
-      .hero-inner { padding-top: 220px; }
+      .hero-image-wrap {
+        padding: 0 8px;
+      }
       .operation-row { grid-template-columns: 1fr; gap: 4px; }
       .day-option span { padding-inline: 10px; }
     }
@@ -401,12 +427,15 @@
       <div class="hero-inner">
         <div class="hero-copy">
           <p class="hero-kicker">영주시장애인복지관 주간보호</p>
-          <h1 id="application-title">배달왔삼을<br>이용해 보세요</h1>
-          <p>발달장애인 이용자들이 주문을 확인하고 음료를 준비해 지역사회에 직접 전하는 활동입니다.</p>
+          <h1 id="application-title">직접 준비하고,<br>직접 전합니다.</h1>
+          <p>발달장애인 이용자들이 주문을 확인하고 음료를 준비해<br>지역사회에 직접 배달합니다.</p>
           <div class="hero-actions">
             <button class="primary-action" type="button" data-open-application>배달왔삼 이용 신청하기</button>
             <a class="secondary-action" href="#how-it-works">이용 절차 보기</a>
           </div>
+        </div>
+        <div class="hero-image-wrap">
+          <img class="hero-image" src="assets/delivery-banner.png" alt="배달왔삼 배달 활동 일러스트">
         </div>
       </div>
     </section>
@@ -415,24 +444,24 @@
       <div class="section-inner">
         <div class="section-heading">
           <p class="section-kicker">함께 만드는 서비스</p>
-          <h2 id="meaning-title">준비하는 사람과 기다리는 사람이 연결됩니다</h2>
-          <p class="section-lead">배달왔삼은 단순한 음료 판매가 아니라, 익숙한 일상 속 역할과 지역사회의 만남을 만드는 활동입니다.</p>
+          <h2 id="meaning-title">준비하는 사람과<br>기다리는 사람이 연결됩니다.</h2>
+          <p class="section-lead">배달왔삼은 단순히 음료를 전달하는 서비스가 아닙니다.<br><br>주문을 확인하고, 음료를 준비하고, 직접 배달하는 과정을 통해 발달장애인 이용자는 지역사회에 필요한 서비스를 제공하는 역할을 경험합니다.<br><br>그리고 한 잔의 음료를 기다리는 사람과 감사의 마음으로 자연스럽게 연결됩니다.</p>
         </div>
         <div class="meaning-grid">
           <article class="meaning-item">
             <span class="meaning-icon" aria-hidden="true">🧾</span>
-            <strong>주문 확인</strong>
-            <p>운영일에 접수된 주문을 살펴보고 준비 순서를 함께 확인합니다.</p>
+            <strong>주문을 확인합니다</strong>
+            <p>운영일에 접수된 주문을 살펴보고<br>무엇을 먼저 준비할지 함께 확인합니다.</p>
           </article>
           <article class="meaning-item">
             <span class="meaning-icon" aria-hidden="true">🥤</span>
-            <strong>음료 준비</strong>
-            <p>주문표에 맞춰 음료와 간식을 챙기고 전달할 준비를 합니다.</p>
+            <strong>정성껏 준비합니다</strong>
+            <p>주문표에 맞춰 음료와 간식을 챙기고<br>빠진 것이 없는지 다시 살펴봅니다.</p>
           </article>
           <article class="meaning-item">
             <span class="meaning-icon" aria-hidden="true">🛵</span>
-            <strong>지역사회 배달</strong>
-            <p>복지관을 넘어 봉사자와 후원자에게 감사의 마음을 전합니다.</p>
+            <strong>직접 전합니다</strong>
+            <p>복지관을 넘어 봉사자와 후원자를 찾아가<br>음료와 함께 감사의 마음을 전달합니다.</p>
           </article>
         </div>
       </div>
@@ -442,15 +471,15 @@
       <div class="section-inner">
         <div class="section-heading">
           <p class="section-kicker">이용 절차</p>
-          <h2 id="process-title">신청과 실제 주문은 나누어 진행합니다</h2>
-          <p class="section-lead">이 페이지에서는 메뉴를 고르지 않습니다. 먼저 이용 가능 여부와 배달 장소를 확인한 뒤 주문 방법을 안내합니다.</p>
+          <h2 id="process-title">신청과 주문은<br>나누어 진행합니다.</h2>
+          <p class="section-lead">이 페이지에서는 메뉴를 선택하지 않습니다.<br><br>먼저 이용 신청을 통해 대상과 배달 가능 장소를 확인한 뒤, 승인된 이용자에게 실제 주문 화면을 안내합니다.</p>
         </div>
         <div class="steps">
-          <div class="step"><strong>이용 신청</strong><span>필수 정보와 희망 요일을 작성합니다.</span></div>
-          <div class="step"><strong>관리자 확인</strong><span>대상과 배달 가능 장소를 확인합니다.</span></div>
-          <div class="step"><strong>수동 안내</strong><span>기관 담당자가 전화 또는 문자로 연락합니다.</span></div>
-          <div class="step"><strong>운영일 주문</strong><span>안내받은 주문 화면에서 메뉴를 선택합니다.</span></div>
-          <div class="step"><strong>준비와 배달</strong><span>배달왔삼이 음료를 준비해 전달합니다.</span></div>
+          <div class="step"><strong>이용 신청</strong><span>연락처와 배달 장소, 희망 운영일을 작성합니다.</span></div>
+          <div class="step"><strong>관리자 확인</strong><span>신청 대상과 배달 가능 장소를 확인합니다.</span></div>
+          <div class="step"><strong>이용 안내</strong><span>기관 담당자가 전화 또는 문자로 주문 방법과 운영 일정을 안내합니다.</span></div>
+          <div class="step"><strong>운영일 주문</strong><span>안내받은 배달왔삼 주문 화면에서 원하는 메뉴를 직접 선택합니다.</span></div>
+          <div class="step"><strong>준비와 배달</strong><span>배달왔삼 이용자들이 주문을 확인하고 음료를 준비해 순서대로 전달합니다.</span></div>
         </div>
       </div>
     </section>
@@ -459,7 +488,7 @@
       <div class="section-inner">
         <div class="section-heading">
           <p class="section-kicker">운영 안내</p>
-          <h2 id="operation-title">신청 전에 확인해 주세요</h2>
+          <h2 id="operation-title">신청 전에<br>확인해 주세요.</h2>
           <span class="application-state" id="application-state">신청 상태 확인 중</span>
         </div>
         <dl class="operation-grid">
@@ -468,7 +497,7 @@
           <div class="operation-row"><dt>주문 시간</dt><dd id="info-order-time">확인 중</dd></div>
           <div class="operation-row"><dt>배달 시간</dt><dd id="info-delivery-time">확인 중</dd></div>
           <div class="operation-row"><dt>배달 지역</dt><dd id="info-area">확인 중</dd></div>
-          <div class="operation-row"><dt>이용 방식</dt><dd id="info-usage">확인 중</dd></div>
+          <div class="operation-row"><dt>이용 방법</dt><dd id="info-usage">확인 중</dd></div>
         </dl>
         <div style="margin-top: 24px;">
           <button class="primary-action" type="button" data-open-application>배달왔삼 이용 신청하기</button>
@@ -636,13 +665,13 @@
         return {
           success: true,
           applicationOpen: true,
-          target: '복지관 봉사자·후원자와 관리자가 인정하는 기타 관계자',
-          operatingDays: '운영일 별도 안내',
-          orderTime: '운영일에 별도 안내',
-          deliveryTime: '주문 확인 후 순차 배달',
-          serviceArea: '복지관과 협의된 장소',
-          usageGuide: '승인 후 안내받은 배달왔삼 주문 페이지에서 직접 주문',
-          preferredDayOptions: ['월요일', '화요일', '수요일', '목요일', '금요일'],
+          target: '영주시장애인복지관 봉사자·후원자와 관리자가 이용 가능하다고 인정한 관계자',
+          operatingDays: '매주 수요일',
+          orderTime: '운영일 오전 10시부터 오전 11시 30분까지\n\n운영 일정에 따라 주문 시간이 달라질 수 있으며, 정확한 시간은 별도로 안내합니다.',
+          deliveryTime: '오후 1시부터 주문 확인 순서에 따라 배달합니다.',
+          serviceArea: '복지관과 사전에 협의된 장소',
+          usageGuide: '이용 신청과 관리자 확인을 완료한 뒤, 안내받은 배달왔삼 주문 페이지에서 직접 주문합니다.',
+          preferredDayOptions: ['수요일'],
           closedMessage: '현재 이용 신청을 받고 있지 않습니다.'
         };
       }

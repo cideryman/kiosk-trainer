@@ -69,13 +69,13 @@ const MOCK_DATA = {
 const MOCK_GUEST_APPLICATION_SETTINGS = {
   success: true,
   applicationOpen: true,
-  target: '복지관 봉사자·후원자와 관리자가 인정하는 기타 관계자',
-  operatingDays: '운영일 별도 안내',
-  orderTime: '운영일에 별도 안내',
-  deliveryTime: '주문 확인 후 순차 배달',
-  serviceArea: '복지관과 협의된 장소',
-  usageGuide: '승인 후 안내받은 배달왔삼 주문 페이지에서 직접 주문',
-  preferredDayOptions: ['월요일', '수요일', '금요일'],
+  target: '영주시장애인복지관 봉사자·후원자와 관리자가 이용 가능하다고 인정한 관계자',
+  operatingDays: '매주 수요일',
+  orderTime: '운영일 오전 10시부터 오전 11시 30분까지\n\n운영 일정에 따라 주문 시간이 달라질 수 있으며, 정확한 시간은 별도로 안내합니다.',
+  deliveryTime: '오후 1시부터 주문 확인 순서에 따라 배달합니다.',
+  serviceArea: '복지관과 사전에 협의된 장소',
+  usageGuide: '이용 신청과 관리자 확인을 완료한 뒤, 안내받은 배달왔삼 주문 페이지에서 직접 주문합니다.',
+  preferredDayOptions: ['수요일'],
   closedMessage: '현재 이용 신청을 받고 있지 않습니다.'
 };
 

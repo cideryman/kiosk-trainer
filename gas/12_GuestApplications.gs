@@ -36,13 +36,13 @@ const GUEST_APPLICATION_SETTINGS_CACHE_KEY = 'guestApplicationSettings.v1';
 const GUEST_APPLICATION_SETTINGS_CACHE_TTL_SECONDS = 30;
 const GUEST_APPLICATION_SETTINGS_DEFAULTS = {
   guestApplicationOpen: 'N',
-  guestApplicationTarget: '복지관 봉사자·후원자와 관리자가 인정하는 기타 관계자',
-  guestApplicationOperatingDays: '운영일 별도 안내',
-  guestApplicationOrderTime: '운영일에 별도 안내',
-  guestApplicationDeliveryTime: '주문 확인 후 순차 배달',
-  guestApplicationArea: '복지관과 협의된 장소',
-  guestApplicationUsage: '승인 후 안내받은 배달왔삼 주문 페이지에서 직접 주문',
-  guestApplicationDayOptions: '월요일,화요일,수요일,목요일,금요일',
+  guestApplicationTarget: '영주시장애인복지관 봉사자·후원자와 관리자가 이용 가능하다고 인정한 관계자',
+  guestApplicationOperatingDays: '매주 수요일',
+  guestApplicationOrderTime: '운영일 오전 10시부터 오전 11시 30분까지\n\n운영 일정에 따라 주문 시간이 달라질 수 있으며, 정확한 시간은 별도로 안내합니다.',
+  guestApplicationDeliveryTime: '오후 1시부터 주문 확인 순서에 따라 배달합니다.',
+  guestApplicationArea: '복지관과 사전에 협의된 장소',
+  guestApplicationUsage: '이용 신청과 관리자 확인을 완료한 뒤, 안내받은 배달왔삼 주문 페이지에서 직접 주문합니다.',
+  guestApplicationDayOptions: '수요일',
   guestApplicationClosedMessage: '현재 이용 신청을 받고 있지 않습니다. 기관 담당자에게 문의해 주세요.',
 };
 
