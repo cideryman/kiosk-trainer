@@ -157,7 +157,7 @@
     }
     .section.soft { background: var(--soft); }
     .section.orange-band { background: #FFF7ED; border-top: 1px solid #FED7AA; border-bottom: 1px solid #FED7AA; }
-    .section-inner { width: min(1040px, 100%); margin: 0 auto; }
+    .section-inner { width: min(1120px, calc(100% - 48px)); margin: 0 auto; }
     .section-heading { max-width: 720px; margin-bottom: 32px; }
     .section-kicker { margin: 0 0 8px; color: var(--orange); font-size: 15px; font-weight: 900; }
     .section h2 { margin: 0; font-size: 40px; line-height: 1.2; font-weight: 950; word-break: keep-all; }
@@ -166,18 +166,41 @@
     .meaning-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px;
+      gap: 16px;
     }
     .meaning-item {
-      min-height: 176px;
-      padding: 22px;
+      min-height: 310px;
       border: 2px solid var(--line);
       border-radius: 8px;
       background: white;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
-    .meaning-icon { display: block; margin-bottom: 14px; font-size: 28px; }
-    .meaning-item strong { display: block; margin-bottom: 8px; font-size: 19px; font-weight: 900; }
-    .meaning-item p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.6; font-weight: 650; word-break: keep-all; }
+    .meaning-img-wrap {
+      width: 100%;
+      height: 170px;
+      overflow: hidden;
+      border-bottom: 1px solid var(--line);
+    }
+    .meaning-card-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      transition: transform 0.3s ease;
+    }
+    .meaning-item:hover .meaning-card-img {
+      transform: scale(1.04);
+    }
+    .meaning-card-body {
+      padding: 18px 16px 20px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+    .meaning-item strong { display: block; margin-bottom: 8px; font-size: 18px; font-weight: 900; }
+    .meaning-item p { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.55; font-weight: 650; word-break: keep-all; }
 
     .steps {
       display: grid;
@@ -387,6 +410,12 @@
       .meaning-grid,
       .operation-grid,
       .application-form { grid-template-columns: 1fr; }
+      .meaning-img-wrap {
+        height: 155px;
+      }
+      .meaning-item {
+        min-height: auto;
+      }
       .form-field.full,
       .form-submit,
       .form-message { grid-column: auto; }
@@ -417,7 +446,7 @@
   <header class="apply-header">
     <a class="apply-brand" href="guest.html">
       <img src="icons/guest-192.png" alt="">
-      <span>배달왔삼 이용 신청</span>
+      <span><strong style="color: var(--teal); font-weight: inherit;">배달왔</strong><strong style="color: var(--orange); font-weight: inherit;">삼</strong> 이용 신청</span>
     </a>
     <a class="header-link" href="guest.html">주문 화면</a>
   </header>
@@ -449,19 +478,31 @@
         </div>
         <div class="meaning-grid">
           <article class="meaning-item">
-            <span class="meaning-icon" aria-hidden="true">🧾</span>
-            <strong>주문을 확인합니다</strong>
-            <p>운영일에 접수된 주문을 살펴보고<br>무엇을 먼저 준비할지 함께 확인합니다.</p>
+            <div class="meaning-img-wrap">
+              <img class="meaning-card-img" src="assets/meaning-1.jpg" alt="주문 확인 과정 일러스트">
+            </div>
+            <div class="meaning-card-body">
+              <strong>주문을 확인합니다</strong>
+              <p>운영일에 접수된 주문을 살펴보고<br>무엇을 먼저 준비할지 함께 확인합니다.</p>
+            </div>
           </article>
           <article class="meaning-item">
-            <span class="meaning-icon" aria-hidden="true">🥤</span>
-            <strong>정성껏 준비합니다</strong>
-            <p>주문표에 맞춰 음료와 간식을 챙기고<br>빠진 것이 없는지 다시 살펴봅니다.</p>
+            <div class="meaning-img-wrap">
+              <img class="meaning-card-img" src="assets/meaning-2.jpg" alt="음료 제조 과정 일러스트">
+            </div>
+            <div class="meaning-card-body">
+              <strong>정성껏 준비합니다</strong>
+              <p>주문표에 맞춰 음료와 간식을 챙기고<br>빠진 것이 없는지 다시 살펴봅니다.</p>
+            </div>
           </article>
           <article class="meaning-item">
-            <span class="meaning-icon" aria-hidden="true">🛵</span>
-            <strong>직접 전합니다</strong>
-            <p>복지관을 넘어 봉사자와 후원자를 찾아가<br>음료와 함께 감사의 마음을 전달합니다.</p>
+            <div class="meaning-img-wrap">
+              <img class="meaning-card-img" src="assets/meaning-3.jpg" alt="지역사회 배달 과정 일러스트">
+            </div>
+            <div class="meaning-card-body">
+              <strong>직접 전합니다</strong>
+              <p>복지관을 넘어 봉사자와 후원자를 찾아가<br>음료와 함께 감사의 마음을 전달합니다.</p>
+            </div>
           </article>
         </div>
       </div>

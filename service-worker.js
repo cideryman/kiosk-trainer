@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kiosk-cache-v192';
+const CACHE_NAME = 'kiosk-cache-v195';
 const urlsToCache = [
   'index.html',
   'index.html?type=kiosk',
@@ -38,6 +38,9 @@ const urlsToCache = [
   'assets/store-banner.png',
   'assets/offline.png',
   'assets/closed-character.png',
+  'assets/meaning-1.jpg',
+  'assets/meaning-2.jpg',
+  'assets/meaning-3.jpg',
   'sounds/new-order.mp3',
   'sounds/new-pickup-order.mp3',
   'sounds/new-delivery-order.mp3'
