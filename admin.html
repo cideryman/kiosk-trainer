@@ -86,6 +86,283 @@
       display: block;
     }
 
+    .application-toolbar,
+    .application-filter-row,
+    .application-settings-actions,
+    .application-modal-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .application-toolbar {
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .application-filter-btn {
+      min-height: 38px;
+      padding: 6px 11px;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: white;
+      color: var(--text-main);
+      font-size: 14px;
+      font-weight: 850;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .application-filter-btn.active {
+      color: white;
+      background: #0F766E;
+      border-color: #0F766E;
+    }
+
+    .application-filter-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 24px;
+      height: 22px;
+      margin-left: 4px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: #E2E8F0;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .application-filter-btn.active .application-filter-count {
+      background: white;
+      color: #0F766E;
+    }
+
+    .application-settings-panel,
+    .application-retention-panel {
+      margin-bottom: 18px;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: #F8FAFC;
+      overflow: hidden;
+    }
+
+    .application-settings-panel summary,
+    .application-retention-panel summary {
+      padding: 13px 16px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 850;
+      color: var(--text-main);
+      user-select: none;
+    }
+
+    .application-settings-body,
+    .application-retention-body {
+      padding: 0 16px 16px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .application-settings-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      padding-top: 16px;
+    }
+
+    .application-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .application-field.full {
+      grid-column: 1 / -1;
+    }
+
+    .application-field label {
+      font-size: 14px;
+      font-weight: 850;
+      color: #334155;
+    }
+
+    .application-field input,
+    .application-field textarea,
+    .application-field select,
+    .application-modal-memo {
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 42px;
+      padding: 9px 10px;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: white;
+      color: var(--text-main);
+      font: inherit;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .application-field textarea,
+    .application-modal-memo {
+      min-height: 78px;
+      resize: vertical;
+    }
+
+    .application-open-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 42px;
+      font-size: 15px;
+      font-weight: 850;
+    }
+
+    .application-open-toggle input {
+      width: 22px;
+      height: 22px;
+      min-height: 0;
+      accent-color: #0F766E;
+    }
+
+    .application-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .application-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px 14px;
+      padding: 15px;
+      border: 2px solid var(--border-color);
+      border-left: 5px solid #94A3B8;
+      border-radius: var(--radius-sm);
+      background: white;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .application-card.pending { border-left-color: #D97706; }
+    .application-card.approved { border-left-color: #059669; }
+    .application-card.rejected { border-left-color: #DC2626; }
+    .application-card.inactive { border-left-color: #64748B; }
+
+    .application-card-main {
+      min-width: 0;
+    }
+
+    .application-card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 7px;
+      font-size: 17px;
+      font-weight: 900;
+      color: var(--text-main);
+    }
+
+    .application-card-meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 5px 10px;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.4;
+      color: var(--text-muted);
+    }
+
+    .application-card-meta span {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .application-status-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 26px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 900;
+      border: 1.5px solid currentColor;
+      white-space: nowrap;
+    }
+
+    .application-status-badge.pending { color: #B45309; background: #FFFBEB; }
+    .application-status-badge.approved { color: #047857; background: #ECFDF5; }
+    .application-status-badge.rejected { color: #B91C1C; background: #FEF2F2; }
+    .application-status-badge.inactive { color: #475569; background: #F1F5F9; }
+
+    .application-card-action {
+      align-self: center;
+      min-width: 74px;
+      min-height: 40px;
+      padding: 6px 11px;
+      border: 0;
+      border-radius: var(--radius-sm);
+      background: #0F766E;
+      color: white;
+      font-size: 14px;
+      font-weight: 850;
+      cursor: pointer;
+    }
+
+    .application-empty,
+    .application-loading,
+    .application-error {
+      grid-column: 1 / -1;
+      padding: 28px 16px;
+      border: 2px dashed var(--border-color);
+      border-radius: var(--radius-sm);
+      text-align: center;
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text-muted);
+      background: #F8FAFC;
+    }
+
+    .application-error {
+      color: #B91C1C;
+      border-color: #FCA5A5;
+      background: #FEF2F2;
+    }
+
+    .application-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 16px;
+      max-height: 52vh;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .application-detail-item {
+      min-width: 0;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .application-detail-item.full { grid-column: 1 / -1; }
+    .application-detail-label { display: block; margin-bottom: 3px; color: var(--text-muted); font-size: 12px; font-weight: 850; }
+    .application-detail-value { color: var(--text-main); font-size: 15px; font-weight: 750; line-height: 1.5; overflow-wrap: anywhere; }
+
+    .application-retention-result {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      background: white;
+      border: 1px solid var(--border-color);
+      font-size: 14px;
+      font-weight: 750;
+      line-height: 1.5;
+    }
+
     /* 관리자 인라인 게이지 편집 스타일 */
     .btn-small-action {
       padding: 6px 12px;
@@ -732,6 +1009,50 @@
         word-break: keep-all;
       }
 
+      .application-settings-grid,
+      .application-list,
+      .application-detail-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .application-field.full,
+      .application-detail-item.full {
+        grid-column: auto;
+      }
+
+      .application-filter-row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        width: 100%;
+        gap: 6px;
+      }
+
+      .application-filter-btn {
+        min-width: 0;
+        padding: 5px 4px;
+        font-size: 13px;
+      }
+
+      .application-card {
+        grid-template-columns: minmax(0, 1fr) auto;
+        padding: 12px;
+      }
+
+      .application-card-meta {
+        grid-template-columns: 1fr;
+      }
+
+      .application-modal-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+      }
+
+      .application-modal-actions .btn {
+        width: 100%;
+        min-width: 0;
+      }
+
       .admin-table th, .admin-table td {
         padding: 8px 4px;
         font-size: 13px;
@@ -1149,7 +1470,8 @@
       <div class="admin-tabs" style="margin-top: 10px;">
         <button class="admin-tab-btn active" id="btn-tab-users" onclick="switchTab('tab-users')">🪙 이용자</button>
         <button class="admin-tab-btn" id="btn-tab-snacks" onclick="switchTab('tab-snacks')">🍪 간식</button>
-        <button class="admin-tab-btn" id="btn-tab-snack-order" onclick="switchTab('tab-snack-order')">🔢 간식 순서</button>
+        <button class="admin-tab-btn" id="btn-tab-snack-order" onclick="switchTab('tab-snack-order')">🔢 순서</button>
+        <button class="admin-tab-btn" id="btn-tab-applications" onclick="switchTab('tab-applications')">📨 신청</button>
       </div>
 
       <!-- Tab 2: 이용자 크레딧 관리 -->
@@ -1271,11 +1593,115 @@
         </div>
       </div>
 
-      <!-- Tab 4: 후기 관리 제거됨 (reviews.html로 분리) -->
+      <!-- Tab 5: 배달왔삼 이용 신청 관리 -->
+      <div id="tab-applications" class="admin-tab-content">
+        <div class="application-toolbar">
+          <div class="admin-section-title" style="color: #0F766E; border-left-color: #14B8A6; margin-bottom: 0;">📨 배달왔삼 이용 신청</div>
+          <button class="btn-small-action" type="button" onclick="loadGuestApplications()" style="min-height: 40px; background: #0F766E;">새로고침</button>
+        </div>
+
+        <div class="application-filter-row" id="application-filter-row" aria-label="신청 상태 필터">
+          <button type="button" class="application-filter-btn active" data-application-filter="ALL">전체 <span class="application-filter-count" id="application-count-all">0</span></button>
+          <button type="button" class="application-filter-btn" data-application-filter="PENDING">대기 <span class="application-filter-count" id="application-count-pending">0</span></button>
+          <button type="button" class="application-filter-btn" data-application-filter="APPROVED">승인 <span class="application-filter-count" id="application-count-approved">0</span></button>
+          <button type="button" class="application-filter-btn" data-application-filter="REJECTED">반려 <span class="application-filter-count" id="application-count-rejected">0</span></button>
+          <button type="button" class="application-filter-btn" data-application-filter="INACTIVE">중지 <span class="application-filter-count" id="application-count-inactive">0</span></button>
+        </div>
+
+        <details class="application-settings-panel" id="application-settings-panel" style="margin-top: 14px;">
+          <summary>⚙️ 신청 운영 안내 설정</summary>
+          <div class="application-settings-body">
+            <div class="application-settings-grid">
+              <div class="application-field">
+                <label>신청 상태</label>
+                <label class="application-open-toggle"><input type="checkbox" id="application-setting-open"> 이용 신청 받기</label>
+              </div>
+              <div class="application-field">
+                <label for="application-setting-days">운영 요일</label>
+                <input id="application-setting-days" type="text" maxlength="100">
+              </div>
+              <div class="application-field full">
+                <label for="application-setting-target">이용 대상</label>
+                <input id="application-setting-target" type="text" maxlength="160">
+              </div>
+              <div class="application-field">
+                <label for="application-setting-order-time">주문 시간</label>
+                <input id="application-setting-order-time" type="text" maxlength="100">
+              </div>
+              <div class="application-field">
+                <label for="application-setting-delivery-time">배달 시간</label>
+                <input id="application-setting-delivery-time" type="text" maxlength="100">
+              </div>
+              <div class="application-field full">
+                <label for="application-setting-area">배달 가능 지역</label>
+                <input id="application-setting-area" type="text" maxlength="160">
+              </div>
+              <div class="application-field full">
+                <label for="application-setting-usage">이용 방식</label>
+                <textarea id="application-setting-usage" maxlength="240"></textarea>
+              </div>
+              <div class="application-field full">
+                <label for="application-setting-day-options">희망 요일 선택지 (쉼표로 구분)</label>
+                <input id="application-setting-day-options" type="text" maxlength="160">
+              </div>
+              <div class="application-field full">
+                <label for="application-setting-closed-message">신청 마감 안내</label>
+                <textarea id="application-setting-closed-message" maxlength="240"></textarea>
+              </div>
+            </div>
+            <div class="application-settings-actions" style="justify-content: flex-end; margin-top: 14px;">
+              <button class="btn btn-secondary" id="btn-save-application-settings" type="button" style="width: auto; min-height: 44px; margin: 0;">설정 저장</button>
+            </div>
+          </div>
+        </details>
+
+        <div class="application-list" id="application-list" aria-live="polite">
+          <div class="application-loading">신청 목록을 불러오고 있습니다.</div>
+        </div>
+
+        <details class="application-retention-panel" style="margin-top: 18px;">
+          <summary>🧹 만료 개인정보 점검</summary>
+          <div class="application-retention-body">
+            <p style="margin: 14px 0 10px; font-size: 14px; font-weight: 700; color: var(--text-muted); line-height: 1.5;">반려·이용 중지 후 30일이 지난 신청만 익명화합니다. 먼저 점검한 뒤 확인 문구를 입력해야 실행됩니다.</p>
+            <div class="application-settings-actions">
+              <button class="btn btn-gray" id="btn-audit-applications" type="button" style="width: auto; min-height: 42px; margin: 0;">만료 점검</button>
+              <input id="application-anonymize-confirm" type="text" autocomplete="off" placeholder="신청정보정리" style="box-sizing: border-box; min-height: 42px; padding: 8px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); font: inherit; font-weight: 750;">
+              <button class="btn btn-gray" id="btn-anonymize-applications" type="button" style="width: auto; min-height: 42px; margin: 0; color: #B91C1C; border-color: #FCA5A5;">익명화 실행</button>
+            </div>
+            <div class="application-retention-result" id="application-retention-result">아직 만료 점검을 실행하지 않았습니다.</div>
+          </div>
+        </details>
+      </div>
 
     </main>
 
 
+  </div>
+
+  <!-- 이용 신청 상세 모달 -->
+  <div class="admin-modal" id="modal-guest-application">
+    <div class="admin-modal-content" style="max-width: 760px; max-height: 92vh; overflow: hidden;">
+      <div class="admin-modal-header">
+        <h2 class="admin-modal-title">📨 이용 신청 상세</h2>
+        <button class="admin-modal-close" type="button" onclick="closeGuestApplicationModal()">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <div id="application-detail-content" class="application-detail-grid">
+          <div class="application-loading">상세 정보를 불러오고 있습니다.</div>
+        </div>
+        <div class="application-field">
+          <label for="application-detail-memo">관리자 메모</label>
+          <textarea class="application-modal-memo" id="application-detail-memo" maxlength="500" placeholder="연락 결과나 운영 메모를 기록합니다."></textarea>
+        </div>
+      </div>
+      <div class="application-modal-actions">
+        <button class="btn btn-secondary" type="button" data-application-action="APPROVED" style="margin: 0; min-height: 44px;">승인</button>
+        <button class="btn btn-gray" type="button" data-application-action="REJECTED" style="margin: 0; min-height: 44px; color: #B91C1C;">반려</button>
+        <button class="btn btn-gray" type="button" data-application-action="INACTIVE" style="margin: 0; min-height: 44px;">이용 중지</button>
+        <button class="btn btn-gray" id="btn-application-contacted" type="button" style="margin: 0; min-height: 44px;">연락 완료</button>
+        <button class="btn btn-primary" id="btn-save-application-memo" type="button" style="margin: 0; min-height: 44px;">메모 저장</button>
+      </div>
+    </div>
   </div>
 
   <!-- 신규 이용자 추가 모달 -->
@@ -1698,6 +2124,11 @@
 
     let currentUsers = [];
     let currentSnacks = [];
+    let currentApplications = [];
+    let currentApplicationFilter = 'ALL';
+    let currentApplicationDetail = null;
+    let guestApplicationsLoaded = false;
+    let guestApplicationSettingsDirty = false;
     let isModalOpen = false;
     let activeGaugeEdit = null;
     const ADMIN_UI_MAX_USER_CREDIT = 15;
@@ -1885,6 +2316,312 @@
       AdminAuth.handleDenied(res);
     }
 
+    const APPLICATION_STATUS_META = {
+      PENDING: { label: '대기', className: 'pending' },
+      APPROVED: { label: '승인', className: 'approved' },
+      REJECTED: { label: '반려', className: 'rejected' },
+      INACTIVE: { label: '중지', className: 'inactive' }
+    };
+
+    const APPLICATION_RELATION_LABEL = {
+      VOLUNTEER: '봉사자',
+      SPONSOR: '후원자',
+      OTHER: '기타'
+    };
+
+    function formatApplicationDate(value) {
+      if (!value) return '-';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return String(value);
+      return new Intl.DateTimeFormat('ko-KR', {
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(date);
+    }
+
+    function getApplicationStatusMeta(status) {
+      return APPLICATION_STATUS_META[status] || { label: status || '미정', className: 'inactive' };
+    }
+
+    function setApplicationCount(id, value) {
+      const element = document.getElementById(id);
+      if (element) element.textContent = String(Number(value) || 0);
+    }
+
+    function updateApplicationCounts(counts = {}) {
+      setApplicationCount('application-count-all', counts.ALL);
+      setApplicationCount('application-count-pending', counts.PENDING);
+      setApplicationCount('application-count-approved', counts.APPROVED);
+      setApplicationCount('application-count-rejected', counts.REJECTED);
+      setApplicationCount('application-count-inactive', counts.INACTIVE);
+    }
+
+    function renderGuestApplicationSettings(settings) {
+      if (!settings || guestApplicationSettingsDirty) return;
+      const setValue = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) element.value = value || '';
+      };
+      const openInput = document.getElementById('application-setting-open');
+      if (openInput) openInput.checked = settings.applicationOpen === true;
+      setValue('application-setting-target', settings.target);
+      setValue('application-setting-days', settings.operatingDays);
+      setValue('application-setting-order-time', settings.orderTime);
+      setValue('application-setting-delivery-time', settings.deliveryTime);
+      setValue('application-setting-area', settings.serviceArea);
+      setValue('application-setting-usage', settings.usageGuide);
+      setValue('application-setting-day-options', (settings.preferredDayOptions || []).join(', '));
+      setValue('application-setting-closed-message', settings.closedMessage);
+    }
+
+    function renderGuestApplications(applications) {
+      const container = document.getElementById('application-list');
+      if (!container) return;
+      if (!applications.length) {
+        container.innerHTML = '<div class="application-empty">이 상태의 이용 신청이 없습니다.</div>';
+        return;
+      }
+
+      container.innerHTML = applications.map(application => {
+        const status = getApplicationStatusMeta(application.status);
+        const relation = APPLICATION_RELATION_LABEL[application.relationType] || application.relationType || '-';
+        const contacted = application.contactedAt ? '연락 완료' : '연락 전';
+        return `
+          <article class="application-card ${status.className}">
+            <div class="application-card-main">
+              <div class="application-card-title">
+                <span>${esc(application.name || '이름 없음')}</span>
+                <span class="application-status-badge ${status.className}">${esc(status.label)}</span>
+                ${application.anonymizedAt ? '<span class="application-status-badge inactive">익명화</span>' : ''}
+              </div>
+              <div class="application-card-meta">
+                <span>${esc(application.applicationId)}</span>
+                <span>${esc(formatApplicationDate(application.createdAt))}</span>
+                <span>${esc(relation)} · ${esc(application.phoneMasked || '-')}</span>
+                <span>${esc(application.deliverySummary || '-')}</span>
+                <span>희망: ${esc(application.preferredDays || '-')}</span>
+                <span>${esc(contacted)}</span>
+              </div>
+            </div>
+            <button class="application-card-action" type="button" onclick="${callAttr(`openGuestApplicationDetail(${jsString(application.applicationId)})`)}">상세</button>
+          </article>
+        `;
+      }).join('');
+    }
+
+    async function loadGuestApplications(status = currentApplicationFilter) {
+      const container = document.getElementById('application-list');
+      if (!AdminAuth.isUnlocked()) {
+        AdminAuth.focus('신청 목록을 보려면 관리자 로그인이 필요합니다.');
+        return;
+      }
+      currentApplicationFilter = status || 'ALL';
+      document.querySelectorAll('[data-application-filter]').forEach(button => {
+        button.classList.toggle('active', button.dataset.applicationFilter === currentApplicationFilter);
+      });
+      if (container) container.innerHTML = '<div class="application-loading">신청 목록을 불러오고 있습니다.</div>';
+
+      try {
+        const res = await fetchAPI('getGuestApplicationsForAdmin', {
+          method: 'POST',
+          body: {
+            adminToken: getAdminToken(),
+            status: currentApplicationFilter
+          }
+        });
+        if (!res?.success) {
+          clearAdminTokenIfDenied(res);
+          if (container) container.innerHTML = `<div class="application-error">${esc(res?.message || '신청 목록을 불러오지 못했습니다.')}</div>`;
+          return;
+        }
+        currentApplications = Array.isArray(res.applications) ? res.applications : [];
+        updateApplicationCounts(res.counts);
+        renderGuestApplicationSettings(res.settings);
+        renderGuestApplications(currentApplications);
+        guestApplicationsLoaded = true;
+      } catch (error) {
+        if (container) container.innerHTML = '<div class="application-error">신청 목록을 불러오는 중 오류가 발생했습니다.</div>';
+      }
+    }
+
+    function applicationDetailItem(label, value, full = false) {
+      return `
+        <div class="application-detail-item ${full ? 'full' : ''}">
+          <span class="application-detail-label">${esc(label)}</span>
+          <div class="application-detail-value">${esc(value || '-')}</div>
+        </div>
+      `;
+    }
+
+    function renderGuestApplicationDetail(application) {
+      const container = document.getElementById('application-detail-content');
+      if (!container) return;
+      const status = getApplicationStatusMeta(application.status);
+      const relation = APPLICATION_RELATION_LABEL[application.relationType] || application.relationType || '-';
+      container.innerHTML = [
+        applicationDetailItem('신청번호', application.applicationId),
+        applicationDetailItem('상태', status.label),
+        applicationDetailItem('신청 시각', formatApplicationDate(application.createdAt)),
+        applicationDetailItem('개인정보 동의', formatApplicationDate(application.consentAt)),
+        applicationDetailItem('이름', application.name),
+        applicationDetailItem('복지관과의 관계', relation + (application.relationDetail ? ' · ' + application.relationDetail : '')),
+        applicationDetailItem('연락처', application.phone),
+        applicationDetailItem('희망 요일', application.preferredDays),
+        applicationDetailItem('배달 장소', application.deliveryPlace, true),
+        applicationDetailItem('상세 위치·전달 방법', application.deliveryDetail, true),
+        applicationDetailItem('전달할 내용', application.message, true),
+        applicationDetailItem('연락 완료', formatApplicationDate(application.contactedAt)),
+        applicationDetailItem('검토 시각', formatApplicationDate(application.reviewedAt)),
+        applicationDetailItem('개인정보 만료 예정', formatApplicationDate(application.retentionUntil)),
+        applicationDetailItem('익명화 시각', formatApplicationDate(application.anonymizedAt))
+      ].join('');
+      const memo = document.getElementById('application-detail-memo');
+      if (memo) {
+        memo.value = application.adminMemo || '';
+        memo.disabled = Boolean(application.anonymizedAt);
+      }
+      document.querySelectorAll('[data-application-action], #btn-application-contacted, #btn-save-application-memo').forEach(button => {
+        button.disabled = Boolean(application.anonymizedAt);
+      });
+      const contactedButton = document.getElementById('btn-application-contacted');
+      if (contactedButton) contactedButton.textContent = application.contactedAt ? '연락 표시 취소' : '연락 완료';
+    }
+
+    async function openGuestApplicationDetail(applicationId) {
+      const modal = document.getElementById('modal-guest-application');
+      const content = document.getElementById('application-detail-content');
+      if (!modal || !content) return;
+      modal.style.display = 'flex';
+      isModalOpen = true;
+      content.innerHTML = '<div class="application-loading">상세 정보를 불러오고 있습니다.</div>';
+      try {
+        const res = await fetchAPI('getGuestApplicationDetail', {
+          method: 'POST',
+          body: { adminToken: getAdminToken(), applicationId }
+        });
+        if (!res?.success) {
+          clearAdminTokenIfDenied(res);
+          content.innerHTML = `<div class="application-error">${esc(res?.message || '상세 정보를 불러오지 못했습니다.')}</div>`;
+          return;
+        }
+        currentApplicationDetail = res.application;
+        renderGuestApplicationDetail(currentApplicationDetail);
+      } catch (error) {
+        content.innerHTML = '<div class="application-error">상세 정보를 불러오는 중 오류가 발생했습니다.</div>';
+      }
+    }
+
+    function closeGuestApplicationModal() {
+      const modal = document.getElementById('modal-guest-application');
+      if (modal) modal.style.display = 'none';
+      currentApplicationDetail = null;
+      isModalOpen = false;
+    }
+
+    async function updateCurrentGuestApplication(patch) {
+      if (!currentApplicationDetail) return;
+      const applicationId = currentApplicationDetail.applicationId;
+      const memo = document.getElementById('application-detail-memo')?.value.trim() || '';
+      try {
+        const res = await fetchAPI('updateGuestApplication', {
+          method: 'POST',
+          body: {
+            adminToken: getAdminToken(),
+            applicationId,
+            adminMemo: memo,
+            ...patch
+          }
+        });
+        if (!res?.success) {
+          clearAdminTokenIfDenied(res);
+          alert(res?.message || '신청 정보 저장에 실패했습니다.');
+          return;
+        }
+        await loadGuestApplications();
+        await openGuestApplicationDetail(applicationId);
+      } catch (error) {
+        alert('신청 정보 저장 중 오류가 발생했습니다.');
+      }
+    }
+
+    async function saveGuestApplicationSettings() {
+      const button = document.getElementById('btn-save-application-settings');
+      if (button) button.disabled = true;
+      try {
+        const readValue = id => document.getElementById(id)?.value.trim() || '';
+        const res = await fetchAPI('updateGuestApplicationSettings', {
+          method: 'POST',
+          body: {
+            adminToken: getAdminToken(),
+            applicationOpen: Boolean(document.getElementById('application-setting-open')?.checked),
+            target: readValue('application-setting-target'),
+            operatingDays: readValue('application-setting-days'),
+            orderTime: readValue('application-setting-order-time'),
+            deliveryTime: readValue('application-setting-delivery-time'),
+            serviceArea: readValue('application-setting-area'),
+            usageGuide: readValue('application-setting-usage'),
+            preferredDayOptions: readValue('application-setting-day-options'),
+            closedMessage: readValue('application-setting-closed-message')
+          }
+        });
+        if (!res?.success) {
+          clearAdminTokenIfDenied(res);
+          alert(res?.message || '신청 설정 저장에 실패했습니다.');
+          return;
+        }
+        guestApplicationSettingsDirty = false;
+        alert(res.message || '신청 설정이 저장되었습니다.');
+        await loadGuestApplications();
+      } catch (error) {
+        alert('신청 설정 저장 중 오류가 발생했습니다.');
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+
+    async function auditGuestApplicationRetention() {
+      const result = document.getElementById('application-retention-result');
+      if (result) result.textContent = '만료 신청 정보를 점검하고 있습니다.';
+      const res = await fetchAPI('auditExpiredGuestApplications', {
+        method: 'POST',
+        body: { adminToken: getAdminToken() }
+      });
+      if (!res?.success) {
+        clearAdminTokenIfDenied(res);
+        if (result) result.textContent = res?.message || '만료 점검에 실패했습니다.';
+        return;
+      }
+      const ids = (res.applications || []).map(item => `${item.applicationId} (${formatApplicationDate(item.retentionUntil)})`);
+      if (result) result.textContent = ids.length ? `${res.message} ${ids.join(', ')}` : res.message;
+    }
+
+    async function anonymizeGuestApplications() {
+      const confirmInput = document.getElementById('application-anonymize-confirm');
+      const confirmText = confirmInput?.value.trim() || '';
+      if (confirmText !== '신청정보정리') {
+        alert('확인 문구 신청정보정리를 정확히 입력해 주세요.');
+        confirmInput?.focus();
+        return;
+      }
+      if (!confirm('만료된 신청의 이름·연락처·장소·메모를 되돌릴 수 없게 익명화할까요?')) return;
+      const res = await fetchAPI('anonymizeExpiredGuestApplications', {
+        method: 'POST',
+        body: { adminToken: getAdminToken(), confirmText }
+      });
+      if (!res?.success) {
+        clearAdminTokenIfDenied(res);
+        alert(res?.message || '익명화에 실패했습니다.');
+        return;
+      }
+      if (confirmInput) confirmInput.value = '';
+      alert(res.message);
+      await auditGuestApplicationRetention();
+      await loadGuestApplications();
+    }
+
     // 탭 전환 기능
     function switchTab(tabId) {
       const contents = document.querySelectorAll('.admin-tab-content');
@@ -1901,6 +2638,10 @@
       const targetBtn = document.getElementById(`btn-${tabId}`);
       if (targetBtn) {
         targetBtn.classList.add('active');
+      }
+
+      if (tabId === 'tab-applications' && !guestApplicationsLoaded) {
+        loadGuestApplications();
       }
       
       AppState.vibrate(40);
@@ -3212,9 +3953,46 @@
         btnManualRefresh.addEventListener('click', () => {
           loadAdminData();
           loadGuestOpsPanel();
+          if (document.getElementById('tab-applications')?.classList.contains('active')) {
+            loadGuestApplications();
+          }
           AppState.vibrate(50);
         });
       }
+
+      document.querySelectorAll('[data-application-filter]').forEach(button => {
+        button.addEventListener('click', () => loadGuestApplications(button.dataset.applicationFilter));
+      });
+
+      document.querySelectorAll('#application-settings-panel input, #application-settings-panel textarea').forEach(input => {
+        input.addEventListener('input', () => { guestApplicationSettingsDirty = true; });
+        input.addEventListener('change', () => { guestApplicationSettingsDirty = true; });
+      });
+
+      document.getElementById('btn-save-application-settings')?.addEventListener('click', saveGuestApplicationSettings);
+      document.getElementById('btn-audit-applications')?.addEventListener('click', auditGuestApplicationRetention);
+      document.getElementById('btn-anonymize-applications')?.addEventListener('click', anonymizeGuestApplications);
+      document.getElementById('btn-save-application-memo')?.addEventListener('click', () => updateCurrentGuestApplication({}));
+      document.getElementById('btn-application-contacted')?.addEventListener('click', () => {
+        updateCurrentGuestApplication({ contacted: !Boolean(currentApplicationDetail?.contactedAt) });
+      });
+      document.querySelectorAll('[data-application-action]').forEach(button => {
+        button.addEventListener('click', () => {
+          const status = button.dataset.applicationAction;
+          if ((status === 'REJECTED' || status === 'INACTIVE') && !confirm('이 상태로 변경하면 30일 뒤 개인정보 정리 대상이 됩니다. 계속할까요?')) return;
+          updateCurrentGuestApplication({ status });
+        });
+      });
+
+      document.getElementById('modal-guest-application')?.addEventListener('click', event => {
+        if (event.target.id === 'modal-guest-application') closeGuestApplicationModal();
+      });
+
+      window.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && document.getElementById('modal-guest-application')?.style.display === 'flex') {
+          closeGuestApplicationModal();
+        }
+      });
 
 
 

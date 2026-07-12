@@ -9,6 +9,7 @@ const SHEET = {
   ARCHIVE: '주문보관',
   GUEST_PROFILES: '게스트프로필',
   GUEST_CREDITS: '게스트크레딧',
+  GUEST_APPLICATIONS: '이용신청',
 };
 
 // Google Drive 폴더 ID 상수 정의
@@ -45,7 +46,13 @@ const ADMIN_ACTIONS = [
   'getReviewsForAdmin',
   'autoFillEmptySnackIds',
   'toggleReviewVisibility',
-  'submitReviewReply'
+  'submitReviewReply',
+  'getGuestApplicationsForAdmin',
+  'getGuestApplicationDetail',
+  'updateGuestApplication',
+  'updateGuestApplicationSettings',
+  'auditExpiredGuestApplications',
+  'anonymizeExpiredGuestApplications'
 ];
 
 /**

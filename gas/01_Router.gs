@@ -30,6 +30,10 @@ function doGet(e) {
     return jsonResponse(getGuestSettings());
   }
 
+  if (action === 'getGuestApplicationSettings') {
+    return jsonResponse(getGuestApplicationSettings());
+  }
+
   if (action === 'getKakaoLoginConfig') {
     return jsonResponse(getKakaoLoginConfig(e.parameter.redirectUri));
   }
@@ -125,6 +129,20 @@ function doPost(e) {
       return jsonResponse(diagnoseSystem(data));
     } else if (action === 'submitReviewReply') {
       return jsonResponse(submitReviewReply(data));
+    } else if (action === 'submitGuestApplication') {
+      return jsonResponse(submitGuestApplication(data));
+    } else if (action === 'getGuestApplicationsForAdmin') {
+      return jsonResponse(getGuestApplicationsForAdmin(data));
+    } else if (action === 'getGuestApplicationDetail') {
+      return jsonResponse(getGuestApplicationDetail(data));
+    } else if (action === 'updateGuestApplication') {
+      return jsonResponse(updateGuestApplication(data));
+    } else if (action === 'updateGuestApplicationSettings') {
+      return jsonResponse(updateGuestApplicationSettings(data));
+    } else if (action === 'auditExpiredGuestApplications') {
+      return jsonResponse(auditExpiredGuestApplications(data));
+    } else if (action === 'anonymizeExpiredGuestApplications') {
+      return jsonResponse(anonymizeExpiredGuestApplications(data));
     }
 
     return jsonResponse({

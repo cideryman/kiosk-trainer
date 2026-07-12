@@ -54,6 +54,12 @@ function diagnoseSystem(data) {
       'periodKey', 'guestDeviceId', 'guestKey', 'baseCredit', 'bonusCredit',
       'creditLimit', 'usedCredit', 'remainingCredit', 'updatedAt'
     ],
+    [SHEET.GUEST_APPLICATIONS]: [
+      'createdAt', 'applicationId', 'requestId', 'name', 'relationType',
+      'relationDetail', 'phone', 'deliveryPlace', 'deliveryDetail',
+      'preferredDays', 'message', 'consentAt', 'status', 'contactedAt',
+      'reviewedAt', 'retentionUntil', 'anonymizedAt', 'adminMemo', 'updatedAt'
+    ],
   };
 
   const headerAliases = {

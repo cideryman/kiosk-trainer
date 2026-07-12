@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>배달왔삼 이용 신청</title>
+  <meta name="theme-color" content="#0F766E">
+  <meta name="description" content="복지관 봉사자와 후원자를 위한 배달왔삼 이용 신청 페이지">
+  <link rel="manifest" href="manifest-guest.json">
+  <link rel="apple-touch-icon" href="icons/guest-180.png">
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #526079;
+      --line: #D9E2EC;
+      --paper: #FFFFFF;
+      --soft: #F5FAF9;
+      --teal: #0F766E;
+      --teal-bright: #20B8AA;
+      --orange: #EA6A17;
+      --yellow: #F6C453;
+      --danger: #B42318;
+      --shadow: 0 10px 28px rgba(23, 32, 51, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    button, input, select, textarea { font: inherit; letter-spacing: 0; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    a { color: inherit; }
+
+    .apply-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 64px;
+      padding: 10px max(18px, calc((100vw - 1120px) / 2));
+      background: rgba(255, 255, 255, 0.96);
+      border-bottom: 1px solid var(--line);
+    }
+    .apply-brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 18px;
+      font-weight: 900;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .apply-brand img { width: 38px; height: 38px; border-radius: 8px; }
+    .header-link {
+      min-height: 40px;
+      padding: 8px 12px;
+      border: 2px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 800;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .hero {
+      min-height: 0;
+      display: flex;
+      align-items: flex-start;
+      background-color: #F8FCFB;
+      background-image: url("assets/delivery-banner.png");
+      background-repeat: no-repeat;
+      background-position: center 2%;
+      background-size: min(820px, 90vw) auto;
+      border-bottom: 1px solid var(--line);
+    }
+    .hero-inner {
+      width: min(1120px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: clamp(320px, 40vw, 405px) 0 34px;
+    }
+    .hero-copy { max-width: 650px; }
+    .hero-kicker {
+      margin: 0 0 8px;
+      color: var(--teal);
+      font-size: 16px;
+      font-weight: 900;
+    }
+    .hero h1 {
+      margin: 0;
+      font-size: 56px;
+      line-height: 1.12;
+      font-weight: 950;
+      word-break: keep-all;
+    }
+    .hero p {
+      margin: 16px 0 0;
+      color: var(--muted);
+      font-size: 20px;
+      line-height: 1.6;
+      font-weight: 700;
+      word-break: keep-all;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 24px;
+    }
+    .primary-action,
+    .secondary-action {
+      min-height: 52px;
+      padding: 12px 18px;
+      border-radius: 7px;
+      border: 2px solid transparent;
+      font-size: 17px;
+      font-weight: 900;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .primary-action { background: var(--teal); color: white; }
+    .primary-action:hover { background: #0B5F59; }
+    .primary-action:disabled { background: #94A3B8; cursor: not-allowed; }
+    .secondary-action { background: white; color: var(--ink); border-color: var(--line); }
+
+    .section {
+      padding: 76px 18px;
+    }
+    .section.soft { background: var(--soft); }
+    .section.orange-band { background: #FFF7ED; border-top: 1px solid #FED7AA; border-bottom: 1px solid #FED7AA; }
+    .section-inner { width: min(1040px, 100%); margin: 0 auto; }
+    .section-heading { max-width: 720px; margin-bottom: 32px; }
+    .section-kicker { margin: 0 0 8px; color: var(--orange); font-size: 15px; font-weight: 900; }
+    .section h2 { margin: 0; font-size: 40px; line-height: 1.2; font-weight: 950; word-break: keep-all; }
+    .section-lead { margin: 14px 0 0; color: var(--muted); font-size: 18px; line-height: 1.7; font-weight: 700; word-break: keep-all; }
+
+    .meaning-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .meaning-item {
+      min-height: 176px;
+      padding: 22px;
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      background: white;
+    }
+    .meaning-icon { display: block; margin-bottom: 14px; font-size: 28px; }
+    .meaning-item strong { display: block; margin-bottom: 8px; font-size: 19px; font-weight: 900; }
+    .meaning-item p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.6; font-weight: 650; word-break: keep-all; }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 0;
+      counter-reset: process;
+    }
+    .step {
+      position: relative;
+      min-width: 0;
+      padding: 18px 14px 18px 18px;
+      border-top: 3px solid var(--teal-bright);
+      counter-increment: process;
+    }
+    .step::before {
+      content: counter(process);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      margin-top: -36px;
+      margin-bottom: 12px;
+      border-radius: 50%;
+      background: var(--teal);
+      color: white;
+      font-size: 14px;
+      font-weight: 900;
+    }
+    .step strong { display: block; margin-bottom: 6px; font-size: 17px; font-weight: 900; word-break: keep-all; }
+    .step span { color: var(--muted); font-size: 14px; line-height: 1.5; font-weight: 650; word-break: keep-all; }
+
+    .operation-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 2px 28px;
+      margin-top: 28px;
+      border-top: 2px solid #FDBA74;
+    }
+    .operation-row {
+      display: grid;
+      grid-template-columns: 128px minmax(0, 1fr);
+      gap: 12px;
+      padding: 15px 0;
+      border-bottom: 1px solid #FED7AA;
+    }
+    .operation-row dt { margin: 0; color: #9A3412; font-size: 14px; font-weight: 900; }
+    .operation-row dd { margin: 0; color: var(--ink); font-size: 15px; line-height: 1.5; font-weight: 750; word-break: keep-all; }
+    .application-state {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      margin-top: 20px;
+      padding: 4px 10px;
+      border: 1.5px solid #94A3B8;
+      border-radius: 999px;
+      color: #475569;
+      background: white;
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .application-state.open { color: #047857; border-color: #6EE7B7; background: #ECFDF5; }
+    .application-state.closed { color: #B42318; border-color: #FDA29B; background: #FEF3F2; }
+
+    .form-section { scroll-margin-top: 76px; }
+    .application-form-wrap {
+      width: min(760px, 100%);
+      margin: 0 auto;
+    }
+    .application-form {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      padding: 26px;
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      box-shadow: var(--shadow);
+    }
+    .form-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+    .form-field.full { grid-column: 1 / -1; }
+    .form-field label,
+    .form-label { color: var(--ink); font-size: 15px; font-weight: 900; }
+    .required { color: var(--danger); }
+    .form-field input,
+    .form-field select,
+    .form-field textarea {
+      width: 100%;
+      min-height: 48px;
+      padding: 10px 12px;
+      border: 2px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--ink);
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .form-field textarea { min-height: 96px; resize: vertical; }
+    .form-field input:focus,
+    .form-field select:focus,
+    .form-field textarea:focus { outline: 3px solid rgba(32, 184, 170, 0.22); border-color: var(--teal); }
+    .field-hint { color: var(--muted); font-size: 13px; line-height: 1.45; font-weight: 650; }
+    .day-options { display: flex; flex-wrap: wrap; gap: 8px; }
+    .day-option { position: relative; }
+    .day-option input { position: absolute; opacity: 0; pointer-events: none; }
+    .day-option span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 7px 12px;
+      border: 2px solid var(--line);
+      border-radius: 999px;
+      background: white;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 850;
+      cursor: pointer;
+    }
+    .day-option input:checked + span { color: white; background: var(--teal); border-color: var(--teal); }
+    .consent-box {
+      padding: 14px;
+      border: 2px solid var(--line);
+      border-radius: 7px;
+      background: #F8FAFC;
+    }
+    .consent-label { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+    .consent-label input { width: 22px; height: 22px; flex: 0 0 auto; margin-top: 1px; accent-color: var(--teal); }
+    .consent-copy { color: var(--muted); font-size: 13px; line-height: 1.55; font-weight: 650; }
+    .consent-copy strong { display: block; margin-bottom: 3px; color: var(--ink); font-size: 15px; }
+    .form-submit { grid-column: 1 / -1; width: 100%; }
+    .form-message {
+      grid-column: 1 / -1;
+      display: none;
+      padding: 12px;
+      border-radius: 7px;
+      font-size: 14px;
+      line-height: 1.5;
+      font-weight: 800;
+    }
+    .form-message.error { display: block; color: #B42318; background: #FEF3F2; border: 1px solid #FDA29B; }
+    .application-closed {
+      display: none;
+      padding: 22px;
+      border: 2px solid #FDA29B;
+      border-radius: 8px;
+      background: #FEF3F2;
+      color: #7A271A;
+      font-size: 16px;
+      line-height: 1.65;
+      font-weight: 750;
+      text-align: center;
+    }
+    .application-success {
+      display: none;
+      padding: 30px 22px;
+      border: 2px solid #6EE7B7;
+      border-radius: 8px;
+      background: #ECFDF5;
+      text-align: center;
+    }
+    .application-success h3 { margin: 0 0 10px; color: #065F46; font-size: 25px; font-weight: 950; }
+    .application-success p { margin: 6px 0; color: #14532D; font-size: 16px; line-height: 1.6; font-weight: 750; }
+    .application-number { display: inline-block; margin-top: 8px; padding: 7px 11px; border-radius: 6px; background: white; color: #065F46; font-weight: 900; }
+    .honeypot { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+    .apply-footer {
+      padding: 28px 18px;
+      border-top: 1px solid var(--line);
+      background: #172033;
+      color: white;
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.6;
+      font-weight: 650;
+    }
+
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.55s ease, transform 0.55s ease; }
+    .reveal.is-visible { opacity: 1; transform: none; }
+
+    @media (max-width: 720px) {
+      .apply-header { min-height: 58px; padding: 8px 14px; }
+      .apply-brand { font-size: 16px; }
+      .apply-brand img { width: 34px; height: 34px; }
+      .header-link { min-height: 38px; padding: 7px 9px; font-size: 13px; }
+      .hero {
+        min-height: 0;
+        background-position: center 2%;
+        background-size: 500px auto;
+      }
+      .hero-inner { width: calc(100% - 32px); padding: 250px 0 34px; }
+      .hero h1 { font-size: 36px; }
+      .hero p { font-size: 17px; }
+      .section h2 { font-size: 30px; }
+      .hero-actions { display: grid; grid-template-columns: 1fr; }
+      .section { padding: 56px 16px; }
+      .meaning-grid,
+      .operation-grid,
+      .application-form { grid-template-columns: 1fr; }
+      .form-field.full,
+      .form-submit,
+      .form-message { grid-column: auto; }
+      .steps { grid-template-columns: 1fr; gap: 16px; }
+      .step { border-top: 0; border-left: 3px solid var(--teal-bright); padding: 4px 0 4px 48px; min-height: 66px; }
+      .step::before { position: absolute; left: -18px; top: 0; margin: 0; }
+      .operation-row { grid-template-columns: 105px minmax(0, 1fr); }
+      .application-form { padding: 18px; }
+    }
+
+    @media (max-width: 340px) {
+      .apply-brand span { display: none; }
+      .hero h1 { font-size: 31px; }
+      .hero { background-size: 430px auto; }
+      .hero-inner { padding-top: 220px; }
+      .operation-row { grid-template-columns: 1fr; gap: 4px; }
+      .day-option span { padding-inline: 10px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .reveal { opacity: 1; transform: none; transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="apply-header">
+    <a class="apply-brand" href="guest.html">
+      <img src="icons/guest-192.png" alt="">
+      <span>배달왔삼 이용 신청</span>
+    </a>
+    <a class="header-link" href="guest.html">주문 화면</a>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="application-title">
+      <div class="hero-inner">
+        <div class="hero-copy">
+          <p class="hero-kicker">영주시장애인복지관 주간보호</p>
+          <h1 id="application-title">배달왔삼을<br>이용해 보세요</h1>
+          <p>발달장애인 이용자들이 주문을 확인하고 음료를 준비해 지역사회에 직접 전하는 활동입니다.</p>
+          <div class="hero-actions">
+            <button class="primary-action" type="button" data-open-application>배달왔삼 이용 신청하기</button>
+            <a class="secondary-action" href="#how-it-works">이용 절차 보기</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section soft reveal" aria-labelledby="meaning-title">
+      <div class="section-inner">
+        <div class="section-heading">
+          <p class="section-kicker">함께 만드는 서비스</p>
+          <h2 id="meaning-title">준비하는 사람과 기다리는 사람이 연결됩니다</h2>
+          <p class="section-lead">배달왔삼은 단순한 음료 판매가 아니라, 익숙한 일상 속 역할과 지역사회의 만남을 만드는 활동입니다.</p>
+        </div>
+        <div class="meaning-grid">
+          <article class="meaning-item">
+            <span class="meaning-icon" aria-hidden="true">🧾</span>
+            <strong>주문 확인</strong>
+            <p>운영일에 접수된 주문을 살펴보고 준비 순서를 함께 확인합니다.</p>
+          </article>
+          <article class="meaning-item">
+            <span class="meaning-icon" aria-hidden="true">🥤</span>
+            <strong>음료 준비</strong>
+            <p>주문표에 맞춰 음료와 간식을 챙기고 전달할 준비를 합니다.</p>
+          </article>
+          <article class="meaning-item">
+            <span class="meaning-icon" aria-hidden="true">🛵</span>
+            <strong>지역사회 배달</strong>
+            <p>복지관을 넘어 봉사자와 후원자에게 감사의 마음을 전합니다.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section reveal" id="how-it-works" aria-labelledby="process-title">
+      <div class="section-inner">
+        <div class="section-heading">
+          <p class="section-kicker">이용 절차</p>
+          <h2 id="process-title">신청과 실제 주문은 나누어 진행합니다</h2>
+          <p class="section-lead">이 페이지에서는 메뉴를 고르지 않습니다. 먼저 이용 가능 여부와 배달 장소를 확인한 뒤 주문 방법을 안내합니다.</p>
+        </div>
+        <div class="steps">
+          <div class="step"><strong>이용 신청</strong><span>필수 정보와 희망 요일을 작성합니다.</span></div>
+          <div class="step"><strong>관리자 확인</strong><span>대상과 배달 가능 장소를 확인합니다.</span></div>
+          <div class="step"><strong>수동 안내</strong><span>기관 담당자가 전화 또는 문자로 연락합니다.</span></div>
+          <div class="step"><strong>운영일 주문</strong><span>안내받은 주문 화면에서 메뉴를 선택합니다.</span></div>
+          <div class="step"><strong>준비와 배달</strong><span>배달왔삼이 음료를 준비해 전달합니다.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section orange-band reveal" aria-labelledby="operation-title">
+      <div class="section-inner">
+        <div class="section-heading">
+          <p class="section-kicker">운영 안내</p>
+          <h2 id="operation-title">신청 전에 확인해 주세요</h2>
+          <span class="application-state" id="application-state">신청 상태 확인 중</span>
+        </div>
+        <dl class="operation-grid">
+          <div class="operation-row"><dt>이용 대상</dt><dd id="info-target">확인 중</dd></div>
+          <div class="operation-row"><dt>운영 요일</dt><dd id="info-days">확인 중</dd></div>
+          <div class="operation-row"><dt>주문 시간</dt><dd id="info-order-time">확인 중</dd></div>
+          <div class="operation-row"><dt>배달 시간</dt><dd id="info-delivery-time">확인 중</dd></div>
+          <div class="operation-row"><dt>배달 지역</dt><dd id="info-area">확인 중</dd></div>
+          <div class="operation-row"><dt>이용 방식</dt><dd id="info-usage">확인 중</dd></div>
+        </dl>
+        <div style="margin-top: 24px;">
+          <button class="primary-action" type="button" data-open-application>배달왔삼 이용 신청하기</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section soft form-section" id="application-form-section" aria-labelledby="form-title">
+      <div class="section-inner application-form-wrap">
+        <div class="section-heading reveal">
+          <p class="section-kicker">사전 이용 등록</p>
+          <h2 id="form-title">배달왔삼 이용 신청</h2>
+          <p class="section-lead">신청 내용을 확인한 뒤 기관 담당자가 직접 연락드립니다.</p>
+        </div>
+
+        <div class="application-closed" id="application-closed" role="status"></div>
+        <div class="application-success" id="application-success" role="status">
+          <h3>신청이 접수되었습니다</h3>
+          <p>관리자가 배달 가능 여부를 확인한 뒤 연락드립니다.</p>
+          <span class="application-number" id="application-number"></span>
+        </div>
+
+        <form class="application-form reveal" id="guest-application-form" autocomplete="off" novalidate>
+          <div class="form-field">
+            <label for="applicant-name">이름 <span class="required">필수</span></label>
+            <input id="applicant-name" name="name" type="text" maxlength="30" autocomplete="off" required>
+          </div>
+          <div class="form-field">
+            <label for="applicant-relation">복지관과의 관계 <span class="required">필수</span></label>
+            <select id="applicant-relation" name="relationType" required>
+              <option value="">선택해 주세요</option>
+              <option value="VOLUNTEER">봉사자</option>
+              <option value="SPONSOR">후원자</option>
+              <option value="OTHER">기타</option>
+            </select>
+          </div>
+          <div class="form-field full" id="relation-detail-field" hidden>
+            <label for="applicant-relation-detail">관계 설명 <span class="required">필수</span></label>
+            <input id="applicant-relation-detail" name="relationDetail" type="text" maxlength="80" placeholder="예: 행사 참여자">
+          </div>
+          <div class="form-field">
+            <label for="applicant-phone">연락처 <span class="required">필수</span></label>
+            <input id="applicant-phone" name="phone" type="tel" maxlength="20" inputmode="tel" autocomplete="off" placeholder="010-0000-0000" required>
+            <span class="field-hint">신청 확인, 일정 변경, 당일 전달 안내에만 사용합니다.</span>
+          </div>
+          <div class="form-field">
+            <label for="applicant-place">배달받을 장소 <span class="required">필수</span></label>
+            <input id="applicant-place" name="deliveryPlace" type="text" maxlength="80" autocomplete="off" placeholder="예: 복지관 2층 사무실" required>
+          </div>
+          <div class="form-field full">
+            <label for="applicant-delivery-detail">상세 위치 또는 전달 방법</label>
+            <input id="applicant-delivery-detail" name="deliveryDetail" type="text" maxlength="160" placeholder="예: 도착하면 사무실 담당자에게 알려주세요">
+          </div>
+          <fieldset class="form-field full" style="border: 0; padding: 0; margin: 0;">
+            <legend class="form-label">이용 희망 요일 <span class="required">필수</span></legend>
+            <div class="day-options" id="preferred-day-options"></div>
+          </fieldset>
+          <div class="form-field full">
+            <label for="applicant-message">전달할 내용</label>
+            <textarea id="applicant-message" name="message" maxlength="300" placeholder="관리자가 미리 알아야 할 내용을 적어주세요."></textarea>
+          </div>
+          <div class="honeypot" aria-hidden="true">
+            <label for="applicant-website">웹사이트</label>
+            <input id="applicant-website" name="website" type="text" tabindex="-1" autocomplete="off">
+          </div>
+          <div class="form-field full consent-box">
+            <label class="consent-label" for="applicant-consent">
+              <input id="applicant-consent" name="consent" type="checkbox" required>
+              <span class="consent-copy">
+                <strong>개인정보 수집·이용에 동의합니다. <span class="required">필수</span></strong>
+                이름, 관계, 연락처, 배달 장소와 신청 내용을 신청 확인·운영 안내·원활한 전달 목적으로 수집합니다. 승인된 신청은 이용 중 보관하며, 반려 또는 이용 중지 후 30일이 지나면 개인정보를 익명화합니다. 연락처와 장소는 주문 화면·주방·전광판·빌지에 표시하지 않습니다.
+              </span>
+            </label>
+          </div>
+          <div class="form-message" id="application-form-message" role="alert"></div>
+          <button class="primary-action form-submit" id="application-submit" type="submit" disabled>이용 신청 접수하기</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="apply-footer">
+    이 페이지의 신청은 주문 접수가 아닙니다. 승인 안내를 받은 뒤 운영일에 배달왔삼 주문 화면을 이용해 주세요.
+  </footer>
+
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    (() => {
+      const form = document.getElementById('guest-application-form');
+      const submitButton = document.getElementById('application-submit');
+      const formMessage = document.getElementById('application-form-message');
+      const closedPanel = document.getElementById('application-closed');
+      const successPanel = document.getElementById('application-success');
+      const requestStorageKey = 'guestApplicationRequestId';
+      const useLocalMock = new URLSearchParams(window.location.search).get('mock') === '1';
+      let applicationSettings = null;
+
+      function createRequestId() {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+          return window.crypto.randomUUID();
+        }
+        const random = Math.random().toString(36).slice(2);
+        return `app_${Date.now()}_${random}`;
+      }
+
+      function getRequestId() {
+        let requestId = sessionStorage.getItem(requestStorageKey);
+        if (!requestId) {
+          requestId = createRequestId();
+          sessionStorage.setItem(requestStorageKey, requestId);
+        }
+        return requestId;
+      }
+
+      function setText(id, value) {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value || '-';
+      }
+
+      function setFormMessage(message) {
+        formMessage.textContent = message || '';
+        formMessage.className = message ? 'form-message error' : 'form-message';
+      }
+
+      function renderDayOptions(days) {
+        const container = document.getElementById('preferred-day-options');
+        container.replaceChildren();
+        (days || []).forEach((day, index) => {
+          const label = document.createElement('label');
+          label.className = 'day-option';
+          const input = document.createElement('input');
+          input.type = 'checkbox';
+          input.name = 'preferredDays';
+          input.value = day;
+          input.id = `preferred-day-${index}`;
+          const text = document.createElement('span');
+          text.textContent = day;
+          label.append(input, text);
+          container.append(label);
+        });
+      }
+
+      function renderSettings(settings) {
+        applicationSettings = settings;
+        setText('info-target', settings.target);
+        setText('info-days', settings.operatingDays);
+        setText('info-order-time', settings.orderTime);
+        setText('info-delivery-time', settings.deliveryTime);
+        setText('info-area', settings.serviceArea);
+        setText('info-usage', settings.usageGuide);
+        renderDayOptions(settings.preferredDayOptions);
+
+        const state = document.getElementById('application-state');
+        const isOpen = settings.applicationOpen === true;
+        state.textContent = isOpen ? '이용 신청 운영 중' : '이용 신청 마감';
+        state.className = `application-state ${isOpen ? 'open' : 'closed'}`;
+        submitButton.disabled = !isOpen;
+        form.hidden = !isOpen;
+        closedPanel.style.display = isOpen ? 'none' : 'block';
+        closedPanel.textContent = settings.closedMessage || '현재 이용 신청을 받고 있지 않습니다.';
+      }
+
+      function getMockSettings() {
+        return {
+          success: true,
+          applicationOpen: true,
+          target: '복지관 봉사자·후원자와 관리자가 인정하는 기타 관계자',
+          operatingDays: '운영일 별도 안내',
+          orderTime: '운영일에 별도 안내',
+          deliveryTime: '주문 확인 후 순차 배달',
+          serviceArea: '복지관과 협의된 장소',
+          usageGuide: '승인 후 안내받은 배달왔삼 주문 페이지에서 직접 주문',
+          preferredDayOptions: ['월요일', '화요일', '수요일', '목요일', '금요일'],
+          closedMessage: '현재 이용 신청을 받고 있지 않습니다.'
+        };
+      }
+
+      async function loadSettings() {
+        try {
+          const settings = useLocalMock ? getMockSettings() : await fetchAPI('getGuestApplicationSettings');
+          if (!settings?.success) throw new Error(settings?.message || '설정 조회 실패');
+          renderSettings(settings);
+        } catch (error) {
+          renderSettings({
+            applicationOpen: false,
+            target: '기관 담당자에게 문의해 주세요.',
+            operatingDays: '-',
+            orderTime: '-',
+            deliveryTime: '-',
+            serviceArea: '-',
+            usageGuide: '-',
+            preferredDayOptions: [],
+            closedMessage: '이용 신청 안내를 불러오지 못했습니다. 잠시 후 다시 시도하거나 기관 담당자에게 문의해 주세요.'
+          });
+        }
+      }
+
+      function openApplicationForm() {
+        document.getElementById('application-form-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (applicationSettings?.applicationOpen) {
+          window.setTimeout(() => document.getElementById('applicant-name')?.focus({ preventScroll: true }), 550);
+        }
+      }
+
+      document.querySelectorAll('[data-open-application]').forEach(button => {
+        button.addEventListener('click', openApplicationForm);
+      });
+
+      document.getElementById('applicant-relation').addEventListener('change', event => {
+        const detailField = document.getElementById('relation-detail-field');
+        const detailInput = document.getElementById('applicant-relation-detail');
+        const showDetail = event.target.value === 'OTHER';
+        detailField.hidden = !showDetail;
+        detailInput.required = showDetail;
+        if (!showDetail) detailInput.value = '';
+      });
+
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        setFormMessage('');
+        if (!applicationSettings?.applicationOpen) {
+          setFormMessage('현재 이용 신청을 받고 있지 않습니다.');
+          return;
+        }
+        const selectedDays = Array.from(form.querySelectorAll('input[name="preferredDays"]:checked')).map(input => input.value);
+        if (!form.reportValidity()) return;
+        if (selectedDays.length === 0) {
+          setFormMessage('이용 희망 요일을 하나 이상 선택해 주세요.');
+          document.getElementById('preferred-day-options').scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+
+        submitButton.disabled = true;
+        submitButton.textContent = '신청 접수 중...';
+        const body = {
+          requestId: getRequestId(),
+          name: document.getElementById('applicant-name').value.trim(),
+          relationType: document.getElementById('applicant-relation').value,
+          relationDetail: document.getElementById('applicant-relation-detail').value.trim(),
+          phone: document.getElementById('applicant-phone').value.trim(),
+          deliveryPlace: document.getElementById('applicant-place').value.trim(),
+          deliveryDetail: document.getElementById('applicant-delivery-detail').value.trim(),
+          preferredDays: selectedDays,
+          message: document.getElementById('applicant-message').value.trim(),
+          consent: document.getElementById('applicant-consent').checked,
+          website: document.getElementById('applicant-website').value
+        };
+
+        try {
+          const res = useLocalMock
+            ? { success: true, applicationId: 'APP-PREVIEW-001', message: '로컬 미리보기 신청입니다.' }
+            : await fetchAPI('submitGuestApplication', { method: 'POST', body });
+          if (!res?.success) {
+            if (res?.code === 'APPLICATION_CLOSED') {
+              renderSettings({
+                ...applicationSettings,
+                applicationOpen: false,
+                closedMessage: res.message || '현재 이용 신청을 받고 있지 않습니다.'
+              });
+            }
+            setFormMessage(res?.message || '신청을 접수하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+            return;
+          }
+          sessionStorage.removeItem(requestStorageKey);
+          form.style.display = 'none';
+          successPanel.style.display = 'block';
+          setText('application-number', `신청번호 ${res.applicationId}`);
+          successPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (error) {
+          setFormMessage('응답을 확인하지 못했습니다. 같은 화면에서 다시 누르면 동일 신청으로 안전하게 확인합니다.');
+        } finally {
+          submitButton.disabled = !applicationSettings?.applicationOpen;
+          submitButton.textContent = '이용 신청 접수하기';
+        }
+      });
+
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduceMotion || !('IntersectionObserver' in window)) {
+        document.querySelectorAll('.reveal').forEach(element => element.classList.add('is-visible'));
+      } else {
+        const observer = new IntersectionObserver(entries => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('is-visible');
+              observer.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.02 });
+        document.querySelectorAll('.reveal').forEach(element => observer.observe(element));
+      }
+
+      loadSettings();
+    })();
+  </script>
+</body>
+</html>

@@ -8,6 +8,7 @@
 - **검증 파일**: `주간보호 매점DB (2).xlsx`
 - **검증 방식**: 원본을 수정하지 않고 시트명, 실제 사용 범위, 1행 헤더를 읽어 코드와 대조
 - **주의**: 아래 행 수는 검증 시점의 스냅샷이며 운영 중 계속 달라질 수 있습니다. 시트명과 열 순서를 구조 기준으로 사용합니다.
+- **신규 코드 계약**: `이용신청` 시트는 2026-07-12 구현에 추가되었으며 위 검증 파일에는 없습니다. GAS 배포 후 `setupGuestApplicationSheet()`로 생성·점검하고 실제 운영 DB 반영 여부를 다시 기록합니다.
 - 실제 이용자·주문·카카오 값은 이 문서에 복사하지 않습니다.
 
 ## 시트 목록
@@ -24,6 +25,7 @@
 | 8 | `이용자목록` | A1:E10 | 5 | 일반 키오스크 이용자와 크레딧 |
 | 9 | `주문내역` | A1:W307 | 23 | 현재 주문 원장 |
 | 10 | `설정` | A1 | 1 | 현재 비어 있는 미사용 시트 |
+| 11 | `이용신청` | 신규 생성 예정 | 19 | 배달왔삼 사전 이용 신청과 승인·보관 상태 |
 
 ## 실제 1행 헤더
 
@@ -88,6 +90,22 @@
 ### 게스트크레딧 A:I
 
 `periodKey`, `guestDeviceId`, `guestKey`, `baseCredit`, `bonusCredit`, `creditLimit`, `usedCredit`, `remainingCredit`, `updatedAt`
+
+### 이용신청 A:S (신규 코드 계약)
+
+`createdAt`, `applicationId`, `requestId`, `name`, `relationType`, `relationDetail`, `phone`, `deliveryPlace`, `deliveryDetail`, `preferredDays`, `message`, `consentAt`, `status`, `contactedAt`, `reviewedAt`, `retentionUntil`, `anonymizedAt`, `adminMemo`, `updatedAt`
+
+- 상태는 `PENDING`, `APPROVED`, `REJECTED`, `INACTIVE`만 사용합니다.
+- `requestId`는 동일 신청 재전송 방지용이며 익명화할 때 삭제합니다.
+- 반려·중지는 처리 후 30일의 `retentionUntil`을 기록하고 재승인 시 비웁니다.
+- 익명화 후에는 신청번호·상태·처리 시각만 남기고 이름·연락처·장소·관계·희망 요일·메시지·관리자 메모를 제거합니다.
+- 이 시트의 개인정보를 주문내역·주방·전광판·빌지·후기·관리자로그로 복사하지 않습니다.
+
+### 이용 신청용 운영설정 키
+
+`guestApplicationOpen`, `guestApplicationTarget`, `guestApplicationOperatingDays`, `guestApplicationOrderTime`, `guestApplicationDeliveryTime`, `guestApplicationArea`, `guestApplicationUsage`, `guestApplicationDayOptions`, `guestApplicationClosedMessage`
+
+`운영설정`은 키가 추가되는 세로형 구조이므로 신규 키 반영 후 기존 A1:B15 사용 범위보다 행 수가 늘어납니다.
 
 ## 코드와 실제 헤더 차이
 

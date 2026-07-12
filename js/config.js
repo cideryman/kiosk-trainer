@@ -66,6 +66,69 @@ const MOCK_DATA = {
   }
 };
 
+const MOCK_GUEST_APPLICATION_SETTINGS = {
+  success: true,
+  applicationOpen: true,
+  target: '복지관 봉사자·후원자와 관리자가 인정하는 기타 관계자',
+  operatingDays: '운영일 별도 안내',
+  orderTime: '운영일에 별도 안내',
+  deliveryTime: '주문 확인 후 순차 배달',
+  serviceArea: '복지관과 협의된 장소',
+  usageGuide: '승인 후 안내받은 배달왔삼 주문 페이지에서 직접 주문',
+  preferredDayOptions: ['월요일', '수요일', '금요일'],
+  closedMessage: '현재 이용 신청을 받고 있지 않습니다.'
+};
+
+let MOCK_GUEST_APPLICATIONS = [
+  {
+    createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+    applicationId: 'APP-20260712-001',
+    name: '김봉사',
+    relationType: 'VOLUNTEER',
+    relationDetail: '',
+    phone: '01012345678',
+    deliveryPlace: '복지관 2층 사무실',
+    deliveryDetail: '도착하면 담당자에게 알려주세요.',
+    preferredDays: '수요일, 금요일',
+    message: '오후 운영일을 선호합니다.',
+    consentAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+    status: 'PENDING',
+    contactedAt: '',
+    reviewedAt: '',
+    retentionUntil: '',
+    anonymizedAt: '',
+    adminMemo: '',
+    updatedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  }
+];
+
+function getMockGuestApplicationCounts(applications) {
+  const counts = { ALL: applications.length, PENDING: 0, APPROVED: 0, REJECTED: 0, INACTIVE: 0, EXPIRED: 0 };
+  applications.forEach(application => {
+    if (Object.prototype.hasOwnProperty.call(counts, application.status)) counts[application.status]++;
+  });
+  return counts;
+}
+
+function getMockGuestApplicationList(status) {
+  const all = MOCK_GUEST_APPLICATIONS.slice();
+  const visible = !status || status === 'ALL' ? all : all.filter(application => application.status === status);
+  return visible.map(application => ({
+    applicationId: application.applicationId,
+    createdAt: application.createdAt,
+    name: application.name,
+    relationType: application.relationType,
+    phoneMasked: application.phone ? `${application.phone.slice(0, 3)}-****-${application.phone.slice(-4)}` : '-',
+    deliverySummary: application.deliveryPlace,
+    preferredDays: application.preferredDays,
+    status: application.status,
+    contactedAt: application.contactedAt,
+    retentionUntil: application.retentionUntil,
+    anonymizedAt: application.anonymizedAt,
+    updatedAt: application.updatedAt
+  }));
+}
+
 /**
  * 구글 드라이브 이미지 주소를 브라우저에서 직접 표시 가능한 썸네일 주소로 변환
  */
@@ -277,6 +340,63 @@ function getMockFallback(action, options) {
         });
       }
     }
+  } else if (action === 'getGuestApplicationSettings') {
+    res = JSON.parse(JSON.stringify(MOCK_GUEST_APPLICATION_SETTINGS));
+  } else if (action === 'submitGuestApplication') {
+    res = {
+      success: true,
+      applicationId: 'APP-MOCK-' + String(Date.now()).slice(-6),
+      status: 'PENDING',
+      message: 'Mock 이용 신청이 접수되었습니다.'
+    };
+  } else if (action === 'getGuestApplicationsForAdmin') {
+    const status = String(options.body?.status || 'ALL').toUpperCase();
+    res = {
+      success: true,
+      counts: getMockGuestApplicationCounts(MOCK_GUEST_APPLICATIONS),
+      settings: JSON.parse(JSON.stringify(MOCK_GUEST_APPLICATION_SETTINGS)),
+      applications: getMockGuestApplicationList(status)
+    };
+  } else if (action === 'getGuestApplicationDetail') {
+    const application = MOCK_GUEST_APPLICATIONS.find(item => item.applicationId === options.body?.applicationId);
+    res = application
+      ? { success: true, application: JSON.parse(JSON.stringify(application)) }
+      : { success: false, message: '신청 정보를 찾을 수 없습니다.' };
+  } else if (action === 'updateGuestApplication') {
+    const application = MOCK_GUEST_APPLICATIONS.find(item => item.applicationId === options.body?.applicationId);
+    if (!application) {
+      res = { success: false, message: '신청 정보를 찾을 수 없습니다.' };
+    } else {
+      const now = new Date().toISOString();
+      if (options.body?.status) {
+        application.status = options.body.status;
+        application.reviewedAt = now;
+        application.retentionUntil = ['REJECTED', 'INACTIVE'].includes(application.status)
+          ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+          : '';
+      }
+      if (options.body?.contacted !== undefined) application.contactedAt = options.body.contacted ? now : '';
+      if (options.body?.adminMemo !== undefined) application.adminMemo = options.body.adminMemo;
+      application.updatedAt = now;
+      res = { success: true, applicationId: application.applicationId, status: application.status, message: 'Mock 신청 정보가 저장되었습니다.' };
+    }
+  } else if (action === 'updateGuestApplicationSettings') {
+    MOCK_GUEST_APPLICATION_SETTINGS.applicationOpen = Boolean(options.body?.applicationOpen);
+    MOCK_GUEST_APPLICATION_SETTINGS.target = options.body?.target || '';
+    MOCK_GUEST_APPLICATION_SETTINGS.operatingDays = options.body?.operatingDays || '';
+    MOCK_GUEST_APPLICATION_SETTINGS.orderTime = options.body?.orderTime || '';
+    MOCK_GUEST_APPLICATION_SETTINGS.deliveryTime = options.body?.deliveryTime || '';
+    MOCK_GUEST_APPLICATION_SETTINGS.serviceArea = options.body?.serviceArea || '';
+    MOCK_GUEST_APPLICATION_SETTINGS.usageGuide = options.body?.usageGuide || '';
+    MOCK_GUEST_APPLICATION_SETTINGS.preferredDayOptions = String(options.body?.preferredDayOptions || '').split(',').map(day => day.trim()).filter(Boolean);
+    MOCK_GUEST_APPLICATION_SETTINGS.closedMessage = options.body?.closedMessage || '';
+    res = { success: true, message: 'Mock 신청 설정이 저장되었습니다.' };
+  } else if (action === 'auditExpiredGuestApplications') {
+    res = { success: true, count: 0, applications: [], message: '익명화할 만료 신청 정보가 없습니다.' };
+  } else if (action === 'anonymizeExpiredGuestApplications') {
+    res = options.body?.confirmText === '신청정보정리'
+      ? { success: true, count: 0, message: '0건의 만료 개인정보를 익명화했습니다.' }
+      : { success: false, message: '확인 문구 신청정보정리를 정확히 입력해 주세요.' };
   } else if (action === 'getGuestSettings') {
     const settings = getMockGuestSettings();
     const now = new Date();
@@ -1255,7 +1375,8 @@ function getMockFallback(action, options) {
           '후기내역': { exists: true, status: 'OK' },
           '주문보관': { exists: true, status: 'OK' },
           '게스트프로필': { exists: true, status: 'OK' },
-          '게스트크레딧': { exists: true, status: 'OK' }
+          '게스트크레딧': { exists: true, status: 'OK' },
+          '이용신청': { exists: true, status: 'OK' }
         },
         properties: {
           'ADMIN_TOKEN': { configured: true, required: true, description: '관리자 API 요청 토큰', status: 'OK' },
