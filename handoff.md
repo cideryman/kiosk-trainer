@@ -52,6 +52,7 @@
 | [기존 핸드오프 스냅샷](docs/handoff/handoff-snapshot-2026-07-10.md) | 분리 전 상세 분석과 완료 기록이 필요할 때 |
 | [이전 상세 기록](docs/handoff/handoff-archive.md) | 장기 작업 이력과 과거 판단 근거가 필요할 때 |
 | [에셋 출처와 정리 현황](docs/handoff/asset-sources.md) | 이미지·폰트·PWA 아이콘의 출처와 상태를 확인할 때 |
+| [관리자 운영 설명서](docs/admin-manual.md) | 관리자·주방·후기·이용 신청 화면을 실제로 운영할 때 |
 | [레거시 GAS 원본](google-apps-script.md) | 분리 전 단일 GAS 파일과 비교가 필요할 때만 |
 
 ## AI 작업 원칙
