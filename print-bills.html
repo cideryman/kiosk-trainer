@@ -347,6 +347,14 @@
         background: white !important;
       }
 
+      /* 2열 및 3열 카드 우측 1mm 평행 이동 보정 (인쇄 칼선 정렬 보정) */
+      body.label-mode .bill-card:nth-child(3n-1) {
+        transform: translateX(1mm) !important;
+      }
+      body.label-mode .bill-card:nth-child(3n) {
+        transform: translateX(1mm) !important;
+      }
+
       body.label-mode .bill-body {
         padding: 0 !important;
         gap: 1px !important;
@@ -457,6 +465,56 @@
       height: 20px;
       cursor: pointer;
     }
+
+    /* 라벨지 재활용 미니 그리드 선택기 스타일 */
+    .label-mini-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 12px);
+      grid-template-rows: repeat(7, 10px);
+      gap: 2px;
+      border: 2px solid #cbd5e1;
+      padding: 3px;
+      border-radius: 4px;
+      background: #f8fafc;
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .label-mini-cell {
+      background-color: #a0aec0;
+      border-radius: 1.5px;
+      transition: background-color 0.15s, transform 0.1s;
+    }
+
+    .label-mini-cell:hover {
+      background-color: #718096;
+      transform: scale(1.1);
+    }
+
+    /* 선택된 시작점 */
+    .label-mini-cell.selected {
+      background-color: #ED8936 !important;
+      box-shadow: 0 0 2px rgba(237, 137, 54, 0.8);
+    }
+
+    /* 인쇄 스킵할 이미 쓰여진 칸 */
+    .label-mini-cell.skipped {
+      background-color: #e2e8f0;
+      border: 1px dashed #cbd5e1;
+      box-sizing: border-box;
+      opacity: 0.6;
+    }
+
+    /* 인쇄 시 여백/칼선 밀림 밀어내기용 빈 카드 */
+    body.label-mode .bill-card.blank-card {
+      border: none !important;
+      background: transparent !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
   </style>
 </head>
 <body>
@@ -466,12 +524,28 @@
     <div style="font-size: 14px; color: #718096; margin-right: auto; margin-left: 16px;">
       취소된 주문은 제외됩니다. A4 용지 인쇄에 최적화되어 있습니다.
     </div>
-    <div style="margin-right: 16px; display: flex; align-items: center; gap: 8px;">
-      <label for="print-mode-select" style="font-size: 14px; font-weight: 800; color: #4a5568;">인쇄 형식:</label>
-      <select id="print-mode-select" style="padding: 8px 12px; font-size: 14px; font-weight: 700; border-radius: 6px; border: 2px solid #cbd5e1; outline: none; cursor: pointer; background: white;">
-        <option value="normal">일반 빌지 (A4 2열)</option>
-        <option value="label">애니라벨 V3050 (3열 7행)</option>
-      </select>
+    <div style="margin-right: 16px; display: flex; align-items: center; gap: 16px;">
+      <!-- 제공 완료 제외 토글 -->
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 800; color: #4a5568; cursor: pointer; user-select: none;">
+        <input type="checkbox" id="exclude-served-check" checked style="width: 18px; height: 18px; cursor: pointer;">
+        제공 완료 제외
+      </label>
+
+      <!-- 인쇄 형식 -->
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <label for="print-mode-select" style="font-size: 14px; font-weight: 800; color: #4a5568;">인쇄 형식:</label>
+        <select id="print-mode-select" style="padding: 8px 12px; font-size: 14px; font-weight: 700; border-radius: 6px; border: 2px solid #cbd5e1; outline: none; cursor: pointer; background: white;">
+          <option value="normal">일반 빌지 (A4 2열)</option>
+          <option value="label">애니라벨 V3050 (3열 7행)</option>
+        </select>
+      </div>
+
+      <!-- 라벨지 시작 위치 비주얼 선택기 (JS에서 토글) -->
+      <div id="label-start-selector-wrap" style="display: none; align-items: center; gap: 8px;">
+        <span style="font-size: 14px; font-weight: 800; color: #4a5568;">시작 위치:</span>
+        <div id="label-mini-grid" class="label-mini-grid" title="라벨 인쇄를 시작할 칸을 선택하세요"></div>
+        <span id="label-start-display" style="font-size: 12px; font-weight: 800; color: #ED8936; min-width: 60px;">(1행 1열)</span>
+      </div>
     </div>
     <button class="btn-print" onclick="window.print()">인쇄하기</button>
   </div>
@@ -519,154 +593,397 @@
       return '#3b82f6'; // blue
     }
 
+    let allValidOrders = [];
+    let startRow = 1;
+    let startCol = 1;
+
+    // 미니 그리드 초기화 및 인스턴스화
+    function initMiniGrid() {
+      const miniGrid = document.getElementById('label-mini-grid');
+      if (!miniGrid) return;
+      miniGrid.innerHTML = '';
+
+      const savedRow = Number(localStorage.getItem('print-label-start-row') || '1');
+      const savedCol = Number(localStorage.getItem('print-label-start-col') || '1');
+      startRow = savedRow;
+      startCol = savedCol;
+
+      const selectedIndex = (startRow - 1) * 3 + (startCol - 1);
+
+      for (let i = 0; i < 21; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'label-mini-cell';
+        cell.dataset.index = i;
+
+        if (i < selectedIndex) {
+          cell.classList.add('skipped');
+        } else if (i === selectedIndex) {
+          cell.classList.add('selected');
+        }
+
+        cell.addEventListener('click', (e) => {
+          const idx = Number(e.currentTarget.dataset.index);
+          const r = Math.floor(idx / 3) + 1;
+          const c = (idx % 3) + 1;
+          
+          startRow = r;
+          startCol = c;
+          localStorage.setItem('print-label-start-row', String(r));
+          localStorage.setItem('print-label-start-col', String(c));
+          
+          updateMiniGridUI();
+          renderBills();
+        });
+
+        miniGrid.appendChild(cell);
+      }
+
+      updateDisplayLabel();
+    }
+
+    function updateMiniGridUI() {
+      const cells = document.querySelectorAll('#label-mini-grid .label-mini-cell');
+      const selectedIndex = (startRow - 1) * 3 + (startCol - 1);
+
+      cells.forEach((cell, i) => {
+        cell.classList.remove('selected', 'skipped');
+        if (i < selectedIndex) {
+          cell.classList.add('skipped');
+        } else if (i === selectedIndex) {
+          cell.classList.add('selected');
+        }
+      });
+
+      updateDisplayLabel();
+    }
+
+    function updateDisplayLabel() {
+      const display = document.getElementById('label-start-display');
+      if (display) {
+        display.textContent = `(${startRow}행 ${startCol}열)`;
+      }
+    }
+
     async function loadBills() {
       const container = document.getElementById('bills-container');
       try {
         const res = await fetchAPI('getOrdersToday');
         
         if (res && res.success && Array.isArray(res.orders)) {
-          const orders = res.orders;
-          
           // 취소된 주문 제외
-          const validOrders = orders.filter(o => o.servedYn !== 'C');
+          allValidOrders = res.orders.filter(o => o.servedYn !== 'C');
 
-          if (validOrders.length === 0) {
+          if (allValidOrders.length === 0) {
             container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; font-size: 18px; font-weight: 700;">오늘 처리할 주문이 없습니다.</div>';
             return;
           }
 
-          // 주문번호(orderNo)로 그룹화
-          const ordersByNo = {};
-          validOrders.forEach((o, idx) => {
-            const orderNo = o.orderNo || `${o.timestamp || idx}_${o.nickname || 'unknown'}`;
-            if (!ordersByNo[orderNo]) {
-              ordersByNo[orderNo] = {
-                orderNo: orderNo,
-                nickname: o.nickname,
-                timestamp: o.timestamp,
-                servedYn: o.servedYn || 'N',
-                deliveryType: o.deliveryType || 'pickup',
-                deliveryPlace: o.deliveryPlace || '',
-                deliveryFee: Number(o.deliveryFee || 0),
-                authProvider: o.authProvider || '',
-                items: [],
-                totalPoint: 0
-              };
-            }
-            ordersByNo[orderNo].items.push(o);
-            ordersByNo[orderNo].totalPoint += Number(o.point || 0);
-          });
-
-          // 주문 시간순 정렬 (오래된 주문이 먼저)
-          const sortedGroups = Object.values(ordersByNo).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-          container.innerHTML = '';
-
-          sortedGroups.forEach(group => {
-            // 배달비 포함 총 차감 크레딧
-            const totalCredit = group.totalPoint + group.deliveryFee;
-            
-            const isKakao = group.authProvider === 'kakao';
-            let displayNickname = group.nickname || '';
-            if (isKakao) {
-              displayNickname = '💬 ' + displayNickname.replace(/ \((체험|비회원)\)/g, '').trim();
-            }
-            
-            // 메뉴 목록 HTML 생성
-            const menusHtml = group.items.map(item => `
-              <div class="menu-item">
-                <span>${AppState.escapeHtml(item.snackName)}</span>
-                <span>${Number(item.quantity || 1)}개</span>
-              </div>
-            `).join('');
-
-            // 주문번호 파싱 (예: ORD-20231010-001 -> 001)
-            const parts = String(group.orderNo).split('-');
-            const shortOrderNo = parts.length >= 3 ? parts[2] : group.orderNo;
-
-            // 상태 배지
-            const statusLabel = getStatusLabel(group.servedYn);
-            const statusColor = getStatusColor(group.servedYn);
-            const statusBadge = `<span class="status-badge" style="background-color: ${statusColor};">${statusLabel}</span>`;
-
-            // 수령 방식
-            const isDelivery = group.deliveryType === 'delivery';
-            const deliveryTypeStr = isDelivery ? '배달' : '포장';
-
-            const card = document.createElement('div');
-            card.className = 'bill-card';
-            
-            card.innerHTML = `
-              <div class="bill-header">
-                <div class="brand-title-wrap">
-                  <img src="icons/guest-192.png" alt="logo" onerror="this.style.display='none'"> 
-                  <span>배달왔<span class="accent">삼</span></span>
-                </div>
-                <div class="brand-desc">삼각지 카페 배달 서비스</div>
-              </div>
-
-              <div class="bill-body">
-                <div class="info-row row-order-no">
-                  <span class="info-label">주문번호</span>
-                  <span class="info-value" style="font-size: 16px;">[${AppState.escapeHtml(shortOrderNo)}]</span>
-                </div>
-                <div class="info-row row-nickname">
-                  <span class="info-label">주문자</span>
-                  <span class="info-value">${AppState.escapeHtml(displayNickname)} 님</span>
-                </div>
-                <div class="info-row row-time">
-                  <span class="info-label">주문시간</span>
-                  <span class="info-value">${formatSimpleTime(group.timestamp)}</span>
-                </div>
-
-                <div class="menu-box">
-                  ${menusHtml}
-                </div>
-
-                <div class="info-row row-delivery-type">
-                  <span class="info-label">수령방식</span>
-                  <span class="info-value">${deliveryTypeStr}</span>
-                </div>
-                ${isDelivery && group.deliveryPlace ? `
-                <div class="info-row row-delivery-place" style="color: #e53e3e;">
-                  <span class="info-label" style="color: #e53e3e;">배송지</span>
-                  <span class="info-value">${AppState.escapeHtml(group.deliveryPlace)}</span>
-                </div>
-                ` : ''}
-                <div class="info-row row-credit">
-                  <span class="info-label">차감크레딧</span>
-                  <span class="info-value">${AppState.formatPoint(totalCredit)} (배달비 ${group.deliveryFee} 포함)</span>
-                </div>
-                <div class="info-row row-status">
-                  <span class="info-label">주문상태</span>
-                  <span class="info-value">${statusBadge}</span>
-                </div>
-
-                <div class="bill-footer">
-                  <div class="delivery-person">
-                    <span>배달담당:</span>
-                    <div class="delivery-person-line"></div>
-                  </div>
-                  <div class="checklist">
-                    <span>□ 주문확인</span>
-                    <span>□ 준비완료</span>
-                    <span>□ 전달완료</span>
-                  </div>
-                </div>
-              </div>
-            `;
-            container.appendChild(card);
-          });
-
-          // 배송지별 배달 체크리스트 출력
-          renderDeliveryChecklist(sortedGroups);
-
+          renderBills();
         } else {
           container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; font-size: 18px; font-weight: 700; color: #e53e3e;">주문 데이터를 불러오지 못했습니다.</div>';
         }
       } catch (err) {
         console.error('빌지 로드 에러:', err);
         container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; font-size: 18px; font-weight: 700; color: #e53e3e;">오류가 발생했습니다. 관리자에게 문의하세요.</div>';
+      }
+    }
+
+    function renderBills() {
+      const container = document.getElementById('bills-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const mode = document.getElementById('print-mode-select')?.value || 'normal';
+      const excludeServed = document.getElementById('exclude-served-check')?.checked;
+
+      // 1. 제공 완료 필터링 적용
+      let filteredOrders = allValidOrders;
+      if (excludeServed) {
+        filteredOrders = allValidOrders.filter(o => o.servedYn !== 'Y');
+      }
+
+      if (filteredOrders.length === 0) {
+        container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; font-size: 18px; font-weight: 700;">출력할 주문이 없습니다.</div>';
+        const checklistContainer = document.getElementById('checklist-container');
+        if (checklistContainer) checklistContainer.style.display = 'none';
+        return;
+      }
+
+      if (mode === 'label') {
+        // 2. 오프셋 카드 삽입 (첫 장의 빈칸 생성)
+        const offset = (startRow - 1) * 3 + (startCol - 1);
+        for (let oIdx = 0; oIdx < offset; oIdx++) {
+          const blankCard = document.createElement('div');
+          blankCard.className = 'bill-card blank-card';
+          container.appendChild(blankCard);
+        }
+
+        // 3. 주문번호별로 총 상품 수량(quantity 합)을 원본(allValidOrders) 기준으로 계산
+        const totalQtyByOrder = {};
+        allValidOrders.forEach(o => {
+          const orderNo = o.orderNo || 'unknown';
+          const qty = Number(o.quantity || 1);
+          totalQtyByOrder[orderNo] = (totalQtyByOrder[orderNo] || 0) + qty;
+        });
+
+        // 4. 원래 주문 기준 개별 항목의 순번 오프셋 사전 매핑 (필터링 제외 항목 고려)
+        const originalOrderCounters = {};
+        const originalOrderTracker = {};
+        allValidOrders.forEach(o => {
+          const orderNo = o.orderNo || 'unknown';
+          if (!originalOrderTracker[orderNo]) {
+            originalOrderTracker[orderNo] = 0;
+          }
+          const startNum = originalOrderTracker[orderNo] + 1;
+          const qty = Number(o.quantity || 1);
+          originalOrderTracker[orderNo] += qty;
+
+          if (!originalOrderCounters[orderNo]) {
+            originalOrderCounters[orderNo] = [];
+          }
+          originalOrderCounters[orderNo].push({
+            snackName: o.snackName,
+            startNum: startNum,
+            quantity: qty
+          });
+        });
+
+        // 5. 필터링된 주문들을 주문번호(orderNo)로 그룹화하여 시간순 정렬
+        const ordersByNo = {};
+        filteredOrders.forEach((o, idx) => {
+          const orderNo = o.orderNo || `${o.timestamp || idx}_${o.nickname || 'unknown'}`;
+          if (!ordersByNo[orderNo]) {
+            ordersByNo[orderNo] = {
+              orderNo: orderNo,
+              nickname: o.nickname,
+              timestamp: o.timestamp,
+              servedYn: o.servedYn || 'N',
+              deliveryType: o.deliveryType || 'pickup',
+              deliveryPlace: o.deliveryPlace || '',
+              deliveryFee: Number(o.deliveryFee || 0),
+              authProvider: o.authProvider || '',
+              items: []
+            };
+          }
+          ordersByNo[orderNo].items.push(o);
+        });
+
+        const sortedGroups = Object.values(ordersByNo).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+        sortedGroups.forEach(group => {
+          const isKakao = group.authProvider === 'kakao';
+          let displayNickname = group.nickname || '';
+          if (isKakao) {
+            displayNickname = '💬 ' + displayNickname.replace(/ \((체험|비회원)\)/g, '').trim();
+          }
+
+          const parts = String(group.orderNo).split('-');
+          const shortOrderNo = parts.length >= 3 ? parts[2] : group.orderNo;
+          const isDelivery = group.deliveryType === 'delivery';
+          const deliveryTypeStr = isDelivery ? '배달' : '포장';
+
+          const totalQty = totalQtyByOrder[group.orderNo] || 0;
+
+          // 각 품목별 수량만큼 개별 라벨 카드 출력
+          group.items.forEach(item => {
+            const mapping = (originalOrderCounters[group.orderNo] || []).find(m => m.snackName === item.snackName);
+            const baseStartNum = mapping ? mapping.startNum : 1;
+
+            const qty = Number(item.quantity || 1);
+            for (let i = 0; i < qty; i++) {
+              const currentNum = baseStartNum + i;
+
+              const displaySnackName = `${AppState.escapeHtml(item.snackName)} (${currentNum}/${totalQty})`;
+
+              const card = document.createElement('div');
+              card.className = 'bill-card';
+              
+              card.innerHTML = `
+                <div class="bill-header">
+                  <div class="brand-title-wrap">
+                    <img src="icons/guest-192.png" alt="logo" onerror="this.style.display='none'"> 
+                    <span>배달왔<span class="accent">삼</span></span>
+                  </div>
+                  <div class="brand-desc">삼각지 카페 배달 서비스</div>
+                </div>
+
+                <div class="bill-body">
+                  <div class="info-row row-order-no">
+                    <span class="info-label">주문번호</span>
+                    <span class="info-value" style="font-size: 16px;">[${AppState.escapeHtml(shortOrderNo)}]</span>
+                  </div>
+                  <div class="info-row row-nickname">
+                    <span class="info-label">주문자</span>
+                    <span class="info-value">${AppState.escapeHtml(displayNickname)} 님</span>
+                  </div>
+                  <div class="info-row row-time">
+                    <span class="info-label">주문시간</span>
+                    <span class="info-value">${formatSimpleTime(group.timestamp)}</span>
+                  </div>
+
+                  <div class="menu-box">
+                    <div class="menu-item">
+                      <span>${displaySnackName}</span>
+                      <span>1개</span>
+                    </div>
+                  </div>
+
+                  <div class="info-row row-delivery-type">
+                    <span class="info-label">수령방식</span>
+                    <span class="info-value">${deliveryTypeStr}</span>
+                  </div>
+                  ${isDelivery && group.deliveryPlace ? `
+                  <div class="info-row row-delivery-place" style="color: #e53e3e;">
+                    <span class="info-label" style="color: #e53e3e;">배송지</span>
+                    <span class="info-value">${AppState.escapeHtml(group.deliveryPlace)}</span>
+                  </div>
+                  ` : ''}
+                  <div class="info-row row-credit" style="display: none;">
+                    <span class="info-label">차감크레딧</span>
+                    <span class="info-value">-</span>
+                  </div>
+                  <div class="info-row row-status" style="display: none;">
+                    <span class="info-label">주문상태</span>
+                    <span class="info-value">-</span>
+                  </div>
+
+                  <div class="bill-footer">
+                    <div class="delivery-person">
+                      <span>배달담당:</span>
+                      <div class="delivery-person-line"></div>
+                    </div>
+                    <div class="checklist">
+                      <span>□ 주문확인</span>
+                      <span>□ 준비완료</span>
+                      <span>□ 전달완료</span>
+                    </div>
+                  </div>
+                </div>
+              `;
+              container.appendChild(card);
+            }
+          });
+        });
+
+        renderDeliveryChecklist(sortedGroups);
+
+      } else {
+        // 일반 빌지 모드: 주문번호(orderNo)로 그룹화하여 1건의 주문당 1개의 빌지 생성
+        const ordersByNo = {};
+        filteredOrders.forEach((o, idx) => {
+          const orderNo = o.orderNo || `${o.timestamp || idx}_${o.nickname || 'unknown'}`;
+          if (!ordersByNo[orderNo]) {
+            ordersByNo[orderNo] = {
+              orderNo: orderNo,
+              nickname: o.nickname,
+              timestamp: o.timestamp,
+              servedYn: o.servedYn || 'N',
+              deliveryType: o.deliveryType || 'pickup',
+              deliveryPlace: o.deliveryPlace || '',
+              deliveryFee: Number(o.deliveryFee || 0),
+              authProvider: o.authProvider || '',
+              items: [],
+              totalPoint: 0
+            };
+          }
+          ordersByNo[orderNo].items.push(o);
+          ordersByNo[orderNo].totalPoint += Number(o.point || 0);
+        });
+
+        const sortedGroups = Object.values(ordersByNo).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+        sortedGroups.forEach(group => {
+          const totalCredit = group.totalPoint + group.deliveryFee;
+          
+          const isKakao = group.authProvider === 'kakao';
+          let displayNickname = group.nickname || '';
+          if (isKakao) {
+            displayNickname = '💬 ' + displayNickname.replace(/ \((체험|비회원)\)/g, '').trim();
+          }
+          
+          const menusHtml = group.items.map(item => `
+            <div class="menu-item">
+              <span>${AppState.escapeHtml(item.snackName)}</span>
+              <span>${Number(item.quantity || 1)}개</span>
+            </div>
+          `).join('');
+
+          const parts = String(group.orderNo).split('-');
+          const shortOrderNo = parts.length >= 3 ? parts[2] : group.orderNo;
+
+          const statusLabel = getStatusLabel(group.servedYn);
+          const statusColor = getStatusColor(group.servedYn);
+          const statusBadge = `<span class="status-badge" style="background-color: ${statusColor};">${statusLabel}</span>`;
+
+          const isDelivery = group.deliveryType === 'delivery';
+          const deliveryTypeStr = isDelivery ? '배달' : '포장';
+
+          const card = document.createElement('div');
+          card.className = 'bill-card';
+          
+          card.innerHTML = `
+            <div class="bill-header">
+              <div class="brand-title-wrap">
+                <img src="icons/guest-192.png" alt="logo" onerror="this.style.display='none'"> 
+                <span>배달왔<span class="accent">삼</span></span>
+              </div>
+              <div class="brand-desc">삼각지 카페 배달 서비스</div>
+            </div>
+
+            <div class="bill-body">
+              <div class="info-row row-order-no">
+                <span class="info-label">주문번호</span>
+                <span class="info-value" style="font-size: 16px;">[${AppState.escapeHtml(shortOrderNo)}]</span>
+              </div>
+              <div class="info-row row-nickname">
+                <span class="info-label">주문자</span>
+                <span class="info-value">${AppState.escapeHtml(displayNickname)} 님</span>
+              </div>
+              <div class="info-row row-time">
+                <span class="info-label">주문시간</span>
+                <span class="info-value">${formatSimpleTime(group.timestamp)}</span>
+              </div>
+
+              <div class="menu-box">
+                ${menusHtml}
+              </div>
+
+              <div class="info-row row-delivery-type">
+                <span class="info-label">수령방식</span>
+                <span class="info-value">${deliveryTypeStr}</span>
+              </div>
+              ${isDelivery && group.deliveryPlace ? `
+              <div class="info-row row-delivery-place" style="color: #e53e3e;">
+                <span class="info-label" style="color: #e53e3e;">배송지</span>
+                <span class="info-value">${AppState.escapeHtml(group.deliveryPlace)}</span>
+              </div>
+              ` : ''}
+              <div class="info-row row-credit">
+                <span class="info-label">차감크레딧</span>
+                <span class="info-value">${AppState.formatPoint(totalCredit)} (배달비 ${group.deliveryFee} 포함)</span>
+              </div>
+              <div class="info-row row-status">
+                <span class="info-label">주문상태</span>
+                <span class="info-value">${statusBadge}</span>
+              </div>
+
+              <div class="bill-footer">
+                <div class="delivery-person">
+                  <span>배달담당:</span>
+                  <div class="delivery-person-line"></div>
+                </div>
+                <div class="checklist">
+                  <span>□ 주문확인</span>
+                  <span>□ 준비완료</span>
+                  <span>□ 전달완료</span>
+                </div>
+              </div>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+
+        renderDeliveryChecklist(sortedGroups);
       }
     }
 
@@ -774,18 +1091,41 @@
     window.addEventListener('DOMContentLoaded', () => {
       // 인쇄 모드 복원 및 이벤트 등록
       const select = document.getElementById('print-mode-select');
+      const excludeCheck = document.getElementById('exclude-served-check');
+
+      if (excludeCheck) {
+        const savedExclude = localStorage.getItem('print-exclude-served') !== 'false';
+        excludeCheck.checked = savedExclude;
+        excludeCheck.addEventListener('change', (e) => {
+          localStorage.setItem('print-exclude-served', String(e.target.checked));
+          renderBills();
+        });
+      }
+
       if (select) {
         const savedMode = localStorage.getItem('print-bills-mode') || 'normal';
         select.value = savedMode;
         document.body.classList.toggle('label-mode', savedMode === 'label');
+        
+        const startWrap = document.getElementById('label-start-selector-wrap');
+        if (startWrap) {
+          startWrap.style.display = savedMode === 'label' ? 'flex' : 'none';
+        }
 
         select.addEventListener('change', (e) => {
           const mode = e.target.value;
           document.body.classList.toggle('label-mode', mode === 'label');
           localStorage.setItem('print-bills-mode', mode);
+          
+          if (startWrap) {
+            startWrap.style.display = mode === 'label' ? 'flex' : 'none';
+          }
+          
+          renderBills();
         });
       }
 
+      initMiniGrid();
       loadBills();
     });
   </script>
