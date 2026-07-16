@@ -61,9 +61,10 @@ const MOCK_DATA = {
   getOrdersToday: {
     success: true,
     orders: [
-      { timestamp: new Date(Date.now() - 3600000 * 2).toISOString(), orderNo: "ORD-1111111111111", nickname: "이니", snackName: "초코칩 쿠키", quantity: 2, point: 2, servedYn: "N" },
-      { timestamp: new Date(Date.now() - 3600000).toISOString(), orderNo: "ORD-2222222222222", nickname: "준이", snackName: "사이다", quantity: 1, point: 1, servedYn: "Y" },
-      { timestamp: new Date().toISOString(), orderNo: "ORD-3333333333333", nickname: "민이", snackName: "감자칩", quantity: 1, point: 2, servedYn: "N" }
+      { timestamp: new Date(Date.now() - 3600000 * 3).toISOString(), orderNo: "ORD-20260716-00001", nickname: "길동이", snackName: "초코우유", quantity: 1, point: 2, servedYn: "N", deliveryType: "delivery", deliveryPlace: "A동 101호", deliveryFee: 3 },
+      { timestamp: new Date(Date.now() - 3600000 * 2).toISOString(), orderNo: "ORD-20260716-00002", nickname: "이니", snackName: "초코칩 쿠키", quantity: 2, point: 2, servedYn: "N", deliveryType: "pickup" },
+      { timestamp: new Date(Date.now() - 3600000).toISOString(), orderNo: "ORD-20260716-00003", nickname: "준이", snackName: "사이다", quantity: 1, point: 1, servedYn: "Y", deliveryType: "pickup" },
+      { timestamp: new Date().toISOString(), orderNo: "ORD-20260716-00004", nickname: "민이", snackName: "감자칩", quantity: 1, point: 2, servedYn: "N", deliveryType: "delivery", deliveryPlace: "B동 202호", deliveryFee: 3 }
     ]
   }
 };

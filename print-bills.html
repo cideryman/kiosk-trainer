@@ -12,6 +12,7 @@
     }
     
     body {
+      display: block !important;
       background-color: #E2E8F0;
       margin: 0;
       padding: 20px;
@@ -312,7 +313,7 @@
         margin: 0 !important;
       }
 
-      body.label-mode #checklist-container {
+      body.label-mode .checklist-print-section {
         display: none !important;
       }
 
@@ -531,6 +532,18 @@
         제공 완료 제외
       </label>
 
+      <!-- 배달 주문 포함 토글 -->
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 800; color: #4a5568; cursor: pointer; user-select: none;">
+        <input type="checkbox" id="include-delivery-check" checked style="width: 18px; height: 18px; cursor: pointer;">
+        배달 주문 포함
+      </label>
+
+      <!-- 포장 주문 포함 토글 -->
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 800; color: #4a5568; cursor: pointer; user-select: none;">
+        <input type="checkbox" id="include-takeout-check" checked style="width: 18px; height: 18px; cursor: pointer;">
+        포장 주문 포함
+      </label>
+
       <!-- 인쇄 형식 -->
       <div style="display: flex; align-items: center; gap: 8px;">
         <label for="print-mode-select" style="font-size: 14px; font-weight: 800; color: #4a5568;">인쇄 형식:</label>
@@ -557,7 +570,10 @@
   </div>
 
   <!-- 배송지별 배달 체크리스트 컨테이너 -->
-  <div id="checklist-container" class="checklist-print-section" style="display: none;"></div>
+  <div id="delivery-checklist-container" class="checklist-print-section" style="display: none;"></div>
+
+  <!-- 포장 주문 체크리스트 컨테이너 -->
+  <div id="takeout-checklist-container" class="checklist-print-section" style="display: none;"></div>
 
   <!-- 스크립트 참조 -->
   <script src="js/config.js"></script>
@@ -865,7 +881,7 @@
           });
         });
 
-        renderDeliveryChecklist(sortedGroups);
+        renderChecklists(sortedGroups);
 
       } else {
         // 일반 빌지 모드: 주문번호(orderNo)로 그룹화하여 1건의 주문당 1개의 빌지 생성
@@ -983,7 +999,7 @@
           container.appendChild(card);
         });
 
-        renderDeliveryChecklist(sortedGroups);
+        renderChecklists(sortedGroups);
       }
     }
 
@@ -1013,9 +1029,9 @@
       return sortedResult;
     }
 
-    // 체크리스트 렌더링 함수
+    // 배달 체크리스트 렌더링 함수
     function renderDeliveryChecklist(sortedGroups) {
-      const container = document.getElementById('checklist-container');
+      const container = document.getElementById('delivery-checklist-container');
       if (!container) return;
       container.innerHTML = '';
       
@@ -1088,6 +1104,91 @@
       container.innerHTML = html;
     }
 
+    // 포장 체크리스트 렌더링 함수
+    function renderTakeoutChecklist(sortedGroups) {
+      const container = document.getElementById('takeout-checklist-container');
+      if (!container) return;
+      container.innerHTML = '';
+      
+      const takeoutGroups = sortedGroups.filter(group => group.deliveryType !== 'delivery');
+      
+      if (takeoutGroups.length === 0) {
+        container.style.display = 'none';
+        return;
+      }
+      
+      container.style.display = 'block';
+      
+      let html = `
+        <div class="checklist-title">
+          <span>🛍️ 포장 주문 체크리스트 (총 ${takeoutGroups.length}건 주문)</span>
+          <span style="font-size: 14px; font-weight: 700; color: #4b5563;" class="no-print">인쇄 시 새 A4 페이지에 단독으로 출력됩니다.</span>
+        </div>
+        <table class="checklist-table">
+          <thead>
+            <tr>
+              <th style="text-align: center; width: 50px;">체크</th>
+              <th style="width: 120px;">주문번호</th>
+              <th style="width: 140px;">주문자</th>
+              <th>주문 메뉴</th>
+              <th style="text-align: center; width: 80px;">수량</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      
+      takeoutGroups.forEach(group => {
+        const parts = String(group.orderNo).split('-');
+        const shortOrderNo = parts.length >= 3 ? parts[2] : group.orderNo;
+        
+        const isKakao = group.authProvider === 'kakao';
+        let displayNickname = group.nickname || '';
+        if (isKakao) {
+          displayNickname = '💬 ' + displayNickname.replace(/ \((체험|비회원)\)/g, '').trim();
+        }
+        
+        const snackNamesHtml = group.items.map(item => AppState.escapeHtml(item.snackName)).join('<br>');
+        const quantitiesHtml = group.items.map(item => `${Number(item.quantity || 1)}개`).join('<br>');
+        
+        html += `
+          <tr>
+            <td style="text-align: center; width: 50px; vertical-align: middle;"><input type="checkbox" class="checklist-chbox"></td>
+            <td style="font-family: monospace; vertical-align: middle;">[${AppState.escapeHtml(shortOrderNo)}]</td>
+            <td style="vertical-align: middle;"><strong>${AppState.escapeHtml(displayNickname)} 님</strong></td>
+            <td style="vertical-align: middle;">${snackNamesHtml}</td>
+            <td style="text-align: center; font-weight: 800; width: 80px; vertical-align: middle;">${quantitiesHtml}</td>
+          </tr>
+        `;
+      });
+      
+      html += `
+          </tbody>
+        </table>
+      `;
+      
+      container.innerHTML = html;
+    }
+
+    // 체크리스트 통합 조율 함수
+    function renderChecklists(sortedGroups) {
+      const includeDelivery = document.getElementById('include-delivery-check')?.checked;
+      const includeTakeout = document.getElementById('include-takeout-check')?.checked;
+
+      if (includeDelivery) {
+        renderDeliveryChecklist(sortedGroups);
+      } else {
+        const deliveryContainer = document.getElementById('delivery-checklist-container');
+        if (deliveryContainer) deliveryContainer.style.display = 'none';
+      }
+
+      if (includeTakeout) {
+        renderTakeoutChecklist(sortedGroups);
+      } else {
+        const takeoutContainer = document.getElementById('takeout-checklist-container');
+        if (takeoutContainer) takeoutContainer.style.display = 'none';
+      }
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       // 인쇄 모드 복원 및 이벤트 등록
       const select = document.getElementById('print-mode-select');
@@ -1098,6 +1199,27 @@
         excludeCheck.checked = savedExclude;
         excludeCheck.addEventListener('change', (e) => {
           localStorage.setItem('print-exclude-served', String(e.target.checked));
+          renderBills();
+        });
+      }
+
+      const includeDeliveryCheck = document.getElementById('include-delivery-check');
+      const includeTakeoutCheck = document.getElementById('include-takeout-check');
+
+      if (includeDeliveryCheck) {
+        const savedIncludeDelivery = localStorage.getItem('print-include-delivery') !== 'false';
+        includeDeliveryCheck.checked = savedIncludeDelivery;
+        includeDeliveryCheck.addEventListener('change', (e) => {
+          localStorage.setItem('print-include-delivery', String(e.target.checked));
+          renderBills();
+        });
+      }
+
+      if (includeTakeoutCheck) {
+        const savedIncludeTakeout = localStorage.getItem('print-include-takeout') !== 'false';
+        includeTakeoutCheck.checked = savedIncludeTakeout;
+        includeTakeoutCheck.addEventListener('change', (e) => {
+          localStorage.setItem('print-include-takeout', String(e.target.checked));
           renderBills();
         });
       }
