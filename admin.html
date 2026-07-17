@@ -315,9 +315,17 @@
     }
 
     .application-status-badge.pending { color: #B45309; background: #FFFBEB; }
+    .application-status-badge.waitlist { color: #6B21A8; background: #FAF5FF; }
     .application-status-badge.approved { color: #047857; background: #ECFDF5; }
     .application-status-badge.rejected { color: #B91C1C; background: #FEF2F2; }
     .application-status-badge.inactive { color: #475569; background: #F1F5F9; }
+
+    .application-card.pending { border-left-color: #D97706; }
+    .application-card.waitlist { border-left-color: #7C3AED; }
+    .application-card.approved { border-left-color: #059669; }
+    .application-card.rejected { border-left-color: #DC2626; }
+    .application-card.inactive { border-left-color: #64748B; }
+    .application-state.waitlist { color: #6B21A8; border-color: #C4B5FD; background: #FAF5FF; }
 
     .application-card-action {
       align-self: center;
@@ -337,6 +345,10 @@
     .application-loading,
     .application-error {
       grid-column: 1 / -1;
+      min-height: 320px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       padding: 28px 16px;
       border: 2px dashed var(--border-color);
       border-radius: var(--radius-sm);
@@ -357,7 +369,8 @@
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px 16px;
-      max-height: 52vh;
+      min-height: 200px;
+      max-height: 36vh;
       overflow-y: auto;
       padding-right: 4px;
     }
@@ -812,6 +825,7 @@
       display: flex;
       flex-direction: column;
       gap: 14px;
+      flex-shrink: 0;
     }
 
     .admin-modal-footer {
@@ -1030,8 +1044,7 @@
       }
 
       .application-settings-grid,
-      .application-list,
-      .application-detail-grid {
+      .application-list {
         grid-template-columns: 1fr;
       }
 
@@ -1071,6 +1084,9 @@
       .application-modal-actions .btn {
         width: 100%;
         min-width: 0;
+        min-height: 48px;
+        font-size: 14px;
+        white-space: nowrap;
       }
 
       .admin-table th, .admin-table td {
@@ -1622,7 +1638,8 @@
 
         <div class="application-filter-row" id="application-filter-row" aria-label="신청 상태 필터">
           <button type="button" class="application-filter-btn active" data-application-filter="ALL">전체 <span class="application-filter-count" id="application-count-all">0</span></button>
-          <button type="button" class="application-filter-btn" data-application-filter="PENDING">대기 <span class="application-filter-count" id="application-count-pending">0</span></button>
+          <button type="button" class="application-filter-btn" data-application-filter="PENDING">검토 중 <span class="application-filter-count" id="application-count-pending">0</span></button>
+          <button type="button" class="application-filter-btn" data-application-filter="WAITLIST">대기 <span class="application-filter-count" id="application-count-waitlist">0</span></button>
           <button type="button" class="application-filter-btn" data-application-filter="APPROVED">승인 <span class="application-filter-count" id="application-count-approved">0</span></button>
           <button type="button" class="application-filter-btn" data-application-filter="REJECTED">반려 <span class="application-filter-count" id="application-count-rejected">0</span></button>
           <button type="button" class="application-filter-btn" data-application-filter="INACTIVE">중지 <span class="application-filter-count" id="application-count-inactive">0</span></button>
@@ -1708,7 +1725,7 @@
 
   <!-- 이용 신청 상세 모달 -->
   <div class="admin-modal" id="modal-guest-application">
-    <div class="admin-modal-content" style="max-width: 760px; max-height: 92vh; overflow: hidden;">
+    <div class="admin-modal-content" style="max-width: 760px; max-height: 92vh; overflow-y: auto;">
       <div class="admin-modal-header">
         <h2 class="admin-modal-title">📨 이용 신청 상세</h2>
         <button class="admin-modal-close" type="button" onclick="closeGuestApplicationModal()">&times;</button>
@@ -1727,6 +1744,7 @@
         <button class="btn btn-gray" type="button" data-application-action="REJECTED" style="margin: 0; min-height: 44px; color: #B91C1C;">반려</button>
         <button class="btn btn-gray" type="button" data-application-action="INACTIVE" style="margin: 0; min-height: 44px;">이용 중지</button>
         <button class="btn btn-gray" id="btn-application-contacted" type="button" style="margin: 0; min-height: 44px;">연락 완료</button>
+        <button class="btn btn-gray" id="btn-application-skip" type="button" style="margin: 0; min-height: 44px; color: #7C3AED;">이번 주 건너뛰기</button>
         <button class="btn btn-primary" id="btn-save-application-memo" type="button" style="margin: 0; min-height: 44px;">메모 저장</button>
       </div>
     </div>
@@ -2158,6 +2176,7 @@
     let guestApplicationsLoaded = false;
     let guestApplicationSettingsDirty = false;
     let isModalOpen = false;
+    let isSubmitting = false;
     let activeGaugeEdit = null;
     const ADMIN_UI_MAX_USER_CREDIT = 15;
     const ADMIN_UI_MAX_SNACK_STOCK = 30;
@@ -2291,17 +2310,23 @@
 
     async function confirmGaugeEdit(type, id) {
       if (!activeGaugeEdit || activeGaugeEdit.type !== type || activeGaugeEdit.id !== String(id)) return;
+      if (isSubmitting) return;
+      isSubmitting = true;
       const input = document.getElementById(gaugeRangeId(type, id));
       const limit = type === 'user' ? ADMIN_UI_MAX_USER_CREDIT : ADMIN_UI_MAX_SNACK_STOCK;
       const value = Math.min(limit, Math.max(0, Number(input?.value || 0)));
       const editState = activeGaugeEdit;
       activeGaugeEdit = null;
-      const success = type === 'user'
-        ? await updateUserCreditAction(id, value)
-        : await updateSnackStockAction(id, value);
-      if (!success) {
-        activeGaugeEdit = editState;
-        renderActiveGaugeTable(type);
+      try {
+        const success = type === 'user'
+          ? await updateUserCreditAction(id, value)
+          : await updateSnackStockAction(id, value);
+        if (!success) {
+          activeGaugeEdit = editState;
+          renderActiveGaugeTable(type);
+        }
+      } finally {
+        isSubmitting = false;
       }
     }
 
@@ -2345,7 +2370,8 @@
     }
 
     const APPLICATION_STATUS_META = {
-      PENDING: { label: '대기', className: 'pending' },
+      PENDING: { label: '검토 중', className: 'pending' },
+      WAITLIST: { label: '대기', className: 'waitlist' },
       APPROVED: { label: '승인', className: 'approved' },
       REJECTED: { label: '반려', className: 'rejected' },
       INACTIVE: { label: '중지', className: 'inactive' }
@@ -2382,6 +2408,7 @@
     function updateApplicationCounts(counts = {}) {
       setApplicationCount('application-count-all', counts.ALL);
       setApplicationCount('application-count-pending', counts.PENDING);
+      setApplicationCount('application-count-waitlist', counts.WAITLIST);
       setApplicationCount('application-count-approved', counts.APPROVED);
       setApplicationCount('application-count-rejected', counts.REJECTED);
       setApplicationCount('application-count-inactive', counts.INACTIVE);
@@ -2394,10 +2421,16 @@
         const capacity = Math.max(1, Number(settings.capacity) || 5);
         const activeCount = Math.max(0, Number(settings.activeCount) || 0);
         const remainingSlots = Math.max(0, Number(settings.remainingSlots) || 0);
-        capacitySummary.textContent = settings.applicationFull
-          ? `1차 ${capacity}명 접수 완료 · 자동 마감`
-          : `1차 ${capacity}명 · 접수 ${activeCount}명 · 남음 ${remainingSlots}명`;
-        capacitySummary.classList.toggle('full', settings.applicationFull === true);
+        const waitlistCount = Math.max(0, Number(settings.waitlistCount) || 0);
+        const waitlistFull = settings.waitlistFull === true;
+        const parts = [];
+        parts.push(`1차 ${capacity}명 · 접수 ${activeCount}명`);
+        if (waitlistCount > 0) parts.push(`대기 ${waitlistCount}명`);
+        if (!waitlistFull && !settings.applicationFull) parts.push(`남음 ${remainingSlots}명`);
+        if (waitlistFull) parts.push('대기 포화');
+        else if (settings.applicationFull) parts.push('정원 마감');
+        capacitySummary.textContent = parts.join(' · ');
+        capacitySummary.classList.toggle('full', settings.applicationFull === true || waitlistFull);
       }
       if (guestApplicationSettingsDirty) return;
       const setValue = (id, value) => {
@@ -2432,6 +2465,18 @@
         const status = getApplicationStatusMeta(application.status);
         const relation = APPLICATION_RELATION_LABEL[application.relationType] || application.relationType || '-';
         const contacted = application.contactedAt ? '연락 완료' : '연락 전';
+        var positionLabel = '';
+        if (application.status === 'WAITLIST' && application.waitlistPosition) {
+          positionLabel = '대기 순번: #' + application.waitlistPosition;
+        }
+        var cooldownLabel = '';
+        if (application.cooldownUntil) {
+          cooldownLabel = '⏳ 쿨다운: ' + formatApplicationDate(application.cooldownUntil);
+        }
+        var skipLabel = '';
+        if (application.skipUntil) {
+          skipLabel = '⏭ 건너뛰기: ' + formatApplicationDate(application.skipUntil);
+        }
         return `
           <article class="application-card ${status.className}">
             <div class="application-card-main">
@@ -2447,6 +2492,9 @@
                 <span>${esc(application.deliverySummary || '-')}</span>
                 <span>희망: ${esc(application.preferredDays || '-')}</span>
                 <span>${esc(contacted)}</span>
+                ${positionLabel ? '<span style="color:#7C3AED; font-weight:900;">' + esc(positionLabel) + '</span>' : ''}
+                ${cooldownLabel ? '<span style="color:#6B7280; font-weight:700;">' + esc(cooldownLabel) + '</span>' : ''}
+                ${skipLabel ? '<span style="color:#EA6A17; font-weight:700;">' + esc(skipLabel) + '</span>' : ''}
               </div>
             </div>
             <button class="application-card-action" type="button" onclick="${callAttr(`openGuestApplicationDetail(${jsString(application.applicationId)})`)}">상세</button>
@@ -2504,7 +2552,7 @@
       if (!container) return;
       const status = getApplicationStatusMeta(application.status);
       const relation = APPLICATION_RELATION_LABEL[application.relationType] || application.relationType || '-';
-      container.innerHTML = [
+      var items = [
         applicationDetailItem('신청번호', application.applicationId),
         applicationDetailItem('상태', status.label),
         applicationDetailItem('신청 시각', formatApplicationDate(application.createdAt)),
@@ -2516,30 +2564,48 @@
         applicationDetailItem('배달 장소', application.deliveryPlace, true),
         applicationDetailItem('상세 위치·전달 방법', application.deliveryDetail, true),
         applicationDetailItem('전달할 내용', application.message, true),
+      ];
+      if (application.waitlistPosition && application.status === 'WAITLIST') {
+        items.push(applicationDetailItem('대기 순번', '#' + application.waitlistPosition));
+      }
+      if (application.cooldownUntil) {
+        items.push(applicationDetailItem('쿨다운 만료', formatApplicationDate(application.cooldownUntil)));
+      }
+      if (application.skipUntil) {
+        items.push(applicationDetailItem('건너뛰기 만료', formatApplicationDate(application.skipUntil)));
+      }
+      items.push(
         applicationDetailItem('연락 완료', formatApplicationDate(application.contactedAt)),
         applicationDetailItem('검토 시각', formatApplicationDate(application.reviewedAt)),
         applicationDetailItem('개인정보 만료 예정', formatApplicationDate(application.retentionUntil)),
         applicationDetailItem('익명화 시각', formatApplicationDate(application.anonymizedAt))
-      ].join('');
+      );
+      container.innerHTML = items.join('');
       const memo = document.getElementById('application-detail-memo');
       if (memo) {
         memo.value = application.adminMemo || '';
         memo.disabled = Boolean(application.anonymizedAt);
       }
-      document.querySelectorAll('[data-application-action], #btn-application-contacted, #btn-save-application-memo').forEach(button => {
+      document.querySelectorAll('[data-application-action], #btn-application-contacted, #btn-application-skip, #btn-save-application-memo').forEach(button => {
         button.disabled = Boolean(application.anonymizedAt);
       });
       const contactedButton = document.getElementById('btn-application-contacted');
       if (contactedButton) contactedButton.textContent = application.contactedAt ? '연락 표시 취소' : '연락 완료';
+      const skipButton = document.getElementById('btn-application-skip');
+      if (skipButton) {
+        skipButton.style.display = (application.status === 'APPROVED' || application.status === 'WAITLIST') ? '' : 'none';
+      }
     }
 
-    async function openGuestApplicationDetail(applicationId) {
+    async function openGuestApplicationDetail(applicationId, options = {}) {
       const modal = document.getElementById('modal-guest-application');
       const content = document.getElementById('application-detail-content');
       if (!modal || !content) return;
       modal.style.display = 'flex';
       isModalOpen = true;
-      content.innerHTML = '<div class="application-loading">상세 정보를 불러오고 있습니다.</div>';
+      if (!options.quiet) {
+        content.innerHTML = '<div class="application-loading">상세 정보를 불러오고 있습니다.</div>';
+      }
       try {
         const res = await fetchAPI('getGuestApplicationDetail', {
           method: 'POST',
@@ -2566,8 +2632,13 @@
 
     async function updateCurrentGuestApplication(patch) {
       if (!currentApplicationDetail) return;
+      if (isSubmitting) return;
+      isSubmitting = true;
       const applicationId = currentApplicationDetail.applicationId;
       const memo = document.getElementById('application-detail-memo')?.value.trim() || '';
+      const modalButtons = document.querySelectorAll('.application-modal-actions button');
+      modalButtons.forEach(b => { b.disabled = true; });
+
       try {
         const res = await fetchAPI('updateGuestApplication', {
           method: 'POST',
@@ -2583,14 +2654,19 @@
           alert(res?.message || '신청 정보 저장에 실패했습니다.');
           return;
         }
+        closeGuestApplicationModal();
         await loadGuestApplications();
-        await openGuestApplicationDetail(applicationId);
-      } catch (error) {
-        alert('신청 정보 저장 중 오류가 발생했습니다.');
+        } catch (error) {
+          alert('신청 정보 저장 중 오류가 발생했습니다.');
+      } finally {
+        modalButtons.forEach(b => { b.disabled = false; });
+        isSubmitting = false;
       }
     }
 
     async function saveGuestApplicationSettings() {
+      if (isSubmitting) return;
+      isSubmitting = true;
       const button = document.getElementById('btn-save-application-settings');
       if (button) button.disabled = true;
       try {
@@ -2625,6 +2701,7 @@
         alert('신청 설정 저장 중 오류가 발생했습니다.');
       } finally {
         if (button) button.disabled = false;
+        isSubmitting = false;
       }
     }
 
@@ -2645,27 +2722,33 @@
     }
 
     async function anonymizeGuestApplications() {
-      const confirmInput = document.getElementById('application-anonymize-confirm');
-      const confirmText = confirmInput?.value.trim() || '';
-      if (confirmText !== '신청정보정리') {
-        alert('확인 문구 신청정보정리를 정확히 입력해 주세요.');
-        confirmInput?.focus();
-        return;
+      if (isSubmitting) return;
+      isSubmitting = true;
+      try {
+        const confirmInput = document.getElementById('application-anonymize-confirm');
+        const confirmText = confirmInput?.value.trim() || '';
+        if (confirmText !== '신청정보정리') {
+          alert('확인 문구 신청정보정리를 정확히 입력해 주세요.');
+          confirmInput?.focus();
+          return;
+        }
+        if (!confirm('만료된 신청의 이름·연락처·장소·메모를 되돌릴 수 없게 익명화할까요?')) return;
+        const res = await fetchAPI('anonymizeExpiredGuestApplications', {
+          method: 'POST',
+          body: { adminToken: getAdminToken(), confirmText }
+        });
+        if (!res?.success) {
+          clearAdminTokenIfDenied(res);
+          alert(res?.message || '익명화에 실패했습니다.');
+          return;
+        }
+        if (confirmInput) confirmInput.value = '';
+        alert(res.message);
+        await auditGuestApplicationRetention();
+        await loadGuestApplications();
+      } finally {
+        isSubmitting = false;
       }
-      if (!confirm('만료된 신청의 이름·연락처·장소·메모를 되돌릴 수 없게 익명화할까요?')) return;
-      const res = await fetchAPI('anonymizeExpiredGuestApplications', {
-        method: 'POST',
-        body: { adminToken: getAdminToken(), confirmText }
-      });
-      if (!res?.success) {
-        clearAdminTokenIfDenied(res);
-        alert(res?.message || '익명화에 실패했습니다.');
-        return;
-      }
-      if (confirmInput) confirmInput.value = '';
-      alert(res.message);
-      await auditGuestApplicationRetention();
-      await loadGuestApplications();
     }
 
     // 탭 전환 기능
@@ -4021,6 +4104,33 @@
       document.getElementById('btn-save-application-memo')?.addEventListener('click', () => updateCurrentGuestApplication({}));
       document.getElementById('btn-application-contacted')?.addEventListener('click', () => {
         updateCurrentGuestApplication({ contacted: !Boolean(currentApplicationDetail?.contactedAt) });
+      });
+      document.getElementById('btn-application-skip')?.addEventListener('click', async () => {
+        if (!currentApplicationDetail) return;
+        const applicationId = currentApplicationDetail.applicationId;
+        const modalButtons = document.querySelectorAll('.application-modal-actions button');
+        modalButtons.forEach(b => { b.disabled = true; });
+        try {
+          const res = await fetchAPI('skipGuestApplicationWeek', {
+            method: 'POST',
+            body: {
+              adminToken: getAdminToken(),
+              applicationId
+            }
+          });
+          if (!res?.success) {
+            clearAdminTokenIfDenied(res);
+            alert(res?.message || '건너뛰기 설정에 실패했습니다.');
+            return;
+          }
+          alert(res.message || '건너뛰기가 설정되었습니다.');
+          closeGuestApplicationModal();
+          await loadGuestApplications();
+        } catch (error) {
+          alert('건너뛰기 중 오류가 발생했습니다.');
+        } finally {
+          modalButtons.forEach(b => { b.disabled = false; });
+        }
       });
       document.querySelectorAll('[data-application-action]').forEach(button => {
         button.addEventListener('click', () => {

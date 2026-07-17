@@ -91,19 +91,24 @@
 
 `periodKey`, `guestDeviceId`, `guestKey`, `baseCredit`, `bonusCredit`, `creditLimit`, `usedCredit`, `remainingCredit`, `updatedAt`
 
-### 이용신청 A:S (신규 코드 계약)
+### 이용신청 A:V (신규 코드 계약, P21 이후 22열)
 
-`createdAt`, `applicationId`, `requestId`, `name`, `relationType`, `relationDetail`, `phone`, `deliveryPlace`, `deliveryDetail`, `preferredDays`, `message`, `consentAt`, `status`, `contactedAt`, `reviewedAt`, `retentionUntil`, `anonymizedAt`, `adminMemo`, `updatedAt`
+`createdAt`, `applicationId`, `requestId`, `name`, `relationType`, `relationDetail`, `phone`, `deliveryPlace`, `deliveryDetail`, `preferredDays`, `message`, `consentAt`, `status`, `contactedAt`, `reviewedAt`, `retentionUntil`, `anonymizedAt`, `adminMemo`, `waitlistPosition`, `skipUntil`, `cooldownUntil`, `updatedAt`
 
-- 상태는 `PENDING`, `APPROVED`, `REJECTED`, `INACTIVE`만 사용합니다.
+- 상태는 `PENDING`, `WAITLIST`, `APPROVED`, `REJECTED`, `INACTIVE`를 사용합니다. PENDING은 화면에서 '검토 중', WAITLIST는 '대기'로 표시합니다.
 - `requestId`는 동일 신청 재전송 방지용이며 익명화할 때 삭제합니다.
 - 반려·중지는 처리 후 30일의 `retentionUntil`을 기록하고 재승인 시 비웁니다.
-- 익명화 후에는 신청번호·상태·처리 시각만 남기고 이름·연락처·장소·관계·희망 요일·메시지·관리자 메모를 제거합니다.
+- APPROVED는 매주 월요일 자동 순환 시 WAITLIST로 전환됩니다 (cooldownUntil 2주 설정).
+- `waitlistPosition`은 WAITLIST 상태에서만 유효한 대기 순번입니다. 상태 변경 시 `reindexWaitlistPositions()`로 재계산합니다.
+- `skipUntil`은 "이번 주 건너뛰기" 만료일입니다. 이 날짜가 오늘보다 미래면 자동 승격에서 제외됩니다.
+- `cooldownUntil`은 APPROVED → WAITLIST 복귀 시 설정되는 쿨다운 만료일입니다. 미래면 승격 제외됩니다.
+- `skipUntil`과 `cooldownUntil`은 둘 중 하나라도 미래면 승격에서 제외됩니다. 자정(00:00:00) 기준으로 비교합니다.
+- 익명화 후에는 신청번호·상태·처리 시각만 남기고 이름·연락처·장소·관계·희망 요일·메시지·관리자 메모·대기순번·건너뛰기·쿨다운을 제거합니다.
 - 이 시트의 개인정보를 주문내역·주방·전광판·빌지·후기·관리자로그로 복사하지 않습니다.
 
 ### 이용 신청용 운영설정 키
 
-`guestApplicationOpen`, `guestApplicationTarget`, `guestApplicationOperatingDays`, `guestApplicationOrderTime`, `guestApplicationDeliveryTime`, `guestApplicationArea`, `guestApplicationUsage`, `guestApplicationDayOptions`, `guestApplicationCapacity`, `guestApplicationClosedMessage`
+`guestApplicationOpen`, `guestApplicationTarget`, `guestApplicationOperatingDays`, `guestApplicationOrderTime`, `guestApplicationDeliveryTime`, `guestApplicationArea`, `guestApplicationUsage`, `guestApplicationDayOptions`, `guestApplicationCapacity`, `guestApplicationClosedMessage`, `guestApplicationCooldownWeeks`, `guestApplicationWaitlistLimit`
 
 `guestApplicationCapacity`는 기본 5이며 관리자 화면에서 1~100명 사이 정수로 조절합니다. 현재 활성 신청 수보다 낮춰도 기존 신청 행은 유지하고 신규 접수만 마감합니다.
 

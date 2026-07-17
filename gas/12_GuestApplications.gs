@@ -17,6 +17,9 @@ const GUEST_APPLICATION_HEADERS = [
   'retentionUntil',
   'anonymizedAt',
   'adminMemo',
+  'waitlistPosition',
+  'skipUntil',
+  'cooldownUntil',
   'updatedAt',
 ];
 
@@ -25,16 +28,19 @@ const GUEST_APPLICATION_STATUS = {
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
   INACTIVE: 'INACTIVE',
+  WAITLIST: 'WAITLIST',
 };
 
 const GUEST_APPLICATION_RETENTION_DAYS = 30;
 const GUEST_APPLICATION_DEFAULT_CAPACITY = 5;
 const GUEST_APPLICATION_MAX_CAPACITY = 100;
+const GUEST_APPLICATION_DEFAULT_COOLDOWN_WEEKS = 2;
+const GUEST_APPLICATION_DEFAULT_WAITLIST_LIMIT = 100;
 const GUEST_APPLICATION_DATE_HEADERS = [
   'createdAt', 'consentAt', 'contactedAt', 'reviewedAt',
-  'retentionUntil', 'anonymizedAt', 'updatedAt'
+  'retentionUntil', 'anonymizedAt', 'skipUntil', 'cooldownUntil', 'updatedAt'
 ];
-const GUEST_APPLICATION_SETTINGS_CACHE_KEY = 'guestApplicationSettings.v3';
+const GUEST_APPLICATION_SETTINGS_CACHE_KEY = 'guestApplicationSettings.v4';
 const GUEST_APPLICATION_SETTINGS_CACHE_TTL_SECONDS = 30;
 const GUEST_APPLICATION_SETTINGS_DEFAULTS = {
   guestApplicationOpen: 'N',
@@ -47,6 +53,8 @@ const GUEST_APPLICATION_SETTINGS_DEFAULTS = {
   guestApplicationDayOptions: '수요일',
   guestApplicationCapacity: String(GUEST_APPLICATION_DEFAULT_CAPACITY),
   guestApplicationClosedMessage: '현재 이용 신청을 받고 있지 않습니다. 기관 담당자에게 문의해 주세요.',
+  guestApplicationCooldownWeeks: String(GUEST_APPLICATION_DEFAULT_COOLDOWN_WEEKS),
+  guestApplicationWaitlistLimit: String(GUEST_APPLICATION_DEFAULT_WAITLIST_LIMIT),
 };
 const GUEST_APPLICATION_SETTINGS_LEGACY_DEFAULTS = {
   guestApplicationTarget: '복지관 봉사자·후원자와 관리자가 인정하는 기타 관계자',
@@ -57,6 +65,33 @@ const GUEST_APPLICATION_SETTINGS_LEGACY_DEFAULTS = {
   guestApplicationUsage: '승인 후 안내받은 배달왔삼 주문 페이지에서 직접 주문',
   guestApplicationDayOptions: '월요일,화요일,수요일,목요일,금요일',
 };
+
+// ─── 유틸리티: 자정 기준 날짜 비교 ───
+
+function isDateBeforeOrEqual(dateValue, now) {
+  if (!dateValue) return true;
+  var d = dateValue instanceof Date ? dateValue : new Date(dateValue);
+  if (isNaN(d.getTime())) return true;
+  var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  return target <= today;
+}
+
+// ─── 유틸리티: 대기 순번 재계산 공통 함수 ───
+
+function reindexWaitlistPositions(table) {
+  var position = 0;
+  for (var i = 0; i < table.rows.length; i++) {
+    var row = table.rows[i];
+    var status = String(row[table.map.status] || '').trim();
+    if (status === GUEST_APPLICATION_STATUS.WAITLIST) {
+      position++;
+      row[table.map.waitlistPosition] = position;
+    }
+  }
+}
+
+// ─── 시트 관리 ───
 
 function ensureGuestApplicationSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -177,6 +212,8 @@ function guestApplicationObjectToRow(object, headers) {
   });
 }
 
+// ─── 설정 시트 ───
+
 function getGuestApplicationSettingsSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET.SETTINGS);
@@ -263,6 +300,8 @@ function getGuestApplicationObjects(table) {
     .map(row => guestApplicationRowToObject(row, table.map));
 }
 
+// ─── 정원 & 대기 집계 ───
+
 function isGuestApplicationCapacityStatus(status) {
   const normalized = String(status || '').trim().toUpperCase();
   return normalized === GUEST_APPLICATION_STATUS.PENDING || normalized === GUEST_APPLICATION_STATUS.APPROVED;
@@ -279,6 +318,11 @@ function getGuestApplicationCapacity(value) {
   return parseGuestApplicationCapacity(value) || GUEST_APPLICATION_DEFAULT_CAPACITY;
 }
 
+function getGuestApplicationWaitlistLimit(settings) {
+  var limit = Number(String(settings.guestApplicationWaitlistLimit || '').trim());
+  return Number.isInteger(limit) && limit >= 1 ? limit : GUEST_APPLICATION_DEFAULT_WAITLIST_LIMIT;
+}
+
 function getGuestApplicationFullMessage(capacity) {
   return '1차 시범 이용 신청 ' + capacity + '명이 모두 접수되어 현재 모집을 마감했습니다. 추가 모집은 기관 담당자에게 문의해 주세요.';
 }
@@ -287,16 +331,33 @@ function getGuestApplicationAdminFullMessage(capacity) {
   return '현재 1차 시범 신청 정원 ' + capacity + '명이 모두 차 있어 승인할 수 없습니다. 먼저 다른 신청을 반려 또는 중지해 주세요.';
 }
 
+function getGuestApplicationWaitlistMessage(position) {
+  return '정원이 가득 차 대기자로 접수되었습니다. 대기 번호는 ' + position + '번입니다.';
+}
+
+function getGuestApplicationWaitlistFullMessage(limit) {
+  return '대기자가 ' + limit + '명을 초과하여 추가 접수를 받지 않습니다. 기관 담당자에게 문의해 주세요.';
+}
+
 function getGuestApplicationCapacityState(applications, capacityValue) {
   const capacity = getGuestApplicationCapacity(capacityValue);
-  const activeCount = (applications || []).reduce((count, application) => {
-    if (application.anonymizedAt) return count;
-    return isGuestApplicationCapacityStatus(application.status) ? count + 1 : count;
-  }, 0);
+  var activeCount = 0;
+  var waitlistCount = 0;
+  for (var i = 0; i < (applications || []).length; i++) {
+    const application = applications[i];
+    if (application.anonymizedAt) continue;
+    const status = String(application.status || '').trim().toUpperCase();
+    if (status === GUEST_APPLICATION_STATUS.WAITLIST) {
+      waitlistCount++;
+    } else if (isGuestApplicationCapacityStatus(status)) {
+      activeCount++;
+    }
+  }
   const remainingSlots = Math.max(0, capacity - activeCount);
   return {
     capacity,
     activeCount,
+    waitlistCount,
     remainingSlots,
     applicationFull: remainingSlots === 0,
   };
@@ -306,18 +367,29 @@ function buildGuestApplicationSettingsResponse(settings, capacityState) {
   const configuredOpen = String(settings.guestApplicationOpen || 'N').toUpperCase() === 'Y';
   const capacity = capacityState || getGuestApplicationCapacityState([], settings.guestApplicationCapacity);
   const applicationFull = capacity.applicationFull === true;
-  const applicationOpen = configuredOpen && !applicationFull;
+  const waitlistLimit = getGuestApplicationWaitlistLimit(settings);
+  const waitlistFull = capacity.waitlistCount >= waitlistLimit;
+  const applicationOpen = configuredOpen && !waitlistFull;
+  const waitlistActive = configuredOpen && applicationFull && !waitlistFull;
   const configuredClosedMessage = String(settings.guestApplicationClosedMessage || '');
-  const applicationClosedReason = !configuredOpen ? 'MANUAL' : (applicationFull ? 'FULL' : '');
+  var applicationClosedReason = '';
+  if (!configuredOpen) applicationClosedReason = 'MANUAL';
+  else if (waitlistFull) applicationClosedReason = 'WAITLIST_FULL';
+  else if (applicationFull) applicationClosedReason = 'FULL';
   return {
     success: true,
     applicationOpen,
     applicationOpenConfigured: configuredOpen,
     applicationFull,
+    waitlistActive,
+    waitlistFull,
+    waitlistCount: capacity.waitlistCount,
+    waitlistLimit,
     applicationClosedReason,
     capacity: capacity.capacity,
     activeCount: capacity.activeCount,
     remainingSlots: capacity.remainingSlots,
+    cooldownWeeks: Number(settings.guestApplicationCooldownWeeks) || GUEST_APPLICATION_DEFAULT_COOLDOWN_WEEKS,
     target: String(settings.guestApplicationTarget || ''),
     operatingDays: String(settings.guestApplicationOperatingDays || ''),
     orderTime: String(settings.guestApplicationOrderTime || ''),
@@ -325,7 +397,7 @@ function buildGuestApplicationSettingsResponse(settings, capacityState) {
     serviceArea: String(settings.guestApplicationArea || ''),
     usageGuide: String(settings.guestApplicationUsage || ''),
     preferredDayOptions: parseGuestApplicationDayOptions(settings.guestApplicationDayOptions),
-    closedMessage: applicationClosedReason === 'FULL' ? getGuestApplicationFullMessage(capacity.capacity) : configuredClosedMessage,
+    closedMessage: applicationClosedReason === 'FULL' ? getGuestApplicationFullMessage(capacity.capacity) : (applicationClosedReason === 'WAITLIST_FULL' ? getGuestApplicationWaitlistFullMessage(waitlistLimit) : configuredClosedMessage),
     configuredClosedMessage,
   };
 }
@@ -465,6 +537,8 @@ function createGuestApplicationId(rows, map, now) {
   return prefix + String(maxSequence + 1).padStart(3, '0');
 }
 
+// ─── 신청 접수 ───
+
 function submitGuestApplication(data) {
   const validation = validateGuestApplication(data || {});
   if (!validation.success) return validation;
@@ -479,13 +553,19 @@ function submitGuestApplication(data) {
     for (let index = 0; index < table.rows.length; index++) {
       const row = table.rows[index];
       if (String(row[table.map.requestId] || '') === input.requestId) {
-        return {
+        const existingStatus = String(row[table.map.status] || GUEST_APPLICATION_STATUS.PENDING);
+        const existingPosition = String(row[table.map.waitlistPosition] || '');
+        const result = {
           success: true,
           idempotent: true,
           applicationId: String(row[table.map.applicationId] || ''),
-          status: String(row[table.map.status] || GUEST_APPLICATION_STATUS.PENDING),
+          status: existingStatus,
           message: '이미 접수된 신청 결과를 확인했습니다.',
         };
+        if (existingStatus === GUEST_APPLICATION_STATUS.WAITLIST && existingPosition) {
+          result.waitlistPosition = Number(existingPosition);
+        }
+        return result;
       }
     }
 
@@ -511,6 +591,17 @@ function submitGuestApplication(data) {
       };
     }
 
+    // WAITLIST 100명 초과 먼저 확인
+    const waitlistLimit = getGuestApplicationWaitlistLimit(storedSettings);
+    if (capacityState.waitlistCount >= waitlistLimit) {
+      return {
+        success: false,
+        code: 'WAITLIST_FULL',
+        message: getGuestApplicationWaitlistFullMessage(waitlistLimit),
+        waitlistLimit,
+      };
+    }
+
     for (let index = 0; index < table.rows.length; index++) {
       const row = table.rows[index];
       const anonymizedAt = row[table.map.anonymizedAt];
@@ -524,19 +615,23 @@ function submitGuestApplication(data) {
       }
     }
 
-    if (capacityState.applicationFull) {
-      return {
-        success: false,
-        code: 'APPLICATION_FULL',
-        message: getGuestApplicationFullMessage(capacityState.capacity),
-        capacity: capacityState.capacity,
-        activeCount: capacityState.activeCount,
-        remainingSlots: 0,
-      };
-    }
-
     const now = new Date();
     const applicationId = createGuestApplicationId(table.rows, table.map, now);
+
+    // 정원 확인: 미만이면 PENDING, 이상이면 WAITLIST
+    var targetStatus;
+    var waitlistPosition = '';
+    var message;
+
+    if (capacityState.applicationFull) {
+      targetStatus = GUEST_APPLICATION_STATUS.WAITLIST;
+      waitlistPosition = capacityState.waitlistCount + 1;
+      message = getGuestApplicationWaitlistMessage(waitlistPosition);
+    } else {
+      targetStatus = GUEST_APPLICATION_STATUS.PENDING;
+      message = '이용 신청이 접수되었습니다. 관리자가 확인 후 연락드립니다.';
+    }
+
     const application = {
       createdAt: now,
       applicationId,
@@ -550,29 +645,42 @@ function submitGuestApplication(data) {
       preferredDays: input.preferredDays,
       message: input.message,
       consentAt: now,
-      status: GUEST_APPLICATION_STATUS.PENDING,
+      status: targetStatus,
       contactedAt: '',
       reviewedAt: '',
       retentionUntil: '',
       anonymizedAt: '',
       adminMemo: '',
+      waitlistPosition: String(waitlistPosition),
+      skipUntil: '',
+      cooldownUntil: '',
       updatedAt: now,
     };
 
     sheet.appendRow(guestApplicationObjectToRow(application, table.headers));
     clearGuestApplicationSettingsCache();
-    return {
+
+    var result = {
       success: true,
       applicationId,
-      status: GUEST_APPLICATION_STATUS.PENDING,
+      status: targetStatus,
       capacity: capacityState.capacity,
-      remainingSlots: Math.max(0, capacityState.remainingSlots - 1),
-      message: '이용 신청이 접수되었습니다. 관리자가 확인 후 연락드립니다.',
+      message,
     };
+
+    if (targetStatus === GUEST_APPLICATION_STATUS.WAITLIST) {
+      result.waitlistPosition = waitlistPosition;
+    } else {
+      result.remainingSlots = Math.max(0, capacityState.remainingSlots - 1);
+    }
+
+    return result;
   } finally {
     lock.releaseLock();
   }
 }
+
+// ─── 관리자용 조회 ───
 
 function maskGuestApplicationPhone(phone) {
   const digits = normalizeGuestApplicationPhone(phone);
@@ -586,7 +694,7 @@ function summarizeGuestApplicationPlace(value) {
 }
 
 function getGuestApplicationStatusCounts(applications, now) {
-  const counts = { ALL: applications.length, PENDING: 0, APPROVED: 0, REJECTED: 0, INACTIVE: 0, EXPIRED: 0 };
+  const counts = { ALL: applications.length, PENDING: 0, APPROVED: 0, REJECTED: 0, INACTIVE: 0, WAITLIST: 0, EXPIRED: 0 };
   applications.forEach(application => {
     if (Object.prototype.hasOwnProperty.call(counts, application.status)) counts[application.status]++;
     const retentionTime = application.retentionUntil ? new Date(application.retentionUntil).getTime() : NaN;
@@ -599,7 +707,7 @@ function getGuestApplicationsForAdmin(data) {
   const sheet = ensureGuestApplicationSheet();
   const table = getGuestApplicationRows(sheet);
   const filter = String((data && data.status) || 'ALL').trim().toUpperCase();
-  const statusRank = { PENDING: 0, APPROVED: 1, REJECTED: 2, INACTIVE: 3 };
+  const statusRank = { PENDING: 0, WAITLIST: 1, APPROVED: 2, REJECTED: 3, INACTIVE: 4 };
   const applications = getGuestApplicationObjects(table);
   const storedSettings = readGuestApplicationSettings();
   const capacityState = getGuestApplicationCapacityState(applications, storedSettings.guestApplicationCapacity);
@@ -607,6 +715,12 @@ function getGuestApplicationsForAdmin(data) {
   applications.sort((a, b) => {
     const rankDiff = (statusRank[a.status] === undefined ? 9 : statusRank[a.status]) - (statusRank[b.status] === undefined ? 9 : statusRank[b.status]);
     if (rankDiff !== 0) return rankDiff;
+    // WAITLIST는 waitlistPosition으로 정렬
+    if (a.status === GUEST_APPLICATION_STATUS.WAITLIST && b.status === GUEST_APPLICATION_STATUS.WAITLIST) {
+      const posA = Number(a.waitlistPosition) || 9999;
+      const posB = Number(b.waitlistPosition) || 9999;
+      return posA - posB;
+    }
     return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
   });
 
@@ -627,6 +741,9 @@ function getGuestApplicationsForAdmin(data) {
       contactedAt: application.contactedAt,
       retentionUntil: application.retentionUntil,
       anonymizedAt: application.anonymizedAt,
+      waitlistPosition: application.waitlistPosition,
+      skipUntil: application.skipUntil,
+      cooldownUntil: application.cooldownUntil,
       updatedAt: application.updatedAt,
     })),
   };
@@ -657,6 +774,8 @@ function addGuestApplicationRetentionDate(now) {
   return new Date(now.getTime() + GUEST_APPLICATION_RETENTION_DAYS * 24 * 60 * 60 * 1000);
 }
 
+// ─── 신청 상태 업데이트 (P21: WAITLIST 대응) ───
+
 function updateGuestApplication(data) {
   const applicationId = String((data && data.applicationId) || '').trim();
   const nextStatus = data && data.status ? String(data.status).trim().toUpperCase() : '';
@@ -676,11 +795,9 @@ function updateGuestApplication(data) {
 
     const application = found.object;
     const previousStatus = application.status;
-    if (
-      nextStatus
-      && !isGuestApplicationCapacityStatus(previousStatus)
-      && isGuestApplicationCapacityStatus(nextStatus)
-    ) {
+
+    // WAITLIST → PENDING 승격: 정원 여유 확인
+    if (nextStatus === GUEST_APPLICATION_STATUS.PENDING && previousStatus === GUEST_APPLICATION_STATUS.WAITLIST) {
       const storedSettings = readGuestApplicationSettings();
       const capacityState = getGuestApplicationCapacityState(
         getGuestApplicationObjects(table),
@@ -697,13 +814,50 @@ function updateGuestApplication(data) {
         };
       }
     }
+
+    // 비정원 상태 → 정원 상태 승격: 정원 확인
+    if (
+      nextStatus
+      && !isGuestApplicationCapacityStatus(previousStatus)
+      && isGuestApplicationCapacityStatus(nextStatus)
+      && nextStatus !== GUEST_APPLICATION_STATUS.PENDING
+    ) {
+      // APPROVED로 직접 승격할 때
+      const storedSettings = readGuestApplicationSettings();
+      const capacityState = getGuestApplicationCapacityState(
+        getGuestApplicationObjects(table),
+        storedSettings.guestApplicationCapacity
+      );
+      if (capacityState.applicationFull) {
+        return {
+          success: false,
+          code: 'APPLICATION_FULL',
+          message: getGuestApplicationAdminFullMessage(capacityState.capacity),
+          capacity: capacityState.capacity,
+          activeCount: capacityState.activeCount,
+          remainingSlots: 0,
+        };
+      }
+    }
+
     const now = new Date();
     if (nextStatus) {
       application.status = nextStatus;
       application.reviewedAt = now;
-      application.retentionUntil = (nextStatus === GUEST_APPLICATION_STATUS.REJECTED || nextStatus === GUEST_APPLICATION_STATUS.INACTIVE)
-        ? addGuestApplicationRetentionDate(now)
-        : '';
+      const isRetention = (nextStatus === GUEST_APPLICATION_STATUS.REJECTED || nextStatus === GUEST_APPLICATION_STATUS.INACTIVE);
+      application.retentionUntil = isRetention ? addGuestApplicationRetentionDate(now) : '';
+
+      // WAITLIST/INACTIVE/REJECTED → 정원 상태가 아니면 waitlistPosition 초기화
+      if (nextStatus !== GUEST_APPLICATION_STATUS.WAITLIST) {
+        application.waitlistPosition = '';
+        application.skipUntil = '';
+        application.cooldownUntil = '';
+      }
+      // PENDING/APPROVED로 변경 시 cooldown/skip 초기화
+      if (nextStatus === GUEST_APPLICATION_STATUS.PENDING || nextStatus === GUEST_APPLICATION_STATUS.APPROVED) {
+        application.skipUntil = '';
+        application.cooldownUntil = '';
+      }
     }
     if (data.contacted !== undefined) {
       application.contactedAt = data.contacted === true || String(data.contacted).toUpperCase() === 'TRUE' ? now : '';
@@ -711,11 +865,57 @@ function updateGuestApplication(data) {
     if (data.adminMemo !== undefined) {
       application.adminMemo = cleanGuestApplicationText(data.adminMemo, 500);
     }
+    if (data.skipUntil !== undefined) {
+      application.skipUntil = data.skipUntil;
+    }
     application.updatedAt = now;
 
-    const rowNumber = found.rowIndex + 2;
-    sheet.getRange(rowNumber, 1, 1, table.headers.length)
-      .setValues([guestApplicationObjectToRow(application, table.headers)]);
+    // 대기 순번 재계산
+    var row = table.rows[found.rowIndex];
+    var headers = table.headers;
+    var map = table.map;
+    // 메모리 상의 row에 변경 사항 반영
+    GUEST_APPLICATION_HEADERS.forEach(function(header) {
+      var idx = map[header];
+      if (idx === undefined) return;
+      var val = application[header];
+      if (val instanceof Date) {
+        row[idx] = val;
+      } else if (val === '' || val === undefined || val === null) {
+        row[idx] = '';
+      } else {
+        row[idx] = val;
+      }
+    });
+
+    // 대기 순번 재계산 (공통 함수)
+    reindexWaitlistPositions(table);
+
+    // 변경된 행 배치 업데이트 (변경이 일어난 모든 행)
+    var changedRows = [];
+    var firstChangedIndex = -1;
+    for (var i = 0; i < table.rows.length; i++) {
+      var r = table.rows[i];
+      // status 또는 waitlistPosition이 변경된 행 찾기
+      if (String(r[map.updatedAt] || '') === String(now) || (found.rowIndex === i)) {
+        changedRows.push(r);
+        if (firstChangedIndex === -1) firstChangedIndex = i;
+      }
+    }
+
+    if (changedRows.length > 0 && firstChangedIndex >= 0) {
+      var batchedValues = changedRows.map(function(r) {
+        return guestApplicationObjectToRow(guestApplicationRowToObject(r, map), headers);
+      });
+      sheet.getRange(firstChangedIndex + 2, 1, batchedValues.length, headers.length)
+        .setValues(batchedValues);
+    } else {
+      // 단일 행만 변경된 경우
+      const rowNumber = found.rowIndex + 2;
+      sheet.getRange(rowNumber, 1, 1, table.headers.length)
+        .setValues([guestApplicationObjectToRow(application, table.headers)]);
+    }
+
     clearGuestApplicationSettingsCache();
     safeAppendAdminLog(
       'updateGuestApplication',
@@ -737,6 +937,239 @@ function updateGuestApplication(data) {
     lock.releaseLock();
   }
 }
+
+// ─── skipUntil / 건너뛰기 ───
+
+function skipGuestApplicationWeek(data) {
+  var applicationId = String((data && data.applicationId) || '').trim();
+  if (!applicationId) return { success: false, message: '신청번호가 필요합니다.' };
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    var sheet = ensureGuestApplicationSheet();
+    var table = getGuestApplicationRows(sheet);
+    var found = findGuestApplicationById(table, applicationId);
+    if (!found) return { success: false, message: '신청 정보를 찾을 수 없습니다.' };
+    if (found.object.anonymizedAt) return { success: false, message: '이미 익명화된 신청은 변경할 수 없습니다.' };
+
+    var now = new Date();
+    // 다음 주 월요일 00:00:00
+    var nextMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var dayOfWeek = nextMonday.getDay(); // 0=일, 1=월, ...
+    var daysUntilMonday = dayOfWeek === 1 ? 7 : (8 - dayOfWeek) % 7;
+    if (daysUntilMonday === 0) daysUntilMonday = 7;
+    nextMonday.setDate(nextMonday.getDate() + daysUntilMonday);
+
+    var previousStatus = found.object.status;
+    var updateData = {
+      applicationId: applicationId,
+      status: GUEST_APPLICATION_STATUS.WAITLIST,
+      skipUntil: nextMonday,
+      contacted: true,
+    };
+
+    // 메모리 상의 row 업데이트
+    var row = table.rows[found.rowIndex];
+    var map = table.map;
+    row[map.status] = GUEST_APPLICATION_STATUS.WAITLIST;
+    row[map.skipUntil] = nextMonday;
+    row[map.contactedAt] = now;
+    row[map.updatedAt] = now;
+
+    // waitlistPosition = 현재 WAITLIST 최대 순번 + 1
+    var maxPos = 0;
+    for (var i = 0; i < table.rows.length; i++) {
+      if (String(table.rows[i][map.status] || '').trim() === GUEST_APPLICATION_STATUS.WAITLIST) {
+        var pos = Number(table.rows[i][map.waitlistPosition]) || 0;
+        if (pos > maxPos) maxPos = pos;
+      }
+    }
+    row[map.waitlistPosition] = maxPos + 1;
+
+    // 대기 순번 재계산
+    reindexWaitlistPositions(table);
+
+    // 모든 변경 행 수집 후 배치 업데이트
+    var changedRows = [];
+    for (var j = 0; j < table.rows.length; j++) {
+      if (String(table.rows[j][map.updatedAt] || '') === String(now)) {
+        changedRows.push(table.rows[j]);
+      }
+    }
+    var firstIndex = table.rows.indexOf(changedRows[0]);
+    if (changedRows.length > 0 && firstIndex >= 0) {
+      var batchedValues = changedRows.map(function(r) {
+        return guestApplicationObjectToRow(guestApplicationRowToObject(r, map), table.headers);
+      });
+      sheet.getRange(firstIndex + 2, 1, batchedValues.length, table.headers.length)
+        .setValues(batchedValues);
+    }
+
+    clearGuestApplicationSettingsCache();
+    safeAppendAdminLog(
+      'skipGuestApplicationWeek',
+      'guestApplication',
+      applicationId,
+      '이번 주 건너뛰기',
+      previousStatus,
+      GUEST_APPLICATION_STATUS.WAITLIST,
+      ''
+    );
+    return {
+      success: true,
+      applicationId: applicationId,
+      status: GUEST_APPLICATION_STATUS.WAITLIST,
+      skipUntil: guestApplicationDateToIso(nextMonday),
+      message: '건너뛰기가 설정되었습니다.',
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ─── 주간 자동 순환 ───
+
+function rotateGuestApplicationWeekly() {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+
+  try {
+    var sheet = ensureGuestApplicationSheet();
+    var table = getGuestApplicationRows(sheet);
+    var settings = readGuestApplicationSettings();
+    var applications = getGuestApplicationObjects(table);
+    var capacity = getGuestApplicationCapacity(settings.guestApplicationCapacity);
+    var now = new Date();
+    var cooldownWeeks = Number(settings.guestApplicationCooldownWeeks) || GUEST_APPLICATION_DEFAULT_COOLDOWN_WEEKS;
+
+    // cooldownDate: cooldownWeeks 후의 날짜 (자정 기준)
+    var cooldownDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + cooldownWeeks * 7);
+
+    var map = table.map;
+    var rotatedCount = 0;
+
+    // 1. APPROVED → WAITLIST (쿨다운 설정)
+    var currentMaxPosition = 0;
+    for (var i = 0; i < table.rows.length; i++) {
+      if (String(table.rows[i][map.status] || '').trim() === 'WAITLIST') {
+        var pos = Number(table.rows[i][map.waitlistPosition]) || 0;
+        if (pos > currentMaxPosition) currentMaxPosition = pos;
+      }
+    }
+
+    for (var r = 0; r < table.rows.length; r++) {
+      if (String(table.rows[r][map.status] || '').trim() === 'APPROVED') {
+        currentMaxPosition++;
+        table.rows[r][map.status] = 'WAITLIST';
+        table.rows[r][map.waitlistPosition] = currentMaxPosition;
+        table.rows[r][map.cooldownUntil] = cooldownDate;
+        table.rows[r][map.contactedAt] = '';
+        table.rows[r][map.updatedAt] = now;
+        rotatedCount++;
+      }
+    }
+
+    // 2. WAITLIST → APPROVED (쿨다운/skipUntil 제외)
+    var waitlistCandidates = [];
+    for (var c = 0; c < table.rows.length; c++) {
+      if (String(table.rows[c][map.status] || '').trim() !== 'WAITLIST') continue;
+      var cooldownOk = isDateBeforeOrEqual(table.rows[c][map.cooldownUntil], now);
+      var skipOk = isDateBeforeOrEqual(table.rows[c][map.skipUntil], now);
+      if (cooldownOk && skipOk) {
+        waitlistCandidates.push({
+          index: c,
+          row: table.rows[c],
+          position: Number(table.rows[c][map.waitlistPosition]) || 9999,
+        });
+      }
+    }
+
+    waitlistCandidates.sort(function(a, b) { return a.position - b.position; });
+
+    var promoted = waitlistCandidates.slice(0, capacity);
+    for (var p = 0; p < promoted.length; p++) {
+      promoted[p].row[map.status] = 'APPROVED';
+      promoted[p].row[map.waitlistPosition] = '';
+      promoted[p].row[map.contactedAt] = '';
+      promoted[p].row[map.updatedAt] = now;
+    }
+
+    // 3. 빈 정원 처리
+    var emptySlots = Math.max(0, capacity - promoted.length);
+    if (emptySlots > 0 && String(settings.guestApplicationOpen || 'N').toUpperCase() !== 'Y') {
+      setGuestApplicationSettingsValues({ guestApplicationOpen: 'Y' });
+    }
+
+    // 4. 대기 순번 재계산
+    reindexWaitlistPositions(table);
+
+    // 5. 시트 업데이트 (배치 — setValues 1회)
+    var changedRows = [];
+    var firstIndex = -1;
+    for (var u = 0; u < table.rows.length; u++) {
+      if (String(table.rows[u][map.updatedAt] || '') === String(now)) {
+        changedRows.push(table.rows[u]);
+        if (firstIndex === -1) firstIndex = u;
+      }
+    }
+
+    if (changedRows.length > 0 && firstIndex >= 0) {
+      var batchedValues = changedRows.map(function(r) {
+        return guestApplicationObjectToRow(guestApplicationRowToObject(r, map), table.headers);
+      });
+      sheet.getRange(firstIndex + 2, 1, batchedValues.length, table.headers.length)
+        .setValues(batchedValues);
+    }
+
+    clearGuestApplicationSettingsCache();
+
+    // 6. 관리자 로그
+    safeAppendAdminLog(
+      'rotateGuestApplicationWeekly', 'guestApplication', 'weekly',
+      '주간 서비스 자동 순환', '',
+      '순환복귀 ' + rotatedCount + '건 / 신규승격 ' + promoted.length + '건 / 빈정원 ' + emptySlots + '건', ''
+    );
+
+    return {
+      success: true,
+      rotated: rotatedCount,
+      promoted: promoted.length,
+      emptySlots: emptySlots,
+      remainingWaitlist: waitlistCandidates.length - promoted.length,
+    };
+  } catch (error) {
+    safeAppendAdminLog(
+      'rotateGuestApplicationWeekly', 'guestApplication', 'weekly',
+      '주간 자동 순환 실패', '',
+      '실패: ' + error.message, ''
+    );
+    return { success: false, error: error.message, message: '주간 자동 순환에 실패했습니다. 관리자가 수동으로 실행해 주세요.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function createWeeklyRotationTrigger() {
+  // 기존 트리거 삭제
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'rotateGuestApplicationWeekly') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+
+  // 매주 월요일 오전 6시
+  ScriptApp.newTrigger('rotateGuestApplicationWeekly')
+    .timeBased()
+    .onWeekDay(ScriptApp.WeekDay.MONDAY)
+    .atHour(6)
+    .create();
+
+  return '주간 자동 순환 트리거가 생성되었습니다. 매주 월요일 오전 6시에 실행됩니다.';
+}
+
+// ─── 설정 저장 ───
 
 function setGuestApplicationSettingsValues(valuesByKey) {
   const sheet = getGuestApplicationSettingsSheet();
@@ -767,7 +1200,7 @@ function updateGuestApplicationSettings(data) {
     return { success: false, message: '모집 정원은 1명부터 100명 사이의 정수로 입력해 주세요.' };
   }
 
-  const values = {
+  var values = {
     guestApplicationOpen: data.applicationOpen === true || String(data.applicationOpen).toUpperCase() === 'Y' ? 'Y' : 'N',
     guestApplicationTarget: cleanGuestApplicationText(data.target, 160),
     guestApplicationOperatingDays: cleanGuestApplicationText(data.operatingDays, 100),
@@ -778,7 +1211,21 @@ function updateGuestApplicationSettings(data) {
     guestApplicationDayOptions: dayOptions.join(','),
     guestApplicationClosedMessage: cleanGuestApplicationText(data.closedMessage, 240),
   };
+
   if (hasCapacityInput) values.guestApplicationCapacity = String(capacity);
+  if (data.cooldownWeeks !== undefined && data.cooldownWeeks !== null) {
+    var cw = Number(String(data.cooldownWeeks).trim());
+    if (Number.isInteger(cw) && cw >= 1 && cw <= 12) {
+      values.guestApplicationCooldownWeeks = String(cw);
+    }
+  }
+  if (data.waitlistLimit !== undefined && data.waitlistLimit !== null) {
+    var wl = Number(String(data.waitlistLimit).trim());
+    if (Number.isInteger(wl) && wl >= 1) {
+      values.guestApplicationWaitlistLimit = String(wl);
+    }
+  }
+
   const requiredKeys = [
     'guestApplicationTarget', 'guestApplicationOperatingDays', 'guestApplicationOrderTime',
     'guestApplicationDeliveryTime', 'guestApplicationArea', 'guestApplicationUsage',
@@ -807,6 +1254,8 @@ function updateGuestApplicationSettings(data) {
   );
   return { success: true, message: '이용 신청 설정이 저장되었습니다.' };
 }
+
+// ─── 만료 개인정보 익명화 ───
 
 function collectExpiredGuestApplications(table, now) {
   return table.rows.map((row, index) => ({
@@ -851,13 +1300,40 @@ function anonymizeExpiredGuestApplications(data) {
       'deliveryPlace', 'deliveryDetail', 'preferredDays', 'message', 'adminMemo'
     ];
 
+    var changedRows = [];
+    var firstIndex = -1;
+
     expired.forEach(item => {
       clearFields.forEach(field => { item.object[field] = ''; });
       item.object.anonymizedAt = now;
       item.object.updatedAt = now;
-      sheet.getRange(item.rowIndex + 2, 1, 1, table.headers.length)
-        .setValues([guestApplicationObjectToRow(item.object, table.headers)]);
+      item.object.waitlistPosition = '';
+      item.object.skipUntil = '';
+      item.object.cooldownUntil = '';
+
+      var row = table.rows[item.rowIndex];
+      var map = table.map;
+      GUEST_APPLICATION_HEADERS.forEach(function(header) {
+        var idx = map[header];
+        if (idx === undefined) return;
+        var val = item.object[header];
+        row[idx] = val instanceof Date ? val : (val || '');
+      });
+
+      changedRows.push(item);
+      if (firstIndex === -1 || item.rowIndex < firstIndex) firstIndex = item.rowIndex;
     });
+
+    if (changedRows.length > 0 && firstIndex >= 0) {
+      var batchedValues = changedRows.map(function(item) {
+        return guestApplicationObjectToRow(item.object, table.headers);
+      });
+      sheet.getRange(firstIndex + 2, 1, batchedValues.length, table.headers.length)
+        .setValues(batchedValues);
+    }
+
+    // 대기 순번 재계산
+    reindexWaitlistPositions(table);
 
     safeAppendAdminLog(
       'anonymizeExpiredGuestApplications',

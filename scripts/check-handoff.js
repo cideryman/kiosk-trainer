@@ -140,13 +140,13 @@ if (!handoffCache || !workerCache || handoffCache !== workerCache) {
 
 const headerBlock = applicationGas.match(/const GUEST_APPLICATION_HEADERS\s*=\s*\[([\s\S]*?)\];/);
 const headers = headerBlock ? [...headerBlock[1].matchAll(/'([^']+)'/g)].map(match => match[1]) : [];
-if (headers.length !== 19 || headers[0] !== 'createdAt' || headers.at(-1) !== 'updatedAt') {
+if (headers.length !== 22 || headers[0] !== 'createdAt' || headers.at(-1) !== 'updatedAt') {
   fail(`이용신청 헤더 계약 불일치: ${headers.length}열, first=${headers[0]}, last=${headers.at(-1)}`);
 }
-if (!handoff.includes('`이용신청` 19열') || !databaseSchema.includes('### 이용신청 A:S')) {
-  fail('handoff.md 또는 database-schema.md의 이용신청 19열 계약이 누락됐습니다.');
+if (!handoff.includes('`이용신청` 22') || !databaseSchema.includes('### 이용신청 A:V')) {
+  fail('handoff.md 또는 database-schema.md의 이용신청 22열 계약이 누락됐습니다.');
 } else {
-  notes.push('이용신청 A:S 19열');
+  notes.push('이용신청 A:V 22열');
 }
 
 if (!/GUEST_APPLICATION_DEFAULT_CAPACITY\s*=\s*5/.test(applicationGas)
