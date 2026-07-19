@@ -1061,6 +1061,17 @@
       }
     }
 
+    const stampMapping = {
+      'dalgomi_thumb': { img: 'assets/dalgomi_thumb.png', text: '최고예요!' },
+      'dalgomi_delivery': { img: 'assets/dalgomi_delivery.png', text: '슝슝배달!' },
+      'dalgomi_heart': { img: 'assets/dalgomi_heart.png', text: '감동이야!' },
+      'dalgomi_cheer': { img: 'assets/dalgomi_cheer.png', text: '힘내세요!' },
+      '👍 친절해요': { img: 'assets/dalgomi_thumb.png', text: '최고예요!' },
+      '⚡ 빨라요': { img: 'assets/dalgomi_delivery.png', text: '슝슝배달!' },
+      '🎁 감동이에요': { img: 'assets/dalgomi_heart.png', text: '감동이야!' },
+      '☕ 응원해요': { img: 'assets/dalgomi_cheer.png', text: '힘내세요!' }
+    };
+
     function renderReviews(reviews) {
       const container = document.getElementById('review-cards-container');
       if (!container) return;
@@ -1128,6 +1139,26 @@
           `;
         }
 
+        // 스탬프 배지 HTML
+        const stampInfo = review.stamp ? (stampMapping[review.stamp] || { text: review.stamp }) : null;
+        let stampHtml = '';
+        if (stampInfo) {
+          if (stampInfo.img) {
+            stampHtml = `
+              <span style="display: inline-flex; align-items: center; gap: 4px; background-color: #FFF9E6; border: 1.5px solid var(--primary-color); padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 800; color: #E65100;">
+                <img src="${stampInfo.img}" style="width: 18px; height: 18px; object-fit: contain;" alt="${stampInfo.text}">
+                <span>${esc(stampInfo.text)}</span>
+              </span>
+            `;
+          } else {
+            stampHtml = `
+              <span style="background-color: #FFF3E0; border: 1.5px solid var(--primary-color); padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; color: #E65100;">
+                ${esc(stampInfo.text)}
+              </span>
+            `;
+          }
+        }
+
         const card = document.createElement('div');
         card.className = `review-card`;
         card.setAttribute('data-review-index', index);
@@ -1140,7 +1171,7 @@
               <span class="review-card-date">${esc(formattedDate)}</span>
             </div>
             <div class="review-card-badges">
-              <span style="background-color: #FFF3E0; border: 1.5px solid var(--primary-color); padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; color: #E65100;">${esc(review.stamp)}</span>
+              ${stampHtml}
               <span class="status-badge ${pubClass}" style="margin: 0; min-height: auto; padding: 2px 8px; font-size: 11px;">${pubLabel}</span>
             </div>
           </div>
@@ -1223,7 +1254,23 @@
 
       document.getElementById('rd-guest-name').textContent = review.guestName;
       document.getElementById('rd-created-at').textContent = formattedDate;
-      document.getElementById('rd-stamp').textContent = review.stamp;
+      const stampEl = document.getElementById('rd-stamp');
+      if (review.stamp) {
+        const stampInfo = stampMapping[review.stamp] || { text: review.stamp };
+        if (stampInfo.img) {
+          stampEl.innerHTML = `
+            <span style="display: inline-flex; align-items: center; gap: 4px;">
+              <img src="${stampInfo.img}" style="width: 22px; height: 22px; object-fit: contain;" alt="${stampInfo.text}">
+              <span>${esc(stampInfo.text)}</span>
+            </span>
+          `;
+        } else {
+          stampEl.textContent = stampInfo.text;
+        }
+        stampEl.style.display = 'inline-block';
+      } else {
+        stampEl.style.display = 'none';
+      }
       document.getElementById('rd-tags').textContent = review.tags || '태그 없음';
 
       // 답글 데이터 로드 및 초기화

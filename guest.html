@@ -1705,7 +1705,30 @@
           // 훈련생 이름은 실명 노출 없이 '오늘의 배달원' 등으로 통일 표시
           const recipientName = "오늘의 배달원";
           const maskedGuest = maskGuestName(review.guestName);
-          const stampHtml = review.stamp ? `<span style="background-color: #FFF3E0; border: 1.5px solid var(--primary-color); padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #E65100;">${AppState.escapeHtml(review.stamp)}</span>` : '';
+
+          const stampMapping = {
+            'dalgomi_thumb': { img: 'assets/dalgomi_thumb.png', text: '최고예요!' },
+            'dalgomi_delivery': { img: 'assets/dalgomi_delivery.png', text: '슝슝배달!' },
+            'dalgomi_heart': { img: 'assets/dalgomi_heart.png', text: '감동이야!' },
+            'dalgomi_cheer': { img: 'assets/dalgomi_cheer.png', text: '힘내세요!' },
+            '👍 친절해요': { img: 'assets/dalgomi_thumb.png', text: '최고예요!' },
+            '⚡ 빨라요': { img: 'assets/dalgomi_delivery.png', text: '슝슝배달!' },
+            '🎁 감동이에요': { img: 'assets/dalgomi_heart.png', text: '감동이야!' },
+            '☕ 응원해요': { img: 'assets/dalgomi_cheer.png', text: '힘내세요!' }
+          };
+
+          const stampInfo = review.stamp ? (stampMapping[review.stamp] || { text: review.stamp }) : null;
+          let stampHtml = '';
+          if (stampInfo) {
+            if (stampInfo.img) {
+              stampHtml = `<span style="display: inline-flex; align-items: center; gap: 4px; background-color: #FFF9E6; border: 1.5px solid var(--primary-color); padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #E65100;">
+                <img src="${stampInfo.img}" style="width: 20px; height: 20px; object-fit: contain;" alt="${stampInfo.text}">
+                <span>${AppState.escapeHtml(stampInfo.text)}</span>
+              </span>`;
+            } else {
+              stampHtml = `<span style="background-color: #FFF3E0; border: 1.5px solid var(--primary-color); padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #E65100;">${AppState.escapeHtml(stampInfo.text)}</span>`;
+            }
+          }
 
           let tagsHtml = '';
           if (review.tags) {
@@ -1815,7 +1838,17 @@
 
         const stampEl = document.getElementById('gm-stamp');
         if (review.stamp) {
-          stampEl.textContent = review.stamp;
+          const stampInfo = stampMapping[review.stamp] || { text: review.stamp };
+          if (stampInfo.img) {
+            stampEl.innerHTML = `
+              <span style="display: inline-flex; align-items: center; gap: 4px;">
+                <img src="${stampInfo.img}" style="width: 24px; height: 24px; object-fit: contain;" alt="${stampInfo.text}">
+                <span>${esc(stampInfo.text)}</span>
+              </span>
+            `;
+          } else {
+            stampEl.textContent = stampInfo.text;
+          }
           stampEl.style.display = 'block';
         } else {
           stampEl.style.display = 'none';

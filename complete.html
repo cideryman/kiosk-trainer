@@ -189,6 +189,14 @@
       border-color: var(--primary-color) !important;
       background-color: #FFF9E6 !important;
       color: var(--primary-color) !important;
+      transform: scale(1.05);
+      box-shadow: 0 4px 10px rgba(255, 159, 28, 0.25);
+    }
+    .stamp-btn img {
+      transition: transform 0.2s ease;
+    }
+    .stamp-btn.active img {
+      transform: scale(1.15);
     }
     .tag-capsule.active {
       background-color: #E0F2F1 !important;
@@ -466,12 +474,24 @@
         
         <!-- 칭찬 스탬프 선택 -->
         <div style="display: flex; flex-direction: column; gap: 8px;">
-          <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">칭찬 스탬프 고르기</label>
-          <div style="display: grid; grid-template-columns: 1fr; gap: 10px;" id="stamp-select-group">
-            <button type="button" class="btn stamp-btn active" data-stamp="👍 친절해요" style="font-size: 15px; font-weight: 800; min-height: 48px; border: 2.5px solid var(--border-color); padding: 0 8px;">👍 친절해요</button>
-            <button type="button" class="btn stamp-btn" data-stamp="⚡ 빨라요" style="font-size: 15px; font-weight: 800; min-height: 48px; border: 2.5px solid var(--border-color); padding: 0 8px;">⚡ 빨라요</button>
-            <button type="button" class="btn stamp-btn" data-stamp="🎁 감동이에요" style="font-size: 15px; font-weight: 800; min-height: 48px; border: 2.5px solid var(--border-color); padding: 0 8px;">🎁 감동이에요</button>
-            <button type="button" class="btn stamp-btn" data-stamp="☕ 응원해요" style="font-size: 15px; font-weight: 800; min-height: 48px; border: 2.5px solid var(--border-color); padding: 0 8px;">☕ 응원해요</button>
+          <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">달곰이 이모티콘 고르기 🐻</label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;" id="stamp-select-group">
+            <button type="button" class="btn stamp-btn active" data-stamp="dalgomi_thumb" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 110px; border: 2.5px solid var(--border-color); padding: 8px; gap: 6px; background-color: white; border-radius: var(--radius-md); box-sizing: border-box; transition: all 0.2s ease;">
+              <img src="assets/dalgomi_thumb.png" alt="최고예요!" style="width: 56px; height: 56px; object-fit: contain;">
+              <span style="font-size: 14px; font-weight: 850; color: #2C3E50;">최고예요!</span>
+            </button>
+            <button type="button" class="btn stamp-btn" data-stamp="dalgomi_delivery" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 110px; border: 2.5px solid var(--border-color); padding: 8px; gap: 6px; background-color: white; border-radius: var(--radius-md); box-sizing: border-box; transition: all 0.2s ease;">
+              <img src="assets/dalgomi_delivery.png" alt="슝슝배달!" style="width: 56px; height: 56px; object-fit: contain;">
+              <span style="font-size: 14px; font-weight: 850; color: #2C3E50;">슝슝배달!</span>
+            </button>
+            <button type="button" class="btn stamp-btn" data-stamp="dalgomi_heart" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 110px; border: 2.5px solid var(--border-color); padding: 8px; gap: 6px; background-color: white; border-radius: var(--radius-md); box-sizing: border-box; transition: all 0.2s ease;">
+              <img src="assets/dalgomi_heart.png" alt="감동이야!" style="width: 56px; height: 56px; object-fit: contain;">
+              <span style="font-size: 14px; font-weight: 850; color: #2C3E50;">감동이야!</span>
+            </button>
+            <button type="button" class="btn stamp-btn" data-stamp="dalgomi_cheer" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 110px; border: 2.5px solid var(--border-color); padding: 8px; gap: 6px; background-color: white; border-radius: var(--radius-md); box-sizing: border-box; transition: all 0.2s ease;">
+              <img src="assets/dalgomi_cheer.png" alt="힘내세요!" style="width: 56px; height: 56px; object-fit: contain;">
+              <span style="font-size: 14px; font-weight: 850; color: #2C3E50;">힘내세요!</span>
+            </button>
           </div>
         </div>
 
