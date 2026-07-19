@@ -493,9 +493,17 @@
           loadingOverlay.style.display = 'none';
 
           if (serverRows.length > 0) {
+            // 로컬 스토리지 동기화용 사전
+            const localByKey = {};
+            localOrders.forEach(lo => {
+              const key = lo.orderToken || lo.orderNo;
+              if (key) localByKey[key] = lo;
+            });
+
             const orderGroups = {};
             serverRows.forEach(o => {
               const key = o.orderToken || o.orderNo;
+              const prevLocal = localByKey[key] || {};
               if (!orderGroups[o.orderNo]) {
                 orderGroups[o.orderNo] = {
                   orderNo: o.orderNo,
@@ -505,9 +513,11 @@
                   status: o.servedYn,
                   deliveryType: o.deliveryType || 'pickup',
                   deliveryPlace: o.deliveryPlace || '',
-                  reviewed: o.reviewed,
-                  replyText: o.replyText || (localByKey[key] && localByKey[key].replyText) || '',
-                  reviewComment: o.reviewComment || o.comment || (localByKey[key] && localByKey[key].reviewComment) || '',
+                  reviewed: o.reviewed || prevLocal.reviewed || false,
+                  stamp: o.stamp || prevLocal.stamp || '',
+                  tags: o.tags || prevLocal.tags || '',
+                  replyText: o.replyText || prevLocal.replyText || '',
+                  reviewComment: o.reviewComment || o.comment || prevLocal.reviewComment || prevLocal.comment || '',
                   cancelReason: o.cancelReason || '',
                   authProvider: o.authProvider || '',
                   guestKey: o.guestKey || '',
@@ -523,12 +533,6 @@
 
             const mergedOrders = Object.values(orderGroups);
             
-            // 로컬 스토리지 동기화
-            const localByKey = {};
-            localOrders.forEach(lo => {
-              const key = lo.orderToken || lo.orderNo;
-              if (key) localByKey[key] = lo;
-            });
             mergedOrders.forEach(serverData => {
               const key = serverData.orderToken || serverData.orderNo;
               if (!key) return;
@@ -545,8 +549,8 @@
               if (matchedReview) {
                 if (matchedReview.replyText) serverData.replyText = matchedReview.replyText;
                 if (matchedReview.comment) serverData.reviewComment = matchedReview.comment;
-                serverData.stamp = matchedReview.stamp || '';
-                serverData.tags = matchedReview.tags || '';
+                if (matchedReview.stamp) serverData.stamp = matchedReview.stamp;
+                if (matchedReview.tags) serverData.tags = matchedReview.tags;
                 serverData.reviewed = true;
               }
 
@@ -555,14 +559,20 @@
               if (isKakao) {
                 guestName = '💬 ' + guestName.replace(/ \((체험|비회원)\)/g, '').trim();
               }
+              const prevLocal = localByKey[key] || {};
               localByKey[key] = {
-                ...(localByKey[key] || {}),
+                ...prevLocal,
                 ...serverData,
+                reviewed: serverData.reviewed || prevLocal.reviewed || false,
+                reviewComment: serverData.reviewComment || prevLocal.reviewComment || prevLocal.comment || '',
+                comment: serverData.reviewComment || prevLocal.comment || prevLocal.reviewComment || '',
+                stamp: serverData.stamp || prevLocal.stamp || '',
+                tags: serverData.tags || prevLocal.tags || '',
                 guestName,
-                createdAt: serverData.timestamp || (localByKey[key] && localByKey[key].createdAt) || new Date().toISOString(),
+                createdAt: serverData.timestamp || prevLocal.createdAt || new Date().toISOString(),
                 status: serverData.status,
-                authProvider: serverData.authProvider || (localByKey[key] && localByKey[key].authProvider) || '',
-                guestKey: serverData.guestKey || (localByKey[key] && localByKey[key].guestKey) || ''
+                authProvider: serverData.authProvider || prevLocal.authProvider || '',
+                guestKey: serverData.guestKey || prevLocal.guestKey || ''
               };
             });
             localStorage.setItem('guestOrders', JSON.stringify(Object.values(localByKey)));
@@ -630,14 +640,28 @@
         }
       }
 
-      // 3. 시간 포맷터
+      // 3. 시간 및 날짜 포맷터
       function formatTime(isoStr) {
         if (!isoStr) return '';
         try {
           const date = new Date(isoStr);
+          if (isNaN(date.getTime())) return '';
+          const now = new Date();
+          const isToday = date.getFullYear() === now.getFullYear() &&
+                          date.getMonth() === now.getMonth() &&
+                          date.getDate() === now.getDate();
+          
           const hours = String(date.getHours()).padStart(2, '0');
           const minutes = String(date.getMinutes()).padStart(2, '0');
-          return `${hours}:${minutes}`;
+          const timeText = `${hours}:${minutes}`;
+
+          if (isToday) {
+            return timeText;
+          } else {
+            const month = date.getMonth() + 1;
+            const day = date.getDate();
+            return `${month}. ${day}. ${timeText}`;
+          }
         } catch (e) {
           return '';
         }
@@ -720,7 +744,13 @@
         }
 
         let replyHtml = '';
-        const userCmt = order.reviewComment || order.comment || (order.stamp || order.tags ? [order.stamp, order.tags].filter(Boolean).join(' ') : '');
+        const reviewParts = [];
+        if (order.stamp) reviewParts.push(order.stamp);
+        if (order.tags) reviewParts.push(order.tags);
+        const commentText = order.reviewComment || order.comment;
+        if (commentText) reviewParts.push(commentText);
+
+        const userCmt = reviewParts.length > 0 ? reviewParts.join(' ') : (order.reviewComment || order.comment || '');
         
         let commentBox = '';
         if (userCmt) {
@@ -1099,7 +1129,14 @@
               try {
                 const updated = guestOrders.map(o => {
                   if (o.orderNo === currentReviewOrderId || o.orderToken === currentReviewOrderId || (o.orderNo && currentReviewOrderId && currentReviewOrderId.includes(o.orderNo))) {
-                    return { ...o, reviewed: true, reviewComment: comment, comment: comment };
+                    return { 
+                      ...o, 
+                      reviewed: true, 
+                      reviewComment: comment, 
+                      comment: comment,
+                      stamp: stamp,
+                      tags: tags
+                    };
                   }
                   return o;
                 });
