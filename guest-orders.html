@@ -475,11 +475,27 @@
             }
           }
 
+          // 후기 및 장애인 직원 AAC 답글 실시간 동기화 (Join)
+          let reviewMapByOrderNo = {};
+          try {
+            const reviewsRes = await fetchAPI('getRecentReviews');
+            if (reviewsRes && reviewsRes.success && Array.isArray(reviewsRes.reviews)) {
+              reviewsRes.reviews.forEach(rev => {
+                if (rev.orderId) {
+                  reviewMapByOrderNo[String(rev.orderId).trim()] = rev;
+                }
+              });
+            }
+          } catch(e) {
+            console.warn('최근 후기 조회 중 오류 (무시):', e);
+          }
+
           loadingOverlay.style.display = 'none';
 
           if (serverRows.length > 0) {
             const orderGroups = {};
             serverRows.forEach(o => {
+              const key = o.orderToken || o.orderNo;
               if (!orderGroups[o.orderNo]) {
                 orderGroups[o.orderNo] = {
                   orderNo: o.orderNo,
@@ -490,6 +506,8 @@
                   deliveryType: o.deliveryType || 'pickup',
                   deliveryPlace: o.deliveryPlace || '',
                   reviewed: o.reviewed,
+                  replyText: o.replyText || (localByKey[key] && localByKey[key].replyText) || '',
+                  reviewComment: o.reviewComment || o.comment || (localByKey[key] && localByKey[key].reviewComment) || '',
                   cancelReason: o.cancelReason || '',
                   authProvider: o.authProvider || '',
                   guestKey: o.guestKey || '',
@@ -514,6 +532,24 @@
             mergedOrders.forEach(serverData => {
               const key = serverData.orderToken || serverData.orderNo;
               if (!key) return;
+
+              // 후기 및 장애인 직원 답글 실시간 동기화 (유연한 키 매칭)
+              const matchedReview = Object.values(reviewMapByOrderNo).find(rev => {
+                if (!rev || !rev.orderId) return false;
+                const rId = String(rev.orderId).trim();
+                const oNo = String(serverData.orderNo || '').trim();
+                const oTok = String(serverData.orderToken || '').trim();
+                return (rId && (rId === oNo || rId === oTok || (oNo && rId.includes(oNo)) || (oTok && rId.includes(oTok))));
+              });
+
+              if (matchedReview) {
+                if (matchedReview.replyText) serverData.replyText = matchedReview.replyText;
+                if (matchedReview.comment) serverData.reviewComment = matchedReview.comment;
+                serverData.stamp = matchedReview.stamp || '';
+                serverData.tags = matchedReview.tags || '';
+                serverData.reviewed = true;
+              }
+
               const isKakao = serverData.authProvider === 'kakao' || (localByKey[key] && localByKey[key].authProvider === 'kakao');
               let guestName = serverData.guestName || (serverData.nickname ? String(serverData.nickname).replace(/ \((체험|비회원)\)/g, '') : '게스트');
               if (isKakao) {
@@ -641,16 +677,17 @@
         }
 
         const isServed = (order.status === 'Y' || order.servedYn === 'Y');
-        const isReviewed = (order.reviewed === true || order.reviewed === 'true');
+        const isReviewed = (order.reviewed === true || order.reviewed === 'true' || order.reviewed === 'Y' || String(order.reviewed).toUpperCase() === 'TRUE');
+
         let reviewBtnHtml = '';
         if (isServed && !isReviewed) {
           reviewBtnHtml = `
-            <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+            <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
               <button class="btn btn-secondary btn-write-review-card" 
                 data-order-no="${AppState.escapeAttr(order.orderNo)}"
                 data-guest-name="${AppState.escapeAttr(guestName)}"
-                style="min-height: 44px; font-size: 16px; padding: 0 16px; background-color: var(--secondary-color); box-shadow: var(--shadow-btn-sec); margin: 0; width: auto; z-index: 10;">
-                후기 작성 💌
+                style="min-height: 44px; font-size: 16px; font-weight: 850; padding: 0 18px; background-color: var(--secondary-color); box-shadow: var(--shadow-btn-sec); margin: 0; width: auto; z-index: 10;">
+                후기 작성하기 💌
               </button>
             </div>
           `;
@@ -682,6 +719,38 @@
           `;
         }
 
+        let replyHtml = '';
+        const userCmt = order.reviewComment || order.comment || (order.stamp || order.tags ? [order.stamp, order.tags].filter(Boolean).join(' ') : '');
+        
+        let commentBox = '';
+        if (userCmt) {
+          commentBox = `
+            <div style="margin-top: 12px; background-color: #FFFDF5; border: 1.5px solid #FCD34D; border-radius: var(--radius-sm); padding: 10px 12px; font-size: 14px; font-weight: 700; color: #92400E;">
+              💌 내가 남긴 응원: "${AppState.escapeHtml(userCmt)}"
+            </div>
+          `;
+        } else if (isReviewed) {
+          commentBox = `
+            <div style="margin-top: 12px; background-color: #FFFDF5; border: 1.5px solid #FCD34D; border-radius: var(--radius-sm); padding: 10px 12px; font-size: 14px; font-weight: 700; color: #92400E;">
+              💌 소중한 응원 후기가 등록되었습니다.
+            </div>
+          `;
+        }
+
+        let replyBox = '';
+        if (order.replyText) {
+          replyBox = `
+            <div style="margin-top: 8px; background-color: #E6FFFA; border: 2px solid #38A169; border-radius: var(--radius-sm); padding: 12px 14px; font-size: 15px; font-weight: 700; color: #234E52;">
+              <div style="font-size: 14px; font-weight: 850; color: #2F855A; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
+                🐣 발달장애인 직원의 감사 답글
+              </div>
+              <div>"${AppState.escapeHtml(order.replyText)}"</div>
+            </div>
+          `;
+        }
+
+        replyHtml = commentBox + replyBox;
+
         card.innerHTML = `
           <div class="order-card-header">
             <span class="order-card-time">⏰ ${timeStr}</span>
@@ -693,6 +762,7 @@
             <div class="order-card-name">👤 주문자: ${AppState.escapeHtml(guestName)} 님</div>
             ${deliveryPlaceHtml}
             ${cancelHtml}
+            ${replyHtml}
             ${cancelBtnHtml}
             ${reviewBtnHtml}
           </div>
@@ -1027,10 +1097,9 @@
               
               // 로컬스토리지 guestOrders 상태 업데이트
               try {
-                const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
                 const updated = guestOrders.map(o => {
-                  if (o.orderNo === currentReviewOrderId) {
-                    return { ...o, reviewed: true };
+                  if (o.orderNo === currentReviewOrderId || o.orderToken === currentReviewOrderId || (o.orderNo && currentReviewOrderId && currentReviewOrderId.includes(o.orderNo))) {
+                    return { ...o, reviewed: true, reviewComment: comment, comment: comment };
                   }
                   return o;
                 });
