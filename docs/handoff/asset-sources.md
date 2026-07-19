@@ -6,7 +6,7 @@
 
 - ChatGPT와 Google Gemini의 생성형 이미지 도구를 활용해 제작했습니다.
 - 신청 페이지의 `assets/delivery-banner.png`, `assets/meaning-1.jpg`, `assets/meaning-2.jpg`, `assets/meaning-3.jpg`는 OpenAI ChatGPT 이미지 생성 도구로 제작했습니다.
-- `assets/dalgomi_thumb.png`, `assets/dalgomi_delivery.png`, `assets/dalgomi_heart.png`, `assets/dalgomi_cheer.png`는 Google Gemini의 생성형 이미지 도구를 활용해 제작한 공식 마스코트 '달곰이' 감정 이모티콘 4종입니다.
+- `assets/dalgomi_thumb.png`, `assets/dalgomi_delivery.png`, `assets/dalgomi_heart.png`, `assets/dalgomi_cheer.png`는 구글 제미나이(Google Gemini)로 제작한 360px 크기의 공식 마스코트 '달곰이' 감정 이모티콘 4종입니다. 사용자가 직접 원하는 화풍으로 재생성하여 적용했습니다.
 - 영주시 장애인복지관 주간보호 배달왔삼 프로젝트에서 기획, 선택, 수정했습니다.
 - 외부 유명 캐릭터, 상표, 라이선스 이미지를 원본으로 복제하지 않습니다.
 
