@@ -75,6 +75,15 @@
       100% { box-shadow: 0 0 8px rgba(0, 137, 123, 0.6); }
     }
 
+    .reply-box-active {
+      animation: pulseReply 0.8s ease-in-out 2;
+    }
+    @keyframes pulseReply {
+      0% { transform: scale(1); box-shadow: 0 0 0 rgba(56, 161, 105, 0.4); }
+      50% { transform: scale(1.02); box-shadow: 0 0 14px rgba(56, 161, 105, 0.8); }
+      100% { transform: scale(1); box-shadow: 0 0 0 rgba(56, 161, 105, 0.4); }
+    }
+
     .order-card-body {
       display: flex;
       flex-direction: column;
@@ -755,13 +764,13 @@
         let commentBox = '';
         if (userCmt) {
           commentBox = `
-            <div style="margin-top: 12px; background-color: #FFFDF5; border: 1.5px solid #FCD34D; border-radius: var(--radius-sm); padding: 10px 12px; font-size: 14px; font-weight: 700; color: #92400E;">
+            <div class="order-comment-box" style="margin-top: 12px; background-color: #FFFDF5; border: 1.5px solid #FCD34D; border-radius: var(--radius-sm); padding: 10px 12px; font-size: 14px; font-weight: 700; color: #92400E; transition: all 0.2s ease;">
               💌 내가 남긴 응원: "${AppState.escapeHtml(userCmt)}"
             </div>
           `;
         } else if (isReviewed) {
           commentBox = `
-            <div style="margin-top: 12px; background-color: #FFFDF5; border: 1.5px solid #FCD34D; border-radius: var(--radius-sm); padding: 10px 12px; font-size: 14px; font-weight: 700; color: #92400E;">
+            <div class="order-comment-box" style="margin-top: 12px; background-color: #FFFDF5; border: 1.5px solid #FCD34D; border-radius: var(--radius-sm); padding: 10px 12px; font-size: 14px; font-weight: 700; color: #92400E; transition: all 0.2s ease;">
               💌 소중한 응원 후기가 등록되었습니다.
             </div>
           `;
@@ -770,9 +779,9 @@
         let replyBox = '';
         if (order.replyText) {
           replyBox = `
-            <div style="margin-top: 8px; background-color: #E6FFFA; border: 2px solid #38A169; border-radius: var(--radius-sm); padding: 12px 14px; font-size: 15px; font-weight: 700; color: #234E52;">
+            <div class="order-reply-box" style="margin-top: 8px; background-color: #E6FFFA; border: 2px solid #38A169; border-radius: var(--radius-sm); padding: 12px 14px; font-size: 15px; font-weight: 700; color: #234E52; transition: all 0.2s ease;">
               <div style="font-size: 14px; font-weight: 850; color: #2F855A; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
-                🐣 발달장애인 직원의 감사 답글
+                🐣 배달왔삼 직원의 감사 답글
               </div>
               <div>"${AppState.escapeHtml(order.replyText)}"</div>
             </div>
@@ -798,10 +807,38 @@
           </div>
         `;
 
-        // 카드 클릭 시 complete.html 연동
+        // 카드 클릭 시 complete.html 연동 또는 P25 소통 인터랙션
         AppState.bindCardTap(card, (e) => {
           // 후기 작성 버튼이나 취소 버튼 클릭 시 카드 클릭 이벤트 무시
           if (e && e.target && (e.target.closest('.btn-write-review-card') || e.target.closest('.btn-guest-cancel-card'))) {
+            return;
+          }
+
+          // P25: 후기 작성이 완료된 수령 완료 주문인 경우 complete.html 이동 차단 및 소통 인터랙션
+          if (isServed && isReviewed) {
+            AppState.vibrate(50);
+            AppState.playClickSound();
+
+            const replyBoxEl = card.querySelector('.order-reply-box');
+            const commentBoxEl = card.querySelector('.order-comment-box');
+
+            if (order.replyText) {
+              if (replyBoxEl) {
+                replyBoxEl.classList.remove('reply-box-active');
+                void replyBoxEl.offsetWidth; // trigger reflow
+                replyBoxEl.classList.add('reply-box-active');
+              }
+              AppState.speak(`배달왔삼 직원의 감사 답글입니다. ${order.replyText}`);
+            } else if (userCmt) {
+              if (commentBoxEl) {
+                commentBoxEl.classList.remove('reply-box-active');
+                void commentBoxEl.offsetWidth;
+                commentBoxEl.classList.add('reply-box-active');
+              }
+              AppState.speak(`소중한 응원 후기를 남겨주셔서 감사합니다.`);
+            } else {
+              AppState.speak(`소중한 응원 후기가 등록되었습니다.`);
+            }
             return;
           }
 
