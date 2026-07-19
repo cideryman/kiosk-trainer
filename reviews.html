@@ -796,6 +796,29 @@
       color: #744210;
       font-weight: 700;
     }
+    .btn-speak-review {
+      background-color: #F7FAFC;
+      border: 1.5px solid var(--border-color);
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      padding: 0;
+    }
+    .btn-speak-review:hover {
+      background-color: var(--secondary-color) !important;
+      color: white !important;
+      border-color: var(--secondary-color) !important;
+      transform: scale(1.15);
+    }
+    .btn-speak-review:active {
+      transform: scale(0.9);
+    }
 
     /* 후기 상세 모달 반응형 및 개선 스타일 */
     .rd-modal-header {
@@ -996,6 +1019,57 @@
       return AppState.escapeAttr(value);
     }
 
+    function speakReviewText(text) {
+      if (!window.speechSynthesis) return;
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ko-KR';
+        utterance.rate = 1.0;
+        window.speechSynthesis.speak(utterance);
+      } catch (e) {
+        console.warn("TTS 재생 실패:", e);
+      }
+    }
+
+    function speakReview(event, index) {
+      if (event) {
+        event.stopPropagation();
+      }
+      if (!cachedReviews || index < 0 || index >= cachedReviews.length) return;
+      const review = cachedReviews[index];
+
+      const stampMappingNames = {
+        'dalgomi_thumb': '최고예요',
+        'dalgomi_delivery': '슝슝배달',
+        'dalgomi_heart': '감동이야',
+        'dalgomi_cheer': '힘내세요',
+        '👍 친절해요': '최고예요',
+        '⚡ 빨라요': '슝슝배달',
+        '🎁 감동이에요': '감동이야',
+        '☕ 응원해요': '힘내세요'
+      };
+
+      const stampText = review.stamp ? (stampMappingNames[review.stamp] || review.stamp) : '';
+      let speechText = `${review.guestName || '게스트'} 님이 남겨주신`;
+      if (stampText) {
+        speechText += ` ${stampText}`;
+      }
+      speechText += ` 후기입니다.`;
+
+      if (review.comment) {
+        speechText += ` 응원 메시지. ${review.comment}.`;
+      } else {
+        speechText += ` 등록된 응원 메시지가 없습니다.`;
+      }
+
+      if (review.replyText) {
+        speechText += ` 직원의 감사 답글. ${review.replyText}.`;
+      }
+
+      speakReviewText(speechText);
+    }
+
     function getAdminMemo() {
       const memoInput = document.getElementById('admin-change-memo');
       return memoInput ? memoInput.value.trim() : '';
@@ -1170,9 +1244,10 @@
               <span class="review-card-guest">${esc(review.guestName)} 님</span>
               <span class="review-card-date">${esc(formattedDate)}</span>
             </div>
-            <div class="review-card-badges">
+            <div class="review-card-badges" style="display: flex; align-items: center; gap: 8px;">
               ${stampHtml}
               <span class="status-badge ${pubClass}" style="margin: 0; min-height: auto; padding: 2px 8px; font-size: 11px;">${pubLabel}</span>
+              <button type="button" class="btn-speak-review" onclick="speakReview(event, ${index});" style="margin: 0;" title="후기 읽어주기" aria-label="후기 읽어주기">🔊</button>
             </div>
           </div>
           <div class="review-card-body">
@@ -1304,6 +1379,13 @@
         commentEl.style.color = '#A0AEC0';
       }
 
+      const btnSpeakModal = document.getElementById('btn-speak-modal');
+      if (btnSpeakModal) {
+        btnSpeakModal.onclick = () => {
+          speakReview(null, index);
+        };
+      }
+
       const photoContainer = document.getElementById('rd-photo-container');
       const photoEl = document.getElementById('rd-photo');
       if (review.imageUrl) {
@@ -1396,10 +1478,12 @@
     }
 
     function closeReviewDetail() {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
       document.getElementById('review-detail-modal').style.display = 'none';
     }
 
     function navigateReview(offset) {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
       const showPrivate = document.getElementById('toggle-private-reviews')?.checked;
       let nextIndex = currentReviewIndex + offset;
       
@@ -1528,7 +1612,13 @@
 
         <div id="rd-tags" style="font-size: 15px; color: var(--primary-color); font-weight: 700; margin-bottom: 20px;">태그들</div>
 
-        <div id="rd-comment-container" style="background-color: #F7FAFC; padding: 24px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #E2E8F0;">
+        <div id="rd-comment-container" style="background-color: #F7FAFC; padding: 24px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #E2E8F0; position: relative;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 12px; border-bottom: 1px solid #E2E8F0; padding-bottom: 8px;">
+            <span style="font-size: 14px; font-weight: 850; color: var(--text-muted);">💌 응원 한마디 메시지</span>
+            <button id="btn-speak-modal" class="btn btn-secondary" style="margin: 0; padding: 4px 12px; font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 4px; border-radius: 6px; width: auto; min-height: auto; background-color: var(--secondary-color); border-color: var(--secondary-color);">
+              <span>🔊 소리로 듣기</span>
+            </button>
+          </div>
           <p id="rd-comment" style="font-size: 17px; line-height: 1.7; color: var(--text-dark); margin: 0; white-space: pre-wrap; font-weight: 500;">한마디 응원</p>
         </div>
 
