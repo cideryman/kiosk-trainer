@@ -412,13 +412,15 @@
             </div>
             <div id="gm-created-at" style="font-size: 13px; font-weight: 700; color: #A0AEC0; margin-top: 4px;">작성시간</div>
           </div>
-          <div id="gm-stamp" style="background-color: #FFF9E6; border: 2px solid var(--primary-color); padding: 4px 14px; border-radius: 999px; font-size: 15px; font-weight: 850; color: #E65100; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0;">스탬프</div>
         </div>
 
         <div id="gm-tags" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px;"></div>
 
-        <div style="background-color: #F8F9FA; padding: 20px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); margin-bottom: 20px;">
-          <p id="gm-comment" style="font-size: 18px; font-weight: 700; line-height: 1.5; color: var(--text-main); margin: 0; white-space: pre-wrap; word-break: break-all;">응원 메시지</p>
+        <div style="background-color: #F8F9FA; padding: 20px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 20px;">
+          <div style="flex: 1; min-width: 0; text-align: left;">
+            <p id="gm-comment" style="font-size: 18px; font-weight: 700; line-height: 1.5; color: var(--text-main); margin: 0; white-space: pre-wrap; word-break: break-all;">응원 메시지</p>
+          </div>
+          <div id="gm-stamp-sticker-container" style="flex-shrink: 0; display: none; align-items: center; justify-content: center;"></div>
         </div>
 
         <div id="gm-photo-container" style="text-align: center; margin-bottom: 16px; display: none;">
@@ -1718,22 +1720,23 @@
           };
 
           const stampInfo = review.stamp ? (stampMapping[review.stamp] || { text: review.stamp }) : null;
-          let stampHtml = '';
-          if (stampInfo) {
-            if (stampInfo.img) {
-              stampHtml = `<span style="display: inline-flex; align-items: center; gap: 6px; background-color: #FFF9E6; border: 2px solid var(--primary-color); padding: 4px 12px; border-radius: 999px; font-size: 14px; font-weight: 850; color: #E65100;">
-                <img src="${stampInfo.img}" style="width: 36px; height: 36px; object-fit: contain;" alt="${stampInfo.text}">
-                <span>${AppState.escapeHtml(stampInfo.text)}</span>
-              </span>`;
-            } else {
-              stampHtml = `<span style="background-color: #FFF9E6; border: 2px solid var(--primary-color); padding: 4px 12px; border-radius: 999px; font-size: 14px; font-weight: 850; color: #E65100;">${AppState.escapeHtml(stampInfo.text)}</span>`;
-            }
-          }
-
           let tagsHtml = '';
           if (review.tags) {
             const tagsList = String(review.tags).split(',').map(t => t.trim()).filter(Boolean);
-            tagsHtml = tagsList.map(t => `<span style="background-color: #E0F2F1; border: 1.5px solid var(--secondary-color); padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #00796B; margin-left: 4px;">#${AppState.escapeHtml(t)}</span>`).join('');
+            tagsHtml = tagsList.map(t => `<span style="background-color: #E0F2F1; border: 1.5px solid var(--secondary-color); padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #00796B;">#${AppState.escapeHtml(t)}</span>`).join('');
+          }
+
+          let dalgomiStickerHtml = '';
+          if (stampInfo) {
+            if (stampInfo.img) {
+              dalgomiStickerHtml = `
+                <div style="flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-left: 8px;">
+                  <img src="${stampInfo.img}" style="width: 85px; height: 85px; object-fit: contain;" alt="달곰이 이모티콘">
+                </div>
+              `;
+            } else {
+              tagsHtml += `<span style="background-color: #FFF9E6; border: 1.5px solid var(--primary-color); padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 800; color: #E65100; margin-left: 4px;">${AppState.escapeHtml(stampInfo.text)}</span>`;
+            }
           }
 
           const photoHtml = review.imageUrl
@@ -1754,19 +1757,23 @@
             : '';
 
           card.innerHTML = `
-            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
-              <span style="font-weight: 850; font-size: 15px; color: var(--secondary-hover);">👤 ${AppState.escapeHtml(recipientName)} 님에게</span>
-              <div style="display: flex; gap: 4px; align-items: center;">
-                ${stampHtml}
+            <div style="display: flex; gap: 12px; align-items: center; justify-content: space-between; width: 100%;">
+              <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; text-align: left;">
+                <div style="font-weight: 850; font-size: 15px; color: var(--secondary-hover);">
+                  👤 ${AppState.escapeHtml(recipientName)} 님에게
+                </div>
+                <div style="font-size: 15px; font-weight: 700; color: var(--text-main); line-height: 1.4; word-break: break-all; margin: 6px 0;">
+                  "${AppState.escapeHtml(review.comment || '응원합니다!')}"
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;">
+                  ${tagsHtml}
+                </div>
               </div>
-            </div>
-            <div style="font-size: 15px; font-weight: 700; color: var(--text-main); line-height: 1.4; word-break: break-all; margin: 4px 0;">
-              "${AppState.escapeHtml(review.comment || '응원합니다!')}"
+              ${dalgomiStickerHtml}
             </div>
             ${photoHtml}
             ${replyHtml}
-            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 700; color: var(--text-muted); margin-top: 4px;">
-              <div style="display: flex; flex-wrap: wrap; gap: 4px;">${tagsHtml}</div>
+            <div style="text-align: right; font-size: 13px; font-weight: 700; color: var(--text-muted); margin-top: 8px; border-top: 1px dashed var(--border-color); padding-top: 6px;">
               <span>작성자: ${AppState.escapeHtml(maskedGuest)} 님</span>
             </div>
           `;
@@ -1836,20 +1843,19 @@
         document.getElementById('gm-guest-name').textContent = maskedGuest;
         document.getElementById('gm-created-at').textContent = formattedDate;
 
-        const stampEl = document.getElementById('gm-stamp');
+        const stickerContainer = document.getElementById('gm-stamp-sticker-container');
         if (review.stamp) {
           const stampInfo = stampMapping[review.stamp] || { text: review.stamp };
           if (stampInfo.img) {
-            stampEl.innerHTML = `
-              <img src="${stampInfo.img}" style="width: 38px; height: 38px; object-fit: contain;" alt="${stampInfo.text}">
-              <span>${esc(stampInfo.text)}</span>
+            stickerContainer.innerHTML = `
+              <img src="${stampInfo.img}" style="width: 140px; height: 140px; object-fit: contain;" alt="달곰이 이모티콘">
             `;
+            stickerContainer.style.display = 'flex';
           } else {
-            stampEl.textContent = stampInfo.text;
+            stickerContainer.style.display = 'none';
           }
-          stampEl.style.display = 'inline-flex';
         } else {
-          stampEl.style.display = 'none';
+          stickerContainer.style.display = 'none';
         }
 
         const tagsEl = document.getElementById('gm-tags');

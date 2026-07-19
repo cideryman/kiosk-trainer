@@ -796,24 +796,6 @@
         };
 
         const stampInfo = order.stamp ? (stampMapping[order.stamp] || { text: order.stamp }) : null;
-        let stampHtml = '';
-        if (stampInfo) {
-          if (stampInfo.img) {
-            stampHtml = `
-              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; border: 2px solid var(--primary-color); background-color: #FFF9E6; font-size: 14px; font-weight: 850; color: var(--primary-hover); margin-bottom: 2px;">
-                <img src="${stampInfo.img}" style="width: 36px; height: 36px; object-fit: contain;" alt="${stampInfo.text}">
-                <span>${stampInfo.text}</span>
-              </span>
-            `;
-          } else {
-            stampHtml = `
-              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; border: 2px solid var(--primary-color); background-color: #FFF9E6; font-size: 14px; font-weight: 850; color: var(--primary-hover); margin-bottom: 2px;">
-                <span>${stampInfo.text}</span>
-              </span>
-            `;
-          }
-        }
-
         let tagsHtml = '';
         if (order.tags) {
           tagsHtml = order.tags.split(',').map(tag => `
@@ -825,17 +807,30 @@
         const userCmt = (order.stamp || '') + ' ' + (order.tags || '') + ' ' + commentText;
 
         let commentBox = '';
-        if (stampHtml || tagsHtml || commentText) {
+        if (stampInfo || order.tags || commentText) {
+          let dalgomiStickerHtml = '';
+          if (stampInfo) {
+            if (stampInfo.img) {
+              dalgomiStickerHtml = `
+                <div style="flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-left: 8px;">
+                  <img src="${stampInfo.img}" style="width: 85px; height: 85px; object-fit: contain;" alt="달곰이 이모티콘">
+                </div>
+              `;
+            } else {
+              tagsHtml += `<span style="background-color: #FFF9E6; border: 1.5px solid var(--primary-color); padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 800; color: #E65100; margin-left: 4px;">${stampInfo.text}</span>`;
+            }
+          }
+
           commentBox = `
-            <div class="order-comment-box" style="margin-top: 12px; background-color: #FFFDF5; border: 1.5px solid #FCD34D; border-radius: var(--radius-sm); padding: 12px; font-size: 14px; font-weight: 700; color: #92400E; transition: all 0.2s ease; display: flex; flex-direction: column; gap: 8px;">
-              <div style="font-size: 13px; font-weight: 850; color: #B45309; display: flex; align-items: center; gap: 4px;">
-                💌 내가 남긴 응원 후기
+            <div class="order-comment-box" style="margin-top: 12px; background-color: #FFFDF5; border: 1.5px solid #FCD34D; border-radius: var(--radius-sm); padding: 12px; font-size: 14px; font-weight: 700; color: #92400E; transition: all 0.2s ease; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+              <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; text-align: left;">
+                <div style="font-size: 13px; font-weight: 850; color: #B45309; display: flex; align-items: center; gap: 4px;">
+                  💌 내가 남긴 응원 후기
+                </div>
+                ${commentText ? `<div style="font-size: 15px; color: #78350F; background-color: white; border: 1px solid #FFE0B2; padding: 8px 10px; border-radius: 6px; font-weight: 700; word-break: break-all;">"${AppState.escapeHtml(commentText)}"</div>` : ''}
+                ${tagsHtml ? `<div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 2px;">${tagsHtml}</div>` : ''}
               </div>
-              <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
-                ${stampHtml}
-                ${tagsHtml}
-              </div>
-              ${commentText ? `<div style="font-size: 15px; color: #78350F; background-color: white; border: 1px solid #FFE0B2; padding: 8px 10px; border-radius: 6px; font-weight: 700;">"${AppState.escapeHtml(commentText)}"</div>` : ''}
+              ${dalgomiStickerHtml}
             </div>
           `;
         } else if (isReviewed) {

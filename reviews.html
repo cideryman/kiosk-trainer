@@ -1218,21 +1218,16 @@
 
         // 스탬프 배지 HTML
         const stampInfo = review.stamp ? (stampMapping[review.stamp] || { text: review.stamp }) : null;
-        let stampHtml = '';
+        let dalgomiStickerHtml = '';
         if (stampInfo) {
           if (stampInfo.img) {
-            stampHtml = `
-              <span style="display: inline-flex; align-items: center; gap: 6px; background-color: #FFF9E6; border: 2px solid var(--primary-color); padding: 4px 12px; border-radius: 999px; font-size: 14px; font-weight: 850; color: #E65100;">
-                <img src="${stampInfo.img}" style="width: 36px; height: 36px; object-fit: contain;" alt="${stampInfo.text}">
-                <span>${esc(stampInfo.text)}</span>
-              </span>
+            dalgomiStickerHtml = `
+              <div style="flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                <img src="${stampInfo.img}" style="width: 85px; height: 85px; object-fit: contain;" alt="달곰이 이모티콘">
+              </div>
             `;
           } else {
-            stampHtml = `
-              <span style="background-color: #FFF9E6; border: 2px solid var(--primary-color); padding: 4px 12px; border-radius: 999px; font-size: 14px; font-weight: 850; color: #E65100;">
-                ${esc(stampInfo.text)}
-              </span>
-            `;
+            tagsHtml += `<span class="review-tag-chip" style="background-color: #FFF9E6; border: 1.5px solid var(--primary-color); color: #E65100;">${esc(stampInfo.text)}</span>`;
           }
         }
 
@@ -1248,17 +1243,19 @@
               <span class="review-card-date">${esc(formattedDate)}</span>
             </div>
             <div class="review-card-badges" style="display: flex; align-items: center; gap: 8px;">
-              ${stampHtml}
               <span class="status-badge ${pubClass}" style="margin: 0; min-height: auto; padding: 2px 8px; font-size: 11px;">${pubLabel}</span>
               <button type="button" class="btn-speak-review" onclick="speakReview(event, ${index});" style="margin: 0;" title="후기 읽어주기" aria-label="후기 읽어주기">🔊</button>
             </div>
           </div>
-          <div class="review-card-body">
-            <div class="review-card-content">
-              <div class="review-card-comment">${esc(review.comment || '응원 메시지가 없습니다.')}</div>
+          <div class="review-card-body" style="display: flex; justify-content: space-between; align-items: center; gap: 16px; width: 100%;">
+            <div class="review-card-content" style="flex: 1; min-width: 0; display: flex; flex-direction: column; text-align: left;">
+              <div class="review-card-comment" style="word-break: break-all;">${esc(review.comment || '응원 메시지가 없습니다.')}</div>
               ${tagsHtml}
             </div>
-            ${imgHtml}
+            <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+              ${dalgomiStickerHtml}
+              ${imgHtml}
+            </div>
           </div>
           ${replyHtml}
         `;
@@ -1332,20 +1329,19 @@
 
       document.getElementById('rd-guest-name').textContent = review.guestName;
       document.getElementById('rd-created-at').textContent = formattedDate;
-      const stampEl = document.getElementById('rd-stamp');
+      const stickerContainer = document.getElementById('rd-stamp-sticker-container');
       if (review.stamp) {
         const stampInfo = stampMapping[review.stamp] || { text: review.stamp };
         if (stampInfo.img) {
-          stampEl.innerHTML = `
-            <img src="${stampInfo.img}" style="width: 38px; height: 38px; object-fit: contain;" alt="${stampInfo.text}">
-            <span>${esc(stampInfo.text)}</span>
+          stickerContainer.innerHTML = `
+            <img src="${stampInfo.img}" style="width: 140px; height: 140px; object-fit: contain;" alt="달곰이 이모티콘">
           `;
+          stickerContainer.style.display = 'flex';
         } else {
-          stampEl.textContent = stampInfo.text;
+          stickerContainer.style.display = 'none';
         }
-        stampEl.style.display = 'inline-flex';
       } else {
-        stampEl.style.display = 'none';
+        stickerContainer.style.display = 'none';
       }
       document.getElementById('rd-tags').textContent = review.tags || '태그 없음';
 
@@ -1608,19 +1604,21 @@
             </div>
             <div id="rd-created-at">작성시간</div>
           </div>
-          <div id="rd-stamp">스탬프</div>
         </div>
 
         <div id="rd-tags" style="font-size: 15px; color: var(--primary-color); font-weight: 700; margin-bottom: 20px;">태그들</div>
 
-        <div id="rd-comment-container" style="background-color: #F7FAFC; padding: 24px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #E2E8F0; position: relative;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 12px; border-bottom: 1px solid #E2E8F0; padding-bottom: 8px;">
-            <span style="font-size: 14px; font-weight: 850; color: var(--text-muted);">💌 응원 한마디 메시지</span>
-            <button id="btn-speak-modal" class="btn btn-secondary" style="margin: 0; padding: 4px 12px; font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 4px; border-radius: 6px; width: auto; min-height: auto; background-color: var(--secondary-color); border-color: var(--secondary-color);">
-              <span>🔊 소리로 듣기</span>
-            </button>
+        <div id="rd-comment-container" style="background-color: #F7FAFC; padding: 24px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; gap: 20px;">
+          <div style="flex: 1; min-width: 0; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 12px; border-bottom: 1px solid #E2E8F0; padding-bottom: 8px;">
+              <span style="font-size: 14px; font-weight: 850; color: var(--text-muted);">💌 응원 한마디 메시지</span>
+              <button id="btn-speak-modal" class="btn btn-secondary" style="margin: 0; padding: 4px 12px; font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 4px; border-radius: 6px; width: auto; min-height: auto; background-color: var(--secondary-color); border-color: var(--secondary-color);">
+                <span>🔊 소리로 듣기</span>
+              </button>
+            </div>
+            <p id="rd-comment" style="font-size: 17px; line-height: 1.7; color: var(--text-dark); margin: 0; white-space: pre-wrap; font-weight: 500;">한마디 응원</p>
           </div>
-          <p id="rd-comment" style="font-size: 17px; line-height: 1.7; color: var(--text-dark); margin: 0; white-space: pre-wrap; font-weight: 500;">한마디 응원</p>
+          <div id="rd-stamp-sticker-container" style="flex-shrink: 0; display: none; align-items: center; justify-content: center;"></div>
         </div>
 
         <div id="rd-photo-container" style="text-align: center; margin-bottom: 20px; display: none;">
