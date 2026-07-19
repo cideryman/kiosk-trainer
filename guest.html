@@ -412,7 +412,7 @@
             </div>
             <div id="gm-created-at" style="font-size: 13px; font-weight: 700; color: #A0AEC0; margin-top: 4px;">작성시간</div>
           </div>
-          <div id="gm-stamp" style="background-color: #FFF3E0; border: 1.5px solid var(--primary-color); padding: 4px 12px; border-radius: 999px; font-size: 14px; font-weight: 800; color: #E65100;">스탬프</div>
+          <div id="gm-stamp" style="background-color: #FFF9E6; border: 2px solid var(--primary-color); padding: 4px 14px; border-radius: 999px; font-size: 15px; font-weight: 850; color: #E65100; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0;">스탬프</div>
         </div>
 
         <div id="gm-tags" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px;"></div>
@@ -1721,12 +1721,12 @@
           let stampHtml = '';
           if (stampInfo) {
             if (stampInfo.img) {
-              stampHtml = `<span style="display: inline-flex; align-items: center; gap: 4px; background-color: #FFF9E6; border: 1.5px solid var(--primary-color); padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #E65100;">
-                <img src="${stampInfo.img}" style="width: 20px; height: 20px; object-fit: contain;" alt="${stampInfo.text}">
+              stampHtml = `<span style="display: inline-flex; align-items: center; gap: 6px; background-color: #FFF9E6; border: 2px solid var(--primary-color); padding: 4px 12px; border-radius: 999px; font-size: 14px; font-weight: 850; color: #E65100;">
+                <img src="${stampInfo.img}" style="width: 36px; height: 36px; object-fit: contain;" alt="${stampInfo.text}">
                 <span>${AppState.escapeHtml(stampInfo.text)}</span>
               </span>`;
             } else {
-              stampHtml = `<span style="background-color: #FFF3E0; border: 1.5px solid var(--primary-color); padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #E65100;">${AppState.escapeHtml(stampInfo.text)}</span>`;
+              stampHtml = `<span style="background-color: #FFF9E6; border: 2px solid var(--primary-color); padding: 4px 12px; border-radius: 999px; font-size: 14px; font-weight: 850; color: #E65100;">${AppState.escapeHtml(stampInfo.text)}</span>`;
             }
           }
 
@@ -1841,15 +1841,13 @@
           const stampInfo = stampMapping[review.stamp] || { text: review.stamp };
           if (stampInfo.img) {
             stampEl.innerHTML = `
-              <span style="display: inline-flex; align-items: center; gap: 4px;">
-                <img src="${stampInfo.img}" style="width: 24px; height: 24px; object-fit: contain;" alt="${stampInfo.text}">
-                <span>${esc(stampInfo.text)}</span>
-              </span>
+              <img src="${stampInfo.img}" style="width: 38px; height: 38px; object-fit: contain;" alt="${stampInfo.text}">
+              <span>${esc(stampInfo.text)}</span>
             `;
           } else {
             stampEl.textContent = stampInfo.text;
           }
-          stampEl.style.display = 'block';
+          stampEl.style.display = 'inline-flex';
         } else {
           stampEl.style.display = 'none';
         }

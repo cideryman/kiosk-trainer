@@ -431,10 +431,22 @@
     </div>
   </div>
 
-  <!-- 스크립트 참조 -->
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>
   <script>
+    function speakGuestOrderReply(text) {
+      if (!window.speechSynthesis) return;
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ko-KR';
+        utterance.rate = 1.0;
+        window.speechSynthesis.speak(utterance);
+      } catch (e) {
+        console.warn("TTS 재생 실패:", e);
+      }
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       const localSection = document.getElementById('local-orders-section');
       const localList = document.getElementById('local-orders-list');
@@ -788,14 +800,14 @@
         if (stampInfo) {
           if (stampInfo.img) {
             stampHtml = `
-              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: var(--radius-sm); border: 1.5px solid var(--primary-color); background-color: #FFF9E6; font-size: 13px; font-weight: 850; color: var(--primary-hover); margin-bottom: 2px;">
-                <img src="${stampInfo.img}" style="width: 28px; height: 28px; object-fit: contain;" alt="${stampInfo.text}">
+              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; border: 2px solid var(--primary-color); background-color: #FFF9E6; font-size: 14px; font-weight: 850; color: var(--primary-hover); margin-bottom: 2px;">
+                <img src="${stampInfo.img}" style="width: 36px; height: 36px; object-fit: contain;" alt="${stampInfo.text}">
                 <span>${stampInfo.text}</span>
               </span>
             `;
           } else {
             stampHtml = `
-              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: var(--radius-sm); border: 1.5px solid var(--primary-color); background-color: #FFF9E6; font-size: 13px; font-weight: 850; color: var(--primary-hover); margin-bottom: 2px;">
+              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; border: 2px solid var(--primary-color); background-color: #FFF9E6; font-size: 14px; font-weight: 850; color: var(--primary-hover); margin-bottom: 2px;">
                 <span>${stampInfo.text}</span>
               </span>
             `;
@@ -886,16 +898,16 @@
                 void replyBoxEl.offsetWidth; // trigger reflow
                 replyBoxEl.classList.add('reply-box-active');
               }
-              AppState.speak(`배달왔삼 직원의 감사 답글입니다. ${order.replyText}`);
+              speakGuestOrderReply(`배달왔삼 직원의 감사 답글입니다. ${order.replyText}`);
             } else if (userCmt) {
               if (commentBoxEl) {
                 commentBoxEl.classList.remove('reply-box-active');
                 void commentBoxEl.offsetWidth;
                 commentBoxEl.classList.add('reply-box-active');
               }
-              AppState.speak(`소중한 응원 후기를 남겨주셔서 감사합니다.`);
+              speakGuestOrderReply(`소중한 응원 후기를 남겨주셔서 감사합니다.`);
             } else {
-              AppState.speak(`소중한 응원 후기가 등록되었습니다.`);
+              speakGuestOrderReply(`소중한 응원 후기가 등록되었습니다.`);
             }
             return;
           }
