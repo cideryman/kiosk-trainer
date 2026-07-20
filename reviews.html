@@ -1641,14 +1641,7 @@
       }
     }
 
-    // 프리셋 클릭 시 입력창에 대입하는 헬퍼 함수
-    window.applyReplyPreset = function(text) {
-      const input = document.getElementById('rd-reply-input');
-      if (input) {
-        input.value = text;
-        AppState.vibrate(30);
-      }
-    }
+
 
     // 후기 답글 전송 API 호출 및 UI 갱신 함수
     async function submitReviewReplyAction() {

@@ -567,41 +567,7 @@
       }
     }
 
-    /* 미제공 간식 총합 보드 */
-    .admin-summary-board {
-      background-color: #FFFDF9;
-      border: 3px solid var(--primary-color);
-      border-radius: var(--radius-md);
-      padding: 20px;
-      box-shadow: var(--shadow-sm);
-    }
-    
-    .totals-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 12px;
-    }
-    
-    .total-item-badge {
-      background-color: #FFF3E0;
-      border: 1.5px solid var(--primary-color);
-      padding: 8px 16px;
-      border-radius: var(--radius-sm);
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--text-main);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      box-shadow: var(--shadow-sm);
-    }
-    
-    .total-item-badge .highlight {
-      color: var(--primary-color);
-      font-size: 20px;
-      font-weight: 900;
-    }
+
     
     /* 대기 중인 주문 그룹 레이아웃 */
     .pending-group-container {
@@ -1020,9 +986,7 @@
       z-index: 10;
     }
 
-    .user-credit-compact {
-      display: none;
-    }
+
 
     /* 모바일 화면에서 테이블 조작 버튼 축소 */
     @media (max-width: 768px) {
@@ -1301,15 +1265,7 @@
         grid-column: 1;
       }
 
-      .user-credit-full {
-        display: none;
-      }
 
-      .user-credit-compact {
-        display: inline-flex;
-        align-items: center;
-        gap: 2px;
-      }
     }
 
     @media (max-width: 360px) {
