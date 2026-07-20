@@ -447,6 +447,23 @@
       }
     }
 
+    const replyStampMapping = {
+      '응원 고마워요': { img: 'assets/dalgomi_reply_heart.png', text: '감동이야!' },
+      '맛있게 먹어줘서 기뻐요': { img: 'assets/dalgomi_reply_thumb.png', text: '최고예요!' },
+      '안전하게 배달을 완료했어요': { img: 'assets/dalgomi_reply_delivery.png', text: '슝슝배달!' },
+      '다음에 또 매점 이용해 주세요': { img: 'assets/dalgomi_reply_cheer.png', text: '힘내세요!' }
+    };
+
+    function getReplyStampInfo(replyText) {
+      if (!replyText) return null;
+      for (const key in replyStampMapping) {
+        if (replyText.includes(key)) {
+          return replyStampMapping[key];
+        }
+      }
+      return null;
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       const localSection = document.getElementById('local-orders-section');
       const localList = document.getElementById('local-orders-list');
@@ -843,12 +860,24 @@
 
         let replyBox = '';
         if (order.replyText) {
-          replyBox = `
-            <div class="order-reply-box" style="margin-top: 8px; background-color: #E6FFFA; border: 2px solid #38A169; border-radius: var(--radius-sm); padding: 12px 14px; font-size: 15px; font-weight: 700; color: #234E52; transition: all 0.2s ease;">
-              <div style="font-size: 14px; font-weight: 850; color: #2F855A; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
-                🐣 배달왔삼 직원의 감사 답글
+          const replyStamp = getReplyStampInfo(order.replyText);
+          let replyStampHtml = '';
+          if (replyStamp) {
+            replyStampHtml = `
+              <div style="flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 75px; height: 75px;">
+                <img src="${replyStamp.img}" style="width: 75px; height: 75px; object-fit: contain;" alt="${replyStamp.text}">
               </div>
-              <div>"${AppState.escapeHtml(order.replyText)}"</div>
+            `;
+          }
+          replyBox = `
+            <div class="order-reply-box" style="margin-top: 8px; background-color: #E6FFFA; border: 2px solid #38A169; border-radius: var(--radius-sm); padding: 12px 14px; font-size: 15px; font-weight: 700; color: #234E52; transition: all 0.2s ease; display: flex; align-items: center; gap: 14px;">
+              ${replyStampHtml}
+              <div style="flex: 1; min-width: 0; text-align: left; display: flex; flex-direction: column; gap: 4px;">
+                <div style="font-size: 13px; font-weight: 850; color: #2F855A; display: flex; align-items: center; gap: 4px; border-bottom: 1.5px solid #A3E4D7; padding-bottom: 4px; margin-bottom: 2px;">
+                  🐣 배달왔삼 직원의 감사 답글
+                </div>
+                <div style="font-size: 15px; color: #115E59; word-break: break-all; font-weight: 700;">"${AppState.escapeHtml(order.replyText)}"</div>
+              </div>
             </div>
           `;
         }

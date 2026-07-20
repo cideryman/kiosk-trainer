@@ -489,6 +489,23 @@
   <script src="js/app.js"></script>
   <script>
     window.addEventListener('DOMContentLoaded', () => {
+      const replyStampMapping = {
+        '응원 고마워요': { img: 'assets/dalgomi_reply_heart.png', text: '감동이야!' },
+        '맛있게 먹어줘서 기뻐요': { img: 'assets/dalgomi_reply_thumb.png', text: '최고예요!' },
+        '안전하게 배달을 완료했어요': { img: 'assets/dalgomi_reply_delivery.png', text: '슝슝배달!' },
+        '다음에 또 매점 이용해 주세요': { img: 'assets/dalgomi_reply_cheer.png', text: '힘내세요!' }
+      };
+
+      function getReplyStampInfo(replyText) {
+        if (!replyText) return null;
+        for (const key in replyStampMapping) {
+          if (replyText.includes(key)) {
+            return replyStampMapping[key];
+          }
+        }
+        return null;
+      }
+
       // 혹시 있을 상태 초기화
       AppState.resetAll();
       const isGuestPreviewMode = new URLSearchParams(window.location.search).get('preview') === '1';
@@ -1638,7 +1655,14 @@
           if (feedContent) feedContent.style.opacity = '0.2';
           setTimeout(() => {
             if (feedMeta) feedMeta.textContent = `📅 ${dateStr} 소통 | 👤 ${maskGuestName(item.guestName || '게스트')} 님의 후기에 보낸 답글`;
-            if (feedText) feedText.textContent = `🐣 "${item.replyText}"`;
+            if (feedText) {
+              const replyStamp = getReplyStampInfo(item.replyText);
+              let replyStampHtml = '';
+              if (replyStamp) {
+                replyStampHtml = `<img src="${replyStamp.img}" style="width: 38px; height: 38px; object-fit: contain; vertical-align: middle; margin-right: 6px;" alt="${replyStamp.text}">`;
+              }
+              feedText.innerHTML = `<div style="display: flex; align-items: center; gap: 4px;">🐣 ${replyStampHtml} <span>"${item.replyText}"</span></div>`;
+            }
             if (feedContent) feedContent.style.opacity = '1';
           }, 250);
 
@@ -1745,16 +1769,23 @@
                </div>`
             : '';
 
-          const replyHtml = review.replyText
-            ? `<div style="background-color: #F0FDF4; border: 1.5px solid #BBF7D0; padding: 10px 12px; border-radius: var(--radius-sm); margin-top: 8px; display: flex; flex-direction: column; gap: 3px; text-align: left;">
+          let replyHtml = '';
+          if (review.replyText) {
+            const replyStamp = getReplyStampInfo(review.replyText);
+            let replyStampImg = '';
+            if (replyStamp) {
+              replyStampImg = `<img src="${replyStamp.img}" style="width: 32px; height: 32px; object-fit: contain; vertical-align: middle; margin-right: 6px;" alt="${replyStamp.text}">`;
+            }
+            replyHtml = `<div style="background-color: #F0FDF4; border: 1.5px solid #BBF7D0; padding: 10px 12px; border-radius: var(--radius-sm); margin-top: 8px; display: flex; flex-direction: column; gap: 3px; text-align: left;">
                  <div style="font-weight: 850; font-size: 13px; color: #16A34A; display: flex; align-items: center; gap: 4px;">
                    <span>💬 매점 담당자 답글</span>
                  </div>
-                 <div style="font-size: 14px; font-weight: 700; color: #1B4332; line-height: 1.4; word-break: break-all;">
-                   ${AppState.escapeHtml(review.replyText)}
+                 <div style="font-size: 14px; font-weight: 700; color: #1B4332; line-height: 1.4; word-break: break-all; display: inline-flex; align-items: center; gap: 4px;">
+                   ${replyStampImg}
+                   <span>${AppState.escapeHtml(review.replyText)}</span>
                  </div>
-               </div>`
-            : '';
+               </div>`;
+          }
 
           card.innerHTML = `
             <div style="display: flex; gap: 12px; align-items: center; justify-content: space-between; width: 100%;">
@@ -1892,7 +1923,12 @@
 
         if (replyContainer && replyTextEl) {
           if (review.replyText) {
-            replyTextEl.textContent = review.replyText;
+            const replyStamp = getReplyStampInfo(review.replyText);
+            let replyStampImgHtml = '';
+            if (replyStamp) {
+              replyStampImgHtml = `<img src="${replyStamp.img}" style="width: 32px; height: 32px; object-fit: contain; vertical-align: middle; margin-right: 6px;" alt="${replyStamp.text}">`;
+            }
+            replyTextEl.innerHTML = `<div style="display: inline-flex; align-items: center; gap: 4px;">${replyStampImgHtml} <span>"${review.replyText}"</span></div>`;
 
             const rDate = review.replyCreatedAt ? new Date(review.replyCreatedAt) : null;
             let formattedRDate = review.replyCreatedAt || '';

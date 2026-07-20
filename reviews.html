@@ -659,19 +659,60 @@
     }
 
     /* 후기 상세 모달 내부 답글 UI 개선 */
+    .reply-preset-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
     .btn-reply-preset {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 10px;
+      background: white;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-md);
+      cursor: pointer;
       transition: all 0.2s ease-in-out !important;
+      width: 100%;
+      height: auto;
+    }
+    .reply-preset-img {
+      width: 60px;
+      height: 60px;
+      object-fit: contain;
+      pointer-events: none;
+    }
+    .reply-preset-text {
+      font-size: 13.5px;
+      font-weight: 800;
+      color: var(--text-main);
+      pointer-events: none;
+      word-break: keep-all;
     }
     .btn-reply-preset:hover {
-      background-color: var(--secondary-color) !important;
-      color: white !important;
+      background-color: #F8FAFC !important;
       border-color: var(--secondary-color) !important;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 6px rgba(46, 196, 182, 0.15) !important;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(46, 196, 182, 0.15) !important;
+    }
+    .btn-reply-preset:hover .reply-preset-text {
+      color: var(--secondary-hover);
     }
     .btn-reply-preset:active {
       transform: translateY(0);
       box-shadow: none;
+    }
+    .btn-reply-preset.active {
+      border-color: #38A169 !important;
+      background-color: #F0FFF4 !important;
+      box-shadow: 0 0 0 3px rgba(56, 161, 105, 0.2) !important;
+    }
+    .btn-reply-preset.active .reply-preset-text {
+      color: #22543D !important;
     }
     #rd-reply-input {
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -1022,11 +1063,36 @@
       return AppState.escapeAttr(value);
     }
 
+    function stripEmojis(text) {
+      if (!text) return '';
+      // 이모티콘 및 확장 유니코드 기호 제거 정규식
+      return text.replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDC00-\uDFFF]/g, '').trim();
+    }
+
+    const replyStampMapping = {
+      '응원 고마워요': { img: 'assets/dalgomi_reply_heart.png', text: '감동이야!' },
+      '맛있게 먹어줘서 기뻐요': { img: 'assets/dalgomi_reply_thumb.png', text: '최고예요!' },
+      '안전하게 배달을 완료했어요': { img: 'assets/dalgomi_reply_delivery.png', text: '슝슝배달!' },
+      '다음에 또 매점 이용해 주세요': { img: 'assets/dalgomi_reply_cheer.png', text: '힘내세요!' }
+    };
+
+    function getReplyStampInfo(replyText) {
+      if (!replyText) return null;
+      for (const key in replyStampMapping) {
+        if (replyText.includes(key)) {
+          return replyStampMapping[key];
+        }
+      }
+      return null;
+    }
+
     function speakReviewText(text) {
       if (!window.speechSynthesis) return;
       try {
         window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
+        const cleanedText = stripEmojis(text);
+        if (!cleanedText) return;
+        const utterance = new SpeechSynthesisUtterance(cleanedText);
         utterance.lang = 'ko-KR';
         utterance.rate = 1.0;
         window.speechSynthesis.speak(utterance);
@@ -1209,9 +1275,18 @@
         // 답글 박스 HTML
         let replyHtml = '';
         if (review.replyText) {
+          const replyStamp = getReplyStampInfo(review.replyText);
+          let replyStampHtml = '';
+          if (replyStamp) {
+            replyStampHtml = `<img src="${replyStamp.img}" style="width: 32px; height: 32px; object-fit: contain; vertical-align: middle; margin-right: 6px;" alt="${replyStamp.text}">`;
+          }
           replyHtml = `
-            <div class="review-card-reply-box">
-              <span style="color: var(--primary-color);">↳ 답글:</span> ${esc(review.replyText)}
+            <div class="review-card-reply-box" style="display: flex; align-items: center; gap: 4px;">
+              <span style="color: var(--primary-color); flex-shrink: 0;">↳ 답글:</span>
+              <div style="display: inline-flex; align-items: center; gap: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                ${replyStampHtml}
+                <span>${esc(review.replyText)}</span>
+              </div>
             </div>
           `;
         }
@@ -1351,6 +1426,16 @@
         replyInput.value = review.replyText || '';
       }
 
+      // 프리셋 버튼들 액티브 상태 초기화 및 설정
+      const presets = document.querySelectorAll('.btn-reply-preset');
+      presets.forEach(p => {
+        p.classList.remove('active');
+        const cleanPresetText = p.textContent.trim();
+        if (review.replyText && review.replyText === cleanPresetText) {
+          p.classList.add('active');
+        }
+      });
+
       const replyStatus = document.getElementById('rd-reply-status');
       if (replyStatus) {
         if (review.replyText) {
@@ -1359,7 +1444,12 @@
           if (rDate && !isNaN(rDate.getTime())) {
             formattedRDate = `${rDate.toLocaleDateString()} ${String(rDate.getHours()).padStart(2, '0')}:${String(rDate.getMinutes()).padStart(2, '0')}`;
           }
-          replyStatus.innerHTML = `🟢 답글 작성됨 <span style="font-size:12px; color:#A0AEC0; font-weight:500; margin-left: 6px;">(${formattedRDate})</span>`;
+          const replyStamp = getReplyStampInfo(review.replyText);
+          let replyStampImgHtml = '';
+          if (replyStamp) {
+            replyStampImgHtml = `<img src="${replyStamp.img}" style="width: 32px; height: 32px; object-fit: contain; vertical-align: middle; margin-left: 8px;" alt="${replyStamp.text}">`;
+          }
+          replyStatus.innerHTML = `<div style="display: inline-flex; align-items: center; gap: 4px;">🟢 답글 작성됨 ${replyStampImgHtml} <span style="font-size:12px; color:#A0AEC0; font-weight:500; margin-left: 6px;">(${formattedRDate})</span></div>`;
           replyStatus.style.color = '#38A169';
         } else {
           replyStatus.textContent = '작성된 답글이 없습니다.';
@@ -1495,6 +1585,62 @@
       }
     }
 
+    let isSubmittingAACReply = false;
+
+    window.selectAACReply = async function(buttonEl, replyText) {
+      if (isSubmittingAACReply) return;
+
+      // 1. 시각적 강조 피드백 (.active style) & 문구 스위칭
+      const presets = document.querySelectorAll('.btn-reply-preset');
+      presets.forEach(p => p.classList.remove('active'));
+      buttonEl.classList.add('active');
+
+      const input = document.getElementById('rd-reply-input');
+      if (input) {
+        input.value = replyText;
+      }
+
+      // 2. TTS 자동 음성 안내 (Speak text)
+      speakReviewText(replyText);
+
+      // 3. 원터치 즉시 등록 & 중복 제출 방지 (Locking)
+      if (currentReviewIndex < 0 || !cachedReviews[currentReviewIndex]) return;
+      const review = cachedReviews[currentReviewIndex];
+
+      isSubmittingAACReply = true;
+      presets.forEach(p => p.style.opacity = '0.5');
+
+      try {
+        const res = await fetchAPI('submitReviewReply', {
+          method: 'POST',
+          body: withAdminToken({
+            orderId: review.orderId,
+            replyText: replyText
+          })
+        });
+
+        if (res && res.success) {
+          AppState.vibrate(50);
+
+          // 로컬 캐시 데이터 갱신
+          review.replyText = replyText;
+          review.replyCreatedAt = new Date().toISOString();
+
+          // UI 리렌더링
+          openReviewDetail(currentReviewIndex);
+          renderReviews(cachedReviews);
+        } else {
+          clearAdminTokenIfDenied(res);
+          alert(res?.message || '답글 저장에 실패했습니다.');
+        }
+      } catch (e) {
+        alert('오류가 발생했습니다: ' + e.message);
+      } finally {
+        isSubmittingAACReply = false;
+        presets.forEach(p => p.style.opacity = '1');
+      }
+    }
+
     // 프리셋 클릭 시 입력창에 대입하는 헬퍼 함수
     window.applyReplyPreset = function(text) {
       const input = document.getElementById('rd-reply-input');
@@ -1625,11 +1771,23 @@
         <!-- 답글 관리 영역 -->
         <div id="rd-reply-container" style="margin-top: 24px; border-top: 2px dashed #E2E8F0; padding: 20px 0 10px 0; margin-bottom: 10px;">
           <h4 style="margin: 0 0 12px 0; font-size: 16px; color: var(--text-dark); font-weight: 850; display: flex; align-items: center; gap: 6px;">💬 후기 답글 (관리자 대리 작성)</h4>
-          <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
-            <button type="button" class="btn-reply-preset" onclick="applyReplyPreset('💖 응원 고마워요!')" style="padding: 6px 14px; font-size: 13px; font-weight: 800; border-radius: 999px; border: 1.5px solid var(--border-color); background: white; cursor: pointer; color: var(--text-main); transition: all 0.15s;">💖 응원 고마워요!</button>
-            <button type="button" class="btn-reply-preset" onclick="applyReplyPreset('👍 맛있게 먹어줘서 기뻐요!')" style="padding: 6px 14px; font-size: 13px; font-weight: 800; border-radius: 999px; border: 1.5px solid var(--border-color); background: white; cursor: pointer; color: var(--text-main); transition: all 0.15s;">👍 맛있게 먹어줘서 기뻐요!</button>
-            <button type="button" class="btn-reply-preset" onclick="applyReplyPreset('🛵 안전하게 배달을 완료했어요!')" style="padding: 6px 14px; font-size: 13px; font-weight: 800; border-radius: 999px; border: 1.5px solid var(--border-color); background: white; cursor: pointer; color: var(--text-main); transition: all 0.15s;">🛵 안전하게 배달을 완료했어요!</button>
-            <button type="button" class="btn-reply-preset" onclick="applyReplyPreset('🌟 다음에 또 매점 이용해 주세요!')" style="padding: 6px 14px; font-size: 13px; font-weight: 800; border-radius: 999px; border: 1.5px solid var(--border-color); background: white; cursor: pointer; color: var(--text-main); transition: all 0.15s;">🌟 다음에 또 매점 이용해 주세요!</button>
+          <div class="reply-preset-grid">
+            <button type="button" class="btn-reply-preset" onclick="selectAACReply(this, '💖 응원 고마워요!')">
+              <img class="reply-preset-img" src="assets/dalgomi_reply_heart.png" alt="💖">
+              <span class="reply-preset-text">💖 응원 고마워요!</span>
+            </button>
+            <button type="button" class="btn-reply-preset" onclick="selectAACReply(this, '👍 맛있게 먹어줘서 기뻐요!')">
+              <img class="reply-preset-img" src="assets/dalgomi_reply_thumb.png" alt="👍">
+              <span class="reply-preset-text">👍 맛있게 먹어줘서 기뻐요!</span>
+            </button>
+            <button type="button" class="btn-reply-preset" onclick="selectAACReply(this, '🛵 안전하게 배달을 완료했어요!')">
+              <img class="reply-preset-img" src="assets/dalgomi_reply_delivery.png" alt="🛵">
+              <span class="reply-preset-text">🛵 안전하게 배달을 완료했어요!</span>
+            </button>
+            <button type="button" class="btn-reply-preset" onclick="selectAACReply(this, '🌟 다음에 또 매점 이용해 주세요!')">
+              <img class="reply-preset-img" src="assets/dalgomi_reply_cheer.png" alt="🌟">
+              <span class="reply-preset-text">🌟 다음에 또 매점 이용해 주세요!</span>
+            </button>
           </div>
           <div class="rd-reply-input-row">
             <input type="text" id="rd-reply-input" placeholder="답글 내용을 입력하거나 위의 단축 버튼을 누르세요 (최대 100자)" maxlength="100" style="flex: 1; padding: 10px 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); font-size: 15px; font-weight: 600; outline: none; min-height: 42px;">
