@@ -1,0 +1,610 @@
+/* 관리자 대시보드용 보완 스타일 (PC 넓은 화면 대응) */
+    @media (min-width: 768px) {
+      .kiosk-container {
+        max-width: 1400px;
+        width: 95%;
+        height: auto;
+        min-height: 90vh;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-lg);
+      }
+      body {
+        background-color: #E2E8F0;
+        padding: 40px 0;
+      }
+
+    }
+
+
+
+
+    .admin-inline-input {
+      width: 60px;
+      padding: 6px;
+      font-size: 16px;
+      font-weight: 700;
+      text-align: center;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-sm);
+    }
+    .btn-small-action {
+      padding: 6px 12px;
+      font-size: 14px;
+      font-weight: 800;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+    .btn-small-action:active {
+      transform: scale(0.95);
+      background-color: var(--primary-hover);
+    }
+
+    .btn-danger-action {
+      padding: 6px 12px;
+      font-size: 14px;
+      font-weight: 800;
+      background-color: #FFF5F5;
+      color: #9B2C2C;
+      border: 2px solid #FEB2B2;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+    .btn-danger-action:active {
+      transform: scale(0.95);
+      background-color: #FED7D7;
+    }
+
+
+
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-field label {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .form-field input {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--border-color);
+      font-weight: 700;
+    }
+
+
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 54px;
+      padding: 4px 8px;
+      font-size: 13px;
+      font-weight: 900;
+      border-radius: 999px;
+      border: 2px solid var(--border-color);
+    }
+
+
+
+
+
+    /* 미제공 간식 총합 보드 */
+    .admin-summary-board {
+      background-color: #FFFDF9;
+      border: 3px solid var(--primary-color);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .totals-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    
+    .total-item-badge {
+      background-color: #FFF3E0;
+      border: 1.5px solid var(--primary-color);
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .total-item-badge .highlight {
+      color: var(--primary-color);
+      font-size: 20px;
+      font-weight: 900;
+    }
+
+    /* 현재 간식 재고 현황 */
+    .snack-stock-groups {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .snack-stock-group {
+      min-width: 0;
+      padding: 12px;
+      background-color: #F8FAFC;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-sm);
+    }
+
+    .snack-stock-group-title {
+      margin-bottom: 8px;
+      font-size: 16px;
+      font-weight: 900;
+      color: var(--text-main);
+    }
+
+    .snack-stock-group.guest .snack-stock-group-title {
+      color: #0F766E;
+    }
+
+    .snack-stock-group.user .snack-stock-group-title {
+      color: #C05621;
+    }
+
+    .snack-stock-items {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .snack-stock-item {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 44px;
+      padding: 8px 10px;
+      background-color: #FFFFFF;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+    }
+
+    .snack-stock-item.is-zero {
+      color: #9B2C2C;
+      background-color: #FFF5F5;
+      border-color: #FEB2B2;
+    }
+
+    .snack-stock-gauge {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      z-index: 0;
+      transition: width 0.3s ease;
+    }
+
+    .snack-stock-name {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .snack-stock-value {
+      position: relative;
+      z-index: 1;
+      flex: 0 0 auto;
+      font-size: 17px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .snack-stock-empty,
+    .snack-stock-message {
+      padding: 10px 4px;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .snack-stock-message.is-error {
+      color: var(--danger-color);
+    }
+
+    @media (max-width: 767px) {
+      .snack-stock-groups {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    /* 대기 중인 주문 그룹 레이아웃 */
+    .pending-group-container {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-top: 12px;
+    }
+    
+    @media (min-width: 600px) {
+      .pending-group-container {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    
+    .user-order-card {
+      background-color: var(--card-bg);
+      border: 2.5px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease-in-out;
+    }
+    
+    .user-order-card:hover {
+      border-color: var(--primary-color);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .user-profile-header {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 10px;
+    }
+    
+    .admin-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--border-color);
+    }
+    
+    .admin-avatar-initial {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-size: 20px;
+      font-weight: 800;
+      user-select: none;
+    }
+    
+    .user-name {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+    
+    .order-time-badge {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+    
+    .user-order-items {
+      list-style: none;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+    }
+    
+    .user-order-items li {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    .btn-complete-action {
+      background-color: var(--secondary-color);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 16px;
+      font-weight: 800;
+      padding: 10px 8px;
+      cursor: pointer;
+      width: 100%;
+      box-shadow: var(--shadow-btn-sec);
+      transition: all 0.15s ease-in-out;
+      margin-top: auto;
+    }
+    
+    .btn-complete-action:active {
+      transform: scale(0.96);
+      background-color: var(--secondary-hover);
+    }
+
+    .btn-cancel-action {
+      background-color: var(--danger-color);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 16px;
+      font-weight: 800;
+      padding: 10px 8px;
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+    }
+    
+    .btn-cancel-action:active {
+      transform: scale(0.96);
+      background-color: var(--danger-hover);
+    }
+    
+    .empty-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 20px;
+      background-color: #F8F9FA;
+      border-radius: var(--radius-sm);
+      border: 2px dashed var(--border-color);
+      grid-column: 1 / -1;
+    }
+
+    .btn-undo-action {
+      background-color: #E2E8F0;
+      color: var(--text-main);
+      border: 1.5px solid #CBD5E1;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-undo-action:hover {
+      background-color: #CBD5E1;
+      border-color: #94A3B8;
+    }
+    
+    .btn-undo-action:active {
+      transform: scale(0.95);
+    }
+
+    /* 관리자용 정보 수정 모달 스타일 */
+    .admin-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    
+    .admin-modal-content {
+      background-color: white;
+      border-radius: var(--radius-md);
+      width: 100%;
+      max-width: 500px;
+      padding: 24px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      animation: modalFadeIn 0.2s ease-out;
+    }
+    
+    @keyframes modalFadeIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    
+    .admin-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+    
+    .admin-modal-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+    
+    .admin-modal-close {
+      background: none;
+      border: none;
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text-muted);
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .admin-modal-body {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .admin-modal-footer {
+      display: flex;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+
+    /* 카드 체크박스 */
+    .card-checkbox-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0 0 0;
+    }
+    .card-checkbox {
+      width: 22px;
+      height: 22px;
+      cursor: pointer;
+      accent-color: var(--secondary-color);
+      flex-shrink: 0;
+    }
+    .card-checkbox-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+    }
+    .user-order-card.selected {
+      border-color: var(--secondary-color);
+      background-color: #F0FFFE;
+    }
+    .orders-split-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-top: 12px;
+    }
+
+    .orders-column {
+      min-width: 0;
+    }
+
+    @media (min-width: 1280px) {
+      .orders-split-layout {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      }
+    }
+
+    @media (min-width: 768px) and (max-width: 1279px) {
+      .orders-split-layout {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      }
+    }
+
+    .completed-mobile-card {
+      display: none;
+    }
+
+    /* 주방 제공완료 목록: 모바일 카드형 배치 */
+    @media (max-width: 768px) {
+      table:has(#order-table-body) thead {
+        display: none;
+      }
+
+      #order-table-body tr.completed-order-row {
+        display: block;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      #order-table-body tr.completed-order-row > td:not(.completed-mobile-card) {
+        display: none;
+      }
+
+      #order-table-body .completed-mobile-card {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-rows: auto auto;
+        gap: 5px 8px;
+        align-items: center;
+        padding: 0;
+        border: 0;
+      }
+
+      .completed-card-header,
+      .completed-card-detail {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex-wrap: wrap;
+      }
+
+      .completed-card-header {
+        grid-column: 1;
+        grid-row: 1;
+        font-size: 12px;
+      }
+
+      .completed-card-detail {
+        grid-column: 1;
+        grid-row: 2;
+        font-size: 13px;
+      }
+
+      .completed-card-user {
+        font-weight: 800;
+        color: var(--text-main);
+      }
+
+      .completed-card-snack {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 700;
+      }
+
+      .completed-card-quantity {
+        flex-shrink: 0;
+        font-weight: 900;
+      }
+
+      .completed-card-status {
+        flex-basis: 100%;
+        color: var(--danger-color);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .completed-card-action {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        min-width: 58px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .completed-card-action .btn-undo-action {
+        min-height: 36px;
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+    }
