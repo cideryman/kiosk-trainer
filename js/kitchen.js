@@ -2083,8 +2083,10 @@ let refreshTimer = null;
           if (!confirm('오늘 이전의 지난 모든 주문을 보관함으로 이동하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) {
             return;
           }
-          const archiveConfirm = prompt('실행하려면 다음 확인 문구를 그대로 입력하세요.\n주문보관확인');
-          if (archiveConfirm !== '주문보관확인') {
+          const rawConfirm = prompt('보관을 진행하려면 아래 확인 문구 중 하나를 입력하세요:\n• 주문보관확인\n• 지난주문보관');
+          const archiveConfirm = String(rawConfirm || '').trim();
+          const validPhrases = ['주문보관확인', '지난주문보관', '지난주문 보관', '보관확인'];
+          if (!validPhrases.includes(archiveConfirm)) {
             alert('확인 문구가 일치하지 않아 보관을 취소했습니다.');
             return;
           }

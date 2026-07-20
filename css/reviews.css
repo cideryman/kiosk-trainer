@@ -1,0 +1,948 @@
+/* 관리자 대시보드용 보완 스타일 (PC 넓은 화면 대응) */
+@media (min-width: 768px) {
+  .kiosk-container {
+    max-width: 1200px;
+    width: 95%;
+    height: auto;
+    min-height: 90vh;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+  }
+  body {
+    background-color: #E2E8F0;
+    padding: 40px 0;
+  }
+  .admin-layout {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+  }
+  .admin-main {
+    grid-column: 1;
+  }
+  .admin-side {
+    grid-column: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+}
+
+/* 탭 메뉴 스타일 */
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 3.5px solid var(--border-color);
+  padding-bottom: 0px;
+}
+
+.admin-tab-btn {
+  background: none;
+  border: none;
+  padding: 12px 20px;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: all 0.2s ease;
+  position: relative;
+  bottom: -3.5px;
+}
+
+.admin-tab-btn:hover {
+  color: var(--text-main);
+  background-color: #F1F5F9;
+}
+
+.admin-tab-btn.active {
+  color: var(--primary-color);
+  background-color: white;
+  border: 3.5px solid var(--border-color);
+  border-bottom-color: white;
+}
+
+.admin-tab-content {
+  display: none;
+}
+
+.admin-tab-content.active {
+  display: block;
+}
+
+/* 관리자 조절 버튼 및 입력창 스타일 */
+.credit-adjust-btn {
+  padding: 6px 12px;
+  font-size: 16px;
+  font-weight: 800;
+  border: 2px solid var(--border-color);
+  background-color: #F8F9FA;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+.credit-adjust-btn:active {
+  transform: scale(0.95);
+  background-color: #CBD5E1;
+}
+.credit-adjust-btn.plus {
+  background-color: #E6FFFA;
+  border-color: #81E6D9;
+  color: #234E52;
+}
+.credit-adjust-btn.minus {
+  background-color: #FFF5F5;
+  border-color: #FEB2B2;
+  color: #742A2A;
+}
+.admin-inline-input {
+  width: 60px;
+  padding: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+.btn-small-action {
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 800;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.btn-small-action:active {
+  transform: scale(0.95);
+  background-color: var(--primary-hover);
+}
+
+.btn-danger-action {
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 800;
+  background-color: #FFF5F5;
+  color: #9B2C2C;
+  border: 2px solid #FEB2B2;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.btn-danger-action:active {
+  transform: scale(0.95);
+  background-color: #FED7D7;
+}
+
+.form-panel {
+  background-color: var(--card-bg);
+  border: 2.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field label {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.form-field input {
+  padding: 10px;
+  font-size: 16px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--border-color);
+  font-weight: 700;
+}
+
+.token-status {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-muted);
+  padding: 8px 10px;
+  background-color: #F8FAFC;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 54px;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-weight: 900;
+  border-radius: 999px;
+  border: 2px solid var(--border-color);
+}
+
+.status-badge.active {
+  color: #22543D;
+  background-color: #F0FFF4;
+  border-color: #9AE6B4;
+}
+
+.status-badge.inactive {
+  color: #744210;
+  background-color: #FFFAF0;
+  border-color: #FBD38D;
+}
+
+.status-badge.target-user {
+  color: #2b6cb0;
+  background-color: #ebf8ff;
+  border-color: #bee3f8;
+}
+
+.status-badge.target-guest {
+  color: #dd6b20;
+  background-color: #fffaf0;
+  border-color: #fbd38d;
+}
+
+.status-badge.target-both {
+  color: #6b46c1;
+  background-color: #faf5ff;
+  border-color: #e9d8fd;
+}
+
+.user-group-row td {
+  background-color: #F8FAFC;
+  color: var(--text-main);
+  font-size: 16px;
+  font-weight: 900;
+  border-top: 3px solid var(--border-color);
+}
+
+.snack-admin-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (min-width: 768px) {
+  .snack-add-form-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 3.5fr 1.2fr 1.5fr;
+    gap: 12px;
+    align-items: end;
+  }
+
+  .user-add-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 2fr;
+    gap: 12px;
+    align-items: end;
+  }
+}
+
+@media (max-width: 767px) {
+  .snack-add-form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .user-add-form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
+/* 미제공 간식 총합 보드 */
+.admin-summary-board {
+  background-color: #FFFDF9;
+  border: 3px solid var(--primary-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.totals-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.total-item-badge {
+  background-color: #FFF3E0;
+  border: 1.5px solid var(--primary-color);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: var(--shadow-sm);
+}
+
+.total-item-badge .highlight {
+  color: var(--primary-color);
+  font-size: 20px;
+  font-weight: 900;
+}
+
+/* 대기 중인 주문 그룹 레이아웃 */
+.pending-group-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+@media (min-width: 600px) {
+  .pending-group-container {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.user-order-card {
+  background-color: var(--card-bg);
+  border: 2.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease-in-out;
+}
+
+.user-order-card:hover {
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-md);
+}
+
+.user-profile-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 10px;
+}
+
+.admin-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border-color);
+}
+
+.admin-avatar-initial {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-size: 20px;
+  font-weight: 800;
+  user-select: none;
+}
+
+.user-name {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.order-time-badge {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.user-order-items {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.user-order-items li {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  justify-content: space-between;
+}
+
+.btn-complete-action {
+  background-color: var(--secondary-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 18px;
+  font-weight: 800;
+  padding: 12px;
+  cursor: pointer;
+  width: 100%;
+  box-shadow: var(--shadow-btn-sec);
+  transition: all 0.15s ease-in-out;
+  margin-top: auto;
+}
+
+.btn-complete-action:active {
+  transform: scale(0.96);
+  background-color: var(--secondary-hover);
+}
+
+.btn-cancel-action {
+  background-color: var(--danger-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 18px;
+  font-weight: 800;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-cancel-action:active {
+  transform: scale(0.96);
+  background-color: var(--danger-hover);
+}
+
+.empty-text {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 20px;
+  background-color: #F8F9FA;
+  border-radius: var(--radius-sm);
+  border: 2px dashed var(--border-color);
+  grid-column: 1 / -1;
+}
+
+.btn-undo-action {
+  background-color: #E2E8F0;
+  color: var(--text-main);
+  border: 1.5px solid #CBD5E1;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-undo-action:hover {
+  background-color: #CBD5E1;
+  border-color: #94A3B8;
+}
+
+.btn-undo-action:active {
+  transform: scale(0.95);
+}
+
+/* 관리자용 정보 수정 모달 스타일 */
+.admin-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.admin-modal-content {
+  background-color: white;
+  border-radius: var(--radius-md);
+  width: 100%;
+  max-width: 500px;
+  padding: 24px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.admin-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 12px;
+}
+
+.admin-modal-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.admin-modal-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.admin-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.admin-modal-footer {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+/* 간식 표시 순서 편집 패널 */
+.snack-order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.snack-order-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: #fff;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  cursor: grab;
+  transition: box-shadow 0.15s, border-color 0.15s;
+  user-select: none;
+}
+.snack-order-item:active { cursor: grabbing; }
+.snack-order-item.dragging { opacity: 0.4; border-color: var(--primary-color); box-shadow: var(--shadow-md); }
+.snack-order-item.drag-over { border-color: var(--secondary-color); background-color: #F0FFFE; }
+.drag-handle { font-size: 20px; color: var(--text-muted); flex-shrink: 0; line-height: 1; }
+.snack-order-rank { font-size: 15px; font-weight: 900; color: var(--text-muted); min-width: 24px; text-align: center; }
+.snack-order-name { flex: 1; font-size: 17px; font-weight: 800; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.snack-order-btns { display: flex; gap: 4px; flex-shrink: 0; }
+.snack-order-btn {
+  width: 34px; height: 34px; border-radius: 8px;
+  border: 1.5px solid var(--border-color); background-color: #F8F9FA;
+  font-size: 16px; font-weight: 800; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background-color 0.1s;
+}
+.snack-order-btn:hover { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
+.snack-order-btn:active { transform: scale(0.9); }
+.snack-order-badge { font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 999px; border: 1.5px solid; flex-shrink: 0; }
+.snack-order-badge.hidden-badge { color: #744210; background-color: #FFFAF0; border-color: #FBD38D; }
+
+/* 일괄 제공 컨트롤 바 */
+.bulk-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background-color: #F0FFFE;
+  border: 2px solid var(--secondary-color);
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  margin-bottom: 14px;
+}
+.bulk-action-bar .bulk-count {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-muted);
+  flex: 1;
+}
+.btn-bulk-all {
+  background-color: var(--secondary-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  font-weight: 800;
+  padding: 8px 18px;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  white-space: nowrap;
+}
+.btn-bulk-all:hover { background-color: var(--secondary-hover); }
+.btn-bulk-all:active { transform: scale(0.95); }
+.btn-bulk-selected {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  font-weight: 800;
+  padding: 8px 18px;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  white-space: nowrap;
+}
+.btn-bulk-selected:hover { background-color: var(--primary-hover); }
+.btn-bulk-selected:active { transform: scale(0.95); }
+.btn-bulk-selected:disabled,
+.btn-bulk-all:disabled {
+  background-color: #CED4DA !important;
+  color: #6C757D !important;
+  cursor: not-allowed;
+}
+/* 카드 체크박스 */
+.card-checkbox-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0 0 0;
+}
+.card-checkbox {
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  accent-color: var(--secondary-color);
+  flex-shrink: 0;
+}
+.card-checkbox-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.user-order-card.selected {
+  border-color: var(--secondary-color);
+  background-color: #F0FFFE;
+}
+
+/* 후기 상세 모달 내부 답글 UI 개선 */
+.reply-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.btn-reply-preset {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 10px;
+  background: white;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out !important;
+  width: 100%;
+  height: auto;
+}
+.reply-preset-img {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  pointer-events: none;
+}
+.reply-preset-text {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--text-main);
+  pointer-events: none;
+  word-break: keep-all;
+}
+.btn-reply-preset:hover {
+  background-color: #F8FAFC !important;
+  border-color: var(--secondary-color) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(46, 196, 182, 0.15) !important;
+}
+.btn-reply-preset:hover .reply-preset-text {
+  color: var(--secondary-hover);
+}
+.btn-reply-preset:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+.btn-reply-preset.active {
+  border-color: #38A169 !important;
+  background-color: #F0FFF4 !important;
+  box-shadow: 0 0 0 3px rgba(56, 161, 105, 0.2) !important;
+}
+.btn-reply-preset.active .reply-preset-text {
+  color: #22543D !important;
+}
+#rd-reply-input {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+#rd-reply-input:focus {
+  border-color: var(--secondary-color) !important;
+  box-shadow: 0 0 0 3px rgba(46, 196, 182, 0.15) !important;
+}
+
+/* 후기 카드 뷰 그리드 */
+.reviews-card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  margin-top: 10px;
+}
+@media (min-width: 768px) {
+  .reviews-card-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 후기 개별 카드 */
+.review-card {
+  background-color: var(--card-bg);
+  border: 2.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.review-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--secondary-color);
+}
+.review-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.review-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.review-card-guest {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+.review-card-date {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.review-card-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.review-card-body {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.review-card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.review-card-comment {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-main);
+  word-break: break-all;
+  white-space: pre-wrap;
+  font-weight: 600;
+}
+.review-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.review-tag-chip {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--secondary-hover);
+  background-color: #EBF8FF;
+  border: 1.5px solid #BEE3F8;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.review-card-thumbnail-wrapper {
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+  border-radius: var(--radius-xs);
+  border: 1.5px solid var(--border-color);
+  overflow: hidden;
+  background-color: #F8FAFC;
+}
+.review-card-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.review-card-reply-box {
+  background-color: #FFFDF5;
+  border: 1.5px solid #FEF3C7;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #744210;
+  font-weight: 700;
+}
+.btn-speak-review {
+  background-color: #F7FAFC;
+  border: 1.5px solid var(--border-color);
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  padding: 0;
+}
+.btn-speak-review:hover {
+  background-color: var(--secondary-color) !important;
+  color: white !important;
+  border-color: var(--secondary-color) !important;
+  transform: scale(1.15);
+}
+.btn-speak-review:active {
+  transform: scale(0.9);
+}
+
+/* 후기 상세 모달 반응형 및 개선 스타일 */
+.rd-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  gap: 16px;
+}
+.rd-modal-guest-info-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.rd-modal-name-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+#rd-guest-name {
+  margin: 0;
+  font-size: 22px;
+  color: var(--text-dark);
+  font-weight: 800;
+  word-break: break-all;
+}
+#btn-toggle-review-visibility {
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 6px;
+  background: transparent;
+  border: 1.5px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+#rd-created-at {
+  font-size: 13px;
+  color: #A0AEC0;
+}
+#rd-stamp {
+  background-color: #FFF9E6;
+  border: 2px solid var(--primary-color);
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 850;
+  color: #E65100;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.rd-reply-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 576px) {
+  .rd-modal-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .rd-modal-name-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  #rd-stamp {
+    align-self: flex-start;
+  }
+  .rd-reply-input-row {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  #rd-reply-input {
+    width: 100%;
+  }
+  #btn-save-reply {
+    width: 100% !important;
+    margin-top: 4px;
+  }
+  .admin-modal-content {
+    width: 95% !important;
+    max-height: 95vh !important;
+  }
+  .rd-modal-scroll-body {
+    padding: 24px 20px 20px !important;
+  }
+  #rd-photo {
+    max-height: 280px !important;
+  }
+}

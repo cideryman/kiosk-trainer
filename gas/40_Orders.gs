@@ -1230,7 +1230,9 @@ function auditArchiveOldOrders() {
  * 25. 지난 주문 보관 (아카이빙) API
  */
 function archiveOldOrders(data) {
-  if (!data || data.archiveConfirm !== '주문보관확인') {
+  const confirmStr = String((data && data.archiveConfirm) || '').trim();
+  const validPhrases = ['주문보관확인', '지난주문보관', '지난주문 보관', '보관확인'];
+  if (!data || validPhrases.indexOf(confirmStr) === -1) {
     return {
       success: false,
       message: '보관 데이터 점검 후 명시적인 확인이 있어야 실행할 수 있습니다.'
