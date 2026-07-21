@@ -540,20 +540,6 @@ window.addEventListener('DOMContentLoaded', () => {
         if (teamSec) teamSec.style.display = 'none';
       }
 
-      function updateGuestAppTitle(settingsRes) {
-        const brandTitleEl = document.getElementById('guest-app-brand-title');
-        const brandSubEl = document.getElementById('guest-app-brand-subtitle');
-        if (!brandTitleEl || !settingsRes) return;
-
-        if (settingsRes.guestMenuMode === 'event') {
-          const eventName = settingsRes.guestEventName || '장애인식 개선 캠페인';
-          brandTitleEl.textContent = eventName;
-          if (brandSubEl) brandSubEl.textContent = '특별 이벤트 & 캠페인 간식';
-        } else {
-          brandTitleEl.innerHTML = `배달왔<span style="color: var(--primary-color);">삼</span>`;
-          if (brandSubEl) brandSubEl.textContent = '삼각지 카페 배달 서비스';
-        }
-      }
 
       // 운영 상태 확인
       async function loadSettings() {
