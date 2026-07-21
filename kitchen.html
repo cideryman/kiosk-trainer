@@ -131,6 +131,23 @@
             </div>
           </div>
 
+          <div class="guest-menu-mode-settings" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border-color);">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+              <div class="guest-team-title" style="font-weight: 800; font-size: 16px; color: var(--secondary-hover); margin-bottom: 0;">🎯 게스트 운영 메뉴 모드</div>
+              <span style="font-size: 13px; font-weight: 700; color: var(--text-muted);">※ 모드 변경 후 [설정 저장] 버튼을 누르면 적용됩니다.</span>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+              <select id="select-guest-menu-mode" style="height: 44px; font-size: 16px; font-weight: 800; padding: 0 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background-color: white; min-width: 240px; cursor: pointer;">
+                <option value="normal">🛵 배달왔삼 (기본 모드)</option>
+                <option value="event">🎉 행사/캠페인 모드</option>
+              </select>
+              <div id="event-name-container" style="display: none; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span style="font-size: 15px; font-weight: 800; white-space: nowrap;">행사명:</span>
+                <input type="text" id="input-guest-event-name" class="admin-inline-input" placeholder="장애인식 개선 캠페인" value="장애인식 개선 캠페인" style="min-width: 220px; height: 44px; font-size: 15px; font-weight: 700; padding: 0 10px;">
+              </div>
+            </div>
+          </div>
+
           <div class="guest-team-settings">
             <div class="guest-team-header">
               <div class="guest-team-title">📦 오늘의 배달팀 설정</div>

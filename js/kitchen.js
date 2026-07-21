@@ -1746,6 +1746,13 @@ let refreshTimer = null;
         if (teamTitleEl) teamTitleEl.value = data.todayDeliveryTeamTitle || '';
         setTeamMemberInputs(data.todayDeliveryTeamMembers || '');
         if (teamMessageEl) teamMessageEl.value = data.todayDeliveryTeamMessage || '';
+
+        const selectMenuMode = document.getElementById('select-guest-menu-mode');
+        const inputEventName = document.getElementById('input-guest-event-name');
+        const eventContainer = document.getElementById('event-name-container');
+        if (selectMenuMode) selectMenuMode.value = data.guestMenuMode || 'normal';
+        if (inputEventName) inputEventName.value = data.guestEventName || '장애인식 개선 캠페인';
+        if (eventContainer) eventContainer.style.display = (data.guestMenuMode === 'event') ? 'flex' : 'none';
       }
 
       if (guestOpsCountdown) {
@@ -1931,6 +1938,8 @@ let refreshTimer = null;
       const teamEnabledInput = document.getElementById('input-team-enabled');
       const teamTitleInput = document.getElementById('input-team-title');
       const teamMessageInput = document.getElementById('input-team-message');
+      const selectMenuMode = document.getElementById('select-guest-menu-mode');
+      const inputEventName = document.getElementById('input-guest-event-name');
 
       if (!creditInput || !feeInput || !deliveryPlaceInput) return;
 
@@ -1941,6 +1950,8 @@ let refreshTimer = null;
       const todayDeliveryTeamTitle = teamTitleInput ? teamTitleInput.value.trim() : '';
       const todayDeliveryTeamMembers = getComposedTeamMembers();
       const todayDeliveryTeamMessage = teamMessageInput ? teamMessageInput.value.trim() : '';
+      const guestMenuMode = selectMenuMode ? selectMenuMode.value : 'normal';
+      const guestEventName = inputEventName ? inputEventName.value.trim() : '장애인식 개선 캠페인';
 
       try {
         const adminToken = getAdminToken();
@@ -1955,6 +1966,8 @@ let refreshTimer = null;
             todayDeliveryTeamTitle,
             todayDeliveryTeamMembers,
             todayDeliveryTeamMessage,
+            guestMenuMode,
+            guestEventName,
             adminToken,
             adminMemo: getAdminMemo()
           }
@@ -2004,6 +2017,16 @@ let refreshTimer = null;
       const btnToggleGuestSettings = document.getElementById('btn-toggle-guest-settings');
       if (btnToggleGuestSettings) {
         btnToggleGuestSettings.addEventListener('click', toggleGuestSettings);
+      }
+
+      const selectMenuMode = document.getElementById('select-guest-menu-mode');
+      if (selectMenuMode) {
+        selectMenuMode.addEventListener('change', () => {
+          const eventContainer = document.getElementById('event-name-container');
+          if (eventContainer) {
+            eventContainer.style.display = (selectMenuMode.value === 'event') ? 'flex' : 'none';
+          }
+        });
       }
 
       const btnDownloadCsv = document.getElementById('btn-download-csv');

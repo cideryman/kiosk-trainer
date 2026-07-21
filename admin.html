@@ -132,6 +132,12 @@
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
               <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color); margin-bottom: 0;">🍪 간식 목록 및 재고 관리</div>
               <div style="display: flex; gap: 10px; align-items: center;">
+                <select id="filter-target-snack" class="admin-inline-input" style="height: 40px; font-size: 15px; font-weight: 800; padding: 0 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background-color: white;">
+                  <option value="ALL">🔽 전체 대상 보기</option>
+                  <option value="user">👤 회원용 (User)</option>
+                  <option value="guest">🛵 게스트용 (Guest)</option>
+                  <option value="event">🎉 행사용 (Event)</option>
+                </select>
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 800; cursor: pointer; user-select: none; padding: 6px 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background-color: white;">
                   <input type="checkbox" id="toggle-hidden-snacks" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--secondary-color);">
                   숨김 보기
@@ -375,11 +381,18 @@
           <input type="number" id="new-snack-stock" min="0" max="30" value="10">
         </div>
         <div class="form-field">
-          <label for="new-snack-target">판매 대상</label>
-          <select id="new-snack-target" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
-            <option value="user">일반 이용자만</option>
-            <option value="guest">게스트만</option>
-          </select>
+          <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">판매 대상 (다중 선택 가능)</label>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; padding: 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background: #F8FAFC;">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 15px; font-weight: 800;">
+              <input type="checkbox" class="new-snack-target-cb" value="user" checked style="width: 18px; height: 18px; accent-color: var(--secondary-color);"> 👤 회원용
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 15px; font-weight: 800;">
+              <input type="checkbox" class="new-snack-target-cb" value="guest" checked style="width: 18px; height: 18px; accent-color: var(--secondary-color);"> 🛵 게스트용
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 15px; font-weight: 800;">
+              <input type="checkbox" class="new-snack-target-cb" value="event" style="width: 18px; height: 18px; accent-color: var(--secondary-color);"> 🎉 행사용
+            </label>
+          </div>
         </div>
       </div>
       <div class="admin-modal-footer">
@@ -466,11 +479,18 @@
           </select>
         </div>
         <div class="form-field">
-          <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">판매 대상</label>
-          <select id="edit-snack-target" style="padding: 10px; font-size: 16px; border-radius: var(--radius-sm); border: 2px solid var(--border-color); font-weight: 700;">
-            <option value="user">일반 이용자만</option>
-            <option value="guest">게스트만</option>
-          </select>
+          <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">판매 대상 (다중 선택 가능)</label>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; padding: 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background: #F8FAFC;">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 15px; font-weight: 800;">
+              <input type="checkbox" class="edit-snack-target-cb" value="user" style="width: 18px; height: 18px; accent-color: var(--secondary-color);"> 👤 회원용
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 15px; font-weight: 800;">
+              <input type="checkbox" class="edit-snack-target-cb" value="guest" style="width: 18px; height: 18px; accent-color: var(--secondary-color);"> 🛵 게스트용
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 15px; font-weight: 800;">
+              <input type="checkbox" class="edit-snack-target-cb" value="event" style="width: 18px; height: 18px; accent-color: var(--secondary-color);"> 🎉 행사용
+            </label>
+          </div>
         </div>
       </div>
       <div class="admin-modal-footer">

@@ -1406,18 +1406,32 @@ function renderSnacksManagement(snacks) {
 
   // 재고 관리 테이블도 displayOrder 기준으로 정렬
   const sorted = applySnackOrder(snacks);
-  const activeUser = sorted.filter(s => isSnackActive(s) && s.target !== 'guest');
-  const activeGuest = sorted.filter(s => isSnackActive(s) && s.target === 'guest');
-  const hiddenUser = sorted.filter(s => !isSnackActive(s) && s.target !== 'guest');
-  const hiddenGuest = sorted.filter(s => !isSnackActive(s) && s.target === 'guest');
+  const targetFilterVal = document.getElementById('filter-target-snack')?.value || 'ALL';
+  const matchesFilter = (s) => {
+    if (targetFilterVal === 'ALL') return true;
+    const tList = String(s.target || 'user').toLowerCase().split(',').map(x => x.trim());
+    return tList.includes(targetFilterVal.toLowerCase());
+  };
+  const filteredSnacks = sorted.filter(matchesFilter);
 
-  appendSnackGroupRows(tbody, '판매중 일반 간식', activeUser);
-  appendSnackGroupRows(tbody, '판매중 게스트 간식', activeGuest);
+  const isUserTarget = s => String(s.target || 'user').toLowerCase().split(',').map(x => x.trim()).includes('user');
+  const isGuestOrEventTarget = s => {
+    const tList = String(s.target || 'user').toLowerCase().split(',').map(x => x.trim());
+    return tList.includes('guest') || tList.includes('event');
+  };
+
+  const activeUser = filteredSnacks.filter(s => isSnackActive(s) && isUserTarget(s));
+  const activeGuest = filteredSnacks.filter(s => isSnackActive(s) && isGuestOrEventTarget(s));
+  const hiddenUser = filteredSnacks.filter(s => !isSnackActive(s) && isUserTarget(s));
+  const hiddenGuest = filteredSnacks.filter(s => !isSnackActive(s) && isGuestOrEventTarget(s));
+
+  appendSnackGroupRows(tbody, '판매중 일반/키오스크 간식', activeUser);
+  appendSnackGroupRows(tbody, '판매중 게스트/행사 간식', activeGuest);
 
   const showHidden = document.getElementById('toggle-hidden-snacks')?.checked ?? false;
   if (showHidden) {
-    appendSnackGroupRows(tbody, '숨김 일반 간식', hiddenUser);
-    appendSnackGroupRows(tbody, '숨김 게스트 간식', hiddenGuest);
+    appendSnackGroupRows(tbody, '숨김 일반/키오스크 간식', hiddenUser);
+    appendSnackGroupRows(tbody, '숨김 게스트/행사 간식', hiddenGuest);
   }
 }
 
@@ -1455,6 +1469,13 @@ function appendSnackGroupRows(tbody, title, snacks) {
     const safeSnackEmoji = esc(snackEmoji);
     const point = Number(snack.point || 0);
     const stock = Number(snack.stock || 0);
+
+    const tList = String(snack.target || 'user').toLowerCase().split(',').map(x => x.trim());
+    const targetBadges = [];
+    if (tList.includes('user')) targetBadges.push('👤회원');
+    if (tList.includes('guest')) targetBadges.push('🛵게스트');
+    if (tList.includes('event')) targetBadges.push('🎉행사');
+    const targetBadgeHtml = `<span style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin-left: 6px;">(${targetBadges.join(', ')})</span>`;
     
     const imgHTML = imgUrl
       ? `<img src="${safeImgUrl}" class="admin-avatar" style="width: 36px; height: 36px; border-radius: 6px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`
@@ -1468,7 +1489,10 @@ function appendSnackGroupRows(tbody, title, snacks) {
             ${imgHTML}
             ${emojiHTML}
           </div>
-          <strong>${safeSnackName}</strong>
+          <div>
+            <strong>${safeSnackName}</strong>
+            ${targetBadgeHtml}
+          </div>
         </div>
       </td>
       <td class="snack-stock-cell" style="text-align: center; vertical-align: middle;">
@@ -1550,13 +1574,13 @@ async function addNewSnackAction() {
   const pointInput = document.getElementById('new-snack-point');
   const imageInput = document.getElementById('new-snack-image');
   const stockInput = document.getElementById('new-snack-stock');
-  const targetInput = document.getElementById('new-snack-target');
   
   const name = nameInput.value.trim();
   const point = Number(pointInput.value || 1);
   const imageUrl = imageInput.value.trim();
   const stock = Math.min(ADMIN_UI_MAX_SNACK_STOCK, Math.max(0, Number(stockInput.value || 0)));
-  const target = targetInput ? targetInput.value : 'user';
+  const selectedTargets = Array.from(document.querySelectorAll('.new-snack-target-cb:checked')).map(cb => cb.value);
+  const target = selectedTargets.length > 0 ? selectedTargets.join(',') : 'user';
   
   if (!name) {
     alert("간식 이름을 입력해 주세요!");
@@ -1583,7 +1607,9 @@ async function addNewSnackAction() {
       pointInput.value = '1';
       imageInput.value = '';
       stockInput.value = '10';
-      if (targetInput) targetInput.value = 'user';
+      document.querySelectorAll('.new-snack-target-cb').forEach(cb => {
+        cb.checked = (cb.value === 'user' || cb.value === 'guest');
+      });
       closeAddSnackModal();
       AppState.vibrate(80);
       AppState.playClickSound();
@@ -1628,7 +1654,9 @@ function openAddSnackModal() {
   document.getElementById('new-snack-point').value = '1';
   document.getElementById('new-snack-image').value = '';
   document.getElementById('new-snack-stock').value = '10';
-  document.getElementById('new-snack-target').value = 'user';
+  document.querySelectorAll('.new-snack-target-cb').forEach(cb => {
+    cb.checked = (cb.value === 'user' || cb.value === 'guest');
+  });
   
   document.getElementById('modal-add-snack').style.display = 'flex';
   AppState.vibrate(40);
@@ -1717,8 +1745,10 @@ function openEditSnackModal(snackId) {
   const isActive = isSnackActive(snack);
   document.getElementById('edit-snack-sale').value = isActive ? 'Y' : 'N';
   
-  const targetVal = snack.target || 'user';
-  document.getElementById('edit-snack-target').value = targetVal;
+  const tList = String(snack.target || 'user').toLowerCase().split(',').map(x => x.trim());
+  document.querySelectorAll('.edit-snack-target-cb').forEach(cb => {
+    cb.checked = tList.includes(cb.value);
+  });
 
   document.getElementById('modal-edit-snack').style.display = 'flex';
   AppState.vibrate(40);
@@ -1740,7 +1770,8 @@ async function updateSnackAction() {
   const imageUrl = document.getElementById('edit-snack-image').value.trim();
   const stock = Math.min(ADMIN_UI_MAX_SNACK_STOCK, Math.max(0, Number(document.getElementById('edit-snack-stock').value || 0)));
   const saleYn = document.getElementById('edit-snack-sale').value;
-  const target = document.getElementById('edit-snack-target').value;
+  const selectedTargets = Array.from(document.querySelectorAll('.edit-snack-target-cb:checked')).map(cb => cb.value);
+  const target = selectedTargets.length > 0 ? selectedTargets.join(',') : 'user';
 
   if (!name) {
     alert("간식 이름을 입력해 주세요.");
@@ -2212,6 +2243,15 @@ window.addEventListener('DOMContentLoaded', () => {
   const toggleHiddenSnacks = document.getElementById('toggle-hidden-snacks');
   if (toggleHiddenSnacks) {
     toggleHiddenSnacks.addEventListener('change', () => {
+      renderSnacksManagement(currentSnacks);
+      AppState.vibrate(30);
+    });
+  }
+
+  // 간식 대상 필터 바인딩
+  const filterTargetSnack = document.getElementById('filter-target-snack');
+  if (filterTargetSnack) {
+    filterTargetSnack.addEventListener('change', () => {
       renderSnacksManagement(currentSnacks);
       AppState.vibrate(30);
     });

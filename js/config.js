@@ -384,16 +384,29 @@ function getMockFallback(action, options) {
     const mode = options.params?.mode;
     if (mode) {
       const cleanedMode = String(mode).trim().toLowerCase();
-      if (cleanedMode === 'user') {
+      const parseTargetList = (t) => {
+        const str = String(t || 'user').toLowerCase();
+        return str.split(',').map(s => s.trim()).filter(Boolean);
+      };
+      if (cleanedMode === 'user' || cleanedMode === 'kiosk') {
         res.snacks = res.snacks.filter(s => {
-          const t = s.target ? String(s.target).trim().toLowerCase() : 'user';
-          return t === 'user';
+          const tList = parseTargetList(s.target);
+          return tList.includes('user');
         });
       } else if (cleanedMode === 'guest') {
-        res.snacks = res.snacks.filter(s => {
-          const t = s.target ? String(s.target).trim().toLowerCase() : 'user';
-          return t === 'guest';
-        });
+        const settings = getMockGuestSettings();
+        const menuMode = String(settings.guestMenuMode || 'normal').toLowerCase();
+        if (menuMode === 'event') {
+          res.snacks = res.snacks.filter(s => {
+            const tList = parseTargetList(s.target);
+            return tList.includes('event') || tList.includes('campaign');
+          });
+        } else {
+          res.snacks = res.snacks.filter(s => {
+            const tList = parseTargetList(s.target);
+            return tList.includes('guest');
+          });
+        }
       }
     }
   } else if (action === 'getGuestApplicationSettings') {
@@ -567,6 +580,8 @@ function getMockFallback(action, options) {
         kakaoGuestBonusCredit: settings.kakaoGuestBonusCredit ?? 2,
         guestDeliveryFee: settings.guestDeliveryFee,
         guestDefaultDeliveryPlace: settings.guestDefaultDeliveryPlace ?? '사무실 원탁',
+        guestMenuMode: settings.guestMenuMode || 'normal',
+        guestEventName: settings.guestEventName || '장애인식 개선 캠페인',
         guestOrderGraceMinutes: GUEST_ORDER_COMPLETION_GRACE_MINUTES,
         isGuestOpenNow,
         remainingSeconds,
@@ -616,10 +631,22 @@ function getMockFallback(action, options) {
     } else if (settingsAction === 'closeNow') {
       settings.guestOpen = 'N';
       appendMockAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', 'Y', 'N (즉시 마감)', options.body?.adminMemo);
+    } else if (settingsAction === 'updateMenuMode') {
+      settings.guestMenuMode = String(options.body?.guestMenuMode || 'normal').toLowerCase();
+      if (options.body?.guestEventName !== undefined) {
+        settings.guestEventName = String(options.body?.guestEventName).trim();
+      }
+      appendMockAdminLog('updateGuestSettings', 'settings', 'guestMenuMode', '게스트 메뉴 모드', '', settings.guestMenuMode === 'event' ? `행사 모드 (${settings.guestEventName})` : '배달왔삼 기본 모드', options.body?.adminMemo);
     } else if (settingsAction === 'updateValues') {
       settings.guestBaseCredit = Number(options.body?.guestBaseCredit);
       settings.guestDeliveryFee = Number(options.body?.guestDeliveryFee);
       settings.guestDefaultDeliveryPlace = String(options.body?.guestDefaultDeliveryPlace || '사무실 원탁').trim();
+      if (options.body?.guestMenuMode !== undefined) {
+        settings.guestMenuMode = String(options.body.guestMenuMode).toLowerCase();
+      }
+      if (options.body?.guestEventName !== undefined) {
+        settings.guestEventName = String(options.body.guestEventName).trim();
+      }
       appendMockAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `크레딧:${settings.guestBaseCredit}, 배달비:${settings.guestDeliveryFee}, 기본배달지:${settings.guestDefaultDeliveryPlace}`, options.body?.adminMemo);
     }
 

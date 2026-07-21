@@ -83,6 +83,8 @@ function buildGuestSettingsResponse(settings) {
     todayDeliveryTeamMembers: settings.todayDeliveryTeamMembers || '',
     todayDeliveryTeamMessage: settings.todayDeliveryTeamMessage || '',
     guestAllowMultipleOrders: String(settings.guestAllowMultipleOrders || 'TRUE').toUpperCase() !== 'FALSE',
+    guestMenuMode: String(settings.guestMenuMode || 'normal').toLowerCase(),
+    guestEventName: settings.guestEventName || '장애인식 개선 캠페인',
     guestOrderGraceMinutes: GUEST_ORDER_COMPLETION_GRACE_MINUTES,
     isGuestOpenNow,
     remainingSeconds,
@@ -141,7 +143,9 @@ function getGuestSettings() {
     welcomeTitle: '배달왔삼에 오신 것을 환영합니다 😊',
     welcomeSubtitle: '오늘의 간식을 주문해보세요!',
     guestAllowMultipleOrders: 'TRUE',
-    guestOrderLimitPolicyVersion: 'creditWalletV1'
+    guestOrderLimitPolicyVersion: 'creditWalletV1',
+    guestMenuMode: 'normal',
+    guestEventName: '장애인식 개선 캠페인'
   };
 
   const existingKeys = [];
@@ -168,7 +172,9 @@ function getGuestSettings() {
     welcomeTitle: '배달왔삼에 오신 것을 환영합니다 😊',
     welcomeSubtitle: '오늘의 간식을 주문해보세요!',
     guestAllowMultipleOrders: 'TRUE',
-    guestOrderLimitPolicyVersion: 'creditWalletV1'
+    guestOrderLimitPolicyVersion: 'creditWalletV1',
+    guestMenuMode: 'normal',
+    guestEventName: '장애인식 개선 캠페인'
   };
 
   for (const key in defaultSettings) {
@@ -309,9 +315,26 @@ function updateGuestSettings(data) {
       }
     }
 
+    if (data.guestMenuMode !== undefined) {
+      upsertSettingValue(sheet, 'guestMenuMode', String(data.guestMenuMode).trim().toLowerCase());
+    }
+    if (data.guestEventName !== undefined) {
+      upsertSettingValue(sheet, 'guestEventName', String(data.guestEventName).trim());
+    }
+
     safeAppendAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `크레딧:${guestBaseCredit}, 배달비:${guestDeliveryFee}, 기본배달지:${guestDefaultDeliveryPlace}`, data.adminMemo);
     clearGuestSettingsCache();
     return { success: true, message: '게스트 설정이 저장되었습니다.' };
+  } else if (action === 'updateMenuMode') {
+    const guestMenuMode = String(data.guestMenuMode || 'normal').trim().toLowerCase();
+    const guestEventName = String(data.guestEventName || '장애인식 개선 캠페인').trim();
+    upsertSettingValue(sheet, 'guestMenuMode', guestMenuMode);
+    if (data.guestEventName !== undefined) {
+      upsertSettingValue(sheet, 'guestEventName', guestEventName);
+    }
+    safeAppendAdminLog('updateGuestSettings', 'settings', 'guestMenuMode', '게스트 메뉴 모드 변경', '', `${guestMenuMode === 'event' ? '행사 모드 (' + guestEventName + ')' : '배달왔삼 기본 모드'}`, data.adminMemo);
+    clearGuestSettingsCache();
+    return { success: true, message: '게스트 메뉴 모드가 변경되었습니다.' };
   } else {
     return { success: false, message: '알 수 없는 설정 변경 요청입니다.' };
   }
