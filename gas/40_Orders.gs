@@ -601,7 +601,9 @@ function getGuestOrdersToday(guestName) {
  * 8.7. 게스트 본인의 주문 토큰 목록으로 조회 API
  */
 function getGuestOrderByToken(data) {
-  const tokens = data.tokens;
+  const tokens = data ? data.tokens : null;
+  const includeArchived = data && (data.includeArchived === true || String(data.includeArchived).toLowerCase() === 'true');
+
   if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
     return {
       success: false,
@@ -628,12 +630,15 @@ function getGuestOrderByToken(data) {
   const rIdx = reviewedIdx !== -1 ? reviewedIdx : 14;
   const tIdx = tokenIdx !== -1 ? tokenIdx : 10;
 
-  const orders = rows
-    .filter(row => {
-      const rowToken = String(row[tIdx] || '');
-      return rowToken && tokens.includes(rowToken);
-    })
-    .map(row => ({
+  const mapRow = (row, hRow) => {
+    const revIdx = hRow ? hRow.indexOf('reviewed') : rIdx;
+    const tokIdx = hRow ? hRow.indexOf('orderToken') : tIdx;
+    const authIdx = hRow ? hRow.indexOf('authProvider') : authProviderIdx;
+    const gKeyIdx = hRow ? hRow.indexOf('guestKey') : guestKeyIdx;
+    const useRIdx = revIdx !== -1 ? revIdx : 14;
+    const useTIdx = tokIdx !== -1 ? tokIdx : 10;
+
+    return {
       timestamp: row[0],
       orderNo: row[1],
       userId: row[2],
@@ -644,17 +649,45 @@ function getGuestOrderByToken(data) {
       point: Number(row[7]),
       servedYn: row[8] || 'N',
       cancelTimestamp: row[9] || '',
-      orderToken: row[10] || '',
+      orderToken: row[useTIdx] != null ? row[useTIdx] : (row[10] || ''),
       deliveryType: row[11] || 'pickup',
       deliveryFee: Number(row[12] || 0),
       totalCredit: Number(row[13] || 0),
-      reviewed: row[rIdx] === true || String(row[rIdx]).toUpperCase() === 'TRUE' || String(row[rIdx]).toUpperCase() === 'Y',
+      reviewed: row[useRIdx] === true || String(row[useRIdx]).toUpperCase() === 'TRUE' || String(row[useRIdx]).toUpperCase() === 'Y',
       deliveryPlace: row[15] || '',
-      authProvider: authProviderIdx !== -1 ? row[authProviderIdx] || '' : '',
-      guestKey: guestKeyIdx !== -1 ? row[guestKeyIdx] || '' : '',
+      authProvider: authIdx !== -1 ? row[authIdx] || '' : '',
+      guestKey: gKeyIdx !== -1 ? row[gKeyIdx] || '' : '',
       cancelReason: row[16] || '',
       cancelReasonDetail: row[17] || ''
-    }));
+    };
+  };
+
+  let orders = rows
+    .filter(row => {
+      const rowToken = String(row[tIdx] || '');
+      return rowToken && tokens.includes(rowToken);
+    })
+    .map(row => mapRow(row, headers));
+
+  if (includeArchived) {
+    const archiveSheet = SpreadsheetApp.getActive().getSheetByName(SHEET.ARCHIVE);
+    if (archiveSheet && archiveSheet.getLastRow() > 1) {
+      const archiveValues = archiveSheet.getDataRange().getValues();
+      const archiveHeaders = archiveValues[0] || [];
+      const archiveRows = archiveValues.slice(1);
+      const aTokenIdx = archiveHeaders.indexOf('orderToken');
+      const useATokenIdx = aTokenIdx !== -1 ? aTokenIdx : 10;
+
+      const archivedOrders = archiveRows
+        .filter(row => {
+          const rowToken = String(row[useATokenIdx] || '');
+          return rowToken && tokens.includes(rowToken);
+        })
+        .map(row => mapRow(row, archiveHeaders));
+
+      orders = orders.concat(archivedOrders);
+    }
+  }
 
   return {
     success: true,
@@ -663,12 +696,14 @@ function getGuestOrderByToken(data) {
 }
 
 /**
- * 8.8. 카카오 연결 게스트의 오늘 주문 조회 API
- * 원본 카카오 ID가 아닌 내부 guestKey 기준으로 오늘 주문만 반환합니다.
+ * 8.8. 카카오 연결 게스트의 오늘 (및 필요시 보관) 주문 조회 API
+ * 원본 카카오 ID가 아닌 내부 guestKey 기준으로 주문을 반환합니다.
  */
 function getGuestOrdersByGuestKey(data) {
-  const authProvider = String(data.authProvider || '').trim().toLowerCase();
-  const guestKey = String(data.guestKey || '').trim();
+  const authProvider = String(data ? data.authProvider : '').trim().toLowerCase();
+  const guestKey = String(data ? data.guestKey : '').trim();
+  const includeArchived = data && (data.includeArchived === true || String(data.includeArchived).toLowerCase() === 'true');
+
   if (authProvider !== 'kakao' || !guestKey) {
     return {
       success: false,
@@ -706,7 +741,39 @@ function getGuestOrdersByGuestKey(data) {
     'yyyy-MM-dd'
   );
 
-  const orders = rows
+  const mapRow = (row, hRow) => {
+    const revIdx = hRow ? hRow.indexOf('reviewed') : rIdx;
+    const authIdx = hRow ? hRow.indexOf('authProvider') : authProviderIdx;
+    const gKeyIdx = hRow ? hRow.indexOf('guestKey') : guestKeyIdx;
+    const tokIdx = hRow ? hRow.indexOf('orderToken') : 10;
+    const useRIdx = revIdx !== -1 ? revIdx : 14;
+    const useTIdx = tokIdx !== -1 ? tokIdx : 10;
+
+    return {
+      timestamp: row[0],
+      orderNo: row[1],
+      userId: row[2],
+      nickname: row[3],
+      snackId: row[4],
+      snackName: row[5],
+      quantity: Number(row[6]),
+      point: Number(row[7]),
+      servedYn: row[8] || 'N',
+      cancelTimestamp: row[9] || '',
+      orderToken: row[useTIdx] || '',
+      deliveryType: row[11] || 'pickup',
+      deliveryFee: Number(row[12] || 0),
+      totalCredit: Number(row[13] || 0),
+      reviewed: row[useRIdx] === true || String(row[useRIdx]).toUpperCase() === 'TRUE' || String(row[useRIdx]).toUpperCase() === 'Y',
+      deliveryPlace: row[15] || '',
+      authProvider: authIdx !== -1 ? row[authIdx] || '' : '',
+      guestKey: gKeyIdx !== -1 ? row[gKeyIdx] || '' : '',
+      cancelReason: row[16] || '',
+      cancelReasonDetail: row[17] || ''
+    };
+  };
+
+  let orders = rows
     .filter(row => {
       const orderDate = Utilities.formatDate(
         new Date(row[0]),
@@ -718,28 +785,30 @@ function getGuestOrdersByGuestKey(data) {
       if (String(row[authProviderIdx] || '').trim().toLowerCase() !== authProvider) return false;
       return String(row[guestKeyIdx] || '').trim() === guestKey;
     })
-    .map(row => ({
-      timestamp: row[0],
-      orderNo: row[1],
-      userId: row[2],
-      nickname: row[3],
-      snackId: row[4],
-      snackName: row[5],
-      quantity: Number(row[6]),
-      point: Number(row[7]),
-      servedYn: row[8] || 'N',
-      cancelTimestamp: row[9] || '',
-      orderToken: row[10] || '',
-      deliveryType: row[11] || 'pickup',
-      deliveryFee: Number(row[12] || 0),
-      totalCredit: Number(row[13] || 0),
-      reviewed: row[rIdx] === true || String(row[rIdx]).toUpperCase() === 'TRUE' || String(row[rIdx]).toUpperCase() === 'Y',
-      deliveryPlace: row[15] || '',
-      authProvider: row[authProviderIdx] || '',
-      guestKey: row[guestKeyIdx] || '',
-      cancelReason: row[16] || '',
-      cancelReasonDetail: row[17] || ''
-    }));
+    .map(row => mapRow(row, headers));
+
+  if (includeArchived) {
+    const archiveSheet = SpreadsheetApp.getActive().getSheetByName(SHEET.ARCHIVE);
+    if (archiveSheet && archiveSheet.getLastRow() > 1) {
+      const archiveValues = archiveSheet.getDataRange().getValues();
+      const archiveHeaders = archiveValues[0] || [];
+      const archiveRows = archiveValues.slice(1);
+      const aAuthIdx = archiveHeaders.indexOf('authProvider');
+      const aGuestKeyIdx = archiveHeaders.indexOf('guestKey');
+
+      if (aAuthIdx !== -1 && aGuestKeyIdx !== -1) {
+        const archivedOrders = archiveRows
+          .filter(row => {
+            if (String(row[2]) !== 'guest') return false;
+            if (String(row[aAuthIdx] || '').trim().toLowerCase() !== authProvider) return false;
+            return String(row[aGuestKeyIdx] || '').trim() === guestKey;
+          })
+          .map(row => mapRow(row, archiveHeaders));
+
+        orders = orders.concat(archivedOrders);
+      }
+    }
+  }
 
   return {
     success: true,

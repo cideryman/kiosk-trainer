@@ -667,12 +667,15 @@ function getMockFallback(action, options) {
   } else if (action === 'getGuestOrdersByGuestKey') {
     const authProvider = options.body?.authProvider;
     const guestKey = options.body?.guestKey;
+    const includeArchived = options.body?.includeArchived === true;
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
-    const allMockOrders = [...localOrders, ...MOCK_DATA.getOrdersToday.orders];
+    const mockArchived = includeArchived ? JSON.parse(localStorage.getItem('mockArchivedOrders') || '[]') : [];
+    const allMockOrders = [...localOrders, ...mockArchived, ...MOCK_DATA.getOrdersToday.orders];
     const todayStr = new Date().toISOString().slice(2, 10).replace(/-/g, '');
     const matchedOrders = allMockOrders.filter(o => {
       const isToday = o.timestamp && o.timestamp.slice(2, 10).replace(/-/g, '') === todayStr;
-      return isToday && o.userId === 'guest' && o.authProvider === authProvider && o.guestKey === guestKey;
+      if (!includeArchived && !isToday) return false;
+      return o.userId === 'guest' && o.authProvider === authProvider && o.guestKey === guestKey;
     });
 
     res = {
@@ -1374,8 +1377,10 @@ function getMockFallback(action, options) {
     }
   } else if (action === 'getGuestOrderByToken') {
     const tokens = options.body?.tokens || [];
+    const includeArchived = options.body?.includeArchived === true;
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
-    const allMockOrders = [...localOrders, ...MOCK_DATA.getOrdersToday.orders];
+    const mockArchived = includeArchived ? JSON.parse(localStorage.getItem('mockArchivedOrders') || '[]') : [];
+    const allMockOrders = [...localOrders, ...mockArchived, ...MOCK_DATA.getOrdersToday.orders];
     const matchedOrders = allMockOrders.filter(o => o.orderToken && tokens.includes(o.orderToken));
     res = {
       success: true,

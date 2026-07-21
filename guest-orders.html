@@ -275,6 +275,11 @@
       <div id="local-orders-section" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
         <div class="section-title">🕒 내 주문 내역</div>
         <div id="local-orders-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
+        <div id="archive-load-container" style="margin-top: 8px; text-align: center;">
+          <button id="btn-load-archived-orders" class="btn-small-action" style="width: 100%; min-height: 52px; font-size: 16px; font-weight: 700; background-color: #E2E8F0; color: #2D3748; border: 2px solid #CBD5E0; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            📁 지난 보관 주문 내역 불러오기
+          </button>
+        </div>
       </div>
     </main>
 
@@ -411,7 +416,7 @@
       const loadingOverlay = document.getElementById('loading-overlay');
 
       // 1. 주문 로드 및 서버 갱신
-      async function loadOrders() {
+      async function loadOrders(includeArchived = false) {
         const localOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
         const guestAuth = AppState.getGuestAuth ? AppState.getGuestAuth() : null;
         if (localOrders.length === 0 && !guestAuth) {
@@ -448,7 +453,7 @@
           if (tokens.length > 0) {
             const tokenRes = await fetchAPI('getGuestOrderByToken', {
               method: 'POST',
-              body: { tokens: tokens }
+              body: { tokens: tokens, includeArchived: includeArchived }
             });
             if (tokenRes && tokenRes.success) {
               appendRows(tokenRes.orders);
@@ -462,7 +467,8 @@
               method: 'POST',
               body: {
                 authProvider: guestAuth.provider,
-                guestKey: guestAuth.guestKey
+                guestKey: guestAuth.guestKey,
+                includeArchived: includeArchived
               }
             });
             if (authRes && authRes.success) {
@@ -1231,6 +1237,28 @@
 
       // 초기 실행
       loadOrders();
+
+      // 지난 보관 주문 불러오기 버튼 바인딩
+      const btnLoadArchived = document.getElementById('btn-load-archived-orders');
+      if (btnLoadArchived) {
+        btnLoadArchived.addEventListener('click', async () => {
+          btnLoadArchived.disabled = true;
+          const origText = btnLoadArchived.innerHTML;
+          btnLoadArchived.innerHTML = '📁 보관 주문 불러오는 중... ⏳';
+          try {
+            await loadOrders(true);
+            btnLoadArchived.innerHTML = '✅ 지난 보관 주문 불러오기 완료';
+            btnLoadArchived.style.backgroundColor = '#EDF2F7';
+            btnLoadArchived.style.color = '#718096';
+            btnLoadArchived.style.borderColor = '#E2E8F0';
+          } catch(e) {
+            console.error('보관 주문 불러오기 오류:', e);
+            btnLoadArchived.disabled = false;
+            btnLoadArchived.innerHTML = origText;
+            alert('지난 보관 주문을 불러오는 중 오류가 발생했습니다.');
+          }
+        });
+      }
 
       // 외부에서 후기 작성 요청(openReview=true)으로 들어왔을 때 가장 최근 미작성 주문에 대해 모달 자동 띄우기
       const urlParams = new URLSearchParams(window.location.search);
