@@ -187,7 +187,7 @@
 
           <div style="margin-top: 20px;">
             <div class="admin-section-title" style="color: #ED8936; border-left-color: #ED8936;">
-              🛵 게스트/배달왔삼 간식 순서
+              🛵 일반 게스트 간식 순서
               <span style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-left: 8px;">왼쪽 위부터 오른쪽으로 표시되는 순서입니다. (◀▶ 버튼 또는 드래그)</span>
             </div>
             <div class="form-panel" style="background: linear-gradient(135deg, #FFF5F5 0%, #FED7D7 100%); border-color: #FEB2B2;">
@@ -196,7 +196,23 @@
               </div>
               <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; align-items: center;">
                 <button class="btn-small-action" onclick="resetSnackOrder('guest')" style="background-color: #6B7280; font-size: 13px; padding: 6px 12px;">기본 순서로 초기화</button>
-                <span style="font-size: 13px; font-weight: 700; color: #ED8936;">✅ 변경 즉시 게스트 화면에 반영됩니다</span>
+                <span style="font-size: 13px; font-weight: 700; color: #ED8936;">✅ 변경 즉시 게스트 기본 화면에 반영됩니다</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 20px;">
+            <div class="admin-section-title" style="color: #059669; border-left-color: #059669;">
+              🎉 행사/캠페인 간식 순서
+              <span style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-left: 8px;">왼쪽 위부터 오른쪽으로 표시되는 순서입니다. (◀▶ 버튼 또는 드래그)</span>
+            </div>
+            <div class="form-panel" style="background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%); border-color: #6EE7B7;">
+              <div class="snack-order-list" id="event-snack-order-list">
+                <!-- JS 동적 생성 -->
+              </div>
+              <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; align-items: center;">
+                <button class="btn-small-action" onclick="resetSnackOrder('event')" style="background-color: #6B7280; font-size: 13px; padding: 6px 12px;">기본 순서로 초기화</button>
+                <span style="font-size: 13px; font-weight: 700; color: #059669;">✅ 변경 즉시 행사 모드 화면에 반영됩니다</span>
               </div>
             </div>
           </div>

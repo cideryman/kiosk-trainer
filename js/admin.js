@@ -1153,6 +1153,13 @@ async function updateUserCreditAction(userId, credit) {
   }
 }
 
+function isSnackTargetMatch(snack, target) {
+  const tList = String(snack.target || 'user').toLowerCase().split(',').map(x => x.trim());
+  if (target === 'guest') return tList.includes('guest');
+  if (target === 'event') return tList.includes('event');
+  return tList.includes('user');
+}
+
 async function addNewUserAction() {
   const nicknameInput = document.getElementById('new-user-nickname');
   const creditInput = document.getElementById('new-user-credit');
@@ -1256,9 +1263,13 @@ async function saveSnackOrderToServer(orderedIdList, target) {
 }
 
 async function resetSnackOrder(target) {
-  if (!confirm(`[${target === 'guest' ? '게스트' : '일반'}] 표시 순서를 초기화(모두 0)할까요? 스프레드시트 등록 순서로 돌아갑니다.`)) return;
+  let targetLabel = '일반 키오스크';
+  if (target === 'guest') targetLabel = '일반 게스트';
+  if (target === 'event') targetLabel = '행사/캠페인';
+  if (!confirm(`[${targetLabel}] 표시 순서를 초기화(모두 0)할까요? 스프레드시트 등록 순서로 돌아갑니다.`)) return;
+
   // 해당 타깃의 판매중 간식만 displayOrder를 0으로 초기화
-  const targetSnacks = currentSnacks.filter(s => isSnackActive(s) && (target === 'guest' ? s.target === 'guest' : s.target !== 'guest'));
+  const targetSnacks = currentSnacks.filter(s => isSnackActive(s) && isSnackTargetMatch(s, target));
   const items = targetSnacks.map(s => ({ snackId: s.snackId, displayOrder: 0 }));
   try {
     const res = await fetchAPI('updateSnacksOrder', {
@@ -1285,7 +1296,7 @@ function renderSnackOrderPanel(snacks, target) {
   if (!listEl) return;
 
   // ★ 해당 타깃의 판매중 간식만 필터링
-  const targetSnacks = snacks.filter(s => isSnackActive(s) && (target === 'guest' ? s.target === 'guest' : s.target !== 'guest'));
+  const targetSnacks = snacks.filter(s => isSnackActive(s) && isSnackTargetMatch(s, target));
   const sorted = applySnackOrder(targetSnacks);
   listEl.innerHTML = '';
 
@@ -1380,9 +1391,14 @@ async function moveSnackOrder(btn, dir, target) {
   const items = [...listEl.querySelectorAll('.snack-order-item')];
   const ids = items.map(el => el.dataset.snackId);
   const idx = ids.indexOf(item.dataset.snackId);
+  if (idx === -1) return;
+
   const newIdx = idx + dir;
   if (newIdx < 0 || newIdx >= ids.length) return;
-  [ids[idx], ids[newIdx]] = [ids[newIdx], ids[idx]];
+
+  ids.splice(idx, 1);
+  ids.splice(newIdx, 0, item.dataset.snackId);
+
   renderSnackOrderPanelFromIds(ids, target);
   const saved = await saveSnackOrderToServer(ids, target);
   if (!saved) renderSnackOrderPanel(currentSnacks, target);
@@ -1390,9 +1406,10 @@ async function moveSnackOrder(btn, dir, target) {
 }
 
 function renderSnacksManagement(snacks) {
-  // 순서 편집 패널 갱신
+  // 순서 편집 패널 갱신 (user, guest, event 3개 패널 모두 갱신)
   renderSnackOrderPanel(snacks, 'user');
   renderSnackOrderPanel(snacks, 'guest');
+  renderSnackOrderPanel(snacks, 'event');
 
   const tbody = document.getElementById('snack-management-body');
   if (!tbody) return;
@@ -1414,24 +1431,27 @@ function renderSnacksManagement(snacks) {
   };
   const filteredSnacks = sorted.filter(matchesFilter);
 
-  const isUserTarget = s => String(s.target || 'user').toLowerCase().split(',').map(x => x.trim()).includes('user');
-  const isGuestOrEventTarget = s => {
-    const tList = String(s.target || 'user').toLowerCase().split(',').map(x => x.trim());
-    return tList.includes('guest') || tList.includes('event');
-  };
+  const isUserTarget = s => isSnackTargetMatch(s, 'user');
+  const isGuestTarget = s => isSnackTargetMatch(s, 'guest');
+  const isEventTarget = s => isSnackTargetMatch(s, 'event');
 
   const activeUser = filteredSnacks.filter(s => isSnackActive(s) && isUserTarget(s));
-  const activeGuest = filteredSnacks.filter(s => isSnackActive(s) && isGuestOrEventTarget(s));
-  const hiddenUser = filteredSnacks.filter(s => !isSnackActive(s) && isUserTarget(s));
-  const hiddenGuest = filteredSnacks.filter(s => !isSnackActive(s) && isGuestOrEventTarget(s));
+  const activeGuest = filteredSnacks.filter(s => isSnackActive(s) && isGuestTarget(s));
+  const activeEvent = filteredSnacks.filter(s => isSnackActive(s) && isEventTarget(s));
 
-  appendSnackGroupRows(tbody, '판매중 일반/키오스크 간식', activeUser);
-  appendSnackGroupRows(tbody, '판매중 게스트/행사 간식', activeGuest);
+  const hiddenUser = filteredSnacks.filter(s => !isSnackActive(s) && isUserTarget(s));
+  const hiddenGuest = filteredSnacks.filter(s => !isSnackActive(s) && isGuestTarget(s));
+  const hiddenEvent = filteredSnacks.filter(s => !isSnackActive(s) && isEventTarget(s));
+
+  appendSnackGroupRows(tbody, '판매중 키오스크 회원 간식', activeUser);
+  appendSnackGroupRows(tbody, '판매중 일반 게스트 간식', activeGuest);
+  appendSnackGroupRows(tbody, '판매중 행사/캠페인 간식', activeEvent);
 
   const showHidden = document.getElementById('toggle-hidden-snacks')?.checked ?? false;
   if (showHidden) {
-    appendSnackGroupRows(tbody, '숨김 일반/키오스크 간식', hiddenUser);
-    appendSnackGroupRows(tbody, '숨김 게스트/행사 간식', hiddenGuest);
+    appendSnackGroupRows(tbody, '숨김 키오스크 회원 간식', hiddenUser);
+    appendSnackGroupRows(tbody, '숨김 일반 게스트 간식', hiddenGuest);
+    appendSnackGroupRows(tbody, '숨김 행사/캠페인 간식', hiddenEvent);
   }
 }
 
