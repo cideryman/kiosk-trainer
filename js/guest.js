@@ -460,6 +460,55 @@ window.addEventListener('DOMContentLoaded', () => {
         }
       }
 
+      function sanitizeEventTitleHtml(htmlStr) {
+        if (!htmlStr) return '';
+        const temp = document.createElement('div');
+        temp.innerHTML = htmlStr;
+        
+        temp.querySelectorAll('script, style, iframe, object, embed, form').forEach(el => el.remove());
+        
+        const allNodes = temp.querySelectorAll('*');
+        allNodes.forEach(node => {
+          const tagName = node.tagName.toLowerCase();
+          if (!['span', 'font', 'b', 'strong', 'i', 'em', 'div'].includes(tagName)) {
+            const text = document.createTextNode(node.textContent);
+            node.parentNode?.replaceChild(text, node);
+            return;
+          }
+          const color = node.style.color;
+          const fontWeight = node.style.fontWeight;
+          node.removeAttribute('style');
+          node.removeAttribute('class');
+          node.removeAttribute('id');
+          
+          if (color) node.style.color = color;
+          if (fontWeight) node.style.fontWeight = fontWeight;
+        });
+        
+        return temp.innerHTML;
+      }
+
+      function updateGuestAppTitle(settingsRes) {
+        const brandTitleEl = document.getElementById('guest-app-brand-title');
+        const brandSubEl = document.getElementById('guest-app-brand-subtitle');
+        if (!brandTitleEl || !settingsRes) return;
+
+        if (settingsRes.guestMenuMode === 'event') {
+          const eventName = settingsRes.guestEventName || '장애인식 개선 캠페인';
+          brandTitleEl.innerHTML = sanitizeEventTitleHtml(eventName);
+          brandTitleEl.style.fontSize = '24px';
+          brandTitleEl.style.fontWeight = '850';
+          brandTitleEl.style.whiteSpace = 'nowrap';
+          brandTitleEl.style.overflow = 'hidden';
+          brandTitleEl.style.textOverflow = 'ellipsis';
+          brandTitleEl.style.maxWidth = '100%';
+          if (brandSubEl) brandSubEl.textContent = '특별 이벤트 & 캠페인 간식';
+        } else {
+          brandTitleEl.innerHTML = `배달왔<span style="color: var(--primary-color);">삼</span>`;
+          if (brandSubEl) brandSubEl.textContent = '삼각지 카페 배달 서비스';
+        }
+      }
+
       function applyGuestClosedUi(message, allowMenuPreview) {
         closedNotice.style.display = 'block';
         closedNoticeText.textContent = message || '게스트 주문이 마감되었습니다.';

@@ -1751,7 +1751,10 @@ let refreshTimer = null;
         const inputEventName = document.getElementById('input-guest-event-name');
         const eventContainer = document.getElementById('event-name-container');
         if (selectMenuMode) selectMenuMode.value = data.guestMenuMode || 'normal';
-        if (inputEventName) inputEventName.value = data.guestEventName || '장애인식 개선 캠페인';
+        if (inputEventName) {
+          inputEventName.innerHTML = data.guestEventName || '장애인식 개선 캠페인';
+          if (typeof enforceEventNameLimit === 'function') enforceEventNameLimit();
+        }
         if (eventContainer) eventContainer.style.display = (data.guestMenuMode === 'event') ? 'flex' : 'none';
       }
 
@@ -1951,7 +1954,7 @@ let refreshTimer = null;
       const todayDeliveryTeamMembers = getComposedTeamMembers();
       const todayDeliveryTeamMessage = teamMessageInput ? teamMessageInput.value.trim() : '';
       const guestMenuMode = selectMenuMode ? selectMenuMode.value : 'normal';
-      const guestEventName = inputEventName ? inputEventName.value.trim() : '장애인식 개선 캠페인';
+      const guestEventName = inputEventName ? inputEventName.innerHTML.trim() : '장애인식 개선 캠페인';
 
       try {
         const adminToken = getAdminToken();
@@ -2028,6 +2031,39 @@ let refreshTimer = null;
           }
         });
       }
+
+      window.enforceEventNameLimit = function() {
+        const el = document.getElementById('input-guest-event-name');
+        const counter = document.getElementById('event-name-counter');
+        if (!el) return;
+        const text = el.textContent || '';
+        if (counter) counter.textContent = `${text.length}/20자`;
+        if (text.length > 20) {
+          if (counter) {
+            counter.style.color = '#DC2626';
+            counter.textContent = `${text.length}/20자 (초과)`;
+          }
+        } else if (counter) {
+          counter.style.color = 'var(--text-muted)';
+        }
+      };
+
+      window.formatEventText = function(action, value) {
+        const el = document.getElementById('input-guest-event-name');
+        if (!el) return;
+        el.focus();
+
+        if (action === 'bold') {
+          document.execCommand('bold', false, null);
+        } else if (action === 'color') {
+          document.execCommand('foreColor', false, value);
+        } else if (action === 'reset') {
+          document.execCommand('removeFormat', false, null);
+          const plainText = el.textContent || '';
+          el.innerHTML = plainText;
+        }
+        window.enforceEventNameLimit();
+      };
 
       const btnDownloadCsv = document.getElementById('btn-download-csv');
       if (btnDownloadCsv) {

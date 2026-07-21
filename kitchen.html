@@ -141,9 +141,24 @@
                 <option value="normal">🛵 배달왔삼 (기본 모드)</option>
                 <option value="event">🎉 행사/캠페인 모드</option>
               </select>
-              <div id="event-name-container" style="display: none; align-items: center; gap: 8px; flex-wrap: wrap;">
-                <span style="font-size: 15px; font-weight: 800; white-space: nowrap;">행사명:</span>
-                <input type="text" id="input-guest-event-name" class="admin-inline-input" placeholder="장애인식 개선 캠페인" value="장애인식 개선 캠페인" style="min-width: 220px; height: 44px; font-size: 15px; font-weight: 700; padding: 0 10px;">
+              <div id="event-name-container" style="display: none; flex-direction: column; gap: 4px;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  <span style="font-size: 15px; font-weight: 800; white-space: nowrap;">행사명:</span>
+                  <div class="event-name-toolbar" style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                    <button type="button" class="btn-small-action" onclick="formatEventText('bold')" style="padding: 4px 8px; font-size: 13px; font-weight: 900; background: #334155;" title="굵게">B</button>
+                    <button type="button" class="btn-small-action" onclick="formatEventText('color', '#E11D48')" style="padding: 4px 8px; font-size: 12px; background: #E11D48; border: none; color: white;" title="장미 레드">레드</button>
+                    <button type="button" class="btn-small-action" onclick="formatEventText('color', '#2563EB')" style="padding: 4px 8px; font-size: 12px; background: #2563EB; border: none; color: white;" title="로얄 블루">블루</button>
+                    <button type="button" class="btn-small-action" onclick="formatEventText('color', '#7C3AED')" style="padding: 4px 8px; font-size: 12px; background: #7C3AED; border: none; color: white;" title="바이올렛">보라</button>
+                    <button type="button" class="btn-small-action" onclick="formatEventText('color', '#059669')" style="padding: 4px 8px; font-size: 12px; background: #059669; border: none; color: white;" title="에메랄드">초록</button>
+                    <button type="button" class="btn-small-action" onclick="formatEventText('color', '#D97706')" style="padding: 4px 8px; font-size: 12px; background: #D97706; border: none; color: white;" title="앰버">주황</button>
+                    <button type="button" class="btn-small-action" onclick="formatEventText('color', '#1E293B')" style="padding: 4px 8px; font-size: 12px; background: #1E293B; border: none; color: white;" title="다크 기본">기본</button>
+                    <button type="button" class="btn-small-action" onclick="formatEventText('reset')" style="padding: 4px 8px; font-size: 12px; background: #64748B;" title="서식 초기화">초기화</button>
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div id="input-guest-event-name" contenteditable="true" oninput="enforceEventNameLimit()" style="min-width: 240px; max-width: 320px; min-height: 40px; padding: 8px 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background-color: white; font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; display: flex; align-items: center;" placeholder="장애인식 개선 캠페인">장애인식 개선 캠페인</div>
+                  <span id="event-name-counter" style="font-size: 12px; font-weight: 700; color: var(--text-muted);">0/20자</span>
+                </div>
               </div>
             </div>
           </div>
