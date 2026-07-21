@@ -462,8 +462,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
       function sanitizeEventTitleHtml(htmlStr) {
         if (!htmlStr) return '';
+        
+        let decoded = String(htmlStr);
+        if (decoded.includes('&lt;') || decoded.includes('&gt;')) {
+          const txt = document.createElement('textarea');
+          txt.innerHTML = decoded;
+          decoded = txt.value;
+        }
+
         const temp = document.createElement('div');
-        temp.innerHTML = htmlStr;
+        temp.innerHTML = decoded;
         
         temp.querySelectorAll('script, style, iframe, object, embed, form').forEach(el => el.remove());
         
