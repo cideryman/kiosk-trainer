@@ -85,6 +85,7 @@ function buildGuestSettingsResponse(settings) {
     guestAllowMultipleOrders: String(settings.guestAllowMultipleOrders || 'TRUE').toUpperCase() !== 'FALSE',
     guestMenuMode: String(settings.guestMenuMode || 'normal').toLowerCase(),
     guestEventName: settings.guestEventName || '장애인식 개선 캠페인',
+    guestEventEmblemBase64: settings.guestEventEmblemBase64 || '',
     guestOrderGraceMinutes: GUEST_ORDER_COMPLETION_GRACE_MINUTES,
     isGuestOpenNow,
     remainingSeconds,
@@ -145,7 +146,8 @@ function getGuestSettings() {
     guestAllowMultipleOrders: 'TRUE',
     guestOrderLimitPolicyVersion: 'creditWalletV1',
     guestMenuMode: 'normal',
-    guestEventName: '장애인식 개선 캠페인'
+    guestEventName: '장애인식 개선 캠페인',
+    guestEventEmblemBase64: ''
   };
 
   const existingKeys = [];
@@ -174,7 +176,8 @@ function getGuestSettings() {
     guestAllowMultipleOrders: 'TRUE',
     guestOrderLimitPolicyVersion: 'creditWalletV1',
     guestMenuMode: 'normal',
-    guestEventName: '장애인식 개선 캠페인'
+    guestEventName: '장애인식 개선 캠페인',
+    guestEventEmblemBase64: ''
   };
 
   for (const key in defaultSettings) {
@@ -320,6 +323,9 @@ function updateGuestSettings(data) {
     }
     if (data.guestEventName !== undefined) {
       upsertSettingValue(sheet, 'guestEventName', String(data.guestEventName).trim());
+    }
+    if (data.guestEventEmblemBase64 !== undefined) {
+      upsertSettingValue(sheet, 'guestEventEmblemBase64', String(data.guestEventEmblemBase64).trim());
     }
 
     safeAppendAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `크레딧:${guestBaseCredit}, 배달비:${guestDeliveryFee}, 기본배달지:${guestDefaultDeliveryPlace}`, data.adminMemo);

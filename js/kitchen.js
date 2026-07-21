@@ -1750,12 +1750,26 @@ let refreshTimer = null;
         const selectMenuMode = document.getElementById('select-guest-menu-mode');
         const inputEventName = document.getElementById('input-guest-event-name');
         const eventContainer = document.getElementById('event-name-container');
+        const emblemContainer = document.getElementById('event-emblem-setting');
+        const previewImg = document.getElementById('emblem-preview-img');
+
         if (selectMenuMode) selectMenuMode.value = data.guestMenuMode || 'normal';
         if (inputEventName) {
           inputEventName.innerHTML = data.guestEventName || '장애인식 개선 캠페인';
           if (typeof enforceEventNameLimit === 'function') enforceEventNameLimit();
         }
-        if (eventContainer) eventContainer.style.display = (data.guestMenuMode === 'event') ? 'flex' : 'none';
+
+        if (data.guestEventEmblemBase64) {
+          window.guestEventEmblemBase64 = data.guestEventEmblemBase64;
+          if (previewImg) previewImg.src = data.guestEventEmblemBase64;
+        } else {
+          window.guestEventEmblemBase64 = '';
+          if (previewImg) previewImg.src = 'icons/guest-192.png';
+        }
+
+        const isEventMode = data.guestMenuMode === 'event';
+        if (eventContainer) eventContainer.style.display = isEventMode ? 'flex' : 'none';
+        if (emblemContainer) emblemContainer.style.display = isEventMode ? 'flex' : 'none';
       }
 
       if (guestOpsCountdown) {
@@ -1971,6 +1985,7 @@ let refreshTimer = null;
             todayDeliveryTeamMessage,
             guestMenuMode,
             guestEventName,
+            guestEventEmblemBase64: window.guestEventEmblemBase64 || '',
             adminToken,
             adminMemo: getAdminMemo()
           }
@@ -2026,8 +2041,13 @@ let refreshTimer = null;
       if (selectMenuMode) {
         selectMenuMode.addEventListener('change', () => {
           const eventContainer = document.getElementById('event-name-container');
+          const emblemContainer = document.getElementById('event-emblem-setting');
+          const isEvent = selectMenuMode.value === 'event';
           if (eventContainer) {
-            eventContainer.style.display = (selectMenuMode.value === 'event') ? 'flex' : 'none';
+            eventContainer.style.display = isEvent ? 'flex' : 'none';
+          }
+          if (emblemContainer) {
+            emblemContainer.style.display = isEvent ? 'flex' : 'none';
           }
         });
       }
@@ -2063,6 +2083,59 @@ let refreshTimer = null;
           el.innerHTML = plainText;
         }
         window.enforceEventNameLimit();
+      };
+
+      window.guestEventEmblemBase64 = '';
+
+      window.handleEmblemUpload = function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = new Image();
+          img.onload = function() {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const maxSize = 150;
+
+            if (width > height) {
+              if (width > maxSize) {
+                height *= maxSize / width;
+                width = maxSize;
+              }
+            } else {
+              if (height > maxSize) {
+                width *= maxSize / height;
+                height = maxSize;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const webpBase64 = canvas.toDataURL('image/webp', 0.8);
+            window.guestEventEmblemBase64 = webpBase64;
+            
+            const previewImg = document.getElementById('emblem-preview-img');
+            if (previewImg) {
+              previewImg.src = webpBase64;
+            }
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      };
+
+      window.resetGuestEmblem = function() {
+        window.guestEventEmblemBase64 = '';
+        const previewImg = document.getElementById('emblem-preview-img');
+        if (previewImg) {
+          previewImg.src = 'icons/guest-192.png';
+        }
+        document.getElementById('emblem-upload-input').value = '';
       };
 
       const btnDownloadCsv = document.getElementById('btn-download-csv');

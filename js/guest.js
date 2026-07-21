@@ -505,6 +505,7 @@ window.addEventListener('DOMContentLoaded', () => {
       function updateGuestAppTitle(settingsRes) {
         const brandTitleEl = document.getElementById('guest-app-brand-title');
         const brandSubEl = document.getElementById('guest-app-brand-subtitle');
+        const brandImgEl = document.getElementById('guest-app-brand-img');
         if (!brandTitleEl || !settingsRes) return;
 
         if (settingsRes.guestMenuMode === 'event') {
@@ -517,9 +518,15 @@ window.addEventListener('DOMContentLoaded', () => {
           brandTitleEl.style.textOverflow = 'ellipsis';
           brandTitleEl.style.maxWidth = '100%';
           if (brandSubEl) brandSubEl.textContent = '특별 이벤트 & 캠페인 간식';
+          if (brandImgEl && settingsRes.guestEventEmblemBase64) {
+            brandImgEl.src = settingsRes.guestEventEmblemBase64;
+          } else if (brandImgEl) {
+            brandImgEl.src = 'icons/guest-192.png';
+          }
         } else {
           brandTitleEl.innerHTML = `배달왔<span style="color: var(--primary-color);">삼</span>`;
           if (brandSubEl) brandSubEl.textContent = '삼각지 카페 배달 서비스';
+          if (brandImgEl) brandImgEl.src = 'icons/guest-192.png';
         }
       }
 
