@@ -465,9 +465,13 @@ window.addEventListener('DOMContentLoaded', () => {
         
         let decoded = String(htmlStr);
         if (decoded.includes('&lt;') || decoded.includes('&gt;')) {
-          const txt = document.createElement('textarea');
-          txt.innerHTML = decoded;
-          decoded = txt.value;
+          try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(decoded, 'text/html');
+            decoded = doc.body.textContent || decoded;
+          } catch (e) {
+            console.warn('DOMParser unescape failed:', e);
+          }
         }
 
         const temp = document.createElement('div');
@@ -483,7 +487,9 @@ window.addEventListener('DOMContentLoaded', () => {
             node.parentNode?.replaceChild(text, node);
             return;
           }
-          const color = node.style.color;
+          const colorAttr = node.getAttribute('color');
+          const styleColor = node.style.color;
+          const color = styleColor || colorAttr;
           const fontWeight = node.style.fontWeight;
           node.removeAttribute('style');
           node.removeAttribute('class');
