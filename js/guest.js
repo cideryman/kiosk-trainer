@@ -484,7 +484,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         if (settingsRes.guestMenuMode === 'event') {
           const eventName = settingsRes.guestEventName || '장애인식 개선 캠페인';
-          brandTitleEl.textContent = `🎉 ${eventName}`;
+          brandTitleEl.textContent = eventName;
           if (brandSubEl) brandSubEl.textContent = '특별 이벤트 & 캠페인 간식';
         } else {
           brandTitleEl.innerHTML = `배달왔<span style="color: var(--primary-color);">삼</span>`;
