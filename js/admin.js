@@ -1495,6 +1495,7 @@ function appendSnackGroupRows(tbody, title, snacks) {
     if (tList.includes('user')) targetBadges.push('👤회원');
     if (tList.includes('guest')) targetBadges.push('🛵게스트');
     if (tList.includes('event')) targetBadges.push('🎉행사');
+    if (Number(snack.maxPerPerson || 0) > 0) targetBadges.push('🎁1인1개');
     const targetBadgeHtml = `<span style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin-left: 6px;">(${targetBadges.join(', ')})</span>`;
     
     const imgHTML = imgUrl
@@ -1601,6 +1602,8 @@ async function addNewSnackAction() {
   const stock = Math.min(ADMIN_UI_MAX_SNACK_STOCK, Math.max(0, Number(stockInput.value || 0)));
   const selectedTargets = Array.from(document.querySelectorAll('.new-snack-target-cb:checked')).map(cb => cb.value);
   const target = selectedTargets.length > 0 ? selectedTargets.join(',') : 'user';
+  const isLimitPerson = document.getElementById('new-snack-limit-person')?.checked || false;
+  const maxPerPerson = isLimitPerson ? 1 : 0;
   
   if (!name) {
     alert("간식 이름을 입력해 주세요!");
@@ -1618,7 +1621,7 @@ async function addNewSnackAction() {
   try {
     const res = await fetchAPI('addSnack', {
       method: 'POST',
-      body: withAdminToken({ name, point, imageUrl, stock, saleYn: 'Y', target })
+      body: withAdminToken({ name, point, imageUrl, stock, saleYn: 'Y', target, maxPerPerson })
     });
     
     if (res && res.success) {
@@ -1627,6 +1630,8 @@ async function addNewSnackAction() {
       pointInput.value = '1';
       imageInput.value = '';
       stockInput.value = '10';
+      const limitCb = document.getElementById('new-snack-limit-person');
+      if (limitCb) limitCb.checked = false;
       document.querySelectorAll('.new-snack-target-cb').forEach(cb => {
         cb.checked = (cb.value === 'user' || cb.value === 'guest');
       });
@@ -1674,6 +1679,8 @@ function openAddSnackModal() {
   document.getElementById('new-snack-point').value = '1';
   document.getElementById('new-snack-image').value = '';
   document.getElementById('new-snack-stock').value = '10';
+  const limitCb = document.getElementById('new-snack-limit-person');
+  if (limitCb) limitCb.checked = false;
   document.querySelectorAll('.new-snack-target-cb').forEach(cb => {
     cb.checked = (cb.value === 'user' || cb.value === 'guest');
   });
@@ -1769,6 +1776,8 @@ function openEditSnackModal(snackId) {
   document.querySelectorAll('.edit-snack-target-cb').forEach(cb => {
     cb.checked = tList.includes(cb.value);
   });
+  const limitCb = document.getElementById('edit-snack-limit-person');
+  if (limitCb) limitCb.checked = Number(snack.maxPerPerson || 0) > 0;
 
   document.getElementById('modal-edit-snack').style.display = 'flex';
   AppState.vibrate(40);
@@ -1792,6 +1801,8 @@ async function updateSnackAction() {
   const saleYn = document.getElementById('edit-snack-sale').value;
   const selectedTargets = Array.from(document.querySelectorAll('.edit-snack-target-cb:checked')).map(cb => cb.value);
   const target = selectedTargets.length > 0 ? selectedTargets.join(',') : 'user';
+  const isLimitPerson = document.getElementById('edit-snack-limit-person')?.checked || false;
+  const maxPerPerson = isLimitPerson ? 1 : 0;
 
   if (!name) {
     alert("간식 이름을 입력해 주세요.");
@@ -1801,7 +1812,7 @@ async function updateSnackAction() {
   try {
     const res = await fetchAPI('updateSnack', {
       method: 'POST',
-      body: withAdminToken({ snackId, name, point, imageUrl, stock, saleYn, target })
+      body: withAdminToken({ snackId, name, point, imageUrl, stock, saleYn, target, maxPerPerson })
     });
 
     if (res && res.success) {

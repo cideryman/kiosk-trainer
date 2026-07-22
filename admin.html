@@ -131,14 +131,14 @@
           <div>
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
               <div class="admin-section-title" style="color: var(--secondary-hover); border-left-color: var(--secondary-color); margin-bottom: 0;">🍪 간식 목록 및 재고 관리</div>
-              <div style="display: flex; gap: 10px; align-items: center;">
+              <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <select id="filter-target-snack" class="admin-inline-input" style="height: 40px; font-size: 15px; font-weight: 800; padding: 0 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background-color: white;">
                   <option value="ALL">🔽 전체 대상 보기</option>
                   <option value="user">👤 회원용 (User)</option>
                   <option value="guest">🛵 게스트용 (Guest)</option>
                   <option value="event">🎉 행사용 (Event)</option>
                 </select>
-                <label style="display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 800; cursor: pointer; user-select: none; padding: 6px 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background-color: white;">
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 800; cursor: pointer; user-select: none; padding: 6px 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background-color: white; white-space: nowrap;">
                   <input type="checkbox" id="toggle-hidden-snacks" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--secondary-color);">
                   숨김 보기
                 </label>
@@ -410,6 +410,13 @@
             </label>
           </div>
         </div>
+        <div class="form-field">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 15px; font-weight: 800; color: var(--text-main); user-select: none;">
+            <input type="checkbox" id="new-snack-limit-person" style="width: 20px; height: 20px; accent-color: var(--secondary-color);">
+            🎁 1인당 1개 주문 제한 (배달왔삼)
+          </label>
+          <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px; margin-left: 28px;">체크 시 배달왔삼에서 1인당 하루 1개만 주문할 수 있도록 제한합니다.</div>
+        </div>
       </div>
       <div class="admin-modal-footer">
         <button class="btn btn-gray" onclick="closeAddSnackModal()" style="flex: 1; min-height: 48px; font-size: 16px;">취소</button>
@@ -507,6 +514,13 @@
               <input type="checkbox" class="edit-snack-target-cb" value="event" style="width: 18px; height: 18px; accent-color: var(--secondary-color);"> 🎉 행사용
             </label>
           </div>
+        </div>
+        <div class="form-field">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 15px; font-weight: 800; color: var(--text-main); user-select: none;">
+            <input type="checkbox" id="edit-snack-limit-person" style="width: 20px; height: 20px; accent-color: var(--secondary-color);">
+            🎁 1인당 1개 주문 제한 (배달왔삼)
+          </label>
+          <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px; margin-left: 28px;">체크 시 배달왔삼에서 1인당 하루 1개만 주문할 수 있도록 제한합니다.</div>
         </div>
       </div>
       <div class="admin-modal-footer">

@@ -275,7 +275,10 @@
       try {
         const isGuest = isGuestMenuBrowseMode() || (user && user.userId === 'guest');
         const mode = isGuest ? 'guest' : 'user';
-        const response = await fetchAPI('getSnacks', { params: { mode } });
+        const guestKey = localStorage.getItem('guestKey') || sessionStorage.getItem('guestKey') || '';
+        const guestDeviceId = localStorage.getItem('guestDeviceId') || sessionStorage.getItem('guestDeviceId') || '';
+        const userId = user ? user.userId : 'guest';
+        const response = await fetchAPI('getSnacks', { params: { mode, guestKey, guestDeviceId, userId } });
         if (response && response.success && Array.isArray(response.snacks)) {
           snacks = response.snacks;
 
@@ -320,9 +323,14 @@
         const quantity = isGuestMenuBrowseMode() ? 0 : (cartItem ? cartItem.quantity : 0);
 
         const isSoldOut = snack.stock === 0;
+        const maxLimit = Number(snack.maxPerPerson || 0);
+        const todayOrdered = Number(snack.todayOrderedCount || 0);
+        const hasPerPersonLimit = maxLimit > 0;
+        const remainingQuota = hasPerPersonLimit ? Math.max(0, maxLimit - todayOrdered) : 999;
+        const isLimitCompleted = hasPerPersonLimit && remainingQuota <= 0;
 
         const card = document.createElement('div');
-        card.className = `snack-card ${isGuestMenuBrowseMode() ? 'browse-only' : ''} ${quantity > 0 ? 'has-items' : ''} ${isSoldOut ? 'sold-out' : ''}`;
+        card.className = `snack-card ${isGuestMenuBrowseMode() ? 'browse-only' : ''} ${quantity > 0 ? 'has-items' : ''} ${isSoldOut ? 'sold-out' : ''} ${isLimitCompleted ? 'limit-completed' : ''}`;
         card.id = `snack-card-${snack.snackId}`;
 
         // 이미지 구성 (없으면 이모지)
@@ -350,23 +358,34 @@
         // 이미지 Fallback으로 항상 대형 이모지 컨테이너 대기
         const emojiHTML = `<div class="snack-img-placeholder" style="${imgUrl ? 'display:none;' : 'display:flex;'}">${safeSnackEmoji}</div>`;
 
+        // 1인 수량 제한 배지 HTML
+        let limitBadgeHTML = '';
+        if (hasPerPersonLimit) {
+          if (isLimitCompleted) {
+            limitBadgeHTML = `<div style="position: absolute; top: 6px; right: 6px; background-color: #2F855A; color: white; padding: 4px 8px; border-radius: 12px; font-size: 13px; font-weight: 800; z-index: 3; box-shadow: 0 2px 4px rgba(0,0,0,0.15); white-space: nowrap;">✅ 오늘 완료</div>`;
+          } else {
+            limitBadgeHTML = `<div style="position: absolute; top: 6px; right: 6px; background-color: #DD6B20; color: white; padding: 4px 8px; border-radius: 12px; font-size: 13px; font-weight: 800; z-index: 3; box-shadow: 0 2px 4px rgba(0,0,0,0.15); white-space: nowrap;">🎁 1인 ${maxLimit}개 한정</div>`;
+          }
+        }
+
         // 남은 재고 텍스트 설정
-        const stockText = isSoldOut
+        let stockText = isSoldOut
           ? '품절'
-          : (isGuestMenuBrowseMode() ? '판매 중' : `남은 수량 ${snack.stock}개`);
-        const stockColor = isSoldOut ? 'var(--danger-color)' : 'var(--text-muted)';
+          : (isLimitCompleted ? '👏 오늘 몫 선물 완료!' : (isGuestMenuBrowseMode() ? '판매 중' : `남은 수량 ${snack.stock}개`));
+        let stockColor = isSoldOut ? 'var(--danger-color)' : (isLimitCompleted ? '#2F855A' : 'var(--text-muted)');
         const counterHTML = isGuestMenuBrowseMode()
           ? ''
           : `
             <div class="counter-group">
               <button class="btn-counter btn-counter-minus" id="btn-minus-${snack.snackId}" aria-label="감소">-</button>
               <div class="counter-value" id="val-${snack.snackId}">${quantity}</div>
-              <button class="btn-counter btn-counter-plus" id="btn-plus-${snack.snackId}" aria-label="증가" ${isSoldOut ? 'disabled' : ''}>+</button>
+              <button class="btn-counter btn-counter-plus" id="btn-plus-${snack.snackId}" aria-label="증가" ${isSoldOut || isLimitCompleted ? 'disabled' : ''}>+</button>
             </div>
           `;
 
         card.innerHTML = `
-          <div class="snack-img-container">
+          <div class="snack-img-container" style="position: relative;">
+            ${limitBadgeHTML}
             ${imgHTML}
             ${emojiHTML}
           </div>
@@ -407,6 +426,11 @@
           if (e.target.closest('.btn-counter-minus') || e.target.closest('.btn-counter-plus')) {
             return;
           }
+          if (isLimitCompleted) {
+            alert(`👏 오늘 몫(${maxLimit}개)을 이미 맛있게 선물받았어요!`);
+            AppState.vibrate(50);
+            return;
+          }
           if (!isSoldOut) {
             changeQuantity(snack, 1);
           }
@@ -424,6 +448,22 @@
       const targetQty = currentQty + change;
 
       if (targetQty < 0) return; // 0 미만으로 감소 불가
+
+      // 1인 수량 제한 검증
+      const maxLimit = Number(snack.maxPerPerson || 0);
+      if (maxLimit > 0) {
+        const todayOrdered = Number(snack.todayOrderedCount || 0);
+        const remainingQuota = Math.max(0, maxLimit - todayOrdered);
+        if (change > 0 && targetQty > remainingQuota) {
+          if (todayOrdered > 0) {
+            alert(`🎁 '${snack.name}' 은(는) 오늘 이미 주문하셨습니다. 다른 분을 위해 양보해 주세요 💖`);
+          } else {
+            alert(`🎁 '${snack.name}' 은(는) 1인당 ${maxLimit}개 한정 간식입니다. ${maxLimit}개만 선택해 주세요!`);
+          }
+          AppState.vibrate([100, 50, 100]);
+          return;
+        }
+      }
 
       // 재고 한도 검증
       if (change > 0 && targetQty > snack.stock) {

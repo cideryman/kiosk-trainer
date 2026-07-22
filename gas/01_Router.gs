@@ -10,7 +10,7 @@ function doGet(e) {
   }
 
   if (action === 'getSnacks') {
-    return jsonResponse(getSnacks(e.parameter.includeHidden, e.parameter.mode));
+    return jsonResponse(getSnacks(e.parameter.includeHidden, e.parameter.mode, e.parameter.guestKey, e.parameter.guestDeviceId, e.parameter.userId));
   }
 
   if (action === 'getOrdersToday') {

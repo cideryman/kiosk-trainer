@@ -153,6 +153,19 @@ function placeOrder(data) {
         throw new Error(`${snackName} 재고가 부족합니다. 현재 재고: ${stock}개`);
       }
 
+      const maxPerPerson = Number(snack[8] || 0);
+      if (maxPerPerson > 0) {
+        const todayCountsMap = getUserTodaySnackCountsMap(guestKey, data.guestDeviceId, userId);
+        const alreadyOrderedCount = Number(todayCountsMap[snackId] || 0);
+        if (alreadyOrderedCount + quantity > maxPerPerson) {
+          if (alreadyOrderedCount > 0) {
+            throw new Error(`🎁 '${snackName}' 은(는) 오늘 이미 주문하셨습니다. 다른 분을 위해 양보해 주세요 💖`);
+          } else {
+            throw new Error(`🎁 '${snackName}' 은(는) 1인당 ${maxPerPerson}개 한정 간식입니다. ${maxPerPerson}개만 선택해 주세요!`);
+          }
+        }
+      }
+
       const itemTotal = point * quantity;
       totalPoint += itemTotal;
 

@@ -42,11 +42,12 @@ function parseSnackTargetList(rawTarget) {
   return list.length > 0 ? list : ['user'];
 }
 
-function getSnacks(includeHidden, mode) {
+function getSnacks(includeHidden, mode, guestKey, guestDeviceId, userId) {
   const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET.SNACKS);
   const values = getSnackValuesForRead(sheet);
   const rows = values.slice(1);
   const shouldIncludeHidden = String(includeHidden || '').trim().toUpperCase() === 'Y';
+  const todayCounts = getUserTodaySnackCountsMap(guestKey, guestDeviceId, userId);
 
   let snacks = rows
     .filter(row => row[0] || row[1])
@@ -62,12 +63,15 @@ function getSnacks(includeHidden, mode) {
       );
     })
     .map(row => {
+      const snackId = Number(row[0]);
       const stock = Number(row[5] || 0);
       const rawTarget = row[7] ? String(row[7]).trim().toLowerCase() : 'user';
       const targetList = parseSnackTargetList(rawTarget);
+      const maxPerPerson = Number(row[8] || 0);
+      const todayOrderedCount = Number(todayCounts[snackId] || 0);
 
       return {
-        snackId: row[0],
+        snackId: snackId,
         name: row[1],
         point: Number(row[2]),
         imageUrl: makeImageUrl(row[3]),
@@ -78,6 +82,8 @@ function getSnacks(includeHidden, mode) {
         displayOrder: Number(row[6] || 0),
         target: rawTarget,
         targetList: targetList,
+        maxPerPerson: maxPerPerson,
+        todayOrderedCount: todayOrderedCount,
       };
     });
 
@@ -207,6 +213,8 @@ function addSnack(data) {
     return { success: false, message: '간식 재고는 0~' + ADMIN_MAX_SNACK_STOCK + ' 범위로 입력해 주세요.' };
   }
 
+  var maxPerPerson = Number(data.maxPerPerson || 0);
+
   var newRow = [
     newSnackId,
     data.name,
@@ -215,11 +223,12 @@ function addSnack(data) {
     data.saleYn || "Y",
     initialStock,
     0, // displayOrder
-    target
+    target,
+    maxPerPerson
   ];
 
   sheet.appendRow(newRow);
-  safeAppendAdminLog('addSnack', 'snack', newSnackId, data.name, '', JSON.stringify({ point: Number(data.point || 1), saleYn: data.saleYn || 'Y', stock: initialStock, target: target }), data.adminMemo);
+  safeAppendAdminLog('addSnack', 'snack', newSnackId, data.name, '', JSON.stringify({ point: Number(data.point || 1), saleYn: data.saleYn || 'Y', stock: initialStock, target: target, maxPerPerson: maxPerPerson }), data.adminMemo);
   clearSnackReadCache();
   return { success: true, message: '신규 간식을 등록했습니다.', snackId: newSnackId };
 }
@@ -237,6 +246,7 @@ function updateSnack(data) {
   var stock = Number(data.stock);
   var saleYn = String(data.saleYn || 'Y').toUpperCase() === 'Y' ? 'Y' : 'N';
   var target = cleanSnackTarget(data.target);
+  var maxPerPerson = Number(data.maxPerPerson || 0);
 
   if (!snackId) {
     return { success: false, message: '간식 ID가 필요합니다.' };
@@ -256,6 +266,7 @@ function updateSnack(data) {
       var beforeSaleYn = rows[i][4];
       var beforeStock = rows[i][5];
       var beforeTarget = cleanSnackTarget(rows[i][7]);
+      var beforeMaxPerPerson = Number(rows[i][8] || 0);
 
       sheet.getRange(i + 1, 2).setValue(name);
       sheet.getRange(i + 1, 3).setValue(point);
@@ -263,10 +274,11 @@ function updateSnack(data) {
       sheet.getRange(i + 1, 5).setValue(saleYn);
       sheet.getRange(i + 1, 6).setValue(stock);
       sheet.getRange(i + 1, 8).setValue(target);
+      sheet.getRange(i + 1, 9).setValue(maxPerPerson);
 
       safeAppendAdminLog('updateSnack', 'snack', snackId, name,
-        JSON.stringify({ name: beforeName, point: beforePoint, imageUrl: beforeImageUrl, saleYn: beforeSaleYn, stock: beforeStock, target: beforeTarget }),
-        JSON.stringify({ name: name, point: point, imageUrl: imageUrl, saleYn: saleYn, stock: stock, target: target }),
+        JSON.stringify({ name: beforeName, point: beforePoint, imageUrl: beforeImageUrl, saleYn: beforeSaleYn, stock: beforeStock, target: beforeTarget, maxPerPerson: beforeMaxPerPerson }),
+        JSON.stringify({ name: name, point: point, imageUrl: imageUrl, saleYn: saleYn, stock: stock, target: target, maxPerPerson: maxPerPerson }),
         data.adminMemo
       );
       clearSnackReadCache();

@@ -81,3 +81,60 @@ function getExistingIdempotentOrderResult(orderSheet, userSheet, headers, idempo
 
   return result;
 }
+
+/**
+  * 당일 특정 주문자의 간식별 주문 수량을 집계하여 { snackId: count } Map 형태로 반환
+  */
+function getUserTodaySnackCountsMap(guestKey, guestDeviceId, userId) {
+  const countsMap = {};
+  const cleanedGuestKey = String(guestKey || '').trim();
+  const cleanedGuestDeviceId = String(guestDeviceId || '').trim();
+  const cleanedUserId = String(userId || '').trim();
+  if (!cleanedGuestKey && !cleanedGuestDeviceId && !cleanedUserId) return countsMap;
+
+  const ss = SpreadsheetApp.getActive();
+  const orderSheet = ss.getSheetByName(SHEET.ORDERS);
+  if (!orderSheet || orderSheet.getLastRow() <= 1) return countsMap;
+
+  const headers = getSheetHeaderRow(orderSheet);
+  const deviceIdIdx = headers.indexOf('guestDeviceId');
+  const guestKeyIdx = headers.indexOf('guestKey');
+  const servedYnIdx = headers.indexOf('제공여부');
+  const isGuest = !cleanedUserId || cleanedUserId === 'guest';
+  const nowTime = new Date();
+
+  const values = orderSheet.getRange(2, 1, orderSheet.getLastRow() - 1, Math.max(orderSheet.getLastColumn(), 9)).getValues();
+
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i];
+    const orderTime = row[0];
+    if (!orderTime || !isSameKoreaDate(orderTime, nowTime)) continue;
+
+    const status = String(row[servedYnIdx !== -1 ? servedYnIdx : 8] || '').trim().toUpperCase();
+    if (status === 'C' || status === 'CANCELLED' || status === 'CANCELED' || status === '취소' || status === '주문취소') continue;
+
+    let isMatch = false;
+    if (isGuest) {
+      const rowDevice = deviceIdIdx !== -1 ? String(row[deviceIdIdx] || '').trim() : '';
+      const rowGuestKey = guestKeyIdx !== -1 ? String(row[guestKeyIdx] || '').trim() : '';
+      if ((cleanedGuestKey && rowGuestKey && rowGuestKey === cleanedGuestKey) ||
+          (cleanedGuestDeviceId && rowDevice && rowDevice === cleanedGuestDeviceId)) {
+        isMatch = true;
+      }
+    } else {
+      if (String(row[2]).trim() === cleanedUserId) {
+        isMatch = true;
+      }
+    }
+
+    if (isMatch) {
+      const snackId = Number(row[4]);
+      const quantity = Number(row[6] || 0);
+      if (snackId && quantity > 0) {
+        countsMap[snackId] = (countsMap[snackId] || 0) + quantity;
+      }
+    }
+  }
+
+  return countsMap;
+}
