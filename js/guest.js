@@ -656,7 +656,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const messageEl = document.getElementById('delivery-team-message');
 
         if (titleEl) {
-          titleEl.textContent = settingsRes.todayDeliveryTeamTitle || '📦 오늘의 배달팀';
+          titleEl.textContent = settingsRes.todayDeliveryTeamTitle || '🐻‍❄️ 오늘의 달곰이 요원';
         }
 
         if (membersContainer) {
