@@ -365,12 +365,12 @@
             <span class="bill-val" id="summary-name" style="font-size: 26px; color: var(--text-main);">-</span>
           </div>
           <div class="bill-row">
-            <span>사용한 크레딧</span>
-            <span class="bill-val highlight" id="summary-used" style="color: var(--primary-color); font-size: 26px;">0 크레딧</span>
+            <span>사용한 온기</span>
+            <span class="bill-val highlight" id="summary-used" style="color: var(--primary-color); font-size: 26px;">❤️ 0개</span>
           </div>
           <div class="bill-row total" style="border-top-color: #C2EAE2;">
-            <span>남은 크레딧</span>
-            <span class="bill-val success-highlight" id="summary-remain">0 크레딧</span>
+            <span>남은 온기</span>
+            <span class="bill-val success-highlight" id="summary-remain">❤️ 0개</span>
           </div>
         </div>
 
@@ -406,7 +406,7 @@
             <div class="step-icon-circle"><span>📝</span></div>
             <div class="step-info">
               <div class="step-title">주문 접수</div>
-              <div class="step-desc" id="step-1-desc">매장에서 주문을 확인했습니다.</div>
+              <div class="step-desc" id="step-1-desc">달곰이 대원이 주문을 확인했어요!</div>
             </div>
           </div>
           <!-- Step 2 -->
@@ -414,7 +414,7 @@
             <div class="step-icon-circle"><span>🍳</span></div>
             <div class="step-info">
               <div class="step-title">간식 준비중</div>
-              <div class="step-desc" id="step-2-desc">간식을 맛있게 준비하고 있습니다.</div>
+              <div class="step-desc" id="step-2-desc">달곰이 대원이 간식을 정성껏 준비하고 있어요 👨‍🍳</div>
             </div>
           </div>
           <!-- Step 3 -->
@@ -422,7 +422,7 @@
             <div class="step-icon-circle"><span>🎁</span></div>
             <div class="step-info">
               <div class="step-title" id="step-3-title">준비 완료 (받아가세요!)</div>
-              <div class="step-desc" id="step-3-desc">간식이 준비되었습니다. 받아가세요!</div>
+              <div class="step-desc" id="step-3-desc">달곰이 대원이 준비를 마쳤습니다. 받아가세요!</div>
             </div>
           </div>
           <!-- Step 4 -->
@@ -430,16 +430,28 @@
             <div class="step-icon-circle"><span>😋</span></div>
             <div class="step-info">
               <div class="step-title" id="step-4-title">수령 완료</div>
-              <div class="step-desc" id="step-4-desc">맛있게 드세요! 감사합니다.</div>
+              <div class="step-desc" id="step-4-desc">온기가 잘 전해졌어요! 맛있게 드세요 🐻❤️</div>
             </div>
           </div>
         </div>
 
-        <!-- 주문 품목 요약 박스 -->
+        <!-- 주문 품목 요약 박스 및 달곰이 배달 에셋 카드 -->
         <div class="tracker-items-box">
           <div class="tracker-items-title">🛍️ 주문한 간식</div>
           <div class="tracker-items-list" id="tracker-items-list-val">
             -
+          </div>
+        </div>
+
+        <div style="background: linear-gradient(135deg, #E0F2F1 0%, #FFF9F0 100%); border: 2px solid #80CBC4; border-radius: var(--radius-md); padding: 14px 16px; display: flex; align-items: center; gap: 14px; box-shadow: 0 4px 12px rgba(46, 196, 182, 0.08);">
+          <img src="assets/dalgomi_delivery.png" alt="달려가는 달곰이 대원" style="width: 72px; max-height: 90px; object-fit: contain; flex-shrink: 0;">
+          <div style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0;">
+            <div style="font-size: 16px; font-weight: 850; color: #00796B; word-break: keep-all;">
+              온기가 전달되었어요! 달곰이 대원이 달려갑니다 🐻🚚
+            </div>
+            <div style="font-size: 13px; font-weight: 700; color: #555; line-height: 1.4; word-break: keep-all;">
+              <strong>🐻 달곰이 대원이란?</strong><br>배달왔삼에서 사회 적응 경험을 차곡차곡 쌓아가는 소중한 발달장애인 배달 훈련 대원입니다.
+            </div>
           </div>
         </div>
       </div>
@@ -1225,7 +1237,7 @@
 
       // 주문 취소 처리 로직
       async function handleUserCancel() {
-        if (!confirm('정말로 주문을 취소하시겠습니까?\n취소 시 크레딧과 재고가 즉시 환불됩니다.')) return;
+        if (!confirm('정말로 주문을 취소하시겠습니까?\n취소 시 온기와 재고가 즉시 환불됩니다.')) return;
         
         const orderIdentifier = isGuestMode ? summaryData.orderToken : summaryData.orderNo;
         

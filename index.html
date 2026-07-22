@@ -166,13 +166,13 @@
           `;
         }
 
-        // 내부에 아바타, 이름, 크레딧 표기 (🪙 아이콘 + 숫자 형태)
+        // 내부에 아바타, 이름, 온기 표기 (❤️ 아이콘 + 숫자 형태)
         const safeCreditNum = AppState.escapeHtml(String(user.credit ?? 0));
         card.innerHTML = `
           ${avatarHTML}
           <div class="user-card-name">${safeNickname}</div>
-          <div class="user-card-credit">
-            <span class="coin-icon">🪙</span>
+          <div class="user-card-credit" aria-label="보유 온기 ${safeCreditNum}개">
+            <span class="coin-icon">❤️</span>
             <span class="coin-number">${safeCreditNum}</span>
           </div>
         `;

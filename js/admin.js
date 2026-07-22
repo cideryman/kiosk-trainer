@@ -264,9 +264,9 @@ function getGaugeVisual(type, value) {
   const percent = Math.min(numericValue / 10, 1) * 100;
   let color = '#D69E2E';
   if (type === 'user') {
-    if (numericValue === 0) color = '#DC2626';
-    else if (numericValue <= 3) color = '#F59E0B';
-    else color = '#D69E2E';
+    if (numericValue === 0) color = '#CBD5E1';
+    else if (numericValue <= 3) color = '#FF8A9B';
+    else color = '#FF5A5F';
   } else if (numericValue >= 10) {
     color = '#38A169';
   } else if (numericValue >= 4) {
@@ -279,7 +279,7 @@ function getGaugeVisual(type, value) {
 
 function gaugeValueLabel(type, value) {
   const numericValue = Math.max(0, Number(value) || 0);
-  return type === 'user' ? `🪙 ${numericValue}` : `${numericValue}개`;
+  return type === 'user' ? `❤️ ${numericValue}개` : `${numericValue}개`;
 }
 
 function renderGaugeControl(type, id, value, label) {
@@ -1072,7 +1072,6 @@ function appendUserGroupRows(tbody, title, users) {
   users.forEach(user => {
     const tr = document.createElement('tr');
     tr.setAttribute('data-user-row', String(user.userId ?? ''));
-    const isActive = isUserActive(user);
     
     const colors = ['#FF9F1C', '#2EC4B6', '#118AB2', '#FF5A5F', '#8338EC', '#3A86C8'];
     const colorIndex = Math.abs(String(user.nickname || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % colors.length;
@@ -1099,11 +1098,11 @@ function appendUserGroupRows(tbody, title, users) {
           <strong>${safeNickname} 님</strong>
         </div>
       </td>
-      <td class="user-credit-cell" aria-label="보유 크레딧 ${credit}개" style="font-weight: 800; font-size: 18px; color: var(--primary-color);">${renderGaugeControl('user', userId, credit, `${nickname} 보유 크레딧`)}</td>
+      <td class="user-credit-cell" aria-label="보유 온기 ${credit}개" style="font-weight: 800; font-size: 18px; color: var(--primary-color);">${renderGaugeControl('user', userId, credit, `${nickname} 보유 온기`)}</td>
       <td class="user-manage-cell" style="text-align: center;">
         ${activeGaugeEdit?.type === 'user' && activeGaugeEdit.id === userId
           ? `<div class="admin-flex-nowrap gauge-action-group"><button type="button" class="btn-small-action gauge-confirm-btn" onclick="${callAttr(`confirmGaugeEdit('user', ${userIdArg})`)}">확인</button><button type="button" class="gauge-cancel-btn" onclick="${callAttr(`cancelGaugeEdit('user', ${userIdArg})`)}">취소</button></div>`
-          : `<button class="btn-small-action admin-row-action gauge-edit-trigger" style="background-color: var(--secondary-color);" title="${safeNickname} 크레딧 수정" onclick="${callAttr(`beginGaugeEdit('user', ${userIdArg})`)}">수정</button>`}
+          : `<button class="btn-small-action admin-row-action gauge-edit-trigger" style="background-color: var(--secondary-color);" title="${safeNickname} 온기 수정" onclick="${callAttr(`beginGaugeEdit('user', ${userIdArg})`)}">수정</button>`}
       </td>
     `;
     tbody.appendChild(tr);
@@ -1141,12 +1140,12 @@ async function updateUserCreditAction(userId, credit) {
       return true;
     } else {
       clearAdminTokenIfDenied(res);
-      alert("크레딧 반영에 실패했습니다: " + (res?.message || "오류"));
+      alert("온기 반영에 실패했습니다: " + (res?.message || "오류"));
       return false;
     }
   } catch (error) {
-    console.error("크레딧 업데이트 에러:", error);
-    alert("크레딧 반영 중 통신 에러가 발생했습니다.");
+    console.error("온기 업데이트 에러:", error);
+    alert("온기 반영 중 통신 에러가 발생했습니다.");
     return false;
   } finally {
     setUserRowLoading(userId, false);
@@ -1521,7 +1520,7 @@ function appendSnackGroupRows(tbody, title, snacks) {
           ${renderGaugeControl('snack', snackId, stock, `${snackName} 재고`)}
         </div>
       </td>
-      <td class="snack-price-cell" style="font-weight: 700; vertical-align: middle;">${point} 크레딧</td>
+      <td class="snack-price-cell" style="font-weight: 700; vertical-align: middle;">❤️ ${point}개</td>
       <td class="snack-manage-cell" style="text-align: center; vertical-align: middle;">
         <div class="admin-flex-nowrap">
           ${activeGaugeEdit?.type === 'snack' && activeGaugeEdit.id === String(snackId)

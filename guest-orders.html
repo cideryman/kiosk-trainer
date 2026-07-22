@@ -938,7 +938,7 @@
         if (cancelBtn) {
           cancelBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            if (!confirm('정말로 주문을 취소하시겠습니까?\n취소 시 크레딧과 재고가 즉시 환불됩니다.')) return;
+            if (!confirm('정말로 주문을 취소하시겠습니까?\n취소 시 온기와 재고가 즉시 환불됩니다.')) return;
             
             cancelBtn.disabled = true;
             cancelBtn.textContent = '취소 중...';

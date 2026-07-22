@@ -72,7 +72,7 @@
       
       <!-- 탭 메뉴 -->
       <div class="admin-tabs" style="margin-top: 10px;">
-        <button class="admin-tab-btn active" id="btn-tab-users" onclick="switchTab('tab-users')">🪙 이용자</button>
+        <button class="admin-tab-btn active" id="btn-tab-users" onclick="switchTab('tab-users')">❤️ 이용자</button>
         <button class="admin-tab-btn" id="btn-tab-snacks" onclick="switchTab('tab-snacks')">🍪 간식</button>
         <button class="admin-tab-btn" id="btn-tab-snack-order" onclick="switchTab('tab-snack-order')">🔢 순서</button>
         <button class="admin-tab-btn" id="btn-tab-applications" onclick="switchTab('tab-applications')">📨 신청</button>
@@ -83,7 +83,7 @@
         <div class="snack-admin-layout">
           <div>
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
-              <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color); margin-bottom: 0;">🪙 이용자 크레딧 관리</div>
+              <div class="admin-section-title" style="color: var(--primary-color); border-left-color: var(--primary-color); margin-bottom: 0;">❤️ 이용자 온기 관리</div>
               <div style="display: flex; gap: 10px; align-items: center;">
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 800; cursor: pointer; user-select: none; padding: 6px 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background-color: white;">
                   <input type="checkbox" id="toggle-inactive-users" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--primary-color);">
@@ -98,7 +98,7 @@
                 <thead>
                   <tr>
                     <th>이용자</th>
-                    <th>보유 크레딧</th>
+                    <th>보유 온기 (❤️)</th>
                     <th style="text-align: center;">관리</th>
                   </tr>
                 </thead>
@@ -353,7 +353,7 @@
           <input type="text" id="new-user-nickname" placeholder="예: 이니">
         </div>
         <div class="form-field">
-          <label for="new-user-credit">초기 크레딧</label>
+          <label for="new-user-credit">초기 온기</label>
           <input type="number" id="new-user-credit" min="0" max="15" value="10">
         </div>
         <div class="form-field">
@@ -383,7 +383,7 @@
           <input type="text" id="new-snack-name" placeholder="예: 초코쿠키">
         </div>
         <div class="form-field">
-          <label for="new-snack-point">가격 (크레딧)</label>
+          <label for="new-snack-point">가격 (온기)</label>
           <input type="number" id="new-snack-point" min="1" value="1">
         </div>
         <div class="form-field">
@@ -429,7 +429,7 @@
   <div class="admin-modal" id="modal-edit-user">
     <div class="admin-modal-content">
       <div class="admin-modal-header">
-        <h2 class="admin-modal-title">🪙 이용자 정보 수정</h2>
+        <h2 class="admin-modal-title">❤️ 이용자 정보 수정</h2>
         <button class="admin-modal-close" onclick="closeEditUserModal()">&times;</button>
       </div>
       <div class="admin-modal-body">
@@ -439,7 +439,7 @@
           <input type="text" id="edit-user-nickname">
         </div>
         <div class="form-field">
-          <label for="edit-user-credit">크레딧</label>
+          <label for="edit-user-credit">온기</label>
           <input type="number" id="edit-user-credit" min="0" max="15">
         </div>
         <div class="form-field">
@@ -481,7 +481,7 @@
           <input type="text" id="edit-snack-name">
         </div>
         <div class="form-field">
-          <label for="edit-snack-point">가격 (크레딧)</label>
+          <label for="edit-snack-point">가격 (온기)</label>
           <input type="number" id="edit-snack-point" min="1">
         </div>
         <div class="form-field">

@@ -994,7 +994,7 @@ function getMockFallback(action, options) {
     const userId = options.body?.userId;
     const credit = Number(options.body?.credit || 0);
     if (!Number.isFinite(credit) || credit < 0 || credit > ADMIN_MAX_USER_CREDIT) {
-      res = { success: false, message: `이용자 크레딧은 0~${ADMIN_MAX_USER_CREDIT} 범위로 입력해 주세요.` };
+      res = { success: false, message: `이용자 온기는 0~${ADMIN_MAX_USER_CREDIT} 범위로 입력해 주세요.` };
     } else {
     const users = MOCK_DATA.getUsers.users;
     const user = users.find(u => String(u.userId) === String(userId));
@@ -1009,7 +1009,7 @@ function getMockFallback(action, options) {
     }
     res = {
       success: true,
-      message: "크레딧을 업데이트했습니다."
+      message: "온기를 업데이트했습니다."
     };
     }
   } else if (action === 'addUser') {
@@ -1018,7 +1018,7 @@ function getMockFallback(action, options) {
     const imageUrl = options.body?.imageUrl || "";
     const useYn = options.body?.useYn || "Y";
     if (!Number.isFinite(credit) || credit < 0 || credit > ADMIN_MAX_USER_CREDIT) {
-      res = { success: false, message: `이용자 크레딧은 0~${ADMIN_MAX_USER_CREDIT} 범위로 입력해 주세요.` };
+      res = { success: false, message: `이용자 온기는 0~${ADMIN_MAX_USER_CREDIT} 범위로 입력해 주세요.` };
     } else {
     const users = MOCK_DATA.getUsers.users;
     const maxId = users.reduce((max, u) => {
@@ -1161,7 +1161,7 @@ function getMockFallback(action, options) {
     const users = MOCK_DATA.getUsers.users;
     const user = users.find(u => String(u.userId) === String(userId));
     if (!Number.isFinite(credit) || credit < 0 || credit > ADMIN_MAX_USER_CREDIT) {
-      res = { success: false, message: `이용자 크레딧은 0~${ADMIN_MAX_USER_CREDIT} 범위로 입력해 주세요.` };
+      res = { success: false, message: `이용자 온기는 0~${ADMIN_MAX_USER_CREDIT} 범위로 입력해 주세요.` };
     } else if (user) {
       appendMockAdminLog('updateUser', 'user', userId, nickname,
         JSON.stringify({ nickname: user.nickname, credit: user.credit, imageUrl: user.imageUrl, useYn: user.useYn }),
@@ -1672,7 +1672,7 @@ function resolveMockGuestCreditWallet(data = {}, options = {}) {
         creditLimit,
         usedCredit,
         remainingCredit: Math.max(0, creditLimit - usedCredit),
-        message: `크레딧이 부족합니다. 오늘 남은 크레딧: ${Math.max(0, creditLimit - usedCredit)}개`
+        message: `보낼 온기가 부족합니다. 오늘 남은 온기: ${Math.max(0, creditLimit - usedCredit)}개`
       };
     }
     usedCredit += spendCredit;

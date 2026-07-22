@@ -107,7 +107,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!btnKakaoLogin) return;
         btnKakaoLogin.innerHTML = `
           <span>카카오톡 로그인</span>
-          <span style="display: inline-flex; align-items: center; justify-content: center; min-height: 28px; padding: 3px 10px; border-radius: 999px; background-color: #2EC4B6; color: white; font-size: 13px; font-weight: 900; line-height: 1; white-space: nowrap;">로그인 시 +2 크레딧</span>
+          <span style="display: inline-flex; align-items: center; justify-content: center; min-height: 28px; padding: 3px 10px; border-radius: 999px; background-color: #2EC4B6; color: white; font-size: 13px; font-weight: 900; line-height: 1; white-space: nowrap;">로그인 시 온기❤️ +2</span>
         `;
       }
 
@@ -190,10 +190,10 @@ window.addEventListener('DOMContentLoaded', () => {
             currentCredit = guestCreditStatus.remainingCredit;
           }
           if (klhCredit) {
-            klhCredit.textContent = `🎫 오늘 남은 크레딧: ${currentCredit}개`;
+            klhCredit.textContent = `❤️ 오늘 남은 온기: ${currentCredit}개`;
           }
           if (gpeCreditInfo) {
-            gpeCreditInfo.textContent = `🎫 보유 크레딧: ${currentCredit}개`;
+            gpeCreditInfo.textContent = `❤️ 보유 온기: ${currentCredit}개`;
           }
 
           if (kakaoInputHint) {
@@ -298,14 +298,14 @@ window.addEventListener('DOMContentLoaded', () => {
           const bonusText = auth && guestCreditStatus.bonusCredit
             ? ` (카카오톡 +${guestCreditStatus.bonusCredit})`
             : '';
-          guestCreditBadge.textContent = `🎫 오늘 남은 크레딧 ${guestCreditStatus.remainingCredit}개${bonusText}`;
+          guestCreditBadge.textContent = `❤️ 오늘 남은 온기 ${guestCreditStatus.remainingCredit}개${bonusText}`;
           return;
         }
 
         if (auth) {
-          guestCreditBadge.textContent = `🎫 카카오톡 로그인 시 오늘 크레딧 ${guestBaseCredit + kakaoGuestBonusCredit}개`;
+          guestCreditBadge.textContent = `❤️ 카카오톡 로그인 시 오늘 온기 ${guestBaseCredit + kakaoGuestBonusCredit}개`;
         } else {
-          guestCreditBadge.textContent = `🎫 신규 방문 크레딧 ${guestBaseCredit}개 지급`;
+          guestCreditBadge.textContent = `❤️ 신규 방문 온기 ${guestBaseCredit}개 선물`;
         }
       }
 
@@ -895,7 +895,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (guestCreditStatus && typeof guestCreditStatus.remainingCredit === 'number') {
               currentCredit = guestCreditStatus.remainingCredit;
             }
-            gpeCreditInfo.textContent = `🎫 보유 크레딧: ${currentCredit}개`;
+            gpeCreditInfo.textContent = `❤️ 보유 온기: ${currentCredit}개`;
           }
           // 저장된 프로필이 있는 경우에만 삭제(개인정보 파기) 버튼을 노출합니다.
           if (btnGuestProfileDelete) {

@@ -805,7 +805,16 @@ let refreshTimer = null;
             const dateStr = getKoreaDateString(r.createdAt);
             return dateStr && dateStr === todayStr;
           });
+          
+          textMsg += `- 오늘 전달받은 누적 온기: ${totalPoints}개 ❤️\n`;
+          textMsg += `- 총 주문 건수: ${totalOrders}건\n`;
+          textMsg += `- 완료된 주문: ${completedCount}건\n`;
+          if (canceledCount > 0) textMsg += `- 취소된 주문: ${canceledCount}건\n`;
 
+          htmlMsg += `
+            <div style="font-size: 16px; font-weight: 700; line-height: 1.6; color: var(--text-main);">
+              <div>❤️ 오늘 전달받은 누적 온기: <span style="font-size: 18px; font-weight: 900; color: var(--primary-color);">${totalPoints}개 ❤️</span></div>`;
+          
           totalReviews = todayReviews.length;
           photoReviews = todayReviews.filter(r => r.imageUrl && r.imageUrl.trim() !== '').length;
 
@@ -839,7 +848,7 @@ let refreshTimer = null;
 - 날짜: ${todayFormatted}
 - 총 주문: ${totalOrders}건 (키오스크: ${kioskCount}건 / 배달왔삼 포장: ${guestPickupCount}건 / 배달왔삼 배달: ${guestDeliveryCount}건)
 - 주문 상태: 완료 ${completedCount}건 / 취소 ${canceledCount}건
-- 총 차감 크레딧: ${totalPoints} 크레딧
+- 총 차감 온기: ${totalPoints}개 ❤️
 - 오늘 후기: ${totalReviews}건 (사진 후기: ${photoReviews}건)
 - 후기 태그: ${tagsText}`;
 
@@ -855,7 +864,7 @@ let refreshTimer = null;
                 🛍️ 주문 집계
               </div>
               <div>📝 총 주문 건수: <span style="font-size: 18px; font-weight: 900; color: var(--text-main);">${totalOrders}건</span></div>
-              <div>🪙 총 차감 크레딧: <span style="font-size: 18px; font-weight: 900; color: var(--primary-color);">${totalPoints}🪙</span></div>
+              <div>❤️ 오늘 전달받은 누적 온기: <span style="font-size: 18px; font-weight: 900; color: var(--primary-color);">${totalPoints}개 ❤️</span></div>
               <div>🥡 키오스크 주문: <span style="font-weight: 800;">${kioskCount}건</span></div>
               <div>📱 배달왔삼 포장: <span style="font-weight: 800;">${guestPickupCount}건</span></div>
               <div>🛵 배달왔삼 배달: <span style="font-weight: 800;">${guestDeliveryCount}건</span></div>
@@ -1524,7 +1533,7 @@ let refreshTimer = null;
         }
       });
 
-      document.getElementById('stat-total-points').textContent = `🪙 ${totalPoints}`;
+      document.getElementById('stat-total-points').textContent = `❤️ ${totalPoints}`;
 
       // 오늘 총 주문 건수: 중복되지 않은 고유 orderNo의 총 개수 (취소된 주문 제외 활성 주문 기준)
       const uniqueOrderNos = new Set(activeOrders.map(o => o.orderNo));

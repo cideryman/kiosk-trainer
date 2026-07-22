@@ -24,13 +24,13 @@
         </div>
       </div>
       <div class="credit-badge">
-        내 동전 <span class="coin-icon">🪙</span><span class="coin-number" id="user-credit">0</span>
+        보유 온기 <span class="coin-icon">❤️</span><span class="coin-number" id="user-credit">0</span>
       </div>
     </header>
 
-    <!-- 크레딧 경고 노티 (숨김이 기본, 오버레이) -->
-    <div class="warning-overlay" id="credit-warning" style="display: none;">
-      ⚠️ 크레딧이 부족해서 더 담을 수 없어요!
+    <!-- 온기 경고 노티 (숨김이 기본, 오버레이) -->
+    <div class="warning-overlay" id="credit-warning" style="display: none; word-break: keep-all;">
+      보낼 온기가 부족해요! 온기를 채워볼까요? 🥺❤️
     </div>
 
     <!-- 재고 경고 노티 (숨김이 기본, 오버레이) -->
@@ -45,7 +45,7 @@
       </div>
       <!-- 게스트 배달 힌트 추가 -->
       <div id="guest-delivery-hint" style="display: none; background-color: #FFF3E0; border: 2.5px solid var(--primary-color); padding: 12px; border-radius: var(--radius-sm); font-size: 16px; font-weight: 800; color: #E65100; text-align: center; line-height: 1.4; word-break: keep-all; margin-bottom: 10px; box-shadow: var(--shadow-sm);">
-        🛵 배달 주문을 원하시면 배달비(<span id="guest-delivery-fee-text">3</span>🪙)를 남겨두고 간식을 담아주세요! (최대 <span id="guest-max-snack-credit">7</span>🪙까지)
+        🛵 배달 주문을 원하시면 배달비(<span id="guest-delivery-fee-text">3</span>❤️)를 남겨두고 간식을 담아주세요! (최대 <span id="guest-max-snack-credit">7</span>개까지)
       </div>
 
       <!-- 간식 목록 그리드 -->
@@ -58,7 +58,7 @@
     <footer class="kiosk-footer">
       <div class="cart-summary">
         <span>담은 간식 개수: <strong id="cart-count">0개</strong></span>
-        <span class="cart-summary-total">합계 <span class="coin-icon">🪙</span><span class="coin-number" id="cart-total">0</span></span>
+        <span class="cart-summary-total">합계 <span class="coin-icon">❤️</span><span class="coin-number" id="cart-total">0</span></span>
       </div>
       <div style="display: flex; gap: 12px;">
         <button class="btn btn-gray" id="btn-back" style="flex: 1; min-height: 64px; font-size: 20px;">이름 다시 고르기</button>
@@ -246,9 +246,9 @@
       const creditBadge = document.querySelector('.credit-badge');
       if (isGuest) {
         if (creditBadge) {
-          // '내 동전' 라벨을 '크레딧'으로 변경
+          // '보유 온기' 라벨로 변경
           creditBadge.classList.add('guest-mode');
-          creditBadge.innerHTML = `크레딧 <span class="coin-icon">🪙</span><span class="coin-number" id="user-credit">${user.credit ?? 0}</span>`;
+          creditBadge.innerHTML = `보유 온기 <span class="coin-icon">❤️</span><span class="coin-number" id="user-credit">${user.credit ?? 0}</span>`;
           renderCreditUI();
         }
         // 게스트 모드에서는 '이름 다시 고르기' 대신 '처음 화면으로 가기'로 표시
@@ -342,13 +342,13 @@
         const pointNum = Number(snack.point) || 0;
         let coinPriceHTML = '';
         if (user && user.userId === 'guest') {
-          coinPriceHTML = `<div class="snack-coin-price" style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">단가 <span style="color: var(--primary-color); font-weight: 800; font-size: 18px;">${pointNum}🪙</span></div>`;
+          coinPriceHTML = `<div class="snack-coin-price" style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">단가 <span style="color: var(--primary-color); font-weight: 800; font-size: 18px;">❤️ ${pointNum}개</span></div>`;
         } else {
           const maxCoins = 5;
           const coinCount = Math.min(pointNum, maxCoins);
           const extraText = pointNum > maxCoins ? ` <span style="font-size:16px; font-weight:800; color:var(--text-muted); margin-left: 4px;">+${pointNum - maxCoins}</span>` : '';
-          const coinHTML = '🪙'.repeat(coinCount) + extraText;
-          coinPriceHTML = `<div class="snack-coin-price"><span class="coin-emoji" style="display: flex; align-items: center;">${coinHTML}</span><span class="coin-number-sub">${pointNum}크레딧</span></div>`;
+          const coinHTML = '❤️'.repeat(coinCount) + extraText;
+          coinPriceHTML = `<div class="snack-coin-price"><span class="coin-emoji" style="display: flex; align-items: center;">${coinHTML}</span><span class="coin-number-sub">온기 ${pointNum}개</span></div>`;
         }
         let imgHTML = '';
         if (imgUrl && imgUrl.trim() !== '') {
@@ -558,11 +558,7 @@
     // 6. 경고 메시지 토글
     function showCreditWarning() {
       const warningEl = document.getElementById('credit-warning');
-      if (user && user.userId === 'guest') {
-        warningEl.textContent = '⚠️ 보유 동전이 부족해서 더 담을 수 없어요!';
-      } else {
-        warningEl.textContent = '⚠️ 크레딧이 부족해서 더 담을 수 없어요!';
-      }
+      warningEl.textContent = '보낼 온기가 부족해요! 온기를 채워볼까요? 🥺❤️';
       warningEl.style.display = 'block';
       hideStockWarning(); // 재고 경고는 숨김
       

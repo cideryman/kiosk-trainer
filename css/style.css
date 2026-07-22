@@ -82,23 +82,36 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
 }
 
 .kiosk-title {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 800;
   color: var(--primary-color);
   letter-spacing: -0.5px;
+  margin: 0;
+  white-space: nowrap;
+  word-break: keep-all;
+  flex: 0 1 auto;
 }
 
 .user-badge {
   background-color: #E8F8F5;
   border: 2px solid var(--secondary-color);
-  padding: 8px 16px;
+  padding: 6px 12px;
   border-radius: var(--radius-sm);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--secondary-hover);
+  white-space: nowrap;
+  word-break: keep-all;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
 }
 
 .credit-badge {

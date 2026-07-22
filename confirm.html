@@ -200,8 +200,8 @@
         <div id="delivery-select-box" style="display: none; flex-direction: column; gap: 12px; background-color: var(--card-bg); border: 3px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; box-shadow: var(--shadow-sm); margin-bottom: 10px;">
           <div style="font-size: 20px; font-weight: 800; color: var(--text-main);">🎁 어떻게 가져갈까요?</div>
           <div style="display: flex; gap: 12px; margin-top: 4px;">
-            <button class="btn btn-secondary" id="btn-delivery-pickup" style="flex: 1; min-height: 60px; font-size: 20px; box-shadow: none; animation: none;">포장 (0 🪙)</button>
-            <button class="btn btn-gray" id="btn-delivery-deliver" style="flex: 1; min-height: 60px; font-size: 20px; box-shadow: none; animation: none;">배달 (+🪙)</button>
+            <button class="btn btn-secondary" id="btn-delivery-pickup" style="flex: 1; min-height: 60px; font-size: 20px; box-shadow: none; animation: none;">포장 (❤️ 0개)</button>
+            <button class="btn btn-gray" id="btn-delivery-deliver" style="flex: 1; min-height: 60px; font-size: 20px; box-shadow: none; animation: none;">배달 (+3❤️)</button>
           </div>
 
           <!-- 주문자 정보 입력 영역 -->
@@ -238,7 +238,7 @@
 
           <div id="guest-browser-storage-notice" style="border-top: 2px dashed var(--border-color); padding-top: 12px; font-size: 13px; font-weight: 700; color: var(--text-muted); line-height: 1.55; word-break: keep-all;">
             <strong style="color: var(--text-main);">ⓘ 브라우저 저장 안내</strong><br>
-            주문 확인과 크레딧 중복 사용 방지를 위해 이 브라우저에 주문표시명, 기기 식별값, 주문 조회 정보가 저장됩니다. 저장 정보는 브라우저의 사이트 데이터 삭제 시 함께 삭제됩니다.
+            주문 확인과 온기 중복 사용 방지를 위해 이 브라우저에 주문표시명, 기기 식별값, 주문 조회 정보가 저장됩니다. 저장 정보는 브라우저의 사이트 데이터 삭제 시 함께 삭제됩니다.
           </div>
         </div>
 
@@ -253,7 +253,7 @@
             <span>현재 보유</span>
             <span class="bill-val">
               <span class="bill-coin-display" id="my-credit">
-                <span class="coin-icon">🪙</span>
+                <span class="coin-icon">❤️</span>
                 <span class="coin-number" id="my-credit-num">0</span>
               </span>
             </span>
@@ -262,7 +262,7 @@
             <span>선택 상품</span>
             <span class="bill-val highlight">
               <span class="bill-coin-display highlight" id="use-credit">
-                <span class="coin-icon">🪙</span>
+                <span class="coin-icon">❤️</span>
                 <span class="coin-number" id="use-credit-num">0</span>
               </span>
             </span>
@@ -272,7 +272,7 @@
             <span>배달비</span>
             <span class="bill-val highlight" style="color: var(--danger-color);">
               <span class="bill-coin-display highlight deficit" id="delivery-fee-display" style="border-color: var(--danger-color); background-color: #FFF0F0;">
-                <span class="coin-icon">🪙</span>
+                <span class="coin-icon">❤️</span>
                 <span class="coin-number" id="delivery-fee-num">0</span>
               </span>
             </span>
@@ -281,10 +281,23 @@
             <span>주문 후 잔액</span>
             <span class="bill-val">
               <span class="bill-coin-display" id="remain-credit">
-                <span class="coin-icon">🪙</span>
+                <span class="coin-icon">❤️</span>
                 <span class="coin-number" id="remain-credit-num">0</span>
               </span>
             </span>
+          </div>
+        </div>
+
+        <!-- 달곰이 대원 안내 및 에셋 캐릭터 카드 (모바일 최적화) -->
+        <div style="margin-top: 16px; background: linear-gradient(135deg, #FFF9F0 0%, #FFF5F5 100%); border: 2px solid #FFD1D1; border-radius: var(--radius-md); padding: 14px 16px; display: flex; align-items: center; gap: 14px; box-shadow: 0 4px 12px rgba(255, 90, 95, 0.08);">
+          <img src="assets/dalgomi_heart.png" alt="하트를 든 달곰이 대원" style="width: 72px; max-height: 90px; object-fit: contain; flex-shrink: 0;">
+          <div style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0;">
+            <div style="font-size: 16px; font-weight: 850; color: #D32F2F; word-break: keep-all;">
+              달곰이 대원에게 따뜻한 온기 한 조각을 전해요 🐻❤️
+            </div>
+            <div style="font-size: 13px; font-weight: 700; color: #666; line-height: 1.4; word-break: keep-all;">
+              <strong>🐻 달곰이 대원이란?</strong><br>배달왔삼에서 사회 적응 경험을 차곡차곡 쌓아가는 소중한 발달장애인 배달 훈련 대원입니다.
+            </div>
           </div>
         </div>
       </div>
@@ -299,7 +312,7 @@
     <footer class="kiosk-footer">
       <div style="display: flex; gap: 16px;">
         <button class="btn btn-gray" id="btn-prev" style="flex: 1; font-size: 20px;">이전으로</button>
-        <button class="btn btn-secondary" id="btn-submit" style="flex: 2;">주문하기</button>
+        <button class="btn btn-secondary" id="btn-submit" style="flex: 2; font-weight: 900; word-break: keep-all; font-size: 18px;">온기 한 조각 담아 주문하기 ❤️</button>
       </div>
     </footer>
 
@@ -566,17 +579,15 @@
       if (remainPoints < 0) {
         remainDisplayEl.className = 'bill-coin-display deficit';
         submitBtn.disabled = true;
-        submitBtn.textContent = '크레딧 부족';
-        errorBox.textContent = isGuest
-          ? '⚠️ 보유 동전(배달비 포함)보다 주문 금액이 커서 주문할 수 없습니다.'
-          : '⚠️ 보유한 크레딧보다 주문 금액이 커서 주문할 수 없습니다.';
+        submitBtn.textContent = '온기 부족 🥺';
+        errorBox.textContent = '⚠️ 보유한 온기보다 주문 금액이 많아 주문할 수 없습니다.';
         errorBox.style.display = 'block';
       } else {
         remainDisplayEl.className = 'bill-coin-display';
         submitBtn.disabled = cart.length === 0;
         submitBtn.textContent = cart.length === 0
           ? '담은 간식 없음'
-          : (isGuestPreviewMode() ? '미리보기 종료' : '주문하기');
+          : (isGuestPreviewMode() ? '미리보기 종료' : '온기 한 조각 담아 주문하기 ❤️');
         errorBox.style.display = 'none';
       }
     }
@@ -637,19 +648,19 @@
         const subTotal = p * cart[idx].quantity;
         
         if (isGuest) {
-          if (unitEl) unitEl.innerHTML = `단가 <span style="color:var(--primary-color);font-weight:800;">${p}🪙</span>`;
-          if (subEl) subEl.innerHTML = `🛒 합계 <span style="color:var(--primary-color);font-weight:800;">${subTotal}🪙</span>`;
+          if (unitEl) unitEl.innerHTML = `단가 <span style="color:var(--primary-color);font-weight:800;">❤️ ${p}개</span>`;
+          if (subEl) subEl.innerHTML = `🛒 합계 <span style="color:var(--primary-color);font-weight:800;">❤️ ${subTotal}개</span>`;
         } else {
           const maxC = 5;
           if (unitEl) {
             const uCoins = Math.min(p, maxC);
             const uExtra = p > maxC ? `<span style="font-size:14px;font-weight:800;color:var(--text-muted);margin-left:4px">+${p - maxC}</span>` : '';
-            unitEl.innerHTML = '🪙'.repeat(uCoins) + uExtra;
+            unitEl.innerHTML = '❤️'.repeat(uCoins) + uExtra;
           }
           if (subEl) {
             const sCoins = Math.min(subTotal, maxC);
             const sExtra = subTotal > maxC ? `<span style="font-size:14px;font-weight:800;color:var(--text-muted);margin-left:4px">+${subTotal - maxC}</span>` : '';
-            subEl.innerHTML = '🪙'.repeat(sCoins) + sExtra;
+            subEl.innerHTML = '❤️'.repeat(sCoins) + sExtra;
           }
         }
       }
@@ -720,18 +731,18 @@
         const isGuest = (user && user.userId === 'guest');
 
         if (isGuest) {
-          unitHTML = `단가 <span style="color:var(--primary-color);font-weight:800;">${item.point}🪙</span>`;
-          subtotalHTML = `🛒 합계 <span style="color:var(--primary-color);font-weight:800;">${item.point * item.quantity}🪙</span>`;
+          unitHTML = `단가 <span style="color:var(--primary-color);font-weight:800;">❤️ ${item.point}개</span>`;
+          subtotalHTML = `🛒 합계 <span style="color:var(--primary-color);font-weight:800;">❤️ ${item.point * item.quantity}개</span>`;
         } else {
           const maxCoins = 5;
           const uCoins = Math.min(item.point, maxCoins);
           const uExtra = item.point > maxCoins ? `<span style="font-size:14px;font-weight:800;color:var(--text-muted);margin-left:4px">+${item.point - maxCoins}</span>` : '';
-          unitHTML = '🪙'.repeat(uCoins) + uExtra;
+          unitHTML = '❤️'.repeat(uCoins) + uExtra;
           
           const sTotal = item.point * item.quantity;
           const sCoins = Math.min(sTotal, maxCoins);
           const sExtra = sTotal > maxCoins ? `<span style="font-size:14px;font-weight:800;color:var(--text-muted);margin-left:4px">+${sTotal - maxCoins}</span>` : '';
-          subtotalHTML = '🪙'.repeat(sCoins) + sExtra;
+          subtotalHTML = '❤️'.repeat(sCoins) + sExtra;
         }
 
         const cardEl = document.createElement('div');
@@ -831,7 +842,7 @@
       if (isGuest) {
         const firstRowSpan = document.querySelector('.bill-row span');
         if (firstRowSpan) {
-          firstRowSpan.textContent = '크레딧';
+          firstRowSpan.textContent = '보유 온기';
         }
 
         // 게스트일 경우 수령방식 박스 노출 및 바인딩
@@ -852,7 +863,7 @@
           const btnConfirmRandomName = document.getElementById('btn-confirm-random-name');
           
           const fee = getGuestFee();
-          btnDeliver.textContent = `배달 (+${fee} 🪙)`;
+          btnDeliver.textContent = `배달 (+3❤️)`;
 
           if (guestOrdererInfoBox) {
             guestOrdererInfoBox.style.display = isGuestPreviewMode() ? 'none' : 'flex';
@@ -1098,8 +1109,8 @@
         const errStr = String(error.message || '');
 
         if (errStr.includes('재고'))               displayMessage = '간식의 남은 수량이 부족해서 주문할 수 없어요!';
-        else if (errStr.includes('크레딧') || errStr.includes('포인트') || errStr.includes('잔액'))
-                                                    displayMessage = '크레딧(돈)이 부족해서 주문할 수 없어요!';
+        else if (errStr.includes('크레딧') || errStr.includes('포인트') || errStr.includes('잔액') || errStr.includes('온기'))
+          displayMessage = '보낼 온기가 부족해서 주문할 수 없어요!';
         else if (errStr)                            displayMessage = errStr;
 
         if (shouldClearOrderIdempotencyKeyOnFailure(displayMessage)) {

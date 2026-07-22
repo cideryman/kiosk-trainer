@@ -159,7 +159,8 @@ const AppState = {
 
   // 금액/포인트 표시 포맷터
   formatPoint(point) {
-    return `${point} 크레딧`;
+    if (point === undefined || point === null) return '❤️ 0개';
+    return `❤️ ${point}개`;
   },
 
   escapeHtml(value) {
