@@ -2,7 +2,7 @@
  * 6. 간식 목록 조회
  */
 const SNACKS_READ_CACHE_KEY = 'snacks.readValues.v1';
-const SNACKS_READ_CACHE_TTL_SECONDS = 15;
+const SNACKS_READ_CACHE_TTL_SECONDS = 300;
 
 function getSnackValuesForRead(sheet) {
   try {
@@ -47,9 +47,8 @@ function getSnacks(includeHidden, mode, guestKey, guestDeviceId, userId) {
   const values = getSnackValuesForRead(sheet);
   const rows = values.slice(1);
   const shouldIncludeHidden = String(includeHidden || '').trim().toUpperCase() === 'Y';
-  const todayCounts = getUserTodaySnackCountsMap(guestKey, guestDeviceId, userId);
 
-  let snacks = rows
+  const activeRows = rows
     .filter(row => row[0] || row[1])
     .filter(row => {
       if (shouldIncludeHidden) return true;
@@ -61,31 +60,39 @@ function getSnacks(includeHidden, mode, guestKey, guestDeviceId, userId) {
         active === 'O' ||
         active === '예'
       );
-    })
-    .map(row => {
-      const snackId = Number(row[0]);
-      const stock = Number(row[5] || 0);
-      const rawTarget = row[7] ? String(row[7]).trim().toLowerCase() : 'user';
-      const targetList = parseSnackTargetList(rawTarget);
-      const maxPerPerson = Number(row[8] || 0);
-      const todayOrderedCount = Number(todayCounts[snackId] || 0);
-
-      return {
-        snackId: snackId,
-        name: row[1],
-        point: Number(row[2]),
-        imageUrl: makeImageUrl(row[3]),
-        active: row[4],
-        saleYn: row[4],
-        stock,
-        soldOut: stock <= 0,
-        displayOrder: Number(row[6] || 0),
-        target: rawTarget,
-        targetList: targetList,
-        maxPerPerson: maxPerPerson,
-        todayOrderedCount: todayOrderedCount,
-      };
     });
+
+  // 1인당 수량 제한(maxPerPerson > 0) 설정이 있는 간식이 존재할 때만 주문목록 시트 조회 (Lazy Evaluation)
+  const hasPerPersonLimit = activeRows.some(row => Number(row[8] || 0) > 0);
+  const hasGuestIdent = !!(String(guestKey || '').trim() || String(guestDeviceId || '').trim() || (userId && userId !== 'guest'));
+  const todayCounts = (hasPerPersonLimit && hasGuestIdent)
+    ? getUserTodaySnackCountsMap(guestKey, guestDeviceId, userId)
+    : {};
+
+  let snacks = activeRows.map(row => {
+    const snackId = Number(row[0]);
+    const stock = Number(row[5] || 0);
+    const rawTarget = row[7] ? String(row[7]).trim().toLowerCase() : 'user';
+    const targetList = parseSnackTargetList(rawTarget);
+    const maxPerPerson = Number(row[8] || 0);
+    const todayOrderedCount = Number(todayCounts[snackId] || 0);
+
+    return {
+      snackId: snackId,
+      name: row[1],
+      point: Number(row[2]),
+      imageUrl: makeImageUrl(row[3]),
+      active: row[4],
+      saleYn: row[4],
+      stock,
+      soldOut: stock <= 0,
+      displayOrder: Number(row[6] || 0),
+      target: rawTarget,
+      targetList: targetList,
+      maxPerPerson: maxPerPerson,
+      todayOrderedCount: todayOrderedCount,
+    };
+  });
 
   if (mode) {
     const cleanedMode = String(mode).trim().toLowerCase();

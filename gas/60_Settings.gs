@@ -13,7 +13,7 @@ function upsertSettingValue(sheet, key, value) {
 }
 
 const GUEST_SETTINGS_CACHE_KEY = 'guestSettings.v1';
-const GUEST_SETTINGS_CACHE_TTL_SECONDS = 30;
+const GUEST_SETTINGS_CACHE_TTL_SECONDS = 300;
 
 function getGuestSettingsCache() {
   try {
