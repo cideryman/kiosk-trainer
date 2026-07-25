@@ -580,3 +580,35 @@ html, body {
 .reviews-grid-section {
   min-height: 480px;
 }
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 600px) {
+  .skeleton-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.skeleton-card {
+  height: 200px;
+  background: linear-gradient(90deg, #F0F4F4 25%, #E2ECEB 50%, #F0F4F4 75%);
+  background-size: 200% 100%;
+  animation: loadingSkeleton 1.5s infinite;
+  border-radius: 18px;
+  border: 1px solid var(--teal-card-border);
+}
+
+@keyframes loadingSkeleton {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

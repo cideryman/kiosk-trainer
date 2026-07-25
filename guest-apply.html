@@ -104,6 +104,80 @@
     .tab-item.tab-board.active { background: linear-gradient(135deg, #FF6B6B, #E53E3E); color: #FFFFFF; box-shadow: 0 3px 10px rgba(255, 107, 107, 0.3); }
     .tab-item.tab-store.active { background: linear-gradient(135deg, #EA6A17, #DD6B20); color: #FFFFFF; box-shadow: 0 3px 10px rgba(234, 106, 23, 0.3); }
 
+    /* 빛나는 회전 테두리 배너 컨테이너 */
+    .rotating-glow-banner {
+      position: relative;
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 14px;
+      border-radius: 16px;
+      padding: 2.5px; /* 테두리 광선 두께 확보 */
+      overflow: hidden;
+      text-decoration: none;
+      background: #E2E8F0; /* 기본 배경 */
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      z-index: 1;
+    }
+    /* 마우스 호버 및 터치 시 튕김 */
+    .rotating-glow-banner:hover,
+    .rotating-glow-banner:active {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(255, 107, 107, 0.2);
+    }
+    /* 시계방향으로 계속 회전하는 그라디언트 광선 */
+    .rotating-glow-banner::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: conic-gradient(
+        from 0deg,
+        transparent 20%,
+        #20B8AA 40%, /* 민트 */
+        #FF6B6B 60%, /* 핑크 */
+        transparent 80%
+      );
+      animation: rotateGlow 3s linear infinite;
+      z-index: 1;
+    }
+    /* 내용물을 담는 내부 컨테이너 (광선을 덮고 테두리만 보이게 함) */
+    .rotating-glow-banner .banner-inner {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #FFFFFF;
+      padding: 11px 16px;
+      border-radius: 14px;
+      z-index: 2; /* 광선 위에 배치 */
+      min-height: 48px;
+      box-sizing: border-box;
+    }
+    .rotating-glow-banner .banner-title {
+      font-size: 15px;
+      font-weight: 900;
+      color: #2D3748;
+    }
+    .rotating-glow-banner .banner-btn {
+      font-size: 12px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #FF6B6B, #E53E3E);
+      color: #FFFFFF;
+      padding: 4px 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(229, 62, 62, 0.2);
+    }
+    /* 회전 애니메이션 */
+    @keyframes rotateGlow {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
     @media (max-width: 640px) {
       .apply-header {
         flex-direction: column;
@@ -124,7 +198,7 @@
       padding: 60px 0;
     }
     .hero-inner {
-      width: min(1120px, calc(100% - 48px));
+      width: min(720px, calc(100% - 48px));
       margin: 0 auto;
       display: grid;
       grid-template-columns: 1.15fr 0.85fr;
@@ -200,7 +274,7 @@
     }
     .section.soft { background: var(--soft); }
     .section.orange-band { background: #FFF7ED; border-top: 1px solid #FED7AA; border-bottom: 1px solid #FED7AA; }
-    .section-inner { width: min(1120px, calc(100% - 48px)); margin: 0 auto; }
+    .section-inner { width: min(720px, calc(100% - 48px)); margin: 0 auto; }
     .section-heading { max-width: 720px; margin-bottom: 32px; }
     .section-kicker { margin: 0 0 8px; color: var(--orange); font-size: 15px; font-weight: 900; }
     .section h2 { margin: 0; font-size: 40px; line-height: 1.2; font-weight: 950; word-break: keep-all; }
@@ -424,7 +498,7 @@
     .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.55s ease, transform 0.55s ease; }
     .reveal.is-visible { opacity: 1; transform: none; }
 
-    @media (max-width: 720px) {
+    @media (max-width: 960px) {
       .apply-header { min-height: 58px; padding: 8px 14px; }
       .apply-brand { font-size: 16px; }
       .apply-brand img { width: 34px; height: 34px; }
@@ -517,6 +591,13 @@
             <button class="primary-action" type="button" data-open-application>배달왔삼 이용 신청하기</button>
             <a class="secondary-action" href="#how-it-works">이용 절차 보기</a>
           </div>
+          <!-- 고객 후기 유입용 회전 배너 추가 -->
+          <a href="reviews-public.html" class="rotating-glow-banner" style="display: block; text-decoration: none; margin-top: 24px;">
+            <div class="banner-inner">
+              <span class="banner-title" style="font-size: 14px; font-weight: 800; color: #2D3748;">❤️ 이용자들의 생생한 고객 후기</span>
+              <span class="banner-btn" style="font-size: 11px; font-weight: 900; background: linear-gradient(135deg, #FF6B6B, #E53E3E); color: #FFF; padding: 4px 8px; border-radius: 8px;">구경하기 ›</span>
+            </div>
+          </a>
         </div>
         <div class="hero-image-wrap">
           <img class="hero-image" src="assets/delivery-banner.png" alt="배달왔삼 배달 활동 일러스트" decoding="async" fetchpriority="high">

@@ -1201,8 +1201,7 @@ window.addEventListener('DOMContentLoaded', () => {
           AppState.vibrate(40);
           AppState.playClickSound();
 
-          showingAllReviews = !showingAllReviews;
-          renderReviews();
+          window.location.href = 'reviews-public.html';
         });
       }
 
@@ -1408,7 +1407,7 @@ window.addEventListener('DOMContentLoaded', () => {
             btnMoreReviews.style.display = 'none';
           } else {
             btnMoreReviews.style.display = 'block';
-            btnMoreReviews.textContent = showingAllReviews ? '❤️ 후기 접기' : '❤️ 후기 더보기';
+            btnMoreReviews.textContent = '❤️ 후기 더보기';
           }
         }
       }
@@ -1559,14 +1558,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
       const btnGmNext = document.getElementById('btn-gm-next');
       if (btnGmNext) AppState.bindCardTap(btnGmNext, () => navigateGuestReview(1));
-
-      const btnMoreReviews = document.getElementById('btn-more-reviews');
-      if (btnMoreReviews) {
-        btnMoreReviews.addEventListener('click', (e) => {
-          e.preventDefault();
-          window.location.href = 'reviews-public.html';
-        });
-      }
 
       // 키보드 지원
       window.addEventListener('keydown', (e) => {

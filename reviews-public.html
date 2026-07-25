@@ -94,7 +94,13 @@
       <!-- 로딩 / 빈 상태 / 에러 안내 -->
       <div id="reviews-loading-state" class="state-message">
         <div class="spinner"></div>
-        <p>따뜻한 온기 후기를 불러오고 있습니다...</p>
+        <p style="margin-bottom: 24px; font-weight: 700; color: var(--teal-main);">따뜻한 후기를 불러오고 있습니다...</p>
+        <div class="skeleton-grid">
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+        </div>
       </div>
 
       <div id="reviews-empty-state" class="state-message" style="display: none;">
