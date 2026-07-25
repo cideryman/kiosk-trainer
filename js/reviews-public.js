@@ -17,10 +17,10 @@
 
   // 달곰이 공식 에셋 이미지 매핑 (마일스톤 구간별)
   const DALGOM_STAGES = [
-    { stage: 0, avatarImg: 'assets/dalgomi_milestone_36.png', speech: '"여러분의 따뜻한 후기로 달곰이와 배달왔삼 온기가 싹을 틔워요! 🌱"' },
-    { stage: 1, avatarImg: 'assets/dalgomi_milestone_50.png', speech: '"마음이 따끈따끈해지고 있어요! 차 한 잔의 온기 달성 ☕"' },
-    { stage: 2, avatarImg: 'assets/dalgomi_milestone_75.png', speech: '"우리의 온기가 가득 채워지고 있어요! 사랑의 온기 달성 ❤️"' },
-    { stage: 3, avatarImg: 'assets/dalgomi_milestone_100.png', speech: '"축하합니다! 온기가 만발하여 예쁜 온기 꽃이 피어났어요! 🌸🎉"' }
+    { stage: 0, avatarImg: 'assets/dalgomi_milestone_36.png', speech: '"여러분의 따뜻한 온기로 작은 싹이 무럭무럭 자라고 있어요. 🌱"' },
+    { stage: 1, avatarImg: 'assets/dalgomi_milestone_50.png', speech: '"소중한 응원들이 모여 벌써 따뜻한 차 한 잔만큼 온도가 올랐어요. ☕"' },
+    { stage: 2, avatarImg: 'assets/dalgomi_milestone_75.png', speech: '"서로를 위하는 따스한 온기가 가득 차오르고 있어요. 늘 감사해요! ❤️"' },
+    { stage: 3, avatarImg: 'assets/dalgomi_milestone_100.png', speech: '"와아! 모두의 예쁜 마음들이 모여 마침내 따뜻한 꽃이 활짝 피어났어요! 🌸🎉"' }
   ];
 
   // 달곰이 스탬프 에셋 매핑
