@@ -15,12 +15,12 @@
     return 'https://script.google.com/macros/s/AKfycbz_Placeholder/exec';
   }
 
-  // 달곰이 공식 에셋 이미지 매핑
+  // 달곰이 공식 에셋 이미지 매핑 (마일스톤 구간별)
   const DALGOM_STAGES = [
-    { stage: 0, avatarImg: 'assets/dalgomi_thumb.png', speech: '"여러분의 따뜻한 후기로 달곰이와 배달왔삼 온기가 싹을 틔워요! 🌱"' },
-    { stage: 1, avatarImg: 'assets/dalgomi_cheer.png', speech: '"마음이 따끈따끈해지고 있어요! 차 한 잔의 온기 달성 ☕"' },
-    { stage: 2, avatarImg: 'assets/dalgomi_heart.png', speech: '"우리의 온기가 가득 채워지고 있어요! 사랑의 온기 달성 ❤️"' },
-    { stage: 3, avatarImg: 'assets/dalgomi_delivery.png', speech: '"축하합니다! 온기가 만발하여 예쁜 온기 꽃이 피어났어요! 🌸🎉"' }
+    { stage: 0, avatarImg: 'assets/dalgomi_milestone_36.png', speech: '"여러분의 따뜻한 후기로 달곰이와 배달왔삼 온기가 싹을 틔워요! 🌱"' },
+    { stage: 1, avatarImg: 'assets/dalgomi_milestone_50.png', speech: '"마음이 따끈따끈해지고 있어요! 차 한 잔의 온기 달성 ☕"' },
+    { stage: 2, avatarImg: 'assets/dalgomi_milestone_75.png', speech: '"우리의 온기가 가득 채워지고 있어요! 사랑의 온기 달성 ❤️"' },
+    { stage: 3, avatarImg: 'assets/dalgomi_milestone_100.png', speech: '"축하합니다! 온기가 만발하여 예쁜 온기 꽃이 피어났어요! 🌸🎉"' }
   ];
 
   // 달곰이 스탬프 에셋 매핑
@@ -143,8 +143,19 @@
     const cycle = data.cycle || 1;
     const temp = (data.temperature !== undefined) ? data.temperature : 36.5;
     const progress = (data.progress !== undefined) ? data.progress : 0;
-    const stage = data.stage || 0;
     const totalCount = data.totalCount || 0;
+
+    // 온도를 기반으로 실시간 stage 동적 결정 (100도는 즉시 리셋되므로 90도 이상부터 100도 단계 에셋 노출)
+    let stage = 0;
+    if (temp >= 90) {
+      stage = 3; // 100도 에셋
+    } else if (temp >= 75) {
+      stage = 2; // 75도 에셋
+    } else if (temp >= 50) {
+      stage = 1; // 50도 에셋
+    } else {
+      stage = 0; // 36.5도 에셋
+    }
 
     // 회차 뱃지 및 버튼 옆 소나무 이모티콘(🌲) 배치
     const elemCycleTrees = document.getElementById('warmth-cycle-trees');
