@@ -25,7 +25,7 @@
 | 6 | P39 | 현황판 화면(board.html) CSS/JS 외부 파일 분리 리팩토링 | 구현 대기 | 인라인 CSS(380행) 및 JS(260행)를 각각 css/board.css 및 js/board.js로 분리 | `board.html` 로드 및 주문 실시간 호출/완료 처리 연동 정상 동작 테스트 |
 
 | 7 | P47 | 공개 후기 전시 페이지 & 온기 개화 마일스톤 및 이용신청 연동 | 구현 완료·배포 대기 | GAS getPublicReviews 배포 및 PWA 서비스 워커 반영 | reviews-public.html 접속 및 게이지·후기 카드 렌더링 수동 검증 |
-| 8 | P48 | 공개 3개 탭 네비게이션 통합 및 배달왔삼 키오스크 동선 보호 | 구현 완료·배포 대기 | 이용신청·온기보드 3색 탭 연동 및 guest.html 무이탈 100% 레이아웃 보존 | reviews-public.html, guest-apply.html 탭 전환 및 guest.html 주문 고유 레이아웃 수동 검증 |
+| 8 | P48 | 공개 3개 탭 네비게이션 통합 및 배달왔삼 키오스크 동선 보호 | 배포 완료·수동 검증 대기 | 이용신청·온기보드 3색 탭 연동 및 guest.html 무이탈 100% 레이아웃 보존 | reviews-public.html, guest-apply.html 탭 전환 및 guest.html 주문 고유 레이아웃 수동 검증 |
 
 ### 보류 과제
 
