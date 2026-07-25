@@ -33,21 +33,45 @@ html, body {
   box-sizing: border-box;
 }
 
-/* 상단 톱바 (3색 탭Bar 통합) */
-.public-reviews-header {
+/* 상단 톱바 (3색 탭Bar 통합 - 일체화) */
+.apply-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.95);
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(10px);
-  border-radius: 20px;
-  border: 1px solid var(--teal-card-border);
-  box-shadow: 0 4px 15px rgba(15, 118, 110, 0.06);
+  border-bottom: 1px solid var(--teal-card-border);
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(15, 118, 110, 0.04);
   margin-bottom: 20px;
-  position: sticky;
-  top: 12px;
-  z-index: 100;
+}
+
+.apply-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 18px;
+  font-weight: 900;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.apply-brand img {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+}
+
+.apply-brand span {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--teal-main);
 }
 
 /* 3색 세그먼트 탭 네비게이션 */
@@ -106,7 +130,7 @@ html, body {
 }
 
 @media (max-width: 640px) {
-  .public-reviews-header {
+  .apply-header {
     flex-direction: column;
     padding: 12px;
     gap: 8px;
@@ -149,6 +173,7 @@ html, body {
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
+  min-height: 236px; /* 로딩 흔들림 방지 */
 }
 
 .warmth-hero-header {
@@ -549,4 +574,9 @@ html, body {
   background: #FFF;
   color: var(--teal-main);
   border: 1.5px solid var(--teal-main);
+}
+
+/* 로딩 흔들림 방지 */
+.reviews-grid-section {
+  min-height: 480px;
 }
