@@ -33,10 +33,10 @@ html, body {
   box-sizing: border-box;
 }
 
-/* 상단 톱바 (3색 탭Bar 통합 - 일체화) */
+/* 상단 톱바 (3색 탭Bar 통합 - 일체화 카드형) */
 .apply-header {
   position: sticky;
-  top: 0;
+  top: 12px;
   z-index: 100;
   display: flex;
   align-items: center;
@@ -46,10 +46,11 @@ html, body {
   padding: 10px 16px;
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--teal-card-border);
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(15, 118, 110, 0.04);
-  margin-bottom: 20px;
+  border: 2px solid #E0EFEF; /* 둥근 카드용 얇은 테두리 */
+  border-radius: 20px; /* 더 둥글게 */
+  box-shadow: 0 4px 15px rgba(15, 118, 110, 0.06); /* 부드러운 그림자 */
+  margin-bottom: 24px; /* 아래 내용 사이의 넉넉한 여백 */
+  box-sizing: border-box;
 }
 
 .apply-brand {
