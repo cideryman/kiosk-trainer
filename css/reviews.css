@@ -946,3 +946,10 @@
     max-height: 280px !important;
   }
 }
+
+/* 온기보드 바로가기 버튼 스타일 (관리자 Reviews 전용) */
+.admin-external-link.reviews-board {
+  background: linear-gradient(135deg, #FF6B6B, #E53E3E);
+  border-color: #FF6B6B;
+  color: #FFFFFF !important;
+}

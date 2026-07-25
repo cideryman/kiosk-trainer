@@ -461,6 +461,31 @@ function toggleReviewVisibility(data) {
 /**
  * 27. 공개 후기 통합 조회 API (온기 개화 마일스톤 및 5분 캐시 적용)
  */
+function calculateWarmthTemperature(progress) {
+  const points = [
+    { count: 0, temperature: 36.5 },
+    { count: 10, temperature: 50 },
+    { count: 30, temperature: 75 },
+    { count: 50, temperature: 100 }
+  ];
+  const count = Math.min(50, Math.max(0, Number(progress) || 0));
+
+  for (let i = 1; i < points.length; i++) {
+    const previous = points[i - 1];
+    const current = points[i];
+    if (count <= current.count) {
+      const ratio = (count - previous.count) / (current.count - previous.count);
+      // 첫 후기 구간은 초반 성취감이 느껴지도록 ease-out 가중치를 적용한다.
+      // 10개 시점에는 반드시 50℃에 도달해 마일스톤 기준은 유지한다.
+      const weightedRatio = previous.count === 0 && current.count === 10
+        ? 1 - Math.pow(1 - ratio, 2)
+        : ratio;
+      return Math.round((previous.temperature + weightedRatio * (current.temperature - previous.temperature)) * 10) / 10;
+    }
+  }
+  return 100;
+}
+
 function getPublicReviews() {
   try {
     const cache = CacheService.getScriptCache();
@@ -533,8 +558,7 @@ function getPublicReviews() {
       progress = maxReviews;
     }
 
-    const baseTemp = 36.5;
-    const temperature = baseTemp + (progress / maxReviews) * (100 - baseTemp);
+    const temperature = calculateWarmthTemperature(progress);
 
     // 단계(stage: 0~3) 계산: 10개(50℃), 30개(75℃), 50개(100℃ - 온기 개화)
     let stage = 0;
@@ -548,7 +572,7 @@ function getPublicReviews() {
       totalCount,
       cycle,
       progress,
-      temperature: Math.round(temperature * 10) / 10,
+      temperature,
       stage
     };
 

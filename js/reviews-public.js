@@ -145,17 +145,11 @@
     const progress = (data.progress !== undefined) ? data.progress : 0;
     const totalCount = data.totalCount || 0;
 
-    // 온도를 기반으로 실시간 stage 동적 결정 (100도는 즉시 리셋되므로 90도 이상부터 100도 단계 에셋 노출)
-    let stage = 0;
-    if (temp >= 90) {
-      stage = 3; // 100도 에셋
-    } else if (temp >= 75) {
-      stage = 2; // 75도 에셋
-    } else if (temp >= 50) {
-      stage = 1; // 50도 에셋
-    } else {
-      stage = 0; // 36.5도 에셋
-    }
+    // 단계 기준은 GAS가 계산한 후기 수 마일스톤(10/30/50개)을 사용한다.
+    const rawStage = Number(data.stage);
+    const stage = Number.isFinite(rawStage)
+      ? Math.min(3, Math.max(0, Math.floor(rawStage)))
+      : (temp >= 100 ? 3 : temp >= 75 ? 2 : temp >= 50 ? 1 : 0);
 
     // 회차 뱃지 및 버튼 옆 소나무 이모티콘(🌲) 배치
     const elemCycleTrees = document.getElementById('warmth-cycle-trees');
