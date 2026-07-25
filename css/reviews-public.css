@@ -105,6 +105,19 @@ html, body {
   box-shadow: 0 3px 10px rgba(234, 106, 23, 0.3);
 }
 
+@media (max-width: 640px) {
+  .public-reviews-header {
+    flex-direction: column;
+    padding: 12px;
+    gap: 8px;
+    height: auto;
+    min-height: auto;
+  }
+  .segmented-tab-nav {
+    max-width: 100% !important;
+  }
+}
+
 .btn-back-link, .btn-apply-link {
   text-decoration: none;
   font-size: 0.88rem;
