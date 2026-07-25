@@ -28,10 +28,19 @@
     html { scroll-behavior: smooth; }
     body {
       margin: 0;
-      background: var(--paper);
+      background: #F4F9F8; /* 외부 여백 배경색 (틸 민트) */
       color: var(--ink);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       letter-spacing: 0;
+    }
+    .apply-page-container {
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+      background-color: var(--paper);
+      box-sizing: border-box;
+      min-height: 100vh;
+      box-shadow: 0 4px 25px rgba(15, 118, 110, 0.05); /* 은은한 양옆 그림자 */
     }
     button, input, select, textarea { font: inherit; letter-spacing: 0; }
     button, a { -webkit-tap-highlight-color: transparent; }
@@ -562,7 +571,8 @@
   </style>
 </head>
 <body>
-  <header class="apply-header">
+  <div class="apply-page-container">
+    <header class="apply-header">
     <a class="apply-brand" href="guest.html">
       <img src="icons/guest-192.png" alt="배달왔삼 로고">
       <span><strong style="color: var(--teal); font-weight: inherit;">배달왔</strong><strong style="color: var(--orange); font-weight: inherit;">삼</strong></span>
@@ -1079,5 +1089,6 @@
       loadSettings();
     })();
   </script>
+  </div>
 </body>
 </html>
