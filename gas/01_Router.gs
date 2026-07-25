@@ -38,6 +38,10 @@ function doGet(e) {
     return jsonResponse(getKakaoLoginConfig(e.parameter.redirectUri));
   }
 
+  if (action === 'getPublicReviews') {
+    return jsonResponse(getPublicReviews());
+  }
+
   if (action === 'getRecentReviews') {
     return jsonResponse(getRecentReviews());
   }
@@ -99,6 +103,8 @@ function doPost(e) {
       return jsonResponse(updateGuestSettings(data));
     } else if (action === 'submitReview') {
       return jsonResponse(submitReview(data));
+    } else if (action === 'getPublicReviews') {
+      return jsonResponse(getPublicReviews());
     } else if (action === 'auditArchiveOldOrders') {
       return jsonResponse(auditArchiveOldOrders(data));
     } else if (action === 'archiveOldOrders') {

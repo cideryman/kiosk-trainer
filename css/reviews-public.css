@@ -1,0 +1,492 @@
+/* 공개 후기 전용 스타일시트 (reviews-public.css) - 배달왔삼 Teal 브랜드 테마 */
+
+:root {
+  --teal-main: #0F766E;
+  --teal-light: #20B8AA;
+  --teal-soft-bg: #F4F9F8;
+  --teal-card-border: #E0EFEF;
+  --warm-coral: #FF6B6B;
+  --warm-red: #E53E3E;
+  --warm-orange: #DD6B20;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.reviews-public-body {
+  background-color: var(--teal-soft-bg);
+  color: #172033;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  min-height: 100vh;
+}
+
+.public-reviews-container {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto; /* 중앙 정렬 */
+  padding: 16px;
+  padding-bottom: 100px; /* 풋터 여백 */
+  box-sizing: border-box;
+}
+
+/* 상단 톱바 (배달왔삼 Teal 톤) */
+.public-reviews-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 18px;
+  border: 1px solid var(--teal-card-border);
+  box-shadow: 0 4px 15px rgba(15, 118, 110, 0.06);
+  margin-bottom: 20px;
+  position: sticky;
+  top: 12px;
+  z-index: 100;
+}
+
+.header-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 0;
+  color: var(--teal-main);
+  text-align: center;
+}
+
+.btn-back-link, .btn-apply-link {
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 20px;
+  transition: all 0.2s ease;
+}
+
+.btn-back-link {
+  color: #4A5568;
+  background: #EDF2F7;
+}
+
+.btn-apply-link {
+  color: #FFF;
+  background: linear-gradient(135deg, #FF6B6B, #FF8E8E);
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+}
+
+/* 히어로 온기 마일스톤 카드 */
+.warmth-hero-card {
+  background: #FFFFFF;
+  border: 2px solid var(--teal-card-border);
+  border-radius: 24px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 10px 25px rgba(15, 118, 110, 0.08);
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.warmth-hero-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.cycle-badge-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cycle-badge {
+  background: #EAF6F5;
+  color: var(--teal-main);
+  font-size: 0.84rem;
+  font-weight: 800;
+  padding: 6px 14px;
+  border-radius: 14px;
+  border: 1px solid #CDE8E5;
+}
+
+.cycle-trees {
+  font-size: 1.15rem;
+  line-height: 1;
+  letter-spacing: 2px;
+}
+
+.warmth-temp-display {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.temp-label {
+  font-size: 0.75rem;
+  color: #718096;
+}
+
+/* 온도 수치 텍스트 및 구간별 자동 그래디언트 변환 */
+.temp-value {
+  font-size: 1.7rem;
+  font-weight: 800;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  transition: all 0.5s ease;
+}
+
+.temp-value.temp-level-0 {
+  background: linear-gradient(135deg, #20B8AA, #DD6B20);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.temp-value.temp-level-1 {
+  background: linear-gradient(135deg, #DD6B20, #D69E2E);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.temp-value.temp-level-2 {
+  background: linear-gradient(135deg, #E53E3E, #FF6B6B);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.temp-value.temp-level-3 {
+  background: linear-gradient(135deg, #FF6B6B, #ED64A6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* 달곰이 슬림 아바타 및 말풍선 캐릭터 */
+.dalgom-milestone-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--teal-soft-bg);
+  border: 1px solid #E2F0ED;
+  padding: 10px 14px;
+  border-radius: 18px;
+  margin-bottom: 18px;
+}
+
+.dalgom-avatar {
+  width: 48px;
+  height: 48px;
+  background: #FFF;
+  border-radius: 50%;
+  border: 2px solid var(--teal-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.dalgom-avatar-img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+.dalgom-speech-bubble {
+  font-size: 0.9rem;
+  color: #2D3748;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* 게이지 트랙 & 마일스톤 */
+.warmth-gauge-container {
+  margin-bottom: 4px;
+}
+
+.gauge-bar-track {
+  height: 14px;
+  background: #E2E8F0;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.gauge-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #FF8E8E, var(--warm-red), var(--warm-orange));
+  border-radius: 10px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gauge-milestones {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.milestone-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.72rem;
+  color: #A0AEC0;
+  transition: color 0.3s ease;
+}
+
+.milestone-step.is-reached {
+  color: var(--warm-red);
+  font-weight: 700;
+}
+
+.milestone-icon {
+  font-size: 1.1rem;
+  margin-bottom: 2px;
+}
+
+/* 후기 목록 섹션 */
+.reviews-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.reviews-section-header h2 {
+  font-size: 1.1rem;
+  color: var(--teal-main);
+  margin: 0;
+  font-weight: 800;
+}
+
+.btn-refresh {
+  background: #FFF;
+  border: 1px solid var(--teal-card-border);
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 0.82rem;
+  color: var(--teal-main);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.04);
+}
+
+.state-message {
+  text-align: center;
+  padding: 40px 20px;
+  color: #718096;
+  font-size: 0.95rem;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #E0EFEF;
+  border-top: 3px solid var(--teal-main);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 12px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 바둑판식 2열 고정 및 반응형 그리드 레이아웃 */
+.public-reviews-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 2열 고정 */
+  gap: 16px;
+  align-items: stretch;
+  width: 100%;
+}
+
+/* 모바일 화면(540px 미만)에서는 1열 처리 */
+@media (max-width: 540px) {
+  .public-reviews-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.public-review-card {
+  background: #FFF;
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: 0 4px 15px rgba(15, 118, 110, 0.04);
+  border: 1px solid var(--teal-card-border);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.public-review-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(15, 118, 110, 0.1);
+}
+
+.review-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.review-user-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.review-user-name {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: #2D3748;
+}
+
+.review-stamp-tag {
+  background: #FFF5F5;
+  color: var(--warm-red);
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  display: inline-block;
+}
+
+/* 달곰이 이모티콘 스탬프 뱃지 */
+.review-stamp-dalgom {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #FFF0F0;
+  border: 1px solid #FFD8D8;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--warm-red);
+  margin-bottom: 8px;
+  align-self: flex-start;
+}
+
+.review-stamp-dalgom img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.review-date {
+  font-size: 0.73rem;
+  color: #A0AEC0;
+}
+
+.review-tags-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.review-tag-badge {
+  background: #EAF6F5;
+  color: var(--teal-main);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 8px;
+}
+
+.review-content {
+  font-size: 0.9rem;
+  color: #333;
+  line-height: 1.5;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.review-image-box {
+  margin-bottom: 10px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.review-image-box img {
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  display: block;
+}
+
+/* 관리자 따뜻한 답글 영역 */
+.review-reply-box {
+  background: #FFFDF9;
+  border-left: 3px solid var(--warm-orange);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: auto; /* 카드 하단 밀착 */
+}
+
+.reply-header {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--warm-orange);
+  margin-bottom: 4px;
+}
+
+.reply-content {
+  font-size: 0.83rem;
+  color: #4A5568;
+  line-height: 1.4;
+}
+
+/* 하단 고정 풋터 (중앙 정렬 완벽 보정) */
+.public-reviews-footer {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, 100%);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--teal-card-border);
+  padding: 12px 16px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  box-sizing: border-box;
+  z-index: 100;
+}
+
+.footer-btn {
+  flex: 1;
+  text-align: center;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 12px 8px;
+  border-radius: 14px;
+  transition: all 0.2s ease;
+}
+
+.footer-btn.primary {
+  background: linear-gradient(135deg, #FF6B6B, var(--warm-red));
+  color: #FFF;
+  box-shadow: 0 4px 12px rgba(229, 62, 62, 0.25);
+}
+
+.footer-btn.secondary {
+  background: #FFF;
+  color: var(--teal-main);
+  border: 1.5px solid var(--teal-main);
+}

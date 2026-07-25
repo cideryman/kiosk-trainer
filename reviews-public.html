@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>배달왔삼 - 따뜻한 온기 후기 🌸</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/reviews-public.css">
+  <!-- PWA 설정 -->
+  <link rel="manifest" href="manifest-guest.json">
+  <meta name="theme-color" content="#FF6B6B">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="배달왔삼 온기후기">
+  <link rel="apple-touch-icon" href="icons/guest-180.png">
+</head>
+<body class="reviews-public-body">
+  <div class="public-reviews-container">
+    <!-- 상단 내비게이션 / 톱바 -->
+    <header class="public-reviews-header">
+      <div class="header-nav-left">
+        <a href="guest.html" class="btn-back-link" title="배달왔삼 홈으로">‹ 홈으로</a>
+      </div>
+      <h1 class="header-title">🌸 따뜻한 온기 보드</h1>
+      <div class="header-nav-right">
+        <a href="guest-apply.html" class="btn-apply-link">이용신청</a>
+      </div>
+    </header>
+
+    <!-- 달곰이 온기 개화 마일스톤 히어로 카드 -->
+    <section class="warmth-hero-card" id="warmth-hero-card">
+      <div class="warmth-hero-header">
+        <div class="cycle-badge-wrapper" id="warmth-cycle-wrapper">
+          <span class="cycle-badge" id="warmth-cycle-badge">1회차 온기 숲</span>
+          <span class="cycle-trees" id="warmth-cycle-trees">🌲</span>
+        </div>
+        <div class="warmth-temp-display">
+          <span class="temp-label">현재 온기</span>
+          <span class="temp-value" id="warmth-temp-value">36.5℃</span>
+        </div>
+      </div>
+
+      <!-- 달곰이 캐릭터 및 마일스톤 메세지 -->
+      <div class="dalgom-milestone-box">
+        <div class="dalgom-avatar" id="dalgom-avatar">
+          <img src="assets/dalgom_avatar_face.png" alt="달곰이 마스코트" class="dalgom-avatar-img">
+        </div>
+        <div class="dalgom-speech-bubble" id="dalgom-speech">
+          "여러분의 따뜻한 이용 후기로 달곰이와 배달왔삼 온기가 꽃피어나요! 🌸"
+        </div>
+      </div>
+
+      <!-- 온기 프로그레스 게이지 바 -->
+      <div class="warmth-gauge-container">
+        <div class="gauge-bar-track">
+          <div class="gauge-bar-fill" id="warmth-gauge-fill" style="width: 0%;"></div>
+        </div>
+        <div class="gauge-milestones">
+          <div class="milestone-step step-0" data-temp="36.5">
+            <span class="milestone-icon">🌱</span>
+            <span class="milestone-text">36.5℃</span>
+          </div>
+          <div class="milestone-step step-1" data-temp="50">
+            <span class="milestone-icon">☕</span>
+            <span class="milestone-text">50℃</span>
+          </div>
+          <div class="milestone-step step-2" data-temp="75">
+            <span class="milestone-icon">❤️</span>
+            <span class="milestone-text">75℃</span>
+          </div>
+          <div class="milestone-step step-3" data-temp="100">
+            <span class="milestone-icon">🌸</span>
+            <span class="milestone-text">100℃ 개화</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 후기 메인 컨텐츠 영역 -->
+    <main class="public-reviews-main">
+      <div class="reviews-section-header">
+        <h2>💌 모인 응원 메시지</h2>
+        <button id="btn-refresh-reviews" class="btn-refresh" title="새로고침">🔄 새로고침</button>
+      </div>
+
+      <!-- 로딩 / 빈 상태 / 에러 안내 -->
+      <div id="reviews-loading-state" class="state-message">
+        <div class="spinner"></div>
+        <p>따뜻한 온기 후기를 불러오고 있습니다...</p>
+      </div>
+
+      <div id="reviews-empty-state" class="state-message" style="display: none;">
+        <p>🌱 아직 등록된 공개 후기가 없습니다.<br>첫 번째 따뜻한 마음을 남겨주세요!</p>
+      </div>
+
+      <!-- 후기 리스트 카드 목록 -->
+      <div id="public-reviews-grid" class="public-reviews-grid"></div>
+    </main>
+
+    <!-- 하단 고정 풋터 액션 바 -->
+    <footer class="public-reviews-footer">
+      <a href="guest-orders.html" class="footer-btn primary">
+        ✍️ 내 주문에서 후기 남기기
+      </a>
+      <a href="guest-apply.html" class="footer-btn secondary">
+        💌 배달왔삼 신청하기
+      </a>
+    </footer>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/reviews-public.js"></script>
+</body>
+</html>

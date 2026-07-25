@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kiosk-cache-v235';
+const CACHE_NAME = 'kiosk-cache-v243';
 const urlsToCache = [
   'index.html',
   'index.html?type=kiosk',
@@ -9,6 +9,7 @@ const urlsToCache = [
   'admin.html',
   'kitchen.html',
   'reviews.html',
+  'reviews-public.html',
   'guest.html',
   'guest-apply.html',
   'guest-orders.html',
@@ -19,12 +20,14 @@ const urlsToCache = [
   'css/kitchen.css',
   'css/guest.css',
   'css/reviews.css',
+  'css/reviews-public.css',
   'js/app.js',
   'js/config.js',
   'js/admin.js',
   'js/kitchen.js',
   'js/guest.js',
   'js/reviews.js',
+  'js/reviews-public.js',
   'manifest-kiosk.json',
   'manifest-admin.json',
   'manifest-kitchen.json',

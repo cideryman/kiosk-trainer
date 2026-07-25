@@ -142,6 +142,7 @@ function submitReview(data) {
     });
 
     clearOrderReadCache();
+    clearReviewCache();
     return {
       success: true,
       message: '리뷰가 성공적으로 등록되었습니다.'
@@ -299,6 +300,7 @@ function submitReviewReply(data) {
 
     // 관리자 로그 추가
     safeAppendAdminLog('submitReviewReply', 'reviews', 'update', '후기 답글 작성', orderId, `답글: ${replyText}`, data.adminMemo);
+    clearReviewCache();
 
     return {
       success: true,
@@ -428,6 +430,7 @@ function toggleReviewVisibility(data) {
 
     // 7번째 열이 isPublic
     reviewSheet.getRange(rowIndex, 7).setValue(isPublic ? 'Y' : 'N');
+    clearReviewCache();
 
     return {
       success: true,
@@ -438,4 +441,166 @@ function toggleReviewVisibility(data) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * 27. 공개 후기 통합 조회 API (온기 개화 마일스톤 및 5분 캐시 적용)
+ */
+function getPublicReviews() {
+  try {
+    const cache = CacheService.getScriptCache();
+    const cachedData = cache.get("public_reviews_data");
+    if (cachedData) {
+      try {
+        return JSON.parse(cachedData);
+      } catch (e) {
+        // 캐시 파싱 에러 시 재계산 진행
+      }
+    }
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const reviewSheet = ss.getSheetByName(SHEET.REVIEWS);
+    if (!reviewSheet) {
+      return { success: true, reviews: [], totalCount: 0, cycle: 1, temperature: 36.5, stage: 0, progress: 0 };
+    }
+
+    const values = reviewSheet.getDataRange().getValues();
+    if (values.length <= 1) {
+      return { success: true, reviews: [], totalCount: 0, cycle: 1, temperature: 36.5, stage: 0, progress: 0 };
+    }
+
+    const headers = values[0] || [];
+    const isPublicIdx = findHeaderIndex(headers, ['isPublic', '공개', '공개여부']);
+    const commentIdx = findHeaderIndex(headers, ['comment', '내용', '후기내용', '응원메시지']);
+    const userIdx = findHeaderIndex(headers, ['guestName', '닉네임', '작성자', '이름']);
+    const dateIdx = findHeaderIndex(headers, ['createdAt', '작성일', '등록일', '일시']);
+    const stampIdx = findHeaderIndex(headers, ['stamp', '스탬프', '칭찬스탬프']);
+    const tagsIdx = findHeaderIndex(headers, ['tags', '태그']);
+    const imageIdx = findHeaderIndex(headers, ['imageUrl', '사진url', '이미지url']);
+    const replyTextIdx = findHeaderIndex(headers, ['replyText', '답글', '관리자답글']);
+    const replyDateIdx = findHeaderIndex(headers, ['replyCreatedAt', '답글작성일']);
+
+    const rows = values.slice(1);
+
+    const reviews = rows
+      .filter(row => {
+        const val = isPublicIdx !== -1 ? row[isPublicIdx] : row[6];
+        if (val === undefined || val === null || String(val).trim() === '') {
+          return true; // 과거에 isPublic 값이 비어있던 기존 후기도 기본 공개 처리
+        }
+        const strVal = String(val).trim().toUpperCase();
+        return strVal !== 'FALSE' && strVal !== 'N' && strVal !== 'NO' && strVal !== 'X' && strVal !== '아니오' && val !== false;
+      })
+      .map(row => {
+        const cDate = dateIdx !== -1 ? row[dateIdx] : row[0];
+        const rDate = replyDateIdx !== -1 ? row[replyDateIdx] : row[9];
+        return {
+          createdAt: formatReviewDateSafely(cDate),
+          guestName: (userIdx !== -1 ? row[userIdx] : row[2]) || '익명의 온기',
+          stamp: (stampIdx !== -1 ? row[stampIdx] : row[3]) || '',
+          tags: (tagsIdx !== -1 ? row[tagsIdx] : row[4]) || '',
+          comment: (commentIdx !== -1 ? row[commentIdx] : row[5]) || '',
+          imageUrl: (imageIdx !== -1 ? row[imageIdx] : row[7]) || '',
+          replyText: (replyTextIdx !== -1 ? row[replyTextIdx] : row[8]) || '',
+          replyCreatedAt: formatReviewDateSafely(rDate)
+        };
+      })
+      .reverse(); // 최신순
+
+    const totalCount = reviews.length;
+    const maxReviews = 50;
+
+    const cycle = Math.floor(totalCount / maxReviews) + 1;
+    let progress = totalCount % maxReviews;
+
+    // 50개, 100개 등 딱 떨어질 때 100℃/3단계를 유지하기 위한 예외 처리
+    if (totalCount > 0 && progress === 0) {
+      progress = maxReviews;
+    }
+
+    const baseTemp = 36.5;
+    const temperature = baseTemp + (progress / maxReviews) * (100 - baseTemp);
+
+    // 단계(stage: 0~3) 계산: 10개(50℃), 30개(75℃), 50개(100℃ - 온기 개화)
+    let stage = 0;
+    if (progress >= 50) stage = 3;
+    else if (progress >= 30) stage = 2;
+    else if (progress >= 10) stage = 1;
+
+    const result = {
+      success: true,
+      reviews,
+      totalCount,
+      cycle,
+      progress,
+      temperature: Math.round(temperature * 10) / 10,
+      stage
+    };
+
+    try {
+      cache.put("public_reviews_data", JSON.stringify(result), 300);
+    } catch (e) {
+      // 캐시 저장 오류 시 무시
+    }
+
+    return result;
+  } catch (error) {
+    Logger.log('getPublicReviews Error: ' + error);
+    return {
+      success: false,
+      message: '공개 후기 조회 중 오류: ' + error.message,
+      reviews: [],
+      totalCount: 0,
+      cycle: 1,
+      progress: 0,
+      temperature: 36.5,
+      stage: 0
+    };
+  }
+}
+
+/**
+ * 안전한 날짜 포맷 헬퍼 (Utilities.formatDate 예외 방지)
+ */
+function formatReviewDateSafely(val) {
+  if (!val) return '';
+  if (val instanceof Date) {
+    try {
+      return Utilities.formatDate(val, "GMT+9", "yyyy-MM-dd HH:mm");
+    } catch (e) {
+      return String(val);
+    }
+  }
+  const str = String(val).trim();
+  if (!str) return '';
+  try {
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      return Utilities.formatDate(d, "GMT+9", "yyyy-MM-dd HH:mm");
+    }
+  } catch (e) {}
+  return str;
+}
+
+/**
+ * 대소문자 및 한글/영어 호환 헤더 찾기 헬퍼
+ */
+function findHeaderIndex(headers, targets) {
+  if (!headers || !headers.length) return -1;
+  for (let i = 0; i < headers.length; i++) {
+    const h = String(headers[i]).trim().toLowerCase();
+    for (let j = 0; j < targets.length; j++) {
+      if (h === String(targets[j]).trim().toLowerCase()) return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * 리뷰 관련 캐시 무효화 헬퍼
+ */
+function clearReviewCache() {
+  try {
+    CacheService.getScriptCache().remove("public_reviews_data");
+  } catch (e) {}
 }
