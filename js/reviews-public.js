@@ -167,8 +167,12 @@
       elemTempValue.className = `temp-value ${getTempColorClass(temp)}`;
     }
 
-    const maxProgress = 50;
-    const fillPercent = Math.min(100, Math.max(0, (progress / maxProgress) * 100));
+    // 게이지는 0~100℃ 절대 눈금으로 표시해 시작부터 쌓인 온기를 보여준다.
+    const maxTemperature = 100;
+    const fillPercent = Math.min(
+      100,
+      Math.max(0, (temp / maxTemperature) * 100)
+    );
     if (elemGaugeFill) {
       elemGaugeFill.style.width = `${fillPercent}%`;
       elemGaugeFill.className = `gauge-bar-fill ${getTempColorClass(temp)}`;
@@ -176,7 +180,7 @@
 
     const stageInfo = DALGOM_STAGES[stage] || DALGOM_STAGES[0];
     if (elemDalgomAvatar) {
-      const avatarSrc = stageInfo.avatarImg || 'assets/dalgom_avatar_face.png';
+      const avatarSrc = stageInfo.avatarImg || 'assets/dalgomi_milestone_36.png';
       elemDalgomAvatar.innerHTML = `<img src="${avatarSrc}" alt="달곰이 캐릭터" class="dalgom-avatar-img">`;
     }
     if (elemDalgomSpeech) {
@@ -193,7 +197,7 @@
     });
 
     if (elemTotalCount) elemTotalCount.textContent = totalCount;
-    if (elemRemainingCount) elemRemainingCount.textContent = Math.max(0, maxProgress - progress);
+    if (elemRemainingCount) elemRemainingCount.textContent = Math.max(0, 50 - progress);
   }
 
   /**

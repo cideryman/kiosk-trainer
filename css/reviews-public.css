@@ -341,19 +341,28 @@ html, body {
 }
 
 .gauge-milestones {
-  display: flex;
-  justify-content: space-between;
+  position: relative;
+  height: 44px;
   margin-top: 8px;
 }
 
 .milestone-step {
+  position: absolute;
+  top: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   font-size: 0.72rem;
   color: #A0AEC0;
   transition: color 0.3s ease;
+  transform: translateX(-50%);
 }
+
+.milestone-step.step-0 { left: 0; transform: none; align-items: flex-start; }
+.milestone-step.step-1 { left: 36.5%; }
+.milestone-step.step-2 { left: 50%; }
+.milestone-step.step-3 { left: 75%; }
+.milestone-step.step-4 { left: 100%; }
 
 .milestone-step.is-reached {
   color: var(--warm-red);
