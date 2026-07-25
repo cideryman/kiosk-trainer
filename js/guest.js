@@ -1560,6 +1560,14 @@ window.addEventListener('DOMContentLoaded', () => {
       const btnGmNext = document.getElementById('btn-gm-next');
       if (btnGmNext) AppState.bindCardTap(btnGmNext, () => navigateGuestReview(1));
 
+      const btnMoreReviews = document.getElementById('btn-more-reviews');
+      if (btnMoreReviews) {
+        btnMoreReviews.addEventListener('click', (e) => {
+          e.preventDefault();
+          window.location.href = 'reviews-public.html';
+        });
+      }
+
       // 키보드 지원
       window.addEventListener('keydown', (e) => {
         const modal = document.getElementById('guest-review-modal');

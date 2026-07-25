@@ -72,7 +72,35 @@
       text-decoration: none;
       display: inline-flex;
       align-items: center;
+    /* 3색 세그먼트 탭 네비게이션 */
+    .segmented-tab-nav {
+      display: inline-flex;
+      align-items: center;
+      background: #EDF2F7;
+      padding: 4px;
+      border-radius: 18px;
+      gap: 4px;
+      width: 100%;
     }
+    .tab-item {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 7px 10px;
+      border-radius: 14px;
+      font-size: 0.84rem;
+      font-weight: 800;
+      color: #718096;
+      text-decoration: none;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      white-space: nowrap;
+    }
+    .tab-item:hover { background: rgba(255, 255, 255, 0.7); color: #2D3748; }
+    .tab-item.tab-apply.active { background: #0F766E; color: #FFFFFF; box-shadow: 0 3px 10px rgba(15, 118, 110, 0.3); }
+    .tab-item.tab-board.active { background: linear-gradient(135deg, #FF6B6B, #E53E3E); color: #FFFFFF; box-shadow: 0 3px 10px rgba(255, 107, 107, 0.3); }
+    .tab-item.tab-store.active { background: linear-gradient(135deg, #EA6A17, #DD6B20); color: #FFFFFF; box-shadow: 0 3px 10px rgba(234, 106, 23, 0.3); }
 
     .hero {
       min-height: 0;
@@ -447,13 +475,23 @@
 <body>
   <header class="apply-header">
     <a class="apply-brand" href="guest.html">
-      <img src="icons/guest-192.png" alt="">
-      <span><strong style="color: var(--teal); font-weight: inherit;">배달왔</strong><strong style="color: var(--orange); font-weight: inherit;">삼</strong> 이용 신청</span>
+      <img src="icons/guest-192.png" alt="배달왔삼 로고">
+      <span><strong style="color: var(--teal); font-weight: inherit;">배달왔</strong><strong style="color: var(--orange); font-weight: inherit;">삼</strong></span>
     </a>
-    <div style="display: flex; gap: 8px;">
-      <a class="header-link" href="reviews-public.html" style="border-color: #FF8E8E; color: #E53E3E; background: #FFF5F5;">🌸 온기 후기 보드</a>
-      <a class="header-link" href="guest.html">배달왔삼 홈</a>
-    </div>
+    <nav class="segmented-tab-nav" aria-label="메인 탭 네비게이션" style="max-width: 380px;">
+      <a href="guest-apply.html" class="tab-item tab-apply active" title="이용 신청 페이지">
+        <span class="tab-icon">🌿</span>
+        <span class="tab-label">이용신청</span>
+      </a>
+      <a href="reviews-public.html" class="tab-item tab-board" title="공개 온기 후기 보드">
+        <span class="tab-icon">🌸</span>
+        <span class="tab-label">온기보드</span>
+      </a>
+      <a href="guest.html" class="tab-item tab-store" title="배달왔삼 간식 주문 홈">
+        <span class="tab-icon">🍊</span>
+        <span class="tab-label">배달왔삼</span>
+      </a>
+    </nav>
   </header>
 
   <main>
