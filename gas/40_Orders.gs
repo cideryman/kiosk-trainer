@@ -6,7 +6,7 @@ function placeOrder(data) {
   const items = data.items;
   const rawIdempotencyKey = normalizeIdempotencyKey(data.idempotencyKey);
 
-  if (!userId || !items || items.length === 0) {
+  if (!userId || !Array.isArray(items) || items.length === 0) {
     return {
       success: false,
       message: '주문 정보가 부족합니다.',
@@ -17,6 +17,29 @@ function placeOrder(data) {
       success: false,
       message: '주문 중복 방지 키가 올바르지 않습니다. 화면을 새로고침한 뒤 다시 시도해 주세요.',
     };
+  }
+
+  // 클라이언트가 같은 간식을 여러 항목으로 나누어 보내도 서버에서 하나로 합산한다.
+  // 이 합산 결과를 기준으로 재고·1인 제한·차감 포인트를 검증해야 우회가 없다.
+  const normalizedItems = [];
+  const itemIndexBySnackId = {};
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i] || {};
+    const snackIdKey = String(item.snackId == null ? '' : item.snackId).trim();
+    const quantity = Number(item.quantity);
+    if (!snackIdKey || !Number.isFinite(quantity) || !Number.isInteger(quantity) || quantity <= 0) {
+      return {
+        success: false,
+        message: '주문 간식 수량이 올바르지 않습니다.',
+      };
+    }
+
+    if (Object.prototype.hasOwnProperty.call(itemIndexBySnackId, snackIdKey)) {
+      normalizedItems[itemIndexBySnackId[snackIdKey]].quantity += quantity;
+    } else {
+      itemIndexBySnackId[snackIdKey] = normalizedItems.length;
+      normalizedItems.push({ snackId: item.snackId, quantity });
+    }
   }
 
   const lock = LockService.getScriptLock();
@@ -123,7 +146,7 @@ function placeOrder(data) {
     let totalPoint = 0;
     const orderItems = [];
 
-    items.forEach(item => {
+    normalizedItems.forEach(item => {
       const snackRowIndex = snacks.findIndex((row, index) => {
         return index > 0 && String(row[0]) === String(item.snackId);
       });
@@ -145,10 +168,6 @@ function placeOrder(data) {
         throw new Error(`'${snackName}' 은(는) 현재 주문할 수 없는 간식입니다.`);
       }
 
-      if (quantity <= 0) {
-        throw new Error('수량이 올바르지 않습니다.');
-      }
-
       if (stock < quantity) {
         throw new Error(`${snackName} 재고가 부족합니다. 현재 재고: ${stock}개`);
       }
@@ -159,9 +178,9 @@ function placeOrder(data) {
         const alreadyOrderedCount = Number(todayCountsMap[snackId] || 0);
         if (alreadyOrderedCount + quantity > maxPerPerson) {
           if (alreadyOrderedCount > 0) {
-            throw new Error(`🎁 '${snackName}' 은(는) 오늘 이미 주문하셨습니다. 다른 분을 위해 양보해 주세요 💖`);
+            throw new Error(`추가 주문 불가: '${snackName}'`);
           } else {
-            throw new Error(`🎁 '${snackName}' 은(는) 1인당 ${maxPerPerson}개 한정 간식입니다. ${maxPerPerson}개만 선택해 주세요!`);
+            throw new Error(`주문 수량 초과: '${snackName}' 1인 ${maxPerPerson}개`);
           }
         }
       }

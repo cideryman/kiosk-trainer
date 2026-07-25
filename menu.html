@@ -362,7 +362,7 @@
         let limitBadgeHTML = '';
         if (hasPerPersonLimit) {
           if (isLimitCompleted) {
-            limitBadgeHTML = `<div style="position: absolute; top: 6px; right: 6px; background-color: #2F855A; color: white; padding: 4px 8px; border-radius: 12px; font-size: 13px; font-weight: 800; z-index: 3; box-shadow: 0 2px 4px rgba(0,0,0,0.15); white-space: nowrap;">✅ 오늘 완료</div>`;
+            limitBadgeHTML = `<div style="position: absolute; top: 6px; right: 6px; background-color: #2F855A; color: white; padding: 4px 8px; border-radius: 12px; font-size: 13px; font-weight: 800; z-index: 3; box-shadow: 0 2px 4px rgba(0,0,0,0.15); white-space: nowrap;">추가 주문 불가</div>`;
           } else {
             limitBadgeHTML = `<div style="position: absolute; top: 6px; right: 6px; background-color: #DD6B20; color: white; padding: 4px 8px; border-radius: 12px; font-size: 13px; font-weight: 800; z-index: 3; box-shadow: 0 2px 4px rgba(0,0,0,0.15); white-space: nowrap;">🎁 1인 ${maxLimit}개 한정</div>`;
           }
@@ -371,7 +371,7 @@
         // 남은 재고 텍스트 설정
         let stockText = isSoldOut
           ? '품절'
-          : (isLimitCompleted ? '👏 오늘 몫 선물 완료!' : (isGuestMenuBrowseMode() ? '판매 중' : `남은 수량 ${snack.stock}개`));
+          : (isLimitCompleted ? '추가 주문 불가' : (isGuestMenuBrowseMode() ? '판매 중' : `남은 수량 ${snack.stock}개`));
         let stockColor = isSoldOut ? 'var(--danger-color)' : (isLimitCompleted ? '#2F855A' : 'var(--text-muted)');
         const counterHTML = isGuestMenuBrowseMode()
           ? ''
@@ -456,9 +456,9 @@
         const remainingQuota = Math.max(0, maxLimit - todayOrdered);
         if (change > 0 && targetQty > remainingQuota) {
           if (todayOrdered > 0) {
-            alert(`🎁 '${snack.name}' 은(는) 오늘 이미 주문하셨습니다. 다른 분을 위해 양보해 주세요 💖`);
+            alert(`추가 주문 불가: '${snack.name}'`);
           } else {
-            alert(`🎁 '${snack.name}' 은(는) 1인당 ${maxLimit}개 한정 간식입니다. ${maxLimit}개만 선택해 주세요!`);
+            alert(`주문 수량 초과: '${snack.name}' 1인 ${maxLimit}개`);
           }
           AppState.vibrate([100, 50, 100]);
           return;

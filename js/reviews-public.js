@@ -177,6 +177,7 @@
     const fillPercent = Math.min(100, Math.max(0, (progress / maxProgress) * 100));
     if (elemGaugeFill) {
       elemGaugeFill.style.width = `${fillPercent}%`;
+      elemGaugeFill.className = `gauge-bar-fill ${getTempColorClass(temp)}`;
     }
 
     const stageInfo = DALGOM_STAGES[stage] || DALGOM_STAGES[0];

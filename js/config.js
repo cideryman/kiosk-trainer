@@ -355,6 +355,13 @@ function saveMockSnacks(snacks) {
   localStorage.setItem('mockSnacks', JSON.stringify(snacks));
 }
 
+function parseMockMaxPerPerson(value) {
+  const text = String(value == null ? '' : value).trim();
+  if (text === '') return 0;
+  const parsed = Number(text);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
 /**
  * API 호출 실패 시 로컬에서 응답할 Mock 데이터 처리기
  */
@@ -768,6 +775,24 @@ function getMockFallback(action, options) {
     // 주문 완료 시 로컬 스토리지에 임시 주문 추가 (관리자 화면에서 확인 가능하게)
     const userId = options.body?.userId || 'unknown';
     const items = options.body?.items || [];
+    if (!Array.isArray(items) || items.length === 0) {
+      return { success: false, message: '주문 정보가 부족합니다.' };
+    }
+    const normalizedItems = [];
+    const itemIndexBySnackId = {};
+    for (const item of items) {
+      const snackIdKey = String(item?.snackId == null ? '' : item.snackId).trim();
+      const quantity = Number(item?.quantity);
+      if (!snackIdKey || !Number.isFinite(quantity) || !Number.isInteger(quantity) || quantity <= 0) {
+        return { success: false, message: '주문 간식 수량이 올바르지 않습니다.' };
+      }
+      if (Object.prototype.hasOwnProperty.call(itemIndexBySnackId, snackIdKey)) {
+        normalizedItems[itemIndexBySnackId[snackIdKey]].quantity += quantity;
+      } else {
+        itemIndexBySnackId[snackIdKey] = normalizedItems.length;
+        normalizedItems.push({ snackId: item.snackId, quantity });
+      }
+    }
     const isGuest = (userId === 'guest');
     const idempotencyKey = String(options.body?.idempotencyKey || '').trim();
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
@@ -871,7 +896,7 @@ function getMockFallback(action, options) {
       deliveryFee = Number(options.body?.deliveryFee || 0);
     }
 
-    const snackTotalCost = items.reduce((sum, item) => {
+    const snackTotalCost = normalizedItems.reduce((sum, item) => {
       const snack = snacks.find(s => s.snackId === item.snackId) || { point: 1 };
       return sum + (Number(snack.point || 0) * Number(item.quantity || 0));
     }, 0);
@@ -893,7 +918,7 @@ function getMockFallback(action, options) {
       }
     }
 
-    const newOrders = items.map(item => {
+    const newOrders = normalizedItems.map(item => {
       const snack = snacks.find(s => s.snackId === item.snackId) || { name: `간식 ${item.snackId}`, point: 1 };
       return {
         timestamp: timestampStr,
@@ -1097,9 +1122,12 @@ function getMockFallback(action, options) {
     const stock = Number(options.body?.stock || 0);
     const saleYn = options.body?.saleYn || "Y";
     const target = options.body?.target || "user";
+    const maxPerPerson = parseMockMaxPerPerson(options.body?.maxPerPerson);
     const snacks = getMockSnacks();
     if (!Number.isFinite(stock) || stock < 0 || stock > ADMIN_MAX_SNACK_STOCK) {
       res = { success: false, message: `간식 재고는 0~${ADMIN_MAX_SNACK_STOCK} 범위로 입력해 주세요.` };
+    } else if (maxPerPerson === null) {
+      res = { success: false, message: "1인당 제한 수량은 0 또는 양의 정수로 입력해 주세요." };
     } else {
     const maxId = snacks.reduce((max, s) => s.snackId > max ? s.snackId : max, 0);
     const newSnackId = maxId + 1;
@@ -1110,11 +1138,12 @@ function getMockFallback(action, options) {
       imageUrl: imageUrl,
       saleYn: saleYn,
       stock: stock,
-      target: target
+      target: target,
+      maxPerPerson: maxPerPerson
     };
     snacks.push(newSnack);
     saveMockSnacks(snacks);
-    appendMockAdminLog('addSnack', 'snack', newSnackId, name, '', JSON.stringify({ point, saleYn, stock, target }), options.body?.adminMemo);
+    appendMockAdminLog('addSnack', 'snack', newSnackId, name, '', JSON.stringify({ point, saleYn, stock, target, maxPerPerson }), options.body?.adminMemo);
     res = {
       success: true,
       message: "신규 간식을 등록했습니다.",
@@ -1129,14 +1158,17 @@ function getMockFallback(action, options) {
     const stock = Number(options.body?.stock);
     const saleYn = options.body?.saleYn;
     const target = options.body?.target || 'user';
+    const maxPerPerson = parseMockMaxPerPerson(options.body?.maxPerPerson);
     const snacks = getMockSnacks();
     const snack = snacks.find(s => s.snackId === snackId);
     if (!Number.isFinite(stock) || stock < 0 || stock > ADMIN_MAX_SNACK_STOCK) {
       res = { success: false, message: `간식 재고는 0~${ADMIN_MAX_SNACK_STOCK} 범위로 입력해 주세요.` };
+    } else if (maxPerPerson === null) {
+      res = { success: false, message: "1인당 제한 수량은 0 또는 양의 정수로 입력해 주세요." };
     } else if (snack) {
       appendMockAdminLog('updateSnack', 'snack', snackId, name, 
-        JSON.stringify({ name: snack.name, point: snack.point, imageUrl: snack.imageUrl, saleYn: snack.saleYn, stock: snack.stock, target: snack.target }),
-        JSON.stringify({ name, point, imageUrl, saleYn, stock, target }), 
+        JSON.stringify({ name: snack.name, point: snack.point, imageUrl: snack.imageUrl, saleYn: snack.saleYn, stock: snack.stock, target: snack.target, maxPerPerson: snack.maxPerPerson || 0 }),
+        JSON.stringify({ name, point, imageUrl, saleYn, stock, target, maxPerPerson }),
         options.body?.adminMemo
       );
       snack.name = name;
@@ -1146,6 +1178,7 @@ function getMockFallback(action, options) {
       snack.saleYn = saleYn;
       snack.active = saleYn;
       snack.target = target;
+      snack.maxPerPerson = maxPerPerson;
       saveMockSnacks(snacks);
     }
     res = {

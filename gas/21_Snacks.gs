@@ -200,6 +200,14 @@ function cleanSnackTarget(rawTarget) {
   return list.length > 0 ? list.join(',') : 'user';
 }
 
+function parseMaxPerPerson(value) {
+  var text = String(value == null ? '' : value).trim();
+  if (text === '') return 0;
+  var parsed = Number(text);
+  if (!isFinite(parsed) || parsed < 0 || Math.floor(parsed) !== parsed) return null;
+  return parsed;
+}
+
 /**
  * 15. 신규 간식 품목 등록 API
  */
@@ -220,7 +228,10 @@ function addSnack(data) {
     return { success: false, message: '간식 재고는 0~' + ADMIN_MAX_SNACK_STOCK + ' 범위로 입력해 주세요.' };
   }
 
-  var maxPerPerson = Number(data.maxPerPerson || 0);
+  var maxPerPerson = parseMaxPerPerson(data.maxPerPerson);
+  if (maxPerPerson === null) {
+    return { success: false, message: '1인당 제한 수량은 0 또는 양의 정수로 입력해 주세요.' };
+  }
 
   var newRow = [
     newSnackId,
@@ -253,7 +264,7 @@ function updateSnack(data) {
   var stock = Number(data.stock);
   var saleYn = String(data.saleYn || 'Y').toUpperCase() === 'Y' ? 'Y' : 'N';
   var target = cleanSnackTarget(data.target);
-  var maxPerPerson = Number(data.maxPerPerson || 0);
+  var maxPerPerson = parseMaxPerPerson(data.maxPerPerson);
 
   if (!snackId) {
     return { success: false, message: '간식 ID가 필요합니다.' };
@@ -263,6 +274,9 @@ function updateSnack(data) {
   }
   if (!isFinite(stock) || stock < 0 || stock > ADMIN_MAX_SNACK_STOCK) {
     return { success: false, message: '간식 재고는 0~' + ADMIN_MAX_SNACK_STOCK + ' 범위로 입력해 주세요.' };
+  }
+  if (maxPerPerson === null) {
+    return { success: false, message: '1인당 제한 수량은 0 또는 양의 정수로 입력해 주세요.' };
   }
 
   for (var i = 1; i < rows.length; i++) {

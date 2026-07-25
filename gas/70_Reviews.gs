@@ -158,6 +158,21 @@ function submitReview(data) {
 }
 
 /**
+ * 공개 후기에서 표시할 이름을 마스킹한다.
+ * 관리자용 조회에는 적용하지 않고, 외부에 반환되는 응답에만 사용한다.
+ */
+function maskPublicReviewName(name) {
+  const text = String(name == null ? '' : name).trim();
+  if (!text || text === '익명의 온기') return '익명의 온기';
+  if (text.length <= 1) return text;
+  if (text.length === 2) return text[0] + '*';
+  if (text.length <= 4) {
+    return text[0] + '*'.repeat(text.length - 2) + text[text.length - 1];
+  }
+  return text.slice(0, 3) + '***';
+}
+
+/**
  * 23. 최근 공개 후기 조회 API (칭찬 보드용)
  */
 function getRecentReviews() {
@@ -179,7 +194,7 @@ function getRecentReviews() {
     .map(row => ({
       createdAt: row[0],
       orderId: row[1],
-      guestName: row[2],
+      guestName: maskPublicReviewName(row[2]),
       stamp: row[3],
       tags: row[4],
       comment: row[5],
@@ -496,7 +511,7 @@ function getPublicReviews() {
         const rDate = replyDateIdx !== -1 ? row[replyDateIdx] : row[9];
         return {
           createdAt: formatReviewDateSafely(cDate),
-          guestName: (userIdx !== -1 ? row[userIdx] : row[2]) || '익명의 온기',
+          guestName: maskPublicReviewName(userIdx !== -1 ? row[userIdx] : row[2]),
           stamp: (stampIdx !== -1 ? row[stampIdx] : row[3]) || '',
           tags: (tagsIdx !== -1 ? row[tagsIdx] : row[4]) || '',
           comment: (commentIdx !== -1 ? row[commentIdx] : row[5]) || '',

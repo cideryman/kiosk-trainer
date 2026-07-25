@@ -8,6 +8,8 @@
   --warm-coral: #FF6B6B;
   --warm-red: #E53E3E;
   --warm-orange: #DD6B20;
+  --teal: #0F766E;
+  --orange: #EA6A17;
 }
 
 html, body {
@@ -20,7 +22,8 @@ html, body {
 .reviews-public-body {
   background-color: var(--teal-soft-bg);
   color: #172033;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0;
   min-height: 100vh;
 }
 
@@ -93,10 +96,10 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 8px 12px;
+  gap: 5px;
+  padding: 7px 10px;
   border-radius: 14px;
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   font-weight: 800;
   color: #718096;
   text-decoration: none;
@@ -130,10 +133,16 @@ html, body {
   box-shadow: 0 3px 10px rgba(234, 106, 23, 0.3);
 }
 
+@media (max-width: 960px) {
+  .apply-header { min-height: 58px; padding: 8px 14px; }
+  .apply-brand { font-size: 16px; }
+  .apply-brand img { width: 34px; height: 34px; }
+}
+
 @media (max-width: 640px) {
   .apply-header {
     flex-direction: column;
-    padding: 12px;
+    padding: 12px 16px;
     gap: 8px;
     height: auto;
     min-height: auto;
@@ -141,6 +150,10 @@ html, body {
   .segmented-tab-nav {
     max-width: 100% !important;
   }
+}
+
+@media (max-width: 340px) {
+  .apply-brand span { display: none; }
 }
 
 .btn-back-link, .btn-apply-link {
@@ -306,9 +319,25 @@ html, body {
 
 .gauge-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #FF8E8E, var(--warm-red), var(--warm-orange));
+  background: linear-gradient(90deg, #20B8AA, #DD6B20);
   border-radius: 10px;
-  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1), background 0.5s ease;
+}
+
+.gauge-bar-fill.temp-level-0 {
+  background: linear-gradient(90deg, #20B8AA, #DD6B20);
+}
+
+.gauge-bar-fill.temp-level-1 {
+  background: linear-gradient(90deg, #DD6B20, #D69E2E);
+}
+
+.gauge-bar-fill.temp-level-2 {
+  background: linear-gradient(90deg, #E53E3E, #FF6B6B);
+}
+
+.gauge-bar-fill.temp-level-3 {
+  background: linear-gradient(90deg, #FF6B6B, #ED64A6);
 }
 
 .gauge-milestones {
