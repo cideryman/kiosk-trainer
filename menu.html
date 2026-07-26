@@ -30,7 +30,7 @@
 
     <!-- 온기 경고 노티 (숨김이 기본, 오버레이) -->
     <div class="warning-overlay" id="credit-warning" style="display: none; word-break: keep-all;">
-      보낼 온기가 부족해요! 온기를 채워볼까요? 🥺❤️
+      보낼 온기가 부족해요.
     </div>
 
     <!-- 재고 경고 노티 (숨김이 기본, 오버레이) -->
@@ -558,7 +558,7 @@
     // 6. 경고 메시지 토글
     function showCreditWarning() {
       const warningEl = document.getElementById('credit-warning');
-      warningEl.textContent = '보낼 온기가 부족해요! 온기를 채워볼까요? 🥺❤️';
+      warningEl.textContent = '보낼 온기가 부족해요.';
       warningEl.style.display = 'block';
       hideStockWarning(); // 재고 경고는 숨김
       
