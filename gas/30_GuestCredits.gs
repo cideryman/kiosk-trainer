@@ -10,11 +10,20 @@ function isSameKoreaDate(dateValue, now) {
   }
 }
 
-function isClosedOrderStatus(status) {
-  const s = String(status || '').trim().toLowerCase();
+function normalizeOrderStatus(status) {
+  return String(status || '').trim().toLowerCase();
+}
+
+function isCancelledOrderStatus(status) {
   return [
-    'cancelled', 'canceled', '취소', '관리자취소',
-    '제공완료', '배달완료', '완료', 'completed', 'done', 'y', 'c'
+    'cancelled', 'canceled', '취소', '주문취소', '관리자취소', 'c'
+  ].includes(normalizeOrderStatus(status));
+}
+
+function isClosedOrderStatus(status) {
+  const s = normalizeOrderStatus(status);
+  return isCancelledOrderStatus(s) || [
+    '제공완료', '배달완료', '완료', 'completed', 'done', 'y'
   ].includes(s);
 }
 
@@ -159,7 +168,7 @@ function resolveGuestCreditWallet(data, options) {
         creditLimit,
         usedCredit,
         remainingCredit: Math.max(0, creditLimit - usedCredit),
-        message: `크레딧이 부족합니다. 오늘 남은 크레딧: ${Math.max(0, creditLimit - usedCredit)}개`,
+        message: `온기가 부족합니다. 오늘 남은 온기: ${Math.max(0, creditLimit - usedCredit)}개`,
       };
     }
     usedCredit += spendCredit;

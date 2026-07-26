@@ -328,7 +328,7 @@ function updateGuestSettings(data) {
       upsertSettingValue(sheet, 'guestEventEmblemBase64', String(data.guestEventEmblemBase64).trim());
     }
 
-    safeAppendAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `크레딧:${guestBaseCredit}, 배달비:${guestDeliveryFee}, 기본배달지:${guestDefaultDeliveryPlace}`, data.adminMemo);
+    safeAppendAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `온기:${guestBaseCredit}, 배달비:${guestDeliveryFee}, 기본배달지:${guestDefaultDeliveryPlace}`, data.adminMemo);
     clearGuestSettingsCache();
     return { success: true, message: '게스트 설정이 저장되었습니다.' };
   } else if (action === 'updateMenuMode') {

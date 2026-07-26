@@ -654,7 +654,7 @@ function getMockFallback(action, options) {
       if (options.body?.guestEventName !== undefined) {
         settings.guestEventName = String(options.body.guestEventName).trim();
       }
-      appendMockAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `크레딧:${settings.guestBaseCredit}, 배달비:${settings.guestDeliveryFee}, 기본배달지:${settings.guestDefaultDeliveryPlace}`, options.body?.adminMemo);
+      appendMockAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `온기:${settings.guestBaseCredit}, 배달비:${settings.guestDeliveryFee}, 기본배달지:${settings.guestDefaultDeliveryPlace}`, options.body?.adminMemo);
     }
 
     saveMockGuestSettings(settings);

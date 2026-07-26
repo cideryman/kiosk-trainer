@@ -47,7 +47,7 @@ function updateUserCredit(data) {
   var newCredit = Number(data.credit);
 
   if (!isFinite(newCredit) || newCredit < 0 || newCredit > ADMIN_MAX_USER_CREDIT) {
-    return { success: false, message: '이용자 크레딧은 0~' + ADMIN_MAX_USER_CREDIT + ' 범위로 입력해 주세요.' };
+    return { success: false, message: '이용자 온기는 0~' + ADMIN_MAX_USER_CREDIT + ' 범위로 입력해 주세요.' };
   }
 
   for (var i = 1; i < rows.length; i++) {
@@ -55,7 +55,7 @@ function updateUserCredit(data) {
       var beforeCredit = Number(rows[i][2] || 0);
       sheet.getRange(i + 1, 3).setValue(newCredit);
       safeAppendAdminLog('updateUserCredit', 'user', userId, rows[i][1], beforeCredit, newCredit, data.adminMemo);
-      return { success: true, message: '크레딧을 업데이트했습니다.' };
+      return { success: true, message: '온기를 업데이트했습니다.' };
     }
   }
   return { success: false, message: '이용자를 찾을 수 없습니다.' };
@@ -74,7 +74,7 @@ function addUser(data) {
   }
   var initialCredit = Number(data.credit || 0);
   if (!isFinite(initialCredit) || initialCredit < 0 || initialCredit > ADMIN_MAX_USER_CREDIT) {
-    return { success: false, message: '이용자 크레딧은 0~' + ADMIN_MAX_USER_CREDIT + ' 범위로 입력해 주세요.' };
+    return { success: false, message: '이용자 온기는 0~' + ADMIN_MAX_USER_CREDIT + ' 범위로 입력해 주세요.' };
   }
 
   var maxNumber = 0;
@@ -145,7 +145,7 @@ function updateUser(data) {
     return { success: false, message: '이용자 별명이 필요합니다.' };
   }
   if (!isFinite(credit) || credit < 0 || credit > ADMIN_MAX_USER_CREDIT) {
-    return { success: false, message: '이용자 크레딧은 0~' + ADMIN_MAX_USER_CREDIT + ' 범위로 입력해 주세요.' };
+    return { success: false, message: '이용자 온기는 0~' + ADMIN_MAX_USER_CREDIT + ' 범위로 입력해 주세요.' };
   }
 
   for (var i = 1; i < rows.length; i++) {

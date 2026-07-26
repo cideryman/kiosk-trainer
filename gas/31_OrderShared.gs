@@ -110,8 +110,8 @@ function getUserTodaySnackCountsMap(guestKey, guestDeviceId, userId) {
     const orderTime = row[0];
     if (!orderTime || !isSameKoreaDate(orderTime, nowTime)) continue;
 
-    const status = String(row[servedYnIdx !== -1 ? servedYnIdx : 8] || '').trim().toUpperCase();
-    if (status === 'C' || status === 'CANCELLED' || status === 'CANCELED' || status === '취소' || status === '주문취소') continue;
+    const status = row[servedYnIdx !== -1 ? servedYnIdx : 8];
+    if (isCancelledOrderStatus(status)) continue;
 
     let isMatch = false;
     if (isGuest) {

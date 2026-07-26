@@ -221,7 +221,7 @@ function placeOrder(data) {
     if (currentCredit < totalCredit) {
       return {
         success: false,
-        message: '크레딧이 부족합니다.',
+        message: '온기가 부족합니다.',
         currentCredit,
         totalPoint: totalCredit,
       };
@@ -341,7 +341,7 @@ function placeOrder(data) {
         create: true,
       });
       if (!walletUpdate.success) {
-        throw new Error(walletUpdate.message || '게스트 크레딧을 업데이트하지 못했습니다.');
+        throw new Error(walletUpdate.message || '게스트 온기를 업데이트하지 못했습니다.');
       }
       newCredit = walletUpdate.remainingCredit;
     }
@@ -976,7 +976,7 @@ function cancelOrder(data) {
       const rowOrderId = String(orderValues[i][1]);
       const servedYn = orderValues[i][8] || 'N';
 
-      if (rowOrderId === String(orderId) && servedYn !== 'C') {
+      if (rowOrderId === String(orderId) && !isCancelledOrderStatus(servedYn)) {
         const userId = String(orderValues[i][2]);
         const nickname = orderValues[i][3];
         const snackId = String(orderValues[i][4]);
@@ -1024,7 +1024,7 @@ function cancelOrder(data) {
         }
 
         updatedCount++;
-        refundLogs.push(`${snackName} ${quantity}개 (${point} 크레딧)`);
+        refundLogs.push(`${snackName} ${quantity}개 (${point} 온기)`);
 
         if (updatedCount === 1) {
           safeAppendAdminLog('cancelOrder', 'order', orderId, nickname, servedYn, 'C', data.adminMemo || '주문 취소 및 환불');
@@ -1123,7 +1123,7 @@ function userCancelOrder(data) {
           }
         }
 
-        if (servedYn === 'C') continue; // 이미 취소된 항목 무시
+        if (isCancelledOrderStatus(servedYn)) continue; // 이미 취소된 항목 무시
 
         if (servedYn !== 'N') {
           isAlreadyStarted = true;
@@ -1171,7 +1171,7 @@ function userCancelOrder(data) {
         orderSheet.getRange(i + 1, 18).setValue(''); // Detail은 빈 값
 
         updatedCount++;
-        refundLogs.push(`${snackName} ${quantity}개 (${point} 크레딧)`);
+        refundLogs.push(`${snackName} ${quantity}개 (${point} 온기)`);
       }
     }
 
