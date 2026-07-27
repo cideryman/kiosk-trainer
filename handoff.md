@@ -1,6 +1,6 @@
 # 배달왔삼 키오스크 프로젝트 핸드오프
 
-> 마지막 갱신: 2026-07-26
+> 마지막 갱신: 2026-07-27
 
 ## 현재 상태
 
@@ -17,16 +17,12 @@
 
 | 순서 | ID | 작업 | 상태 | 다음 행동 | 검증 절차 |
 |---:|---|---|---|---|---|
-| 1 | P53 | 온기 명칭 잔여 사용자 문구 정리 | 배포 완료·수동 검증 대기 | 온기 부족·이용자 조정·환불 안내 문구를 수동 확인 | [P53 온기 문구 검증](docs/handoff/verification.md#p53-온기-문구-검증) |
-| 2 | P54 | P48 이후 공개 화면 스타일 변경 문서 동기화 | 배포 완료·수동 검증 대기 | - | [P54 문서 및 캐시 검증](docs/handoff/verification.md#p54-문서-및-캐시-동기화-검증) |
-| 3 | P47 | 공개 후기 전시 페이지 & 온기 개화 마일스톤 및 이용신청 연동 | 구현 완료·배포 대기 | GAS getPublicReviews 배포 및 PWA 서비스 워커 반영 | reviews-public.html 접속 및 게이지·후기 카드 렌더링 수동 검증 |
-| 4 | P48 | 공개 3개 탭 네비게이션 통합 및 배달왔삼 키오스크 동선 보호 | 배포 완료·수동 검증 대기 | 이용신청·온기보드 3색 탭 연동 및 guest.html 무이탈 100% 레이아웃 보존 | reviews-public.html, guest-apply.html 탭 전환 및 guest.html 주문 고유 레이아웃 수동 검증 |
-| 5 | P34 | 주문 확인 화면(confirm.html) CSS/JS 외부 파일 분리 리팩토링 | 구현 대기 | 인라인 CSS(160행) 및 JS(820행)를 각각 css/confirm.css 및 js/confirm.js로 분리 | `confirm.html` 로드 및 주문 기능 정상 동작 테스트 |
-| 6 | P35 | 주문 완료 화면(complete.html) CSS/JS 외부 파일 분리 리팩토링 | 구현 대기 | 인라인 CSS(310행) 및 JS(740행)를 각각 css/complete.css 및 js/complete.js로 분리 | `complete.html` 로드 및 주문 완료 화면 정상 표시 테스트 |
-| 7 | P36 | 메뉴 선택 화면(menu.html) JS 외부 파일 분리 리팩토링 | 구현 대기 | 인라인 JS(520행)를 js/menu.js로 분리 | `menu.html` 로드 및 메뉴 선택/검색 기능 정상 동작 테스트 |
-| 8 | P37 | 내 주문 내역 화면(guest-orders.html) CSS/JS 외부 파일 분리 리팩토링 | 구현 대기 | 인라인 CSS(240행) 및 JS(880행)를 각각 css/guest-orders.css 및 js/guest-orders.js로 분리 | `guest-orders.html` 로드 및 주문 내역 정상 표시/후기 작성 테스트 |
-| 9 | P38 | 이용 신청 화면(guest-apply.html) CSS/JS 외부 파일 분리 리팩토링 | 구현 대기 | 인라인 CSS(430행) 및 JS(310행)를 각각 css/guest-apply.css 및 js/guest-apply.js로 분리 | `guest-apply.html` 로드 및 신청서 작성/제출 정상 동작 테스트 |
-| 10 | P39 | 현황판 화면(board.html) CSS/JS 외부 파일 분리 리팩토링 | 구현 대기 | 인라인 CSS(380행) 및 JS(260행)를 각각 css/board.css 및 js/board.js로 분리 | `board.html` 로드 및 주문 실시간 호출/완료 처리 연동 정상 동작 테스트 |
+| 1 | P34 | 주문 확인 화면(confirm.html) CSS/JS 외부 파일 분리 리팩토링 | 구현 대기 | 인라인 CSS(160행) 및 JS(820행)를 각각 css/confirm.css 및 js/confirm.js로 분리 | `confirm.html` 로드 및 주문 기능 정상 동작 테스트 |
+| 2 | P35 | 주문 완료 화면(complete.html) CSS/JS 외부 파일 분리 리팩토링 | 구현 대기 | 인라인 CSS(310행) 및 JS(740행)를 각각 css/complete.css 및 js/complete.js로 분리 | `complete.html` 로드 및 주문 완료 화면 정상 표시 테스트 |
+| 3 | P36 | 메뉴 선택 화면(menu.html) JS 외부 파일 분리 리팩토링 | 구현 대기 | 인라인 JS(520행)를 js/menu.js로 분리 | `menu.html` 로드 및 메뉴 선택/검색 기능 정상 동작 테스트 |
+| 4 | P37 | 내 주문 내역 화면(guest-orders.html) CSS/JS 외부 파일 분리 리팩토링 | 구현 대기 | 인라인 CSS(240행) 및 JS(880행)를 각각 css/guest-orders.css 및 js/guest-orders.js로 분리 | `guest-orders.html` 로드 및 주문 내역 정상 표시/후기 작성 테스트 |
+| 5 | P38 | 이용 신청 화면(guest-apply.html) CSS/JS 외부 파일 분리 리팩토링 | 구현 대기 | 인라인 CSS(430행) 및 JS(310행)를 각각 css/guest-apply.css 및 js/guest-apply.js로 분리 | `guest-apply.html` 로드 및 신청서 작성/제출 정상 동작 테스트 |
+| 6 | P39 | 현황판 화면(board.html) CSS/JS 외부 파일 분리 리팩토링 | 구현 대기 | 인라인 CSS(380행) 및 JS(260행)를 각각 css/board.css 및 js/board.js로 분리 | `board.html` 로드 및 주문 실시간 호출/완료 처리 연동 정상 동작 테스트 |
 
 ### 보류 과제
 
