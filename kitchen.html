@@ -14,214 +14,112 @@
   <link rel="apple-touch-icon" href="icons/admin-180.png">
   <link rel="stylesheet" href="css/kitchen.css">
 </head>
-<body>
-  <div class="kiosk-container" style="height: auto; min-height: 100vh;">
-    <nav class="admin-screen-nav" aria-label="관리 화면 전환">
-      <a class="admin-screen-tab" data-screen="admin" href="admin.html">⚙️ 관리자</a>
-      <a class="admin-screen-tab is-active" data-screen="kitchen" href="kitchen.html" aria-current="page">🍳 주방</a>
-      <a class="admin-screen-tab" data-screen="reviews" href="reviews.html">💬 후기</a>
-    </nav>
+<body class="admin-shell-page">
+  <!-- 모바일 사이드바 딤 오버레이 -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar(false)"></div>
 
-    <!-- 관리자 헤더 -->
-    <header class="kiosk-header admin-header page-kitchen">
-      <h1 class="admin-screen-title">🍳 오늘 주문 운영</h1>
-      <div class="kiosk-header-top">
-        <nav class="admin-external-links" aria-label="외부 화면 바로가기">
-          <a class="admin-external-link kiosk" href="index.html?type=kiosk" target="_blank" rel="noopener" title="일반 키오스크 열기">🛒 키오스크</a>
-          <a class="admin-external-link guest" href="guest.html" target="_blank" rel="noopener" title="배달왔삼 열기">🛵 배달왔삼</a>
-          <a class="admin-external-link board" href="board.html" target="_blank" rel="noopener" title="전광판 열기">🖥️ 전광판</a>
-        </nav>
-        <div class="admin-header-actions">
-          <button class="btn-small-action admin-toolbar-action" id="btnEnableSound" type="button" aria-pressed="false" title="알림음 켜기">🔊 알림 켜기</button>
-          <button class="btn-small-action admin-toolbar-action" onclick="openTodaySummaryModal()">📊 운영 결과</button>
-          <button class="btn-small-action admin-toolbar-action" onclick="window.open('print-bills.html', '_blank')">🖨️ 빌지 인쇄</button>
-          <details class="admin-action-menu">
-            <summary>운영 도구</summary>
-            <div class="admin-action-menu-panel">
-              <button class="btn-small-action" onclick="openDiagnoseModal()" style="background-color: #4A5568; color: white; border: none;">🛠️ 운영 점검</button>
-              <button class="btn-small-action" id="btn-download-csv">CSV 다운로드</button>
-              <button class="btn-small-action" id="btn-audit-archive" style="background-color: #4A5568; color: white; border: none;">🔎 보관 점검</button>
-              <button class="btn-small-action" id="btn-archive-old-orders" disabled title="보관 점검을 통과한 뒤 활성화됩니다." style="background-color: #4A5568; color: white; border: none;">주문보관</button>
+  <div class="admin-app-layout">
+    <!-- 좌측 세로 사이드바 (PC: 고정 세로바 / 모바일: 슬라이딩 드로어) -->
+    <aside class="admin-sidebar" id="admin-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <img src="icons/배달왔삼.png" alt="배달왔삼" class="sidebar-logo-img">
+          <span>배달왔삼</span>
+        </div>
+        <button class="sidebar-close-btn" onclick="toggleSidebar(false)" aria-label="메뉴 닫기">✕</button>
+      </div>
+
+      <!-- 큰 메뉴 전환 (대분류) -->
+      <nav class="sidebar-nav" aria-label="관리 화면 전환">
+        <a class="sidebar-nav-item admin" href="admin.html">⚙️ 관리자</a>
+        <a class="sidebar-nav-item kitchen is-active" href="kitchen.html" aria-current="page">🍳 주방</a>
+        <a class="sidebar-nav-item reviews" href="reviews.html">💬 후기</a>
+        <a class="sidebar-nav-item applications" href="admin.html?view=applications">📨 신청 관리</a>
+      </nav>
+
+      <!-- 외부 서비스 바로가기 -->
+      <div class="sidebar-section-title">바로가기</div>
+      <nav class="sidebar-external-links">
+        <a class="sidebar-ext-link kiosk" href="index.html?type=kiosk" target="_blank" rel="noopener">🛒 키오스크</a>
+        <a class="sidebar-ext-link guest" href="guest.html" target="_blank" rel="noopener">🛵 배달왔삼</a>
+        <a class="sidebar-ext-link board" href="board.html" target="_blank" rel="noopener">🖥️ 전광판</a>
+        <a class="sidebar-ext-link reviews-board" href="reviews-public.html" target="_blank" rel="noopener">💖 온기보드</a>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="sidebar-logout" data-admin-toolbar-lock type="button" hidden title="관리자 나가기" aria-label="관리자 나가기">🚪 나가기</button>
+      </div>
+    </aside>
+
+    <!-- 메인 본문 영역 -->
+    <div class="admin-main-area">
+      <div class="kiosk-container" style="height: auto; min-height: 100vh; max-width: 100%; border-radius: 0; box-shadow: none;">
+        <!-- 관리자 헤더 (1줄 슬림 툴바) -->
+        <header class="kiosk-header admin-header page-kitchen">
+          <div class="header-left-group">
+            <button class="mobile-menu-btn" id="btn-menu-toggle" onclick="toggleSidebar(true)" aria-label="메뉴 열기">☰</button>
+            <h1 class="admin-screen-title">🍳 오늘 주문 운영</h1>
+          </div>
+          <div class="kiosk-header-top">
+            <div class="admin-header-actions">
+              <button class="btn-small-action admin-toolbar-action" id="btnEnableSound" type="button" aria-pressed="false" title="알림음 켜기">🔊 알림 켜기</button>
+              <button class="btn-small-action admin-toolbar-action" onclick="openTodaySummaryModal()">📊 운영 결과</button>
+              <button class="btn-small-action admin-toolbar-action" onclick="window.open('print-bills.html', '_blank')">🖨️ 빌지 인쇄</button>
+              <details class="admin-action-menu">
+                <summary>운영 도구</summary>
+                <div class="admin-action-menu-panel">
+                  <button class="btn-small-action" onclick="openDiagnoseModal()" style="background-color: #4A5568; color: white; border: none;">🛠️ 운영 점검</button>
+                  <button class="btn-small-action" id="btn-download-csv">CSV 다운로드</button>
+                  <button class="btn-small-action" id="btn-audit-archive" style="background-color: #4A5568; color: white; border: none;">🔎 보관 점검</button>
+                  <button class="btn-small-action" id="btn-archive-old-orders" disabled title="보관 점검을 통과한 뒤 활성화됩니다." style="background-color: #4A5568; color: white; border: none;">주문보관</button>
+                </div>
+              </details>
             </div>
-          </details>
-          <span class="admin-toolbar-spacer" aria-hidden="true"></span>
-          <button class="admin-toolbar-lock" data-admin-toolbar-lock type="button" hidden title="관리자 나가기" aria-label="관리자 나가기">🚪 나가기</button>
-        </div>
-      </div>
-    </header>
+          </div>
+        </header>
 
-    <section class="admin-auth-bar" data-admin-auth aria-label="관리자 잠금 해제">
-      <div class="admin-auth-gate-visual">
-        <img class="admin-auth-gate-image" src="icons/admin-512.png" alt="관리자 안내 이미지">
-        <div class="admin-auth-gate-title">관리자 로그인</div>
-        <p class="admin-auth-gate-description">관리자 키를 입력하면 주방 운영 화면이 표시됩니다.</p>
-      </div>
-      <div class="admin-auth-info">
-        <span class="admin-auth-icon" data-admin-auth-icon role="img" aria-label="관리자 잠금 상태">🔒</span>
-        <div>
-          <strong class="admin-auth-title">관리자 잠금</strong>
-          <span class="admin-auth-status" data-admin-auth-status>변경 전 잠금 해제 필요</span>
-        </div>
-      </div>
-      <div class="admin-auth-actions" data-admin-auth-actions>
-        <form class="admin-auth-form" data-admin-auth-form>
-          <input class="admin-auth-username" type="text" name="username" value="kiosk-admin" autocomplete="username" aria-label="관리자 계정" tabindex="-1">
-          <label class="admin-auth-label" for="admin-auth-password-kitchen">관리자 키</label>
-          <input class="admin-auth-password" id="admin-auth-password-kitchen" data-admin-auth-password name="password" type="password" autocomplete="current-password" placeholder="관리자 키 입력" required>
-          <button class="btn btn-secondary admin-auth-submit" data-admin-auth-submit type="submit">잠금 해제</button>
-        </form>
-        <button class="btn btn-gray admin-auth-lock" data-admin-auth-lock type="button" hidden>잠그기</button>
-        <div class="admin-auth-error" data-admin-auth-error role="alert" hidden></div>
-      </div>
-    </section>
+        <section class="admin-auth-bar" data-admin-auth aria-label="관리자 잠금 해제">
+          <div class="admin-auth-gate-visual">
+            <img class="admin-auth-gate-image" src="icons/admin-512.png" alt="관리자 안내 이미지">
+            <div class="admin-auth-gate-title">관리자 로그인</div>
+            <p class="admin-auth-gate-description">관리자 키를 입력하면 주방 운영 화면이 표시됩니다.</p>
+          </div>
+          <div class="admin-auth-info">
+            <span class="admin-auth-icon" data-admin-auth-icon role="img" aria-label="관리자 잠금 상태">🔒</span>
+            <div>
+              <strong class="admin-auth-title">관리자 잠금</strong>
+              <span class="admin-auth-status" data-admin-auth-status>변경 전 잠금 해제 필요</span>
+            </div>
+          </div>
+          <div class="admin-auth-actions" data-admin-auth-actions>
+            <form class="admin-auth-form" data-admin-auth-form>
+              <input class="admin-auth-username" type="text" name="username" value="kiosk-admin" autocomplete="username" aria-label="관리자 계정" tabindex="-1">
+              <label class="admin-auth-label" for="admin-auth-password-kitchen">관리자 키</label>
+              <input class="admin-auth-password" id="admin-auth-password-kitchen" data-admin-auth-password name="password" type="password" autocomplete="current-password" placeholder="관리자 키 입력" required>
+              <button class="btn btn-secondary admin-auth-submit" data-admin-auth-submit type="submit">잠금 해제</button>
+            </form>
+            <button class="btn btn-gray admin-auth-lock" data-admin-auth-lock type="button" hidden>잠그기</button>
+            <div class="admin-auth-error" data-admin-auth-error role="alert" hidden></div>
+          </div>
+        </section>
 
-    <!-- 바디 -->
-    <main class="kiosk-body">
-      <!-- 상단 요약 카드 (총 매출 크레딧, 총 주문 건수) -->
-      <div class="summary-grid" style="margin-bottom: 10px;">
-        <div class="summary-card" style="border-left: 5px solid var(--primary-color);">
-          <div class="summary-card-title">오늘 전달받은 누적 온기 ❤️</div>
-          <div class="summary-card-value" id="stat-total-points">❤️ 0</div>
-        </div>
-        <div class="summary-card" style="border-left: 5px solid var(--secondary-color);">
-          <div class="summary-card-title">오늘 총 주문</div>
-          <div class="summary-card-value" id="stat-total-orders">0건</div>
-        </div>
-      </div>
+        <!-- 바디 -->
+        <main class="kiosk-body">
+          <!-- 상단 요약 카드 (총 매출 크레딧, 총 주문 건수 - 50:50 반반) -->
+          <div class="summary-grid" style="margin-bottom: 10px;">
+            <div class="summary-card" style="border-left: 5px solid var(--primary-color);">
+              <div class="summary-card-title">오늘 누적 온기 ❤️</div>
+              <div class="summary-card-value" id="stat-total-points">❤️ 0</div>
+            </div>
+            <div class="summary-card" style="border-left: 5px solid var(--secondary-color);">
+              <div class="summary-card-title">오늘 총 주문</div>
+              <div class="summary-card-value" id="stat-total-orders">0건</div>
+            </div>
+          </div>
       <div id="order-archive-health" class="order-archive-health" role="status" aria-live="polite" hidden>
         <span id="order-archive-health-text"></span>
       </div>
 
-      <!-- 게스트 운영 관리 패널 -->
-      <div id="guest-ops-panel" class="guest-ops-panel">
-        <div class="guest-ops-header">
-          <div class="guest-ops-title">🎫 게스트 주문 운영</div>
-          <div id="guest-ops-status-badge" class="guest-ops-status-badge">
-            로딩 중...
-          </div>
-        </div>
-        <div id="guest-ops-info" class="guest-ops-info">
-          <div class="guest-ops-status-grid">
-            <div>⏰ 마감 예정: <span id="guest-ops-close-time">-</span></div>
-            <div>⏳ 남은 시간: <span id="guest-ops-remaining">-</span></div>
-          </div>
-        </div>
-        <div class="guest-open-presets">
-          <button class="btn-small-action" id="btn-guest-open20">⏱ 20분 열기</button>
-          <button class="btn-small-action" id="btn-guest-open30">⏱ 30분 열기</button>
-          <button class="btn-small-action" id="btn-guest-open60">⏱ 1시간 열기</button>
-          <button class="btn-danger-action" id="btn-guest-close">🛑 지금 마감</button>
-        </div>
-        <button class="guest-settings-toggle" id="btn-toggle-guest-settings" type="button" aria-expanded="false" aria-controls="guest-ops-settings">
-          ⚙ 운영 설정 펼치기
-        </button>
-        <div class="guest-ops-settings-panel" id="guest-ops-settings" hidden>
-          <div class="guest-ops-base-settings">
-            <div class="guest-ops-setting">
-              <span>기본 ❤️</span>
-              <input type="number" id="input-guest-credit" class="admin-inline-input" value="10" min="0">
-            </div>
-            <div class="guest-ops-setting">
-              <span>배달비:</span>
-              <input type="number" id="input-guest-fee" class="admin-inline-input" value="3" min="0">
-            </div>
-            <div class="guest-ops-setting guest-ops-setting-wide">
-              <span>기본 배달지:</span>
-              <input type="text" id="input-guest-delivery-place" class="admin-inline-input" value="사무실 원탁">
-            </div>
-          </div>
-
-          <div class="guest-menu-mode-settings" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border-color);">
-            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
-              <div class="guest-team-title" style="font-weight: 800; font-size: 16px; color: var(--secondary-hover); margin-bottom: 0;">🎯 게스트 운영 메뉴 모드</div>
-              <span style="font-size: 13px; font-weight: 700; color: var(--text-muted);">※ 모드 변경 후 [설정 저장] 버튼을 누르면 적용됩니다.</span>
-            </div>
-            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-              <select id="select-guest-menu-mode" style="height: 44px; font-size: 16px; font-weight: 800; padding: 0 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background-color: white; min-width: 240px; cursor: pointer;">
-                <option value="normal">🛵 배달왔삼 (기본 모드)</option>
-                <option value="event">🎉 행사/캠페인 모드</option>
-              </select>
-              <div id="event-name-container" style="display: none; flex-direction: column; gap: 4px;">
-                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                  <span style="font-size: 15px; font-weight: 800; white-space: nowrap;">행사명:</span>
-                  <div class="event-name-toolbar" style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                    <button type="button" class="btn-small-action" onclick="formatEventText('bold')" style="padding: 4px 8px; font-size: 13px; font-weight: 900; background: #334155;" title="굵게">B</button>
-                    <button type="button" class="btn-small-action" onclick="formatEventText('color', '#E11D48')" style="padding: 4px 8px; font-size: 12px; background: #E11D48; border: none; color: white;" title="장미 레드">레드</button>
-                    <button type="button" class="btn-small-action" onclick="formatEventText('color', '#2563EB')" style="padding: 4px 8px; font-size: 12px; background: #2563EB; border: none; color: white;" title="로얄 블루">블루</button>
-                    <button type="button" class="btn-small-action" onclick="formatEventText('color', '#7C3AED')" style="padding: 4px 8px; font-size: 12px; background: #7C3AED; border: none; color: white;" title="바이올렛">보라</button>
-                    <button type="button" class="btn-small-action" onclick="formatEventText('color', '#059669')" style="padding: 4px 8px; font-size: 12px; background: #059669; border: none; color: white;" title="에메랄드">초록</button>
-                    <button type="button" class="btn-small-action" onclick="formatEventText('color', '#D97706')" style="padding: 4px 8px; font-size: 12px; background: #D97706; border: none; color: white;" title="앰버">주황</button>
-                    <button type="button" class="btn-small-action" onclick="formatEventText('color', '#1E293B')" style="padding: 4px 8px; font-size: 12px; background: #1E293B; border: none; color: white;" title="다크 기본">기본</button>
-                    <button type="button" class="btn-small-action" onclick="formatEventText('reset')" style="padding: 4px 8px; font-size: 12px; background: #64748B;" title="서식 초기화">초기화</button>
-                  </div>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <div id="input-guest-event-name" contenteditable="true" oninput="enforceEventNameLimit()" style="min-width: 240px; max-width: 320px; min-height: 40px; padding: 8px 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background-color: white; font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; display: flex; align-items: center;" placeholder="장애인식 개선 캠페인">장애인식 개선 캠페인</div>
-                  <span id="event-name-counter" style="font-size: 12px; font-weight: 700; color: var(--text-muted);">0/20자</span>
-                </div>
-              </div>
-
-              <!-- 엠블럼 변경 UI (행사 모드용) -->
-              <div id="event-emblem-setting" class="guest-ops-setting" style="display: none; align-items: flex-start; margin-top: 4px;">
-                <span style="min-width: 80px; padding-top: 4px;">엠블럼:</span>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                  <div style="display: flex; align-items: center; gap: 12px;">
-                    <div id="emblem-preview-container" style="width: 48px; height: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #F8FAFC;">
-                      <img id="emblem-preview-img" src="icons/guest-192.png" alt="엠블럼" style="width: 100%; height: 100%; object-fit: contain;">
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                      <button type="button" class="btn-small-action" onclick="document.getElementById('emblem-upload-input').click()" style="background-color: var(--primary-color); border: none; color: white;">사진 변경</button>
-                      <button type="button" class="btn-small-action" onclick="resetGuestEmblem()" style="background-color: #FCA5A5; border: none; color: white;" title="기본 아이콘으로 복구">초기화</button>
-                      <input type="file" id="emblem-upload-input" accept="image/*" style="display: none;" onchange="handleEmblemUpload(event)">
-                    </div>
-                  </div>
-                  <span style="font-size: 12px; color: var(--text-muted);">* 변경 시 자동 최적화되어 손님 앱 상단 아이콘으로 표시됩니다.</span>
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-          <div class="guest-team-settings">
-            <div class="guest-team-header">
-              <div class="guest-team-title">🐻‍❄️ 오늘의 달곰이 요원 설정</div>
-              <button class="btn-small-action" onclick="saveGuestSettings()">설정 저장</button>
-            </div>
-            <div class="guest-team-meta">
-              <label>
-                <input type="checkbox" id="input-team-enabled"> 표시
-              </label>
-              <div class="guest-ops-setting guest-team-title-field">
-                <span>제목:</span>
-                <input type="text" id="input-team-title" class="admin-inline-input" placeholder="🐻‍❄️ 오늘의 달곰이 요원">
-              </div>
-            </div>
-            <div class="guest-team-role-fields">
-              <label>
-                <span style="white-space: nowrap;">배달 담당:</span>
-                <input type="text" id="input-team-delivery-members" class="admin-inline-input" placeholder="예: 이인, 안태근">
-              </label>
-              <label>
-                <span style="white-space: nowrap;">상품 준비:</span>
-                <input type="text" id="input-team-prep-members" class="admin-inline-input" placeholder="예: 박상민, 김동환">
-              </label>
-            </div>
-            <div class="guest-team-message">
-              <span>한마디:</span>
-              <input type="text" id="input-team-message" class="admin-inline-input" placeholder="맛있게 준비해서 배달하겠습니다!">
-            </div>
-          </div>
-
-          <div class="guest-custom-open">
-            <span>⏱ 직접 열기:</span>
-            <input type="number" id="input-custom-minutes" class="admin-inline-input" value="10" min="1">
-            <span>분 동안</span>
-            <button class="btn-small-action" id="btn-guest-open-custom">열기</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 주문 운영 제어 -->
+      <!-- 주문 운영 제어 및 새로고침 -->
       <section class="kitchen-refresh-controls" aria-label="주문 운영 새로고침 제어">
         <div class="kitchen-refresh-status">
           <span id="refresh-text">자동 새로고침 대기 중 (30초)</span>
@@ -235,12 +133,156 @@
         </div>
       </section>
 
-      <!-- 주방 업무 탭 -->
+      <!-- 주방 업무 탭 (모바일 가로 스크롤 지원) -->
       <nav class="kitchen-content-tabs" role="tablist" aria-label="주방 업무 구분">
+        <button class="kitchen-content-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-settings" data-kitchen-tab="tab-settings">⚙️ 운영설정</button>
         <button class="kitchen-content-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="tab-orders" data-kitchen-tab="tab-orders">📋 주문</button>
         <button class="kitchen-content-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-stats" data-kitchen-tab="tab-stats">📊 통계</button>
         <button class="kitchen-content-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-stock" data-kitchen-tab="tab-stock">📦 재고</button>
       </nav>
+
+      <!-- 운영설정 탭 -->
+      <section id="tab-settings" class="kitchen-tab-panel" role="tabpanel" hidden>
+        <!-- 게스트 운영 관리 패널 -->
+        <div id="guest-ops-panel" class="guest-ops-panel">
+          <div class="guest-ops-header">
+            <div class="guest-ops-title">🎫 게스트 운영</div>
+          </div>
+          <section class="guest-settings-section guest-order-management">
+            <div class="guest-settings-section-header">
+              <h3>주문 관리</h3>
+              <div id="guest-ops-status-badge" class="guest-ops-status-badge">
+                로딩 중...
+              </div>
+            </div>
+            <div id="guest-ops-info" class="guest-ops-info">
+              <div class="guest-ops-status-grid">
+                <div>⏰ 마감 예정: <span id="guest-ops-close-time">-</span></div>
+                <div>⏳ 남은 시간: <span id="guest-ops-remaining">-</span></div>
+              </div>
+            </div>
+            <div class="guest-open-presets">
+              <button class="btn-small-action" id="btn-guest-open20">⏱ 20분 운영</button>
+              <button class="btn-small-action" id="btn-guest-open30">⏱ 30분 운영</button>
+              <button class="btn-small-action" id="btn-guest-open60">⏱ 1시간 운영</button>
+              <button class="btn-danger-action" id="btn-guest-close">🛑 지금 마감</button>
+            </div>
+            <div class="guest-custom-open">
+              <span>직접 설정</span>
+              <input type="number" id="input-custom-minutes" class="admin-inline-input" value="10" min="1" aria-label="직접 운영 시간">
+              <span>분</span>
+              <button class="btn-small-action" id="btn-guest-open-custom">운영 시작</button>
+            </div>
+          </section>
+          <div class="guest-ops-settings-panel" id="guest-ops-settings">
+            <div class="guest-settings-grid">
+              <section class="guest-settings-section guest-basic-settings">
+                <div class="guest-settings-section-header">
+                  <h3>기본 설정</h3>
+                </div>
+                <div class="guest-ops-base-settings">
+                  <label class="guest-ops-setting">
+                    <span>기본 온기 ❤️</span>
+                    <input type="number" id="input-guest-credit" class="admin-inline-input" value="10" min="0">
+                  </label>
+                  <label class="guest-ops-setting">
+                    <span>배달비 🛵</span>
+                    <input type="number" id="input-guest-fee" class="admin-inline-input" value="3" min="0">
+                  </label>
+                  <label class="guest-ops-setting guest-ops-setting-wide">
+                    <span>기본 배달지</span>
+                    <input type="text" id="input-guest-delivery-place" class="admin-inline-input" value="사무실 원탁">
+                  </label>
+                </div>
+              </section>
+
+              <section class="guest-settings-section guest-menu-mode-settings">
+                <div class="guest-settings-section-header">
+                  <h3>운영 모드</h3>
+                </div>
+                <input type="hidden" id="select-guest-menu-mode" value="normal">
+                <div class="guest-mode-segmented" role="group" aria-label="게스트 운영 모드">
+                  <button class="guest-mode-option is-active" type="button" data-guest-menu-mode="normal" aria-pressed="true">🛵 배달왔삼</button>
+                  <button class="guest-mode-option" type="button" data-guest-menu-mode="event" aria-pressed="false">🎉 행사</button>
+                </div>
+                <div class="guest-event-settings">
+                <div id="event-name-container" style="display: none; flex-direction: column; gap: 4px;">
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span style="font-size: 15px; font-weight: 800; white-space: nowrap;">행사명:</span>
+                    <div class="event-name-toolbar" style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                      <button type="button" class="btn-small-action" onclick="formatEventText('bold')" style="padding: 4px 8px; font-size: 13px; font-weight: 900; background: #334155;" title="굵게">B</button>
+                      <button type="button" class="btn-small-action" onclick="formatEventText('color', '#E11D48')" style="padding: 4px 8px; font-size: 12px; background: #E11D48; border: none; color: white;" title="장미 레드">레드</button>
+                      <button type="button" class="btn-small-action" onclick="formatEventText('color', '#2563EB')" style="padding: 4px 8px; font-size: 12px; background: #2563EB; border: none; color: white;" title="로얄 블루">블루</button>
+                      <button type="button" class="btn-small-action" onclick="formatEventText('color', '#7C3AED')" style="padding: 4px 8px; font-size: 12px; background: #7C3AED; border: none; color: white;" title="바이올렛">보라</button>
+                      <button type="button" class="btn-small-action" onclick="formatEventText('color', '#059669')" style="padding: 4px 8px; font-size: 12px; background: #059669; border: none; color: white;" title="에메랄드">초록</button>
+                      <button type="button" class="btn-small-action" onclick="formatEventText('color', '#D97706')" style="padding: 4px 8px; font-size: 12px; background: #D97706; border: none; color: white;" title="앰버">주황</button>
+                      <button type="button" class="btn-small-action" onclick="formatEventText('color', '#1E293B')" style="padding: 4px 8px; font-size: 12px; background: #1E293B; border: none; color: white;" title="다크 기본">기본</button>
+                      <button type="button" class="btn-small-action" onclick="formatEventText('reset')" style="padding: 4px 8px; font-size: 12px; background: #64748B;" title="서식 초기화">초기화</button>
+                    </div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div id="input-guest-event-name" contenteditable="true" oninput="enforceEventNameLimit()" style="min-width: 240px; max-width: 320px; min-height: 40px; padding: 8px 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background-color: white; font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; display: flex; align-items: center;" placeholder="장애인식 개선 캠페인">장애인식 개선 캠페인</div>
+                    <span id="event-name-counter" style="font-size: 12px; font-weight: 700; color: var(--text-muted);">0/20자</span>
+                  </div>
+                </div>
+
+                <!-- 엠블럼 변경 UI (행사 모드용) -->
+                <div id="event-emblem-setting" class="guest-ops-setting" style="display: none; align-items: flex-start; margin-top: 4px;">
+                  <span style="min-width: 80px; padding-top: 4px;">엠블럼:</span>
+                  <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <div id="emblem-preview-container" style="width: 48px; height: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #F8FAFC;">
+                        <img id="emblem-preview-img" src="icons/guest-192.png" alt="엠블럼" style="width: 100%; height: 100%; object-fit: contain;">
+                      </div>
+                      <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn-small-action" onclick="document.getElementById('emblem-upload-input').click()" style="background-color: var(--primary-color); border: none; color: white;">사진 변경</button>
+                        <button type="button" class="btn-small-action" onclick="resetGuestEmblem()" style="background-color: #FCA5A5; border: none; color: white;" title="기본 아이콘으로 복구">초기화</button>
+                        <input type="file" id="emblem-upload-input" accept="image/*" style="display: none;" onchange="handleEmblemUpload(event)">
+                      </div>
+                    </div>
+                    <span style="font-size: 12px; color: var(--text-muted);">* 변경 시 자동 최적화되어 손님 앱 상단 아이콘으로 표시됩니다.</span>
+                  </div>
+                </div>
+
+                </div>
+              </section>
+            </div>
+
+            <section class="guest-settings-section guest-team-settings">
+              <div class="guest-team-header">
+                <h3>운영 담당</h3>
+              </div>
+              <div class="guest-team-meta">
+                <label>
+                  <input type="checkbox" id="input-team-enabled"> 담당자 안내 표시
+                </label>
+                <div class="guest-ops-setting guest-team-title-field">
+                  <span>안내 제목</span>
+                  <input type="text" id="input-team-title" class="admin-inline-input" placeholder="🐻‍❄️ 오늘의 달곰이 요원">
+                </div>
+              </div>
+              <div class="guest-team-role-fields">
+                <label>
+                  <span style="white-space: nowrap;">배달 담당:</span>
+                  <input type="text" id="input-team-delivery-members" class="admin-inline-input" placeholder="예: 이인, 안태근">
+                </label>
+                <label>
+                  <span style="white-space: nowrap;">상품 준비:</span>
+                  <input type="text" id="input-team-prep-members" class="admin-inline-input" placeholder="예: 박상민, 김동환">
+                </label>
+              </div>
+              <div class="guest-team-message">
+                <span>안내 문구</span>
+                <input type="text" id="input-team-message" class="admin-inline-input" placeholder="맛있게 준비해서 배달하겠습니다!">
+              </div>
+            </section>
+
+            <div class="guest-settings-save-row">
+              <button class="btn-small-action" id="btn-save-guest-settings" type="button" onclick="saveGuestSettings()" disabled>변경사항 저장</button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <!-- 주문 탭: 대기 주문과 제공 완료 목록 -->
       <section id="tab-orders" class="kitchen-tab-panel is-active" role="tabpanel">
@@ -313,7 +355,16 @@
       <!-- 재고 탭 -->
       <section id="tab-stock" class="kitchen-tab-panel" role="tabpanel" hidden>
         <section class="kitchen-data-section">
-          <div class="admin-section-title">현재 간식 재고 현황</div>
+          <div class="stock-section-header">
+            <div class="admin-section-title">채널별 재고 현황</div>
+            <div class="stock-section-actions">
+              <span class="stock-mode-badge" id="stock-mode-badge">배달왔삼 운영 중</span>
+              <label class="stock-channel-toggle">
+                <input type="checkbox" id="toggle-all-stock-channels">
+                전체 채널
+              </label>
+            </div>
+          </div>
           <div class="stat-list" id="snack-stock-list">
             <!-- JS 동적 생성 -->
           </div>
@@ -412,9 +463,24 @@
     </div>
   </div>
 
+      </div><!-- /.kiosk-container -->
+    </div><!-- /.admin-main-area -->
+  </div><!-- /.admin-app-layout -->
+
   <!-- 스크립트 참조 -->
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>
   <script src="js/kitchen.js"></script>
+  <script>
+    function toggleSidebar(open) {
+      const sidebar = document.getElementById('admin-sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      if (sidebar && overlay) {
+        const shouldOpen = open !== undefined ? open : !sidebar.classList.contains('is-open');
+        sidebar.classList.toggle('is-open', shouldOpen);
+        overlay.classList.toggle('is-open', shouldOpen);
+      }
+    }
+  </script>
 </body>
 </html>

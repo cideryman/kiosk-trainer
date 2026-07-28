@@ -140,6 +140,72 @@
       gap: 12px;
     }
 
+    .snack-stock-groups.is-three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .stock-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .stock-section-header .admin-section-title {
+      margin-bottom: 0;
+    }
+
+    .stock-section-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .stock-mode-badge {
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 10px;
+      border: 1px solid #99F6E4;
+      border-radius: var(--radius-sm);
+      background-color: #F0FDFA;
+      color: #0F766E;
+      font-size: 13px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .stock-mode-badge.is-event {
+      border-color: #D8B4FE;
+      background-color: #FAF5FF;
+      color: #7E22CE;
+    }
+
+    .stock-channel-toggle {
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background-color: #FFFFFF;
+      color: var(--text-main);
+      font-size: 14px;
+      font-weight: 800;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .stock-channel-toggle input {
+      width: 18px;
+      height: 18px;
+      accent-color: #2FBDB3;
+    }
+
     .snack-stock-group {
       min-width: 0;
       padding: 12px;
@@ -161,6 +227,10 @@
 
     .snack-stock-group.user .snack-stock-group-title {
       color: #C05621;
+    }
+
+    .snack-stock-group.event .snack-stock-group-title {
+      color: #7C3AED;
     }
 
     .snack-stock-items {
@@ -232,8 +302,22 @@
     }
 
     @media (max-width: 767px) {
-      .snack-stock-groups {
+      .snack-stock-groups,
+      .snack-stock-groups.is-three {
         grid-template-columns: 1fr;
+      }
+
+      .stock-section-header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .stock-channel-toggle {
+        align-self: flex-start;
+      }
+
+      .stock-section-actions {
+        justify-content: space-between;
       }
     }
     

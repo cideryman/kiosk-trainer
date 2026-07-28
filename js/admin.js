@@ -230,6 +230,7 @@ let activeGaugeEdit = null;
 const ADMIN_UI_MAX_USER_CREDIT = 15;
 const ADMIN_UI_MAX_SNACK_STOCK = 30;
 const ADMIN_TOKEN_STORAGE_KEY = AdminAuth.storageKey;
+const isApplicationsView = new URLSearchParams(window.location.search).get('view') === 'applications';
 
 function esc(value) {
   return AppState.escapeHtml(value);
@@ -461,6 +462,37 @@ function updateApplicationCounts(counts = {}) {
   setApplicationCount('application-count-approved', counts.APPROVED);
   setApplicationCount('application-count-rejected', counts.REJECTED);
   setApplicationCount('application-count-inactive', counts.INACTIVE);
+
+  const sidebarBadge = document.getElementById('sidebar-application-count');
+  if (sidebarBadge) {
+    const pendingCount = Math.max(0, Number(counts.PENDING) || 0);
+    sidebarBadge.textContent = String(pendingCount);
+    sidebarBadge.hidden = pendingCount === 0;
+  }
+}
+
+function configureAdminView() {
+  if (!isApplicationsView) return;
+
+  document.body.classList.add('applications-view');
+  document.title = '간식 키오스크 - 신청 관리';
+
+  const screenTitle = document.querySelector('.admin-screen-title');
+  if (screenTitle) screenTitle.textContent = '📨 배달왔삼 신청 관리';
+
+  const tabs = document.querySelector('.admin-tabs');
+  if (tabs) tabs.hidden = true;
+
+  document.querySelectorAll('.admin-tab-content').forEach(content => {
+    content.classList.toggle('active', content.id === 'tab-applications');
+  });
+
+  const adminLink = document.querySelector('.sidebar-nav-item.admin');
+  const applicationsLink = document.querySelector('.sidebar-nav-item.applications');
+  adminLink?.classList.remove('is-active');
+  adminLink?.removeAttribute('aria-current');
+  applicationsLink?.classList.add('is-active');
+  applicationsLink?.setAttribute('aria-current', 'page');
 }
 
 function renderGuestApplicationSettings(settings) {
@@ -2174,8 +2206,15 @@ async function saveGuestSettings() {
 
 window.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('pointerdown', closeGaugeEditFromOutside, true);
+  configureAdminView();
   AdminAuth.init({
-    onUnlock: () => loadAdminData(),
+    onUnlock: () => {
+      if (isApplicationsView) {
+        loadGuestApplications();
+      } else {
+        loadAdminData();
+      }
+    },
     onLock: (options = {}) => {
       if (options.reload !== false) window.location.reload();
     }
@@ -2186,10 +2225,11 @@ window.addEventListener('DOMContentLoaded', () => {
   const btnManualRefresh = document.getElementById('btn-manual-refresh');
   if (btnManualRefresh) {
     btnManualRefresh.addEventListener('click', () => {
-      loadAdminData();
-      loadGuestOpsPanel();
-      if (document.getElementById('tab-applications')?.classList.contains('active')) {
+      if (isApplicationsView) {
         loadGuestApplications();
+      } else {
+        loadAdminData();
+        loadGuestOpsPanel();
       }
       AppState.vibrate(50);
     });

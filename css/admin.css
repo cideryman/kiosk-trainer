@@ -35,11 +35,32 @@
   margin-bottom: 20px;
   border-bottom: 3.5px solid var(--border-color);
   padding-bottom: 0px;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.admin-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-tabs-main {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin-tabs-main[hidden] {
+  display: none;
 }
 
 .admin-tab-btn {
+  flex: 1 1 0;
+  min-width: 0;
   background: none;
-  border: none;
+  border: 3.5px solid transparent;
+  border-bottom-color: transparent;
+  box-sizing: border-box;
   padding: 12px 20px;
   font-size: 18px;
   font-weight: 800;
@@ -49,6 +70,10 @@
   transition: all 0.2s ease;
   position: relative;
   bottom: -3.5px;
+}
+
+.applications-view .kiosk-body {
+  padding-top: 22px;
 }
 
 .admin-tab-btn:hover {

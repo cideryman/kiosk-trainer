@@ -2,6 +2,10 @@ let refreshTimer = null;
     let refreshSeconds = 30;
     const MAX_REFRESH_TIME = 30;
     let currentOrders = [];
+    let currentSnackStock = [];
+    let currentGuestMenuMode = 'normal';
+    let showAllStockChannels = false;
+    let guestSettingsDirty = false;
 
     // --- 시스템 운영 점검 (진단) 모달 제어 함수 ---
     function openDiagnoseModal() {
@@ -316,7 +320,6 @@ let refreshTimer = null;
       button.setAttribute('aria-pressed', String(isNewOrderSoundEnabled));
       button.textContent = isNewOrderSoundEnabled ? '🔊 알림 끄기' : '🔇 알림 켜기';
       button.title = isNewOrderSoundEnabled ? '알림음 끄기' : '알림음 켜기';
-      button.style.backgroundColor = isNewOrderSoundEnabled ? '#0F766E' : '#334155';
     }
 
     function stopPendingOrderSound() {
@@ -438,12 +441,18 @@ let refreshTimer = null;
 
       const groups = {
         user: [],
-        guest: []
+        guest: [],
+        event: []
       };
 
       snacks.forEach(snack => {
-        const target = snack.target === 'guest' ? 'guest' : 'user';
-        groups[target].push(snack);
+        const targets = String(snack.target || 'user')
+          .toLowerCase()
+          .split(',')
+          .map(target => target.trim())
+          .filter(target => Object.prototype.hasOwnProperty.call(groups, target));
+        const normalizedTargets = targets.length > 0 ? [...new Set(targets)] : ['user'];
+        normalizedTargets.forEach(target => groups[target].push(snack));
       });
 
       Object.values(groups).forEach(group => {
@@ -495,10 +504,19 @@ let refreshTimer = null;
         `;
       };
 
+      const activeGuestTarget = currentGuestMenuMode === 'event' ? 'event' : 'guest';
+      const visibleTargets = showAllStockChannels
+        ? ['user', 'guest', 'event']
+        : ['user', activeGuestTarget];
+      const titles = {
+        user: '일반 키오스크',
+        guest: '배달왔삼 대상 상품',
+        event: '행사 대상 상품'
+      };
+
       stockListEl.innerHTML = `
-        <div class="snack-stock-groups">
-          ${renderGroup('user', '일반 키오스크')}
-          ${renderGroup('guest', '배달왔삼')}
+        <div class="snack-stock-groups${visibleTargets.length === 3 ? ' is-three' : ''}">
+          ${visibleTargets.map(target => renderGroup(target, titles[target])).join('')}
         </div>
       `;
     }
@@ -514,7 +532,8 @@ let refreshTimer = null;
         if (!snacksRes || !snacksRes.success || !Array.isArray(snacksRes.snacks)) {
           throw new Error('간식 재고 응답 결과가 올바르지 않습니다.');
         }
-        renderSnackStock(snacksRes.snacks);
+        currentSnackStock = snacksRes.snacks;
+        renderSnackStock(currentSnackStock);
       } catch (error) {
         console.error('간식 재고 조회 실패:', error);
         stockListEl.innerHTML = '<div class="snack-stock-message is-error">재고를 불러오지 못했습니다.</div>';
@@ -1692,18 +1711,17 @@ let refreshTimer = null;
       AppState.vibrate(40);
     }
 
-    function toggleGuestSettings() {
-      const panel = document.getElementById('guest-ops-settings');
-      const button = document.getElementById('btn-toggle-guest-settings');
-      if (!panel || !button) return;
-
-      const isExpanded = panel.hidden;
-      panel.hidden = !isExpanded;
-      button.setAttribute('aria-expanded', String(isExpanded));
-      button.textContent = isExpanded ? '⚙ 운영 설정 접기' : '⚙ 운영 설정 펼치기';
-    }
-
     function activateKitchenTab(tabId) {
+      const activePanel = document.querySelector('.kitchen-tab-panel.is-active');
+      const isLeavingUnsavedSettings = activePanel?.id === 'tab-settings'
+        && tabId !== 'tab-settings'
+        && guestSettingsDirty;
+
+      if (isLeavingUnsavedSettings
+        && !window.confirm('저장하지 않은 변경사항이 있습니다. 다른 탭으로 이동하시겠습니까?')) {
+        return false;
+      }
+
       document.querySelectorAll('[data-kitchen-tab]').forEach((button) => {
         const isActive = button.dataset.kitchenTab === tabId;
         button.classList.toggle('is-active', isActive);
@@ -1715,12 +1733,58 @@ let refreshTimer = null;
         panel.hidden = !isActive;
         panel.classList.toggle('is-active', isActive);
       });
+      return true;
     }
 
     // 주문 운영 화면에서는 이용자/간식 추가 및 수정 모달을 사용하지 않습니다.
 
     // ── 게스트 운영 관리 ────────────────────────────────────────
     let guestOpsCountdown = null;
+
+    function updateGuestSettingsSaveState(isDirty) {
+      guestSettingsDirty = Boolean(isDirty);
+      const saveButton = document.getElementById('btn-save-guest-settings');
+      if (!saveButton) return;
+
+      saveButton.disabled = !guestSettingsDirty;
+      saveButton.setAttribute('aria-disabled', String(!guestSettingsDirty));
+    }
+
+    function markGuestSettingsDirty() {
+      updateGuestSettingsSaveState(true);
+    }
+
+    function updateStockModeBadge() {
+      const badge = document.getElementById('stock-mode-badge');
+      if (!badge) return;
+
+      const isEventMode = currentGuestMenuMode === 'event';
+      badge.textContent = isEventMode ? '행사 운영 중' : '배달왔삼 운영 중';
+      badge.classList.toggle('is-event', isEventMode);
+    }
+
+    function setGuestMenuMode(mode, markDirty = false) {
+      const normalizedMode = mode === 'event' ? 'event' : 'normal';
+      const modeInput = document.getElementById('select-guest-menu-mode');
+      const eventContainer = document.getElementById('event-name-container');
+      const emblemContainer = document.getElementById('event-emblem-setting');
+      const previousMode = modeInput?.value || currentGuestMenuMode;
+
+      currentGuestMenuMode = normalizedMode;
+      if (modeInput) modeInput.value = normalizedMode;
+      document.querySelectorAll('[data-guest-menu-mode]').forEach(button => {
+        const isActive = button.dataset.guestMenuMode === normalizedMode;
+        button.classList.toggle('is-active', isActive);
+        button.setAttribute('aria-pressed', String(isActive));
+      });
+
+      const isEventMode = normalizedMode === 'event';
+      if (eventContainer) eventContainer.style.display = isEventMode ? 'flex' : 'none';
+      if (emblemContainer) emblemContainer.style.display = isEventMode ? 'flex' : 'none';
+      updateStockModeBadge();
+      if (markDirty && previousMode !== normalizedMode) markGuestSettingsDirty();
+      if (currentSnackStock.length > 0) renderSnackStock(currentSnackStock);
+    }
 
     async function loadGuestOpsPanel(isAutoRefresh = false) {
       try {
@@ -1756,13 +1820,10 @@ let refreshTimer = null;
         setTeamMemberInputs(data.todayDeliveryTeamMembers || '');
         if (teamMessageEl) teamMessageEl.value = data.todayDeliveryTeamMessage || '';
 
-        const selectMenuMode = document.getElementById('select-guest-menu-mode');
         const inputEventName = document.getElementById('input-guest-event-name');
-        const eventContainer = document.getElementById('event-name-container');
-        const emblemContainer = document.getElementById('event-emblem-setting');
         const previewImg = document.getElementById('emblem-preview-img');
 
-        if (selectMenuMode) selectMenuMode.value = data.guestMenuMode || 'normal';
+        setGuestMenuMode(data.guestMenuMode || 'normal');
         if (inputEventName) {
           inputEventName.innerHTML = data.guestEventName || '장애인식 개선 캠페인';
           if (typeof enforceEventNameLimit === 'function') enforceEventNameLimit();
@@ -1776,9 +1837,7 @@ let refreshTimer = null;
           if (previewImg) previewImg.src = 'icons/guest-192.png';
         }
 
-        const isEventMode = data.guestMenuMode === 'event';
-        if (eventContainer) eventContainer.style.display = isEventMode ? 'flex' : 'none';
-        if (emblemContainer) emblemContainer.style.display = isEventMode ? 'flex' : 'none';
+        updateGuestSettingsSaveState(false);
       }
 
       if (guestOpsCountdown) {
@@ -2000,7 +2059,9 @@ let refreshTimer = null;
           }
         });
         if (res && res.success) {
+          updateGuestSettingsSaveState(false);
           alert('게스트 설정이 저장되었습니다.');
+          await loadGuestOpsPanel();
         } else {
           clearAdminTokenIfDenied(res);
           alert(res?.message || '설정 저장에 실패했습니다.');
@@ -2008,8 +2069,6 @@ let refreshTimer = null;
       } catch (e) {
         alert('설정 저장 중 오류가 발생했습니다.');
       }
-      // 최신 상태 다시 로드
-      await loadGuestOpsPanel();
     }
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -2041,23 +2100,25 @@ let refreshTimer = null;
         });
       }
 
-      const btnToggleGuestSettings = document.getElementById('btn-toggle-guest-settings');
-      if (btnToggleGuestSettings) {
-        btnToggleGuestSettings.addEventListener('click', toggleGuestSettings);
+      document.querySelectorAll('[data-guest-menu-mode]').forEach(button => {
+        button.addEventListener('click', () => setGuestMenuMode(button.dataset.guestMenuMode, true));
+      });
+
+      const guestSettingsPanel = document.getElementById('guest-ops-settings');
+      if (guestSettingsPanel) {
+        guestSettingsPanel.addEventListener('input', (event) => {
+          if (event.target.matches('input, [contenteditable="true"]')) markGuestSettingsDirty();
+        });
+        guestSettingsPanel.addEventListener('change', (event) => {
+          if (event.target.matches('input')) markGuestSettingsDirty();
+        });
       }
 
-      const selectMenuMode = document.getElementById('select-guest-menu-mode');
-      if (selectMenuMode) {
-        selectMenuMode.addEventListener('change', () => {
-          const eventContainer = document.getElementById('event-name-container');
-          const emblemContainer = document.getElementById('event-emblem-setting');
-          const isEvent = selectMenuMode.value === 'event';
-          if (eventContainer) {
-            eventContainer.style.display = isEvent ? 'flex' : 'none';
-          }
-          if (emblemContainer) {
-            emblemContainer.style.display = isEvent ? 'flex' : 'none';
-          }
+      const toggleAllStockChannels = document.getElementById('toggle-all-stock-channels');
+      if (toggleAllStockChannels) {
+        toggleAllStockChannels.addEventListener('change', () => {
+          showAllStockChannels = toggleAllStockChannels.checked;
+          renderSnackStock(currentSnackStock);
         });
       }
 
@@ -2092,6 +2153,7 @@ let refreshTimer = null;
           el.innerHTML = plainText;
         }
         window.enforceEventNameLimit();
+        markGuestSettingsDirty();
       };
 
       window.guestEventEmblemBase64 = '';
@@ -2132,6 +2194,7 @@ let refreshTimer = null;
             if (previewImg) {
               previewImg.src = webpBase64;
             }
+            markGuestSettingsDirty();
           };
           img.src = e.target.result;
         };
@@ -2145,6 +2208,7 @@ let refreshTimer = null;
           previewImg.src = 'icons/guest-192.png';
         }
         document.getElementById('emblem-upload-input').value = '';
+        markGuestSettingsDirty();
       };
 
       const btnDownloadCsv = document.getElementById('btn-download-csv');

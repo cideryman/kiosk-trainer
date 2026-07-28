@@ -720,21 +720,22 @@ body {
 
 /* 관리자 화면 (admin.html) */
 .admin-header {
-  background-color: #1A365D;
-  color: white;
-  padding: 20px;
+  min-height: 72px;
+  padding: 12px 24px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background-color: #FFFFFF;
+  color: var(--text-main);
+  border-bottom: 1px solid #DCE8E5;
+  box-shadow: 0 2px 8px rgba(23, 63, 60, 0.08);
 }
 
-.admin-header.page-admin {
-  background-color: #1A365D;
-}
-
-.admin-header.page-kitchen {
-  background-color: #DD6B20;
-}
-
+.admin-header.page-admin,
+.admin-header.page-kitchen,
 .admin-header.page-reviews {
-  background-color: #38A169;
+  background-color: #FFFFFF;
 }
 
 .admin-clickable-cell {
@@ -752,15 +753,18 @@ body {
 }
 
 .admin-screen-title {
-  position: absolute;
-  width: 1px;
-  height: 1px;
+  position: static;
+  width: auto;
+  height: auto;
   padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+  margin: 0;
+  overflow: visible;
+  clip: auto;
   white-space: nowrap;
   border: 0;
+  color: #203A37;
+  font-size: 20px !important;
+  line-height: 1.2;
 }
 
 .admin-header-actions {
@@ -793,24 +797,25 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
-.admin-header-actions .admin-toolbar-action:not(#btnEnableSound) {
-  background-color: #334155 !important;
-  color: white !important;
-  border: none !important;
-  box-shadow: var(--shadow-sm) !important;
+.admin-header-actions .admin-toolbar-action {
+  background-color: #F2F7F6 !important;
+  color: #244541 !important;
+  border: 1px solid #D5E4E1 !important;
+  box-shadow: none !important;
   animation: none !important;
 }
 
 .admin-toolbar-action:hover,
 .admin-toolbar-action:focus-visible {
-  background-color: #1E293B;
-  color: white;
-  outline: 3px solid rgba(66, 153, 225, 0.3);
+  background-color: #E3F3F0 !important;
+  color: #155E57 !important;
+  outline: 3px solid rgba(47, 189, 179, 0.24);
   outline-offset: 2px;
 }
 
 .admin-header .kiosk-header-top {
-  justify-content: space-between;
+  width: auto;
+  justify-content: flex-end;
   gap: 16px;
   align-items: center;
 }
@@ -949,9 +954,9 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background-color: #334155;
-  color: white;
-  border: none;
+  background-color: #F2F7F6;
+  color: #244541;
+  border: 1px solid #D5E4E1;
   border-radius: var(--radius-sm);
   font-size: 14px;
   font-weight: 850;
@@ -975,8 +980,8 @@ body {
 }
 
 .admin-action-menu[open] summary {
-  background-color: #1E293B;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
+  background-color: #E3F3F0;
+  box-shadow: 0 0 0 2px rgba(47, 189, 179, 0.2);
 }
 
 .admin-action-menu-panel {
@@ -1213,27 +1218,6 @@ body {
   text-align: center;
 }
 
-.guest-settings-toggle {
-  align-self: flex-start;
-  min-height: 44px;
-  margin-top: 2px;
-  padding: 0 16px;
-  color: var(--text-main);
-  background-color: #F8FAFC;
-  border: 2px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  font-size: 15px;
-  font-weight: 850;
-  cursor: pointer;
-}
-
-.guest-settings-toggle:hover,
-.guest-settings-toggle:focus-visible {
-  border-color: var(--secondary-color);
-  background-color: #F0FFFE;
-  outline: none;
-}
-
 .guest-ops-settings-panel {
   display: flex;
   flex-direction: column;
@@ -1243,21 +1227,25 @@ body {
   border-top: 2px dashed var(--border-color);
 }
 
-.guest-ops-settings-panel[hidden] {
-  display: none;
-}
-
 /* 주방 화면 업무 탭 */
 .kitchen-content-tabs {
   display: flex;
   gap: 8px;
   margin: 2px 0 16px;
   border-bottom: 3px solid var(--border-color);
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.kitchen-content-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .kitchen-content-tab {
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 0 0 auto;
+  min-width: max-content;
   min-height: 48px;
   padding: 8px 16px;
   color: var(--text-muted);
@@ -1269,6 +1257,12 @@ body {
   font-weight: 850;
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+@media (min-width: 640px) {
+  .kitchen-content-tab {
+    flex: 1 1 0;
+  }
 }
 
 .kitchen-content-tab:hover,
@@ -1506,10 +1500,6 @@ body {
     flex: 0 0 auto;
   }
 
-  .guest-settings-toggle {
-    width: 100%;
-  }
-
   .guest-team-meta {
     display: flex;
     align-items: center;
@@ -1608,14 +1598,15 @@ body {
   }
 
   .kitchen-content-tabs {
-    gap: 4px;
+    gap: 6px;
     margin-bottom: 12px;
   }
 
   .kitchen-content-tab {
     min-height: 44px;
-    padding: 6px 4px;
-    font-size: 14px;
+    padding: 6px 14px;
+    font-size: 15px;
+    flex: 0 0 auto;
   }
 
   .kitchen-stats-grid {
@@ -1764,32 +1755,40 @@ body {
   word-break: keep-all;
 }
 
-/* 관리자 주문 요약 카드 */
+/* 관리자 주문 요약 카드 (50:50 균등 분할) */
 .summary-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  width: 100%;
 }
 
 .summary-card {
+  min-width: 0;
+  overflow: hidden;
   background-color: var(--card-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  padding: 16px;
+  padding: 14px 16px;
   box-shadow: var(--shadow-sm);
+  box-sizing: border-box;
 }
 
 .summary-card-title {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 800;
   color: var(--text-muted);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .summary-card-value {
-  font-size: 24px;
-  font-weight: 800;
+  font-size: 22px;
+  font-weight: 900;
   color: var(--text-main);
+  white-space: nowrap;
 }
 
 .order-archive-health {
@@ -2793,6 +2792,571 @@ body.admin-auth-locked .kiosk-container > *:not(.admin-auth-bar) {
 
   .admin-auth-bar.is-gate .admin-auth-actions {
     width: min(340px, 100%);
+  }
+}
+
+/* L자형 어드민 사이드바 & 모바일 드로어 레이아웃 (P56 최적화) */
+body.admin-shell-page {
+  display: block;
+  align-items: initial;
+  justify-content: initial;
+  padding: 0;
+  background-color: #F8FAFC;
+}
+
+.admin-app-layout {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  background-color: #F8FAFC;
+}
+
+.admin-main-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.header-left-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 상단 헤더 중복 바로가기 링크 숨김 (사이드바와 중복 방지 및 1줄 슬림 바 유지) */
+.kiosk-header .admin-external-links {
+  display: none !important;
+}
+
+.kiosk-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* PC / 데스크톱 뷰 (768px 이상 - 울렁거림 0% 고정 100% 꽉 찬 레이아웃) */
+@media (min-width: 768px) {
+  .admin-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background-color: #173F3C;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    padding: 24px 16px;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.08);
+    z-index: 100;
+  }
+
+  .admin-main-area .kiosk-container {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    min-height: 100vh;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  .sidebar-close-btn,
+  .mobile-menu-btn,
+  .sidebar-overlay {
+    display: none !important;
+  }
+}
+
+/* 모바일 뷰 (767px 이하) */
+@media (max-width: 767px) {
+  .admin-app-layout {
+    flex-direction: column;
+  }
+
+  .admin-sidebar {
+    position: fixed;
+    top: 0;
+    left: -280px;
+    width: 260px;
+    height: 100vh;
+    background-color: #173F3C;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 16px;
+    z-index: 1000;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .admin-sidebar.is-open {
+    transform: translateX(280px);
+  }
+
+  .sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+  }
+
+  .sidebar-overlay.is-open {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .mobile-menu-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+    font-size: 22px;
+    background: #E5F4F1;
+    color: #176A63;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+}
+
+/* 사이드바 내부 구성 요소 및 브랜딩 에셋 */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 19px;
+  font-weight: 900;
+  color: white;
+}
+
+.sidebar-logo-img {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.sidebar-close-btn {
+  background: none;
+  border: none;
+  color: #CDE5E1;
+  font-size: 22px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 28px;
+}
+
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  color: #CDE5E1;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 800;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.sidebar-nav-item:hover {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* 관리자 화면 전반에서 동일한 배달왔삼 브랜드 액센트를 사용합니다. */
+.sidebar-nav-item.admin:hover,
+.sidebar-nav-item.admin.is-active,
+.sidebar-nav-item.applications:hover,
+.sidebar-nav-item.applications.is-active,
+.sidebar-nav-item.kitchen:hover,
+.sidebar-nav-item.kitchen.is-active,
+.sidebar-nav-item.reviews:hover,
+.sidebar-nav-item.reviews.is-active {
+  color: white;
+  background-color: #2FBDB3;
+}
+
+.sidebar-nav-badge {
+  min-width: 22px;
+  height: 22px;
+  margin-left: auto;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  background-color: #FFF7ED;
+  color: #C2410C;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.sidebar-nav-badge[hidden] {
+  display: none;
+}
+
+.sidebar-section-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #8FB7B2;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+  padding-left: 4px;
+}
+
+.sidebar-external-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidebar-ext-link {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  color: #D7ECE9;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  transition: background-color 0.2s;
+}
+
+.sidebar-ext-link:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 18px;
+  border-top: 1px solid rgba(215, 236, 233, 0.18);
+}
+
+.sidebar-logout {
+  width: 100%;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid rgba(215, 236, 233, 0.2);
+  border-radius: var(--radius-sm);
+  background-color: rgba(255, 255, 255, 0.07);
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sidebar-logout:hover,
+.sidebar-logout:focus-visible {
+  background-color: rgba(240, 100, 100, 0.18);
+  border-color: rgba(240, 100, 100, 0.5);
+  outline: 2px solid rgba(240, 100, 100, 0.24);
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .admin-header {
+    min-height: 0;
+    padding: 12px 16px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .admin-header .kiosk-header-top {
+    width: 100%;
+    min-width: 0;
+    display: block;
+  }
+
+  .admin-header-actions {
+    width: 100%;
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-header-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  body.admin-shell-page .admin-header-actions > .btn-small-action,
+  body.admin-shell-page .admin-header-actions > .btn,
+  body.admin-shell-page .admin-header-actions > .admin-action-menu {
+    flex: 0 0 auto;
+    width: auto !important;
+    min-width: max-content;
+  }
+}
+
+/* 주방 운영설정: 즉시 실행과 저장형 설정을 명확히 분리합니다. */
+.guest-ops-panel {
+  margin: 0;
+  padding: 0;
+  background-color: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.guest-ops-header {
+  margin: 0;
+  padding: 2px 0 14px;
+  border-bottom: 2px solid #DCE8E5;
+}
+
+.guest-ops-title {
+  color: #203A37;
+  font-size: 21px;
+  font-weight: 900;
+}
+
+.guest-settings-section {
+  min-width: 0;
+  padding: 18px 0;
+  border-bottom: 1px solid #DCE8E5;
+}
+
+.guest-settings-section-header,
+.guest-team-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.guest-settings-section-header h3,
+.guest-team-header h3 {
+  margin: 0;
+  color: #244541;
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.guest-order-management .guest-ops-info {
+  margin-bottom: 12px;
+}
+
+.guest-order-management .guest-ops-status-grid {
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+}
+
+.guest-open-presets #btn-guest-open20,
+.guest-open-presets #btn-guest-open30,
+.guest-open-presets #btn-guest-open60 {
+  background-color: #E6F4F1;
+  color: #176A63;
+  border: 1px solid #B9DCD6;
+}
+
+.guest-custom-open {
+  justify-content: flex-end;
+  padding-top: 12px;
+  border-top: 1px dashed #D5E4E1;
+}
+
+.guest-custom-open .btn-small-action {
+  background-color: #2FBDB3;
+  color: #FFFFFF;
+  border: 0;
+}
+
+.guest-ops-settings-panel {
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.guest-settings-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(360px, 1.15fr);
+  gap: 28px;
+  border-bottom: 1px solid #DCE8E5;
+}
+
+.guest-settings-grid > .guest-settings-section {
+  border-bottom: 0;
+}
+
+.guest-menu-mode-settings {
+  display: grid;
+  grid-template-rows: auto 111px auto auto;
+}
+
+.guest-menu-mode-settings .guest-settings-section-header {
+  grid-row: 1;
+}
+
+.guest-menu-mode-settings .guest-mode-segmented {
+  grid-row: 3;
+}
+
+.guest-menu-mode-settings .guest-event-settings {
+  grid-row: 4;
+}
+
+.guest-ops-base-settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+}
+
+.guest-ops-setting {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 6px;
+  white-space: normal;
+  font-weight: 800;
+}
+
+.guest-ops-setting .admin-inline-input,
+.guest-ops-setting-wide .admin-inline-input {
+  width: 100%;
+  min-height: 42px;
+  text-align: left;
+}
+
+.guest-ops-setting-wide {
+  grid-column: 1 / -1;
+}
+
+.guest-mode-segmented {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  background-color: #EAF1F0;
+  border-radius: var(--radius-sm);
+}
+
+.guest-mode-option {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background-color: transparent;
+  color: #5B716E;
+  font-size: 15px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.guest-mode-option.is-active {
+  background-color: #FFFFFF;
+  border-color: #B9DCD6;
+  color: #176A63;
+  box-shadow: 0 1px 4px rgba(23, 63, 60, 0.12);
+}
+
+.guest-event-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.guest-team-settings {
+  gap: 10px;
+  margin: 0;
+  padding: 18px 0;
+  border-top: 0;
+}
+
+.guest-settings-save-row {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 16px;
+}
+
+.guest-settings-save-row .btn-small-action {
+  min-width: 160px;
+  min-height: 44px;
+  background-color: #2FBDB3;
+  color: #FFFFFF;
+  border: 0;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.guest-settings-save-row .btn-small-action:disabled {
+  background-color: #E2E8F0;
+  color: #94A3B8;
+  border: 1px solid #CBD5E1;
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+@media (max-width: 767px) {
+  .guest-settings-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .guest-menu-mode-settings {
+    display: block;
+  }
+
+  .guest-settings-grid > .guest-settings-section:first-child {
+    border-bottom: 1px solid #DCE8E5;
+  }
+
+  .guest-order-management .guest-ops-status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .guest-custom-open {
+    justify-content: flex-start;
+  }
+
+  .guest-team-meta {
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: nowrap;
+  }
+
+  .guest-team-title-field {
+    width: 100%;
+  }
+
+  .guest-settings-save-row .btn-small-action {
+    width: 100%;
   }
 }
 
