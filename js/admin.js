@@ -478,7 +478,7 @@ function configureAdminView() {
   document.title = '간식 키오스크 - 신청 관리';
 
   const screenTitle = document.querySelector('.admin-screen-title');
-  if (screenTitle) screenTitle.textContent = '신청 관리';
+  if (screenTitle) screenTitle.textContent = '📝 신청 관리';
 
   const tabs = document.querySelector('.admin-tabs');
   if (tabs) tabs.hidden = true;

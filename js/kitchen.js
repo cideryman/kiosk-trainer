@@ -2399,8 +2399,12 @@ let refreshTimer = null;
       }
 
       document.querySelectorAll('[data-kitchen-tab]').forEach((button) => {
-        button.addEventListener('click', () => {
-          activateKitchenTab(button.dataset.kitchenTab);
+        button.addEventListener('click', (e) => {
+          e.preventDefault();
+          const targetTab = button.dataset.kitchenTab;
+          if (targetTab) {
+            activateKitchenTab(targetTab);
+          }
         });
       });
     });
