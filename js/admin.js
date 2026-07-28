@@ -478,7 +478,7 @@ function configureAdminView() {
   document.title = '간식 키오스크 - 신청 관리';
 
   const screenTitle = document.querySelector('.admin-screen-title');
-  if (screenTitle) screenTitle.textContent = '📨 배달왔삼 신청 관리';
+  if (screenTitle) screenTitle.textContent = '신청 관리';
 
   const tabs = document.querySelector('.admin-tabs');
   if (tabs) tabs.hidden = true;
@@ -1294,11 +1294,13 @@ async function saveSnackOrderToServer(orderedIdList, target) {
 }
 
 async function resetSnackOrder(target) {
+  if (isSubmitting) return;
   let targetLabel = '일반 키오스크';
   if (target === 'guest') targetLabel = '일반 게스트';
   if (target === 'event') targetLabel = '행사/캠페인';
   if (!confirm(`[${targetLabel}] 표시 순서를 초기화(모두 0)할까요? 스프레드시트 등록 순서로 돌아갑니다.`)) return;
 
+  isSubmitting = true;
   // 해당 타깃의 판매중 간식만 displayOrder를 0으로 초기화
   const targetSnacks = currentSnacks.filter(s => isSnackActive(s) && isSnackTargetMatch(s, target));
   const items = targetSnacks.map(s => ({ snackId: s.snackId, displayOrder: 0 }));
@@ -1318,6 +1320,8 @@ async function resetSnackOrder(target) {
     }
   } catch (err) {
     alert('초기화 중 통신 오류가 발생했습니다.');
+  } finally {
+    isSubmitting = false;
   }
 }
 
@@ -1593,11 +1597,13 @@ async function updateSnackStockAction(snackId, stock) {
 }
 
 async function updateSnackSaleAction(snackId, saleYn, snackName) {
+  if (isSubmitting) return;
   const nextActive = String(saleYn).toUpperCase() === 'Y';
   const actionText = nextActive ? '판매중으로 변경' : '숨김 처리';
   const ok = confirm(`${snackName} 간식을 ${actionText}할까요?`);
   if (!ok) return;
 
+  isSubmitting = true;
   setSnackRowLoading(snackId, true);
   try {
     const res = await fetchAPI('updateSnackSale', {
@@ -1616,6 +1622,7 @@ async function updateSnackSaleAction(snackId, saleYn, snackName) {
     console.error("간식 상태 변경 에러:", error);
     alert("간식 상태 변경 중 통신 에러가 발생했습니다.");
   } finally {
+    isSubmitting = false;
     setSnackRowLoading(snackId, false);
   }
 }

@@ -659,32 +659,36 @@ let refreshTimer = null;
       if (btnSel) btnSel.disabled = true;
       if (btnAll) btnAll.disabled = true;
 
-      let successCount = 0;
-      let failCount = 0;
+      try {
+        let successCount = 0;
+        let failCount = 0;
 
-      for (const orderNo of orderNos) {
-        try {
-          const res = await fetchAPI('updateOrderServed', {
-            method: 'POST',
-            body: withAdminToken({ orderId: orderNo, servedYn: 'Y' })
-          });
-          if (res && res.success) {
-            successCount++;
-          } else {
-            clearAdminTokenIfDenied(res);
+        for (const orderNo of orderNos) {
+          try {
+            const res = await fetchAPI('updateOrderServed', {
+              method: 'POST',
+              body: withAdminToken({ orderId: orderNo, servedYn: 'Y' })
+            });
+            if (res && res.success) {
+              successCount++;
+            } else {
+              clearAdminTokenIfDenied(res);
+              failCount++;
+            }
+          } catch (e) {
             failCount++;
           }
-        } catch (e) {
-          failCount++;
         }
-      }
 
-      AppState.vibrate(80);
-      AppState.playClickSound();
-      if (failCount > 0) {
-        alert(`완료: ${successCount}건 / 실패: ${failCount}건`);
+        AppState.vibrate(80);
+        AppState.playClickSound();
+        if (failCount > 0) {
+          alert(`완료: ${successCount}건 / 실패: ${failCount}건`);
+        }
+        await loadAdminData();
+      } finally {
+        updateBulkSelectionUI();
       }
-      await loadAdminData();
     }
 
     // 모든 대기 주문 일괄 제공 완료 (컬럼별)
@@ -965,8 +969,15 @@ let refreshTimer = null;
         return;
       }
 
-      closeCancelReasonModal();
-      await executeCancelOrder(currentCancelOrderNo, reason, detail);
+      const submitBtn = document.querySelector('#modal-cancel-reason button[onclick="submitCancelOrder()"]');
+      if (submitBtn) submitBtn.disabled = true;
+
+      try {
+        closeCancelReasonModal();
+        await executeCancelOrder(currentCancelOrderNo, reason, detail);
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
+      }
     }
 
     async function executeCancelOrder(orderNo, reason, detail) {
@@ -1074,6 +1085,7 @@ let refreshTimer = null;
 
     // 단계별 상태 업그레이드 처리
     async function updateStatusAction(orderNo, nextStatus) {
+      if (pendingUpdates.has(orderNo)) return;
       const originalStates = currentOrders
         .filter(o => (o.orderNo || `${o.timestamp}_${o.nickname}`) === orderNo)
         .map(o => ({ id: o.orderId || o.orderNo, servedYn: o.servedYn }));
@@ -2028,6 +2040,9 @@ let refreshTimer = null;
 
       if (!creditInput || !feeInput || !deliveryPlaceInput) return;
 
+      const saveButton = document.getElementById('btn-save-guest-settings');
+      if (saveButton) saveButton.disabled = true;
+
       const guestBaseCredit = Number(creditInput.value);
       const guestDeliveryFee = Number(feeInput.value);
       const guestDefaultDeliveryPlace = deliveryPlaceInput.value.trim();
@@ -2068,6 +2083,8 @@ let refreshTimer = null;
         }
       } catch (e) {
         alert('설정 저장 중 오류가 발생했습니다.');
+      } finally {
+        if (saveButton) saveButton.disabled = !guestSettingsDirty;
       }
     }
 

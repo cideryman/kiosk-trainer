@@ -464,7 +464,10 @@ function openReviewDetail(index) {
   document.getElementById('review-detail-modal').style.display = 'flex';
 }
 
+let isSubmittingToggleVisibility = false;
+
 async function toggleCurrentReviewVisibility() {
+  if (isSubmittingToggleVisibility) return;
   if (currentReviewIndex < 0 || !cachedReviews[currentReviewIndex]) return;
 
   const review = cachedReviews[currentReviewIndex];
@@ -475,8 +478,11 @@ async function toggleCurrentReviewVisibility() {
   if (!confirm(confirmMsg)) return;
 
   const btn = document.getElementById('btn-toggle-review-visibility');
-  btn.textContent = '처리중...';
-  btn.disabled = true;
+  if (btn) {
+    btn.textContent = '처리중...';
+    btn.disabled = true;
+  }
+  isSubmittingToggleVisibility = true;
 
   try {
     const res = await fetchAPI('toggleReviewVisibility', {
@@ -500,7 +506,8 @@ async function toggleCurrentReviewVisibility() {
   } catch (e) {
     alert('오류가 발생했습니다: ' + e.message);
   } finally {
-    btn.disabled = false;
+    isSubmittingToggleVisibility = false;
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -583,6 +590,7 @@ window.selectAACReply = async function(buttonEl, replyText) {
 
 // 후기 답글 전송 API 호출 및 UI 갱신 함수
 async function submitReviewReplyAction() {
+  if (isSubmittingAACReply) return;
   if (currentReviewIndex < 0 || !cachedReviews[currentReviewIndex]) return;
   const review = cachedReviews[currentReviewIndex];
   const replyInput = document.getElementById('rd-reply-input');
@@ -595,9 +603,12 @@ async function submitReviewReplyAction() {
   }
 
   const btn = document.getElementById('btn-save-reply');
-  const originalText = btn.textContent;
-  btn.textContent = '저장중...';
-  btn.disabled = true;
+  const originalText = btn ? btn.textContent : '';
+  if (btn) {
+    btn.textContent = '저장중...';
+    btn.disabled = true;
+  }
+  isSubmittingAACReply = true;
 
   try {
     const res = await fetchAPI('submitReviewReply', {
@@ -626,8 +637,11 @@ async function submitReviewReplyAction() {
   } catch (e) {
     alert('오류가 발생했습니다: ' + e.message);
   } finally {
-    btn.textContent = originalText;
-    btn.disabled = false;
+    isSubmittingAACReply = false;
+    if (btn) {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }
   }
 }
 
