@@ -1,0 +1,161 @@
+/* 주문 확인 화면 - 수정 가능한 아이템 카드 */
+.order-item-editable {
+  background-color: var(--card-bg);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.order-item-editable:active {
+  border-color: var(--primary-color);
+}
+
+/* 이미지/이모지 영역 */
+.order-item-editable .order-item-img-container {
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+}
+
+/* 이름+수량 텍스트 영역 */
+.confirm-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.confirm-item-name {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.confirm-item-unit {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.confirm-item-subtotal {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--primary-color);
+  white-space: nowrap;
+}
+
+/* 수량 조절 + 삭제 버튼 묶음 */
+.confirm-item-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.confirm-qty-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.confirm-btn-qty {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  font-size: 22px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.1s, background-color 0.1s;
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* 터치 히트박스 확장 */
+.confirm-btn-qty::before {
+  content: '';
+  position: absolute;
+  top: -10px; left: -10px;
+  right: -10px; bottom: -10px;
+}
+
+.confirm-btn-qty:active {
+  transform: scale(0.88);
+}
+
+.confirm-btn-minus {
+  background-color: #E9ECEF;
+  color: var(--text-main);
+}
+
+.confirm-btn-plus {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.confirm-qty-val {
+  font-size: 22px;
+  font-weight: 900;
+  width: 28px;
+  text-align: center;
+  color: var(--text-main);
+}
+
+/* 삭제 버튼 */
+.confirm-btn-delete {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid #FFD6D6;
+  background-color: #FFF0F0;
+  color: var(--danger-color);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s, transform 0.1s;
+  position: relative;
+}
+
+.confirm-btn-delete::before {
+  content: '';
+  position: absolute;
+  top: -8px; left: -8px;
+  right: -8px; bottom: -8px;
+}
+
+.confirm-btn-delete:active {
+  background-color: #FFD6D6;
+  transform: scale(0.88);
+}
+
+/* 빈 장바구니 안내 */
+.cart-empty-hint {
+  text-align: center;
+  padding: 30px 16px;
+  color: var(--text-muted);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* 삭제 애니메이션 */
+@keyframes itemRemove {
+  from { opacity: 1; transform: translateX(0); max-height: 120px; }
+  to   { opacity: 0; transform: translateX(60px); max-height: 0; padding: 0; margin: 0; }
+}
+
+.order-item-editable.removing {
+  animation: itemRemove 0.28s ease-in forwards;
+  overflow: hidden;
+}

@@ -1,0 +1,316 @@
+/* 실시간 주문 추적 스텝퍼 스타일 */
+.tracker-title-box {
+  text-align: center;
+  background-color: var(--card-bg);
+  border: 3px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  margin-top: 10px;
+}
+
+.tracker-order-no {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.tracker-order-no span {
+  font-size: 56px;
+  font-weight: 950;
+  color: var(--primary-color);
+  display: block;
+  margin-top: 4px;
+  line-height: 1.1;
+}
+
+.stepper-vertical {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--card-bg);
+  border: 3px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  position: relative;
+  padding-bottom: 28px;
+}
+
+.step-item:last-child {
+  padding-bottom: 0;
+}
+
+/* 스텝 연결 선 */
+.step-item::after {
+  content: '';
+  position: absolute;
+  left: 20px;
+  top: 44px;
+  bottom: 0;
+  width: 4px;
+  background-color: var(--border-color);
+  z-index: 1;
+}
+
+.step-item:last-child::after {
+  display: none;
+}
+
+/* 완료된 단계의 연결선은 민트색 */
+.step-item.completed::after {
+  background-color: var(--secondary-color);
+}
+
+.step-icon-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: #E9ECEF;
+  border: 3px solid #CED4DA;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 20px;
+  color: var(--text-muted);
+  z-index: 2;
+  transition: all 0.3s ease;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.step-item.completed .step-icon-circle {
+  background-color: #E0F2F1;
+  border-color: var(--secondary-color);
+  color: var(--secondary-hover);
+}
+
+.step-item.active .step-icon-circle {
+  background-color: #FFF9E6;
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  box-shadow: 0 0 12px rgba(255, 159, 28, 0.4);
+  transform: scale(1.15);
+  animation: pulseActiveStep 1.5s infinite alternate;
+}
+
+@keyframes pulseActiveStep {
+  0% { box-shadow: 0 0 0 rgba(255, 159, 28, 0.2); }
+  100% { box-shadow: 0 0 16px rgba(255, 159, 28, 0.6); }
+}
+
+.step-item.active .step-icon-circle span {
+  display: inline-block;
+  animation: bounceEmoji 1s infinite alternate;
+}
+
+@keyframes bounceEmoji {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-4px); }
+}
+
+.step-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 4px;
+}
+
+.step-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.step-item.active .step-title {
+  color: var(--text-main);
+  font-size: 20px;
+}
+
+.step-item.completed .step-title {
+  color: var(--text-main);
+}
+
+.step-desc {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  word-break: keep-all;
+}
+
+.step-item.active .step-desc {
+  color: var(--primary-hover);
+}
+
+/* 주문 내역 표시 박스 */
+.tracker-items-box {
+  background-color: #F8FAFC;
+  border: 3px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  font-size: 16px;
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+
+.tracker-items-title {
+  font-size: 15px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.tracker-items-list {
+  color: var(--text-main);
+  line-height: 1.5;
+}
+
+/* 후기 작성 전용 스타일 */
+.stamp-btn.active {
+  border-color: var(--primary-color) !important;
+  background-color: #FFF9E6 !important;
+  color: var(--primary-color) !important;
+  transform: scale(1.05);
+  box-shadow: 0 4px 10px rgba(255, 159, 28, 0.25);
+}
+.stamp-btn img {
+  transition: transform 0.2s ease;
+}
+.stamp-btn.active img {
+  transform: scale(1.15);
+}
+.tag-capsule.active {
+  background-color: #E0F2F1 !important;
+  border-color: var(--secondary-color) !important;
+  color: #00796B !important;
+}
+
+/* 후기 작성 모달 스타일 */
+html.modal-open,
+body.modal-open {
+  overflow: hidden;
+  height: 100%;
+  touch-action: none;
+}
+
+.admin-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.admin-modal-content {
+  background-color: white;
+  border-radius: var(--radius-md);
+  width: 100%;
+  max-width: 500px;
+  max-height: 90dvh;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  animation: modalFadeIn 0.2s ease-out;
+  border: 3px solid var(--border-color);
+}
+
+@keyframes modalFadeIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.admin-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid var(--border-color);
+  padding: 16px 20px;
+  flex-shrink: 0;
+}
+
+.admin-modal-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--secondary-hover);
+  margin: 0;
+}
+
+.admin-modal-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.admin-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 16px 20px;
+}
+
+.admin-modal-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 20px;
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  z-index: 2;
+}
+
+#review-photo-preview {
+  max-width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+@media (max-width: 480px) {
+  .admin-modal {
+    align-items: stretch;
+    padding: 12px;
+  }
+  .admin-modal-content {
+    max-height: 92dvh;
+  }
+  #review-photo-preview {
+    max-height: 150px;
+  }
+}
+
+/* 취소 버튼 흔들림 애니메이션 */
+.wobble-cancel-btn {
+  animation: wobblePlay 1.2s infinite ease-in-out;
+  border: 3.5px solid #feb2b2 !important;
+  box-shadow: 0 0 15px rgba(254, 178, 178, 0.6) !important;
+  transition: all 0.2s ease;
+  color: #9b2c2c !important;
+  background-color: #fff5f5 !important;
+}
+@keyframes wobblePlay {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.02) rotate(-1deg); }
+  75% { transform: scale(1.02) rotate(1deg); }
+}
