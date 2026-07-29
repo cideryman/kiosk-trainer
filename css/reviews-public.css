@@ -16,7 +16,7 @@ html, body {
   margin: 0;
   padding: 0;
   width: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 .reviews-public-body {
@@ -34,126 +34,6 @@ html, body {
   padding: 16px;
   padding-bottom: 100px; /* 풋터 여백 */
   box-sizing: border-box;
-}
-
-/* 상단 톱바 (3색 탭Bar 통합 - 일체화 카드형) */
-.apply-header {
-  position: sticky;
-  top: 12px;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 64px;
-  padding: 10px 16px;
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(10px);
-  border: 2px solid #E0EFEF; /* 둥근 카드용 얇은 테두리 */
-  border-radius: 20px; /* 더 둥글게 */
-  box-shadow: 0 4px 15px rgba(15, 118, 110, 0.06); /* 부드러운 그림자 */
-  margin-bottom: 24px; /* 아래 내용 사이의 넉넉한 여백 */
-  box-sizing: border-box;
-}
-
-.apply-brand {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 18px;
-  font-weight: 900;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.apply-brand img {
-  width: 38px;
-  height: 38px;
-  border-radius: 8px;
-}
-
-.apply-brand span {
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--teal-main);
-}
-
-/* 3색 세그먼트 탭 네비게이션 */
-.segmented-tab-nav {
-  display: inline-flex;
-  align-items: center;
-  background: #EDF2F7;
-  padding: 4px;
-  border-radius: 18px;
-  gap: 4px;
-  width: 100%;
-  max-width: 480px;
-  justify-content: space-between;
-}
-
-.tab-item {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 7px 10px;
-  border-radius: 14px;
-  font-size: 0.84rem;
-  font-weight: 800;
-  color: #718096;
-  text-decoration: none;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  white-space: nowrap;
-}
-
-.tab-item:hover {
-  background: rgba(255, 255, 255, 0.7);
-  color: #2D3748;
-}
-
-/* 1. 🌿 이용신청 탭 (Active: 틸 민트 #0F766E) */
-.tab-item.tab-apply.active {
-  background: #0F766E;
-  color: #FFFFFF;
-  box-shadow: 0 3px 10px rgba(15, 118, 110, 0.3);
-}
-
-/* 2. 🌸 온기보드 탭 (Active: 파스텔 핑크 #FF6B6B) */
-.tab-item.tab-board.active {
-  background: linear-gradient(135deg, #FF6B6B, #E53E3E);
-  color: #FFFFFF;
-  box-shadow: 0 3px 10px rgba(255, 107, 107, 0.3);
-}
-
-/* 3. 🍊 배달왔삼 탭 (Active: 웜 오렌지 #EA6A17) */
-.tab-item.tab-store.active {
-  background: linear-gradient(135deg, #EA6A17, #DD6B20);
-  color: #FFFFFF;
-  box-shadow: 0 3px 10px rgba(234, 106, 23, 0.3);
-}
-
-@media (max-width: 960px) {
-  .apply-header { min-height: 58px; padding: 8px 14px; }
-  .apply-brand { font-size: 16px; }
-  .apply-brand img { width: 34px; height: 34px; }
-}
-
-@media (max-width: 640px) {
-  .apply-header {
-    flex-direction: column;
-    padding: 12px 16px;
-    gap: 8px;
-    height: auto;
-    min-height: auto;
-  }
-  .segmented-tab-nav {
-    max-width: 100% !important;
-  }
-}
-
-@media (max-width: 340px) {
-  .apply-brand span { display: none; }
 }
 
 .btn-back-link, .btn-apply-link {

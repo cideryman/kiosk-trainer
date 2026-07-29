@@ -51,16 +51,8 @@
       margin: 0 auto;
     }
 
-    .app-header {
-      position: sticky;
-      top: 0;
-      z-index: 1000;
-      background: #ffffff;
-      padding: 16px;
-      border-bottom: 1px solid #e5e5e5;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    .public-nav-slot + .kiosk-body {
+      padding-top: 0 !important;
     }
 
     .review-list {

@@ -13,22 +13,30 @@
   <meta name="apple-mobile-web-app-title" content="배달왔삼">
   <link rel="apple-touch-icon" href="icons/guest-180.png">
   <link rel="stylesheet" href="css/guest.css">
+  <link rel="stylesheet" href="css/public-nav.css">
 </head>
 <body>
   <div class="kiosk-container" id="app-container">
-    <!-- 배달왔삼 헤더 고정 -->
-    <header class="app-header">
-      <div style="width: 36px;"></div>
-      <div style="display: flex; flex-direction: column; gap: 4px; align-items: center;">
-        <div style="font-size: 24px; font-weight: 850; color: var(--secondary-hover); display: flex; align-items: center; justify-content: center; gap: 6px;">
-          <img id="guest-app-brand-img" src="icons/guest-192.png" alt="아이콘" style="width: 28px; height: 28px; border-radius: 4px; object-fit: contain;"> <span id="guest-app-brand-title">배달왔<span style="color: var(--primary-color);">삼</span></span>
-        </div>
-        <div id="guest-app-brand-subtitle" style="font-size: 13px; font-weight: 700; color: var(--text-muted); text-align: center;">
-          삼각지 카페 배달 서비스
-        </div>
-      </div>
-      <div style="width: 36px;"></div>
-    </header>
+    <div class="public-nav-slot">
+      <header class="public-nav-header">
+        <a class="public-nav-brand" href="guest.html" aria-label="배달왔삼 홈">
+          <img id="guest-app-brand-img" src="icons/guest-192.png" alt="배달왔삼 로고">
+          <span class="public-nav-brand-title" id="guest-app-brand-title"><span class="public-nav-brand-main">배달왔</span><span class="public-nav-brand-accent">삼</span></span>
+          <span class="public-nav-brand-subtitle" id="guest-app-brand-subtitle">삼각지 카페 배달 서비스</span>
+        </a>
+        <nav class="public-tab-nav" aria-label="공개 서비스 메뉴">
+          <a href="guest-apply.html" class="public-tab-item tab-apply">
+            <span class="tab-label">이용신청</span>
+          </a>
+          <a href="reviews-public.html" class="public-tab-item tab-reviews">
+            <span class="tab-label">고객 후기</span>
+          </a>
+          <a href="guest.html" class="public-tab-item tab-order active" aria-current="page">
+            <span class="tab-label">주문하기</span>
+          </a>
+        </nav>
+      </header>
+    </div>
 
     <!-- 바디 -->
     <main class="kiosk-body" id="main-content" style="justify-content: flex-start; gap: 24px; padding-top: 16px;">

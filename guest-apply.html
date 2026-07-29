@@ -7,28 +7,29 @@
   <meta name="theme-color" content="#0F766E">
   <meta name="description" content="복지관 봉사자와 후원자를 위한 배달왔삼 이용 신청 페이지">
   <link rel="stylesheet" href="css/guest-apply.css">
+  <link rel="stylesheet" href="css/public-nav.css">
   <link rel="manifest" href="manifest-guest.json">
   <link rel="apple-touch-icon" href="icons/guest-180.png">
 </head>
 <body>
   <div class="apply-page-container">
-    <header class="apply-header">
-    <a class="apply-brand" href="guest.html">
-      <img src="icons/guest-192.png" alt="배달왔삼 로고">
-      <span><strong style="color: var(--teal); font-weight: inherit;">배달왔</strong><strong style="color: var(--orange); font-weight: inherit;">삼</strong></span>
-    </a>
-    <nav class="segmented-tab-nav" aria-label="메인 탭 네비게이션" style="max-width: 380px;">
-      <a href="guest-apply.html" class="tab-item tab-apply active" title="이용 신청 페이지">
-        <span class="tab-label">이용신청</span>
+    <header class="public-nav-header">
+      <a class="public-nav-brand" href="guest.html" aria-label="배달왔삼 홈">
+        <img src="icons/guest-192.png" alt="배달왔삼 로고">
+        <span class="public-nav-brand-title"><span class="public-nav-brand-main">배달왔</span><span class="public-nav-brand-accent">삼</span></span>
       </a>
-      <a href="reviews-public.html" class="tab-item tab-board" title="공개 고객 후기 보드">
-        <span class="tab-label">고객 후기</span>
-      </a>
-      <a href="guest.html" class="tab-item tab-store" title="배달왔삼 간식 주문 홈">
-        <span class="tab-label">배달왔삼</span>
-      </a>
-    </nav>
-  </header>
+      <nav class="public-tab-nav" aria-label="공개 서비스 메뉴">
+        <a href="guest-apply.html" class="public-tab-item tab-apply active" aria-current="page">
+          <span class="tab-label">이용신청</span>
+        </a>
+        <a href="reviews-public.html" class="public-tab-item tab-reviews">
+          <span class="tab-label">고객 후기</span>
+        </a>
+        <a href="guest.html" class="public-tab-item tab-order">
+          <span class="tab-label">주문하기</span>
+        </a>
+      </nav>
+    </header>
 
   <main>
     <section class="hero" aria-labelledby="application-title">

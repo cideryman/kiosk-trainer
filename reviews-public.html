@@ -6,6 +6,7 @@
   <title>배달왔삼 - 따뜻한 온기 후기 🌸</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/reviews-public.css">
+  <link rel="stylesheet" href="css/public-nav.css">
   <!-- PWA 설정 -->
   <link rel="manifest" href="manifest-guest.json">
   <meta name="theme-color" content="#FF6B6B">
@@ -17,20 +18,20 @@
 <body class="reviews-public-body">
   <div class="public-reviews-container">
     <!-- 상단 내비게이션 / 3색 탭Bar (일체화) -->
-    <header class="apply-header">
-      <a class="apply-brand" href="guest.html">
+    <header class="public-nav-header">
+      <a class="public-nav-brand" href="guest.html" aria-label="배달왔삼 홈">
         <img src="icons/guest-192.png" alt="배달왔삼 로고">
-        <span><strong style="color: var(--teal); font-weight: inherit;">배달왔</strong><strong style="color: var(--orange); font-weight: inherit;">삼</strong></span>
+        <span class="public-nav-brand-title"><span class="public-nav-brand-main">배달왔</span><span class="public-nav-brand-accent">삼</span></span>
       </a>
-      <nav class="segmented-tab-nav" aria-label="메인 탭 네비게이션" style="max-width: 380px;">
-        <a href="guest-apply.html" class="tab-item tab-apply" title="이용 신청 페이지">
+      <nav class="public-tab-nav" aria-label="공개 서비스 메뉴">
+        <a href="guest-apply.html" class="public-tab-item tab-apply">
           <span class="tab-label">이용신청</span>
         </a>
-        <a href="reviews-public.html" class="tab-item tab-board active" title="공개 고객 후기 보드">
+        <a href="reviews-public.html" class="public-tab-item tab-reviews active" aria-current="page">
           <span class="tab-label">고객 후기</span>
         </a>
-        <a href="guest.html" class="tab-item tab-store" title="배달왔삼 간식 주문 홈">
-          <span class="tab-label">배달왔삼</span>
+        <a href="guest.html" class="public-tab-item tab-order">
+          <span class="tab-label">주문하기</span>
         </a>
       </nav>
     </header>
