@@ -10,11 +10,11 @@ function doGet(e) {
   }
 
   if (action === 'getAdminDashboard') {
-    return jsonResponse(getAdminDashboard());
+    return jsonResponse(getAdminDashboard(e.parameter.perfDebug));
   }
 
   if (action === 'getKitchenDashboard') {
-    return jsonResponse(getKitchenDashboard());
+    return jsonResponse(getKitchenDashboard(e.parameter.perfDebug));
   }
 
   if (action === 'getSnacks') {

@@ -1,6 +1,39 @@
 /**
  * 5. 이용자 목록 조회
  */
+const USERS_READ_CACHE_KEY = 'users.readValues.v1';
+const USERS_READ_CACHE_TTL_SECONDS = 300;
+
+function getUserValuesForRead(sheet) {
+  try {
+    const cached = CacheService.getScriptCache().get(USERS_READ_CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (error) {
+    Logger.log('users read cache read failed: ' + (error && error.stack ? error.stack : error));
+  }
+
+  const values = sheet.getDataRange().getValues();
+  try {
+    CacheService
+      .getScriptCache()
+      .put(USERS_READ_CACHE_KEY, JSON.stringify(values), USERS_READ_CACHE_TTL_SECONDS);
+  } catch (error) {
+    Logger.log('users read cache write failed: ' + (error && error.stack ? error.stack : error));
+  }
+  return values;
+}
+
+function clearUserReadCache() {
+  try {
+    CacheService.getScriptCache().remove(USERS_READ_CACHE_KEY);
+  } catch (error) {
+    Logger.log('users read cache clear failed: ' + (error && error.stack ? error.stack : error));
+  }
+}
+
 function getUsers(includeInactive) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.USERS);
 
@@ -11,7 +44,7 @@ function getUsers(includeInactive) {
     };
   }
 
-  const values = sheet.getDataRange().getValues();
+  const values = getUserValuesForRead(sheet);
   const rows = values.slice(1);
   const shouldIncludeInactive = String(includeInactive || '').trim().toUpperCase() === 'Y';
 
@@ -54,6 +87,7 @@ function updateUserCredit(data) {
     if (String(rows[i][0]) === String(userId)) {
       var beforeCredit = Number(rows[i][2] || 0);
       sheet.getRange(i + 1, 3).setValue(newCredit);
+      clearUserReadCache();
       safeAppendAdminLog('updateUserCredit', 'user', userId, rows[i][1], beforeCredit, newCredit, data.adminMemo);
       return { success: true, message: '온기를 업데이트했습니다.' };
     }
@@ -95,6 +129,7 @@ function addUser(data) {
     data.useYn || 'Y',
     data.imageUrl || ''
   ]);
+  clearUserReadCache();
   safeAppendAdminLog('addUser', 'user', newUserId, nickname, '', JSON.stringify({ credit: initialCredit, useYn: data.useYn || 'Y' }), data.adminMemo);
 
   return {
@@ -118,6 +153,7 @@ function updateUserActive(data) {
     if (String(rows[i][0]) === String(userId)) {
       var beforeUseYn = rows[i][3] || '';
       sheet.getRange(i + 1, 4).setValue(useYn);
+      clearUserReadCache();
       safeAppendAdminLog('updateUserActive', 'user', userId, rows[i][1], beforeUseYn, useYn, data.adminMemo);
       return { success: true, message: '이용자 상태를 업데이트했습니다.', useYn: useYn };
     }
@@ -159,6 +195,7 @@ function updateUser(data) {
       sheet.getRange(i + 1, 3).setValue(credit);
       sheet.getRange(i + 1, 4).setValue(useYn);
       sheet.getRange(i + 1, 5).setValue(imageUrl);
+      clearUserReadCache();
 
       safeAppendAdminLog('updateUser', 'user', userId, nickname,
         JSON.stringify({ nickname: beforeNickname, credit: beforeCredit, useYn: beforeUseYn, imageUrl: beforeImageUrl }),

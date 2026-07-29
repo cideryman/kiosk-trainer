@@ -15,6 +15,9 @@ GAS 백엔드 소스는 유지보수성을 위해 [`gas/`](./gas) 아래의 기�
 ## 카카오 설정
 
 - 기존 Apps Script 프로젝트에서 파일만 나눈 경우 Script Properties는 그대로 유지됩니다.
+- 같은 Apps Script 프로젝트의 `.gs` 파일 수정·추가 또는 새 버전 배포만으로는 카카오 앱과 Redirect URI를 다시 등록하지 않습니다.
+- 카카오 Redirect URI는 GAS 웹앱 URL이 아니라 배포된 `guest.html`의 도메인과 경로입니다. `guest.html`의 도메인·경로 또는 Redirect URI 생성 방식을 바꿀 때만 카카오 Developers 등록값을 갱신합니다.
+- 새 GAS 배포 URL을 만든 경우 `js/config.js`의 `API_URL`은 갱신해야 하지만, `guest.html` 주소가 같다면 카카오 Redirect URI는 그대로 둡니다.
 - 새 Apps Script 프로젝트를 만든 경우 GAS 편집기의 `00_Setup.gs`에 `setKakaoPropertiesOnce()`를 임시로 추가하고 한 번 실행합니다.
 - `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_GUEST_KEY_SALT`, `ADMIN_TOKEN` 같은 비밀값은 로컬 파일이나 GitHub에 저장하지 않습니다.
 - 설정이 끝난 뒤 일회성 함수의 비밀값을 지우거나 함수 자체를 삭제해도 저장된 Script Properties는 유지됩니다.
@@ -31,6 +34,7 @@ GAS 백엔드 소스는 유지보수성을 위해 [`gas/`](./gas) 아래의 기�
 | `12_GuestApplications.gs` | 배달왔삼 이용 신청, 관리자 처리, 신청 설정, 개인정보 익명화 |
 | `20_Users.gs` | 이용자 조회·등록·수정·크레딧 |
 | `21_Snacks.gs` | 간식 조회·등록·재고·판매상태·캐시 |
+| `22_Dashboard.gs` | 관리자·주방 배치 조회와 선택형 성능 계측 |
 | `30_GuestCredits.gs` | 게스트 크레딧 지갑 |
 | `31_OrderShared.gs` | 주문 헤더와 멱등성 공통 처리 |
 | `40_Orders.gs` | 주문 생성·조회·취소·제공·보관 |

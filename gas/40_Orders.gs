@@ -330,6 +330,7 @@ function placeOrder(data) {
     let newCredit = currentCredit - totalCredit;
     if (!isGuest) {
       userSheet.getRange(userRowIndex + 1, 3).setValue(newCredit);
+      clearUserReadCache();
     } else {
       const walletUpdate = resolveGuestCreditWallet({
         guestDeviceId: data.guestDeviceId || '',
@@ -392,7 +393,7 @@ function placeOrder(data) {
  * 8. 오늘 접수된 주문 내역 조회
  */
 const ORDER_READ_CACHE_KEY = 'orders.readValues.v1';
-const ORDER_READ_CACHE_TTL_SECONDS = 2;
+const ORDER_READ_CACHE_TTL_SECONDS = 60;
 
 function getOrderValuesForRead(orderSheet) {
   try {
@@ -1046,6 +1047,7 @@ function cancelOrder(data) {
       }
       clearSnackReadCache();
       clearOrderReadCache();
+      clearUserReadCache();
       return {
         success: true,
         message: `주문번호 ${orderId}의 주문이 취소되었습니다. 환불 내역: ${refundLogs.join(', ')} (총 ${updatedCount}건)`
@@ -1196,6 +1198,7 @@ function userCancelOrder(data) {
       }
       clearSnackReadCache();
       clearOrderReadCache();
+      clearUserReadCache();
       return {
         success: true,
         message: `주문이 취소되었습니다. 환불 내역: ${refundLogs.join(', ')} (총 ${updatedCount}건)`

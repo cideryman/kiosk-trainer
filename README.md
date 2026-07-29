@@ -82,6 +82,7 @@ Apps Script에서는 파일 순서가 실행 모듈을 나누는 것이 아니�
 | `12_GuestApplications.gs` | 배달왔삼 이용 신청, 정원, 승인·익명화 |
 | `20_Users.gs` | 일반 이용자와 크레딧 |
 | `21_Snacks.gs` | 간식·가격·재고·표시 상태 |
+| `22_Dashboard.gs` | 관리자·주방 초기 데이터 배치 조회와 선택형 성능 계측 |
 | `30_GuestCredits.gs` | 게스트 크레딧 지갑 |
 | `31_OrderShared.gs` | 주문 공통 헤더·변환·검증 보조 |
 | `40_Orders.gs` | 주문 생성·조회·취소·제공·보관 |
@@ -91,6 +92,17 @@ Apps Script에서는 파일 순서가 실행 모듈을 나누는 것이 아니�
 | `90_Diagnostics.gs` | 시트·헤더·스크립트 속성 진단 |
 
 카카오 키와 관리자 토큰 같은 비밀값은 저장소에 넣지 않습니다. `00_Setup.gs`의 일회성 설정 함수도 새 GAS 프로젝트에서만 사용하고, 실행 후 비밀값이 포함된 코드를 GitHub에 복사하지 않습니다.
+
+### 카카오 API 설정을 다시 확인해야 하는 경우
+
+같은 Apps Script 프로젝트에서 `.gs` 파일을 수정하거나 새 버전을 배포하는 것만으로는 카카오 앱이나 API를 다시 등록하지 않습니다. 현재 카카오 로그인 Redirect URI는 GAS 웹앱 URL이 아니라 `guest.html`의 `window.location.origin + window.location.pathname`을 사용합니다.
+
+- **재등록 불필요**: 기존 GAS 프로젝트의 파일 추가·수정, 같은 프로젝트의 새 버전 배포, 내부 API 로직 변경
+- **카카오 Developers 설정 확인 필요**: `guest.html`의 도메인·경로 변경, Redirect URI 생성 방식 변경, 다른 카카오 앱 또는 REST API 키 사용
+- **새 GAS 프로젝트 생성 시**: 카카오 앱을 새로 만들 필요는 없지만 `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_GUEST_KEY_SALT` 등의 Script Properties를 새 프로젝트에 다시 설정
+- **새 GAS 웹앱 URL 사용 시**: `js/config.js`의 `API_URL`을 갱신합니다. `guest.html` 주소가 그대로라면 카카오 Redirect URI는 변경하지 않습니다.
+
+카카오 로그인에서 `KOE006` 오류가 발생하면 실제 인가 요청의 `redirect_uri`와 카카오 Developers에 등록된 Redirect URI가 문자 단위로 같은지 먼저 확인합니다. 비밀 키와 OAuth 인증정보는 문서·Git·프론트엔드 코드에 기록하지 않습니다.
 
 ## 개인정보와 공개 주소 원칙
 
@@ -161,3 +173,4 @@ node scripts/check-handoff.js
 - `getUsers` 등 공개 키오스크용 API에 실명·민감한 개인정보를 추가하지 않습니다.
 - `ADMIN_TOKEN`, Kakao 키, Salt 등 비밀값은 GitHub에 커밋하지 않습니다.
 - 주문·재고·크레딧 관련 변경은 프론트 버튼 잠금만 믿지 말고 GAS의 서버 검증과 멱등성 방어를 함께 확인합니다.
+- 주문 조회는 GAS ScriptCache를 사용합니다. 앱의 주문 생성·제공·취소·보관은 캐시를 즉시 비우지만, 운영 시트를 직접 수정하면 화면 반영까지 최대 60초가 걸릴 수 있습니다.
