@@ -219,6 +219,148 @@ function convertDriveImageUrl(url) {
 // API 호출 캐시 저장소 (정적/기초 데이터 로딩 부하 경감용)
 const API_CACHE = {};
 
+const API_DIAGNOSTICS = (() => {
+  const enabled = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('apiDebug') === '1';
+  const maxRecords = 300;
+  const requests = [];
+  const flows = [];
+  const activeSignatures = new Map();
+  let sequence = 0;
+
+  const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  const round = value => Math.round(Number(value || 0) * 10) / 10;
+
+  function trimRecords(list) {
+    if (list.length > maxRecords) list.splice(0, list.length - maxRecords);
+  }
+
+  function percentile(values, ratio) {
+    if (!values.length) return 0;
+    const sorted = [...values].sort((a, b) => a - b);
+    const index = Math.min(sorted.length - 1, Math.ceil(sorted.length * ratio) - 1);
+    return round(sorted[Math.max(0, index)]);
+  }
+
+  function beginRequest(action, method, params) {
+    if (!enabled) return null;
+    const paramKeys = params ? Object.keys(params).sort().join(',') : '';
+    const signature = `${method}:${action}:${paramKeys}`;
+    const activeCount = activeSignatures.get(signature) || 0;
+    activeSignatures.set(signature, activeCount + 1);
+    return {
+      id: ++sequence,
+      action,
+      method,
+      signature,
+      startedAt: now(),
+      duplicateInFlight: activeCount > 0,
+      concurrentAtStart: [...activeSignatures.values()].reduce((sum, count) => sum + count, 0)
+    };
+  }
+
+  function finishRequest(context, details = {}) {
+    if (!context) return;
+    const activeCount = activeSignatures.get(context.signature) || 1;
+    if (activeCount <= 1) activeSignatures.delete(context.signature);
+    else activeSignatures.set(context.signature, activeCount - 1);
+
+    const record = {
+      id: context.id,
+      page: window.location.pathname.split('/').pop() || 'index.html',
+      action: context.action,
+      method: context.method,
+      source: details.source || 'network',
+      durationMs: round(now() - context.startedAt),
+      networkMs: round(details.networkMs),
+      parseMs: round(details.parseMs),
+      responseChars: Number(details.responseChars) || 0,
+      success: details.success !== false,
+      status: Number(details.status) || 0,
+      duplicateInFlight: context.duplicateInFlight,
+      concurrentAtStart: context.concurrentAtStart,
+      timestamp: new Date().toISOString(),
+      error: details.error ? String(details.error).slice(0, 160) : ''
+    };
+    requests.push(record);
+    trimRecords(requests);
+    console.debug(`[API 진단] ${JSON.stringify(record)}`);
+  }
+
+  function startFlow(name) {
+    if (!enabled) return null;
+    return { name, startedAt: now(), requestStartId: sequence + 1 };
+  }
+
+  function finishFlow(context) {
+    if (!context) return;
+    const relatedRequests = requests.filter(record => record.id >= context.requestStartId);
+    const flow = {
+      page: window.location.pathname.split('/').pop() || 'index.html',
+      name: context.name,
+      durationMs: round(now() - context.startedAt),
+      requestCount: relatedRequests.length,
+      duplicateCount: relatedRequests.filter(record => record.duplicateInFlight).length,
+      timestamp: new Date().toISOString()
+    };
+    flows.push(flow);
+    trimRecords(flows);
+    console.debug(`[화면 로드 진단] ${JSON.stringify(flow)}`);
+  }
+
+  function summarize(list, key) {
+    const groups = {};
+    list.forEach(item => {
+      const name = item[key];
+      if (!groups[name]) groups[name] = [];
+      groups[name].push(item);
+    });
+    return Object.entries(groups).map(([name, items]) => {
+      const durations = items.map(item => item.durationMs);
+      return {
+        name,
+        count: items.length,
+        medianMs: percentile(durations, 0.5),
+        p95Ms: percentile(durations, 0.95),
+        maxMs: round(Math.max(...durations)),
+        duplicates: items.filter(item => item.duplicateInFlight).length,
+        errors: items.filter(item => item.success === false).length
+      };
+    }).sort((a, b) => b.p95Ms - a.p95Ms);
+  }
+
+  function report() {
+    return {
+      enabled,
+      page: typeof window !== 'undefined' ? window.location.href : '',
+      generatedAt: new Date().toISOString(),
+      totals: {
+        requests: requests.length,
+        networkRequests: requests.filter(item => item.source === 'network').length,
+        cacheHits: requests.filter(item => item.source === 'cache').length,
+        duplicates: requests.filter(item => item.duplicateInFlight).length,
+        errors: requests.filter(item => item.success === false).length
+      },
+      actions: summarize(requests, 'action'),
+      flows: summarize(flows, 'name'),
+      requestTimeline: [...requests],
+      flowTimeline: [...flows]
+    };
+  }
+
+  function clear() {
+    requests.length = 0;
+    flows.length = 0;
+    activeSignatures.clear();
+  }
+
+  return { enabled, beginRequest, finishRequest, startFlow, finishFlow, report, clear };
+})();
+
+if (typeof window !== 'undefined') {
+  window.ApiDiagnostics = API_DIAGNOSTICS;
+}
+
 /**
  * Apps Script API 통신을 담당하는 헬퍼 함수
  * @param {string} action - API 요청 액션 (getUsers, getSnacks, placeOrder, getOrdersToday)
@@ -227,6 +369,7 @@ const API_CACHE = {};
  */
 async function fetchAPI(action, options = {}) {
   const method = options.method || 'GET';
+  const diagnosticRequest = API_DIAGNOSTICS.beginRequest(action, method, options.params);
 
   // 1. 뮤테이션(쓰기 작업) 발생 시 모든 캐시 삭제하여 정합성 유지
   const isMutation = method === 'POST' || /^(update|delete|place|cancel|submit|toggle|archive)/.test(action);
@@ -243,13 +386,23 @@ async function fetchAPI(action, options = {}) {
     const cached = API_CACHE[cacheKey];
     if (cached && (Date.now() - cached.timestamp < 120000)) { // 2분 캐시
       safeLog(`[API Cache Hit] Using cached data for ${action}`);
+      API_DIAGNOSTICS.finishRequest(diagnosticRequest, {
+        source: 'cache',
+        success: cached.data?.success !== false
+      });
       return cached.data;
     }
   }
 
   if (typeof USE_MOCK !== 'undefined' && USE_MOCK) {
     console.log(`[API Mock] USE_MOCK이 활성화되어 있어 Mock 데이터를 사용합니다. Action: ${action}`);
-    return getMockFallback(action, options);
+    const mockData = getMockFallback(action, options);
+    API_DIAGNOSTICS.finishRequest(diagnosticRequest, {
+      source: 'mock',
+      success: mockData?.success !== false,
+      responseChars: API_DIAGNOSTICS.enabled ? JSON.stringify(mockData || {}).length : 0
+    });
+    return mockData;
   }
 
   let url = `${API_URL}?action=${action}`;
@@ -295,13 +448,17 @@ async function fetchAPI(action, options = {}) {
 
   try {
     safeLog("API Request", { url, method, action });
+    const networkStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const response = await fetch(url, fetchOptions);
+    const networkFinishedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
     clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
+    const parseStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const data = await response.json();
+    const parseFinishedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
     safeLog("API Response", data);
 
     // 구글 드라이브 이미지 URL 변환 처리
@@ -328,9 +485,22 @@ async function fetchAPI(action, options = {}) {
       }
     }
 
+    API_DIAGNOSTICS.finishRequest(diagnosticRequest, {
+      source: 'network',
+      networkMs: networkFinishedAt - networkStartedAt,
+      parseMs: parseFinishedAt - parseStartedAt,
+      responseChars: API_DIAGNOSTICS.enabled ? JSON.stringify(data || {}).length : 0,
+      success: data?.success !== false,
+      status: response.status
+    });
     return data;
   } catch (error) {
     clearTimeout(timeoutId);
+    API_DIAGNOSTICS.finishRequest(diagnosticRequest, {
+      source: 'network',
+      success: false,
+      error
+    });
     console.error("API Error", error);
     console.warn(`[API Warning] 실제 API 호출 실패 혹은 CORS 발생. Mock 데이터를 사용합니다. Action: ${action}`, error);
     // 에러 발생 시 사용자 경험 중단을 막기 위해 Mock 데이터로 폴백 제공
@@ -367,7 +537,17 @@ function parseMockMaxPerPerson(value) {
  */
 function getMockFallback(action, options) {
   let res;
-  if (action === 'getUsers') {
+  if (action === 'getAdminDashboard') {
+    const snacks = getMockFallback('getSnacks', { params: { includeHidden: 'Y' } });
+    const users = getMockFallback('getUsers', { params: { includeInactive: 'Y' } });
+    res = { success: snacks.success !== false, snacks, users };
+  } else if (action === 'getKitchenDashboard') {
+    const orders = getMockFallback('getOrdersToday', {});
+    const users = getMockFallback('getUsers', { params: { includeInactive: 'Y' } });
+    const snacks = getMockFallback('getSnacks', {});
+    const guestSettings = getMockFallback('getGuestSettings', {});
+    res = { success: orders.success !== false, orders, users, snacks, guestSettings };
+  } else if (action === 'getUsers') {
     res = JSON.parse(JSON.stringify(MOCK_DATA.getUsers));
     const includeInactive = String(options.params?.includeInactive || '').trim().toUpperCase() === 'Y';
     if (!includeInactive) {

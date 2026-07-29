@@ -590,6 +590,7 @@ async function loadGuestApplications(status = currentApplicationFilter) {
     AdminAuth.focus('신청 목록을 보려면 관리자 로그인이 필요합니다.');
     return;
   }
+  const diagnosticFlow = API_DIAGNOSTICS.startFlow('admin:applications');
   currentApplicationFilter = status || 'ALL';
   document.querySelectorAll('[data-application-filter]').forEach(button => {
     button.classList.toggle('active', button.dataset.applicationFilter === currentApplicationFilter);
@@ -616,6 +617,8 @@ async function loadGuestApplications(status = currentApplicationFilter) {
     guestApplicationsLoaded = true;
   } catch (error) {
     if (container) container.innerHTML = '<div class="application-error">신청 목록을 불러오는 중 오류가 발생했습니다.</div>';
+  } finally {
+    API_DIAGNOSTICS.finishFlow(diagnosticFlow);
   }
 }
 
@@ -860,16 +863,27 @@ function switchTab(tabId) {
 
 // 관리자 기본 데이터 로드
 async function loadAdminData() {
+  const diagnosticFlow = API_DIAGNOSTICS.startFlow('admin:main');
   const stockListEl = document.getElementById('snack-stock-list');
   if (stockListEl) {
     stockListEl.innerHTML = '<div style="padding: 10px; text-align: center; font-weight: 700;">불러오는 중...</div>';
   }
 
   try {
-    const [snacksRes, usersRes] = await Promise.all([
-      fetchAPI('getSnacks', { params: { includeHidden: 'Y' } }),
-      fetchAPI('getUsers', { params: { includeInactive: 'Y' } })
-    ]);
+    let dashboardRes = await fetchAPI('getAdminDashboard');
+    if (!dashboardRes || !dashboardRes.success) {
+      console.warn('배치 API를 사용할 수 없어 기존 관리자 조회 방식으로 전환합니다.');
+      const [snacks, users] = await Promise.all([
+        fetchAPI('getSnacks', { params: { includeHidden: 'Y' } }),
+        fetchAPI('getUsers', { params: { includeInactive: 'Y' } })
+      ]);
+      dashboardRes = { success: snacks && snacks.success !== false, snacks, users };
+    }
+    if (!dashboardRes || !dashboardRes.success) {
+      throw new Error('관리자 화면 API 응답 결과가 올바르지 않습니다.');
+    }
+    const snacksRes = dashboardRes.snacks;
+    const usersRes = dashboardRes.users;
     
     // 1. 이용자 데이터 처리
     if (usersRes && usersRes.success && Array.isArray(usersRes.users)) {
@@ -955,8 +969,6 @@ async function loadAdminData() {
       throw new Error('간식 API 응답 결과가 올바르지 않습니다.');
     }
 
-    // 3. 게스트 운영 설정 갱신
-    loadGuestOpsPanel();
   } catch (error) {
     console.error('관리자 데이터 조회 실패:', error);
     const errorTargets = [
@@ -971,6 +983,8 @@ async function loadAdminData() {
     if (stockListEl) {
       stockListEl.innerHTML = `<div style="padding: 10px; text-align: center; color: var(--danger-color); font-weight: 700;">불러오기 실패</div>`;
     }
+  } finally {
+    API_DIAGNOSTICS.finishFlow(diagnosticFlow);
   }
 }
 
@@ -2039,6 +2053,7 @@ async function handleImageUpload(fileInput, targetInputId, nameFieldId, type) {
 let guestOpsCountdown = null;
 
 async function loadGuestOpsPanel() {
+  const diagnosticFlow = API_DIAGNOSTICS.startFlow('admin:guestSettings');
   try {
     const res = await fetchAPI('getGuestSettings');
     if (res && res.success) {
@@ -2046,6 +2061,8 @@ async function loadGuestOpsPanel() {
     }
   } catch (e) {
     console.warn('게스트 운영 설정 조회 실패:', e);
+  } finally {
+    API_DIAGNOSTICS.finishFlow(diagnosticFlow);
   }
 }
 
@@ -2236,7 +2253,6 @@ window.addEventListener('DOMContentLoaded', () => {
         loadGuestApplications();
       } else {
         loadAdminData();
-        loadGuestOpsPanel();
       }
       AppState.vibrate(50);
     });

@@ -9,6 +9,14 @@ function doGet(e) {
     return jsonResponse(getUsers(e.parameter.includeInactive));
   }
 
+  if (action === 'getAdminDashboard') {
+    return jsonResponse(getAdminDashboard());
+  }
+
+  if (action === 'getKitchenDashboard') {
+    return jsonResponse(getKitchenDashboard());
+  }
+
   if (action === 'getSnacks') {
     return jsonResponse(getSnacks(e.parameter.includeHidden, e.parameter.mode, e.parameter.guestKey, e.parameter.guestDeviceId, e.parameter.userId));
   }

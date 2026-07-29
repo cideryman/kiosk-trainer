@@ -541,7 +541,8 @@ let refreshTimer = null;
     }
 
     // 주문 데이터 및 집계 로드
-    async function loadAdminData() {
+    async function loadAdminData(isAutoRefresh = false) {
+      const diagnosticFlow = API_DIAGNOSTICS.startFlow('kitchen:main');
       const pendingContainer = document.getElementById('pending-orders-group');
       if (pendingContainer) {
         pendingContainer.innerHTML = '<div style="padding: 20px; text-align: center; font-weight: 700;">대기 목록 불러오는 중...</div>';
@@ -550,13 +551,36 @@ let refreshTimer = null;
       const tbody = document.getElementById('order-table-body');
       tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px; font-weight: 700;">데이터를 불러오는 중...</td></tr>';
 
-      loadSnackStock();
+      const stockListEl = document.getElementById('snack-stock-list');
+      if (stockListEl) {
+        stockListEl.innerHTML = '<div class="snack-stock-message">불러오는 중...</div>';
+      }
 
       try {
-        const [ordersRes, usersRes] = await Promise.all([
-          fetchAPI('getOrdersToday'),
-          fetchAPI('getUsers', { params: { includeInactive: 'Y' } })
-        ]);
+        let dashboardRes = await fetchAPI('getKitchenDashboard');
+        if (!dashboardRes || !dashboardRes.success) {
+          console.warn('배치 API를 사용할 수 없어 기존 주방 조회 방식으로 전환합니다.');
+          const [orders, users, snacks, guestSettings] = await Promise.all([
+            fetchAPI('getOrdersToday'),
+            fetchAPI('getUsers', { params: { includeInactive: 'Y' } }),
+            fetchAPI('getSnacks'),
+            fetchAPI('getGuestSettings')
+          ]);
+          dashboardRes = {
+            success: orders && orders.success !== false,
+            orders,
+            users,
+            snacks,
+            guestSettings
+          };
+        }
+        if (!dashboardRes || !dashboardRes.success) {
+          throw new Error('주방 화면 API 응답 결과가 올바르지 않습니다.');
+        }
+        const ordersRes = dashboardRes.orders;
+        const usersRes = dashboardRes.users;
+        const snacksRes = dashboardRes.snacks;
+        const guestSettingsRes = dashboardRes.guestSettings;
         
         // 1. 유저 이미지 매핑 데이터 생성
         userImageMap = {};
@@ -576,12 +600,23 @@ let refreshTimer = null;
           throw new Error('주문 API 응답 결과가 올바르지 않습니다.');
         }
 
-        // 3. 간식 재고는 loadSnackStock()에서 독립적으로 처리합니다.
+        // 3. 간식 재고 처리
+        if (snacksRes && snacksRes.success && Array.isArray(snacksRes.snacks)) {
+          currentSnackStock = snacksRes.snacks;
+          renderSnackStock(currentSnackStock);
+        } else if (stockListEl) {
+          stockListEl.innerHTML = '<div class="snack-stock-message is-error">재고를 불러오지 못했습니다.</div>';
+        }
 
-        // 4. 후기 데이터 처리 (kitchen.html에서는 제거됨)
+        // 4. 게스트 운영 설정 처리
+        if (guestSettingsRes && guestSettingsRes.success) {
+          updateGuestOpsUI(guestSettingsRes, isAutoRefresh);
+        } else {
+          console.warn('게스트 운영 설정 응답 결과가 올바르지 않습니다.');
+        }
 
-        // 5. 게스트 운영 설정 갱신 (자동 새로고침 시 입력값 보호를 위해 true 전달)
-        loadGuestOpsPanel(true);
+        // 5. 후기 데이터 처리 (kitchen.html에서는 제거됨)
+
       } catch (error) {
         console.error('관리자 데이터 조회 실패:', error);
         const errorTbody = document.getElementById('order-table-body');
@@ -595,6 +630,7 @@ let refreshTimer = null;
           pendingGroup.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--danger-color); font-weight: 700;">대기 목록 데이터를 불러오지 못했습니다.</div>`;
         }
       } finally {
+        API_DIAGNOSTICS.finishFlow(diagnosticFlow);
         // 데이터 로드가 완료(성공 혹은 실패)된 후에 다음 새로고침 타이머 리셋 및 기동
         if (!refreshPaused) {
           resetRefreshTimer();
@@ -1688,7 +1724,7 @@ let refreshTimer = null;
         timerBar.style.width = `${percentage}%`;
 
         if (refreshSeconds <= 0) {
-          loadAdminData();
+          loadAdminData(true);
         }
       }, 1000);
     }
@@ -1799,6 +1835,7 @@ let refreshTimer = null;
     }
 
     async function loadGuestOpsPanel(isAutoRefresh = false) {
+      const diagnosticFlow = API_DIAGNOSTICS.startFlow('kitchen:guestSettings');
       try {
         const res = await fetchAPI('getGuestSettings');
         if (res && res.success) {
@@ -1806,6 +1843,8 @@ let refreshTimer = null;
         }
       } catch (e) {
         console.warn('게스트 운영 설정 조회 실패:', e);
+      } finally {
+        API_DIAGNOSTICS.finishFlow(diagnosticFlow);
       }
     }
 
@@ -2092,7 +2131,6 @@ let refreshTimer = null;
       AdminAuth.init({
         onUnlock: () => {
           loadAdminData();
-          loadGuestOpsPanel();
         },
         onLock: (options = {}) => {
           if (options.reload !== false) window.location.reload();
@@ -2105,7 +2143,6 @@ let refreshTimer = null;
       if (btnManualRefresh) {
         btnManualRefresh.addEventListener('click', () => {
           loadAdminData();
-          loadGuestOpsPanel();
           AppState.vibrate(50);
         });
       }

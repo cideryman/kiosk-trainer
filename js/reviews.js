@@ -111,6 +111,7 @@ function clearAdminTokenIfDenied(res) {
 
 // 주문 데이터 및 집계 로드
 async function loadAdminData() {
+  const diagnosticFlow = API_DIAGNOSTICS.startFlow('reviews:main');
   try {
     const reviewsRes = await fetchAPI('getReviewsForAdmin', { method: 'POST', body: withAdminToken({}) });
 
@@ -132,6 +133,8 @@ async function loadAdminData() {
         데이터를 불러오지 못했습니다.<br><span style="font-size: 14px; font-weight: 600; color: var(--text-muted); display: block; margin-top: 8px;">(${error.message || '인터넷 연결 끊김'})</span>
       </div>`;
     }
+  } finally {
+    API_DIAGNOSTICS.finishFlow(diagnosticFlow);
   }
 }
 
