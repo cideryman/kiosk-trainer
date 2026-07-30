@@ -31,6 +31,24 @@
     'dalgomi_delivery': { img: 'assets/dalgomi_delivery.png', label: '빠라요' }
   };
 
+  const NEUTRAL_PUBLIC_NAMES = [
+    '따뜻한 손님',
+    '반가운 이웃',
+    '다정한 손님',
+    '고마운 이웃',
+    '소중한 손님'
+  ];
+  const SENSITIVE_PUBLIC_NAME_TERMS = [
+    '장애인',
+    '장애우',
+    '발달장애',
+    '지적장애',
+    '정신장애',
+    '신체장애',
+    '시각장애',
+    '청각장애'
+  ];
+
   // DOM 요소 참조
   const elemCycleBadge = document.getElementById('warmth-cycle-badge');
   const elemTempValue = document.getElementById('warmth-temp-value');
@@ -77,6 +95,14 @@
   function maskNickname(name) {
     if (!name || name === '익명의 온기') return '익명의 온기';
     const str = String(name).trim();
+    if (SENSITIVE_PUBLIC_NAME_TERMS.some(term => str.includes(term))) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash * 31) + str.charCodeAt(i)) >>> 0;
+      }
+      return NEUTRAL_PUBLIC_NAMES[hash % NEUTRAL_PUBLIC_NAMES.length];
+    }
+    if (NEUTRAL_PUBLIC_NAMES.includes(str)) return str;
     if (str.length <= 1) return str;
     if (str.length === 2) return str[0] + '*';
     if (str.length <= 4) return str[0] + '*'.repeat(str.length - 2) + str[str.length - 1];

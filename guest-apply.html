@@ -45,6 +45,7 @@
             <button class="primary-action" type="button" data-open-application>배달왔삼 이용 신청하기</button>
             <a class="secondary-action" href="#how-it-works">이용 절차 보기</a>
           </div>
+          <p class="hero-privacy-note">연락처와 배달 장소는 주문 화면·주방·전광판에 표시되지 않습니다.</p>
           <!-- 고객 후기 유입용 회전 배너 추가 -->
           <a href="reviews-public.html" class="rotating-glow-banner" style="display: block; text-decoration: none; margin-top: 24px;">
             <div class="banner-inner">
@@ -56,6 +57,25 @@
         <div class="hero-image-wrap">
           <img class="hero-image" src="assets/delivery-banner.png" alt="배달왔삼 배달 활동 일러스트" decoding="async" fetchpriority="high">
         </div>
+      </div>
+      <div class="application-summary" aria-label="이용 신청 핵심 안내">
+        <div class="application-summary-item">
+          <span class="application-summary-label">현재 상태</span>
+          <strong class="application-summary-value status" id="summary-state">확인 중</strong>
+        </div>
+        <div class="application-summary-item">
+          <span class="application-summary-label">이용 대상</span>
+          <strong class="application-summary-value" id="summary-target">확인 중</strong>
+        </div>
+        <div class="application-summary-item">
+          <span class="application-summary-label">운영일</span>
+          <strong class="application-summary-value" id="summary-days">확인 중</strong>
+        </div>
+        <div class="application-summary-item">
+          <span class="application-summary-label">배달 지역</span>
+          <strong class="application-summary-value" id="summary-area">확인 중</strong>
+        </div>
+        <p class="application-summary-note">신청 내용을 확인한 뒤 기관 담당자가 이용 방법을 안내합니다.</p>
       </div>
     </section>
 
@@ -153,57 +173,69 @@
         </div>
 
         <form class="application-form reveal" id="guest-application-form" autocomplete="off" novalidate>
-          <div class="form-field">
-            <label for="applicant-name">이름 <span class="required">필수</span></label>
-            <input id="applicant-name" name="name" type="text" maxlength="30" autocomplete="off" required>
-          </div>
-          <div class="form-field">
-            <label for="applicant-relation">복지관과의 관계 <span class="required">필수</span></label>
-            <select id="applicant-relation" name="relationType" required>
-              <option value="">선택해 주세요</option>
-              <option value="VOLUNTEER">봉사자</option>
-              <option value="SPONSOR">후원자</option>
-              <option value="OTHER">기타</option>
-            </select>
-          </div>
-          <div class="form-field full" id="relation-detail-field" hidden>
-            <label for="applicant-relation-detail">관계 설명 <span class="required">필수</span></label>
-            <input id="applicant-relation-detail" name="relationDetail" type="text" maxlength="80" placeholder="예: 행사 참여자">
-          </div>
-          <div class="form-field">
-            <label for="applicant-phone">연락처 <span class="required">필수</span></label>
-            <input id="applicant-phone" name="phone" type="tel" maxlength="20" inputmode="tel" autocomplete="off" placeholder="010-0000-0000" required>
-            <span class="field-hint">신청 확인, 일정 변경, 당일 전달 안내에만 사용합니다.</span>
-          </div>
-          <div class="form-field">
-            <label for="applicant-place">배달받을 장소 <span class="required">필수</span></label>
-            <input id="applicant-place" name="deliveryPlace" type="text" maxlength="80" autocomplete="off" placeholder="예: 원당로 OO반점" required>
-          </div>
-          <div class="form-field full">
-            <label for="applicant-delivery-detail">상세 위치 또는 전달 방법</label>
-            <input id="applicant-delivery-detail" name="deliveryDetail" type="text" maxlength="160" placeholder="예: 도착하면 사무실 담당자에게 알려주세요">
-          </div>
-          <fieldset class="form-field full" style="border: 0; padding: 0; margin: 0;">
-            <legend class="form-label">이용 희망 요일 <span class="required">필수</span></legend>
-            <div class="day-options" id="preferred-day-options"></div>
-          </fieldset>
-          <div class="form-field full">
-            <label for="applicant-message">전달할 내용</label>
-            <textarea id="applicant-message" name="message" maxlength="300" placeholder="관리자가 미리 알아야 할 내용을 적어주세요."></textarea>
-          </div>
+          <section class="form-group" aria-labelledby="basic-info-title">
+            <h3 class="form-group-title" id="basic-info-title">기본 정보</h3>
+            <div class="form-field">
+              <label for="applicant-name">이름 <span class="required">필수</span></label>
+              <input id="applicant-name" name="name" type="text" maxlength="30" autocomplete="off" required>
+            </div>
+            <div class="form-field">
+              <label for="applicant-relation">복지관과의 관계 <span class="required">필수</span></label>
+              <select id="applicant-relation" name="relationType" required>
+                <option value="">선택해 주세요</option>
+                <option value="VOLUNTEER">봉사자</option>
+                <option value="SPONSOR">후원자</option>
+                <option value="OTHER">기타</option>
+              </select>
+            </div>
+            <div class="form-field full" id="relation-detail-field" hidden>
+              <label for="applicant-relation-detail">관계 설명 <span class="required">필수</span></label>
+              <input id="applicant-relation-detail" name="relationDetail" type="text" maxlength="80" placeholder="예: 행사 참여자">
+            </div>
+            <div class="form-field full">
+              <label for="applicant-phone">연락처 <span class="required">필수</span></label>
+              <input id="applicant-phone" name="phone" type="tel" maxlength="20" inputmode="tel" autocomplete="off" placeholder="010-0000-0000" required>
+              <span class="field-hint">신청 확인, 일정 변경, 당일 전달 안내에만 사용합니다.</span>
+            </div>
+          </section>
+
+          <section class="form-group" aria-labelledby="delivery-info-title">
+            <h3 class="form-group-title" id="delivery-info-title">배달 정보</h3>
+            <div class="form-field">
+              <label for="applicant-place">배달받을 장소 <span class="required">필수</span></label>
+              <input id="applicant-place" name="deliveryPlace" type="text" maxlength="80" autocomplete="off" placeholder="예: 원당로 OO반점" required>
+            </div>
+            <div class="form-field">
+              <label for="applicant-delivery-detail">상세 위치 또는 전달 방법</label>
+              <input id="applicant-delivery-detail" name="deliveryDetail" type="text" maxlength="160" placeholder="예: 도착하면 사무실 담당자에게 알려주세요">
+            </div>
+            <fieldset class="form-field full" style="border: 0; padding: 0; margin: 0;">
+              <legend class="form-label">이용 희망 요일 <span class="required">필수</span></legend>
+              <div class="day-options" id="preferred-day-options"></div>
+            </fieldset>
+            <div class="form-field full">
+              <label for="applicant-message">전달할 내용</label>
+              <textarea id="applicant-message" name="message" maxlength="300" placeholder="관리자가 미리 알아야 할 내용을 적어주세요."></textarea>
+            </div>
+          </section>
+
           <div class="honeypot" aria-hidden="true">
             <label for="applicant-website">웹사이트</label>
             <input id="applicant-website" name="website" type="text" tabindex="-1" autocomplete="off">
           </div>
-          <div class="form-field full consent-box">
-            <label class="consent-label" for="applicant-consent">
-              <input id="applicant-consent" name="consent" type="checkbox" required>
-              <span class="consent-copy">
-                <strong>개인정보 수집·이용에 동의합니다. <span class="required">필수</span></strong>
-                이름, 관계, 연락처, 배달 장소와 신청 내용을 신청 확인·운영 안내·원활한 전달 목적으로 수집합니다. 승인된 신청은 이용 중 보관하며, 반려 또는 이용 중지 후 30일이 지나면 개인정보를 익명화합니다. 연락처와 장소는 주문 화면·주방·전광판·빌지에 표시하지 않습니다.
-              </span>
-            </label>
-          </div>
+
+          <section class="form-group form-group-consent" aria-labelledby="consent-info-title">
+            <h3 class="form-group-title" id="consent-info-title">이용 동의</h3>
+            <div class="form-field full consent-box">
+              <label class="consent-label" for="applicant-consent">
+                <input id="applicant-consent" name="consent" type="checkbox" required>
+                <span class="consent-copy">
+                  <strong>개인정보 수집·이용에 동의합니다. <span class="required">필수</span></strong>
+                  이름, 관계, 연락처, 배달 장소와 신청 내용을 신청 확인·운영 안내·원활한 전달 목적으로 수집합니다. 승인된 신청은 이용 중 보관하며, 반려 또는 이용 중지 후 30일이 지나면 개인정보를 익명화합니다. 연락처와 장소는 주문 화면·주방·전광판·빌지에 표시하지 않습니다.
+                </span>
+              </label>
+            </div>
+          </section>
           <div class="form-message" id="application-form-message" role="alert"></div>
           <button class="primary-action form-submit" id="application-submit" type="submit" disabled>이용 신청 접수하기</button>
         </form>

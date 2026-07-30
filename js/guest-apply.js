@@ -13,7 +13,8 @@
   const localMockCapacity = Number.isInteger(localMockCapacityValue) && localMockCapacityValue >= 1 && localMockCapacityValue <= 100
     ? localMockCapacityValue
     : 5;
-  const localMockWaitlistValue = Number(queryParams.get('mockWaitlistCount'));
+  const localMockWaitlistParam = queryParams.get('mockWaitlistCount');
+  const localMockWaitlistValue = localMockWaitlistParam === null ? NaN : Number(localMockWaitlistParam);
   const localMockWaitlistCount = Number.isInteger(localMockWaitlistValue) && localMockWaitlistValue >= 0
     ? localMockWaitlistValue
     : 3;
@@ -72,6 +73,9 @@
     setText('info-delivery-time', settings.deliveryTime);
     setText('info-area', settings.serviceArea);
     setText('info-usage', settings.usageGuide);
+    setText('summary-target', settings.target);
+    setText('summary-days', settings.operatingDays);
+    setText('summary-area', settings.serviceArea);
     const capacity = Math.max(1, Number(settings.capacity) || 5);
     const remainingSlots = Math.max(0, Number(settings.remainingSlots) || 0);
     const waitlistCount = Math.max(0, Number(settings.waitlistCount) || 0);
@@ -91,18 +95,27 @@
 
     // 신청 상태 표시
     const state = document.getElementById('application-state');
+    let stateText = '';
+    let stateClass = '';
     if (waitlistFull) {
-      state.textContent = '이용 신청 마감 (대기 포화)';
-      state.className = 'application-state closed';
+      stateText = '이용 신청 마감';
+      stateClass = 'closed';
     } else if (waitlistActive) {
-      state.textContent = `대기 접수 중 · 대기 ${waitlistCount}명`;
-      state.className = 'application-state waitlist';
+      stateText = `대기 접수 중 · ${waitlistCount}명`;
+      stateClass = 'waitlist';
     } else if (isOpen) {
-      state.textContent = `신청 가능 · ${remainingSlots}명 남음`;
-      state.className = 'application-state open';
+      stateText = `신청 가능 · ${remainingSlots}명 남음`;
+      stateClass = 'open';
     } else {
-      state.textContent = settings.applicationFull ? '1차 모집 마감' : '이용 신청 마감';
-      state.className = 'application-state closed';
+      stateText = settings.applicationFull ? '1차 모집 마감' : '이용 신청 마감';
+      stateClass = 'closed';
+    }
+    state.textContent = waitlistFull ? '이용 신청 마감 (대기 포화)' : stateText;
+    state.className = `application-state ${stateClass}`;
+    const summaryState = document.getElementById('summary-state');
+    if (summaryState) {
+      summaryState.textContent = stateText;
+      summaryState.className = `application-summary-value status ${stateClass}`;
     }
     document.querySelectorAll('[data-open-application]').forEach(button => {
       if (waitlistFull) {

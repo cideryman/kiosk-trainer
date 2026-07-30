@@ -132,11 +132,11 @@ a { color: inherit; }
   padding: 60px 0;
 }
 .hero-inner {
-  width: min(720px, calc(100% - 48px));
+  width: min(720px, calc(100% - 16px));
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: 48px;
+  grid-template-columns: 1.12fr 0.88fr;
+  gap: 32px;
   align-items: center;
 }
 .hero-copy { max-width: 100%; }
@@ -148,7 +148,7 @@ a { color: inherit; }
 }
 .hero h1 {
   margin: 0;
-  font-size: 52px;
+  font-size: 46px;
   line-height: 1.12;
   font-weight: 950;
   word-break: keep-all;
@@ -198,6 +198,62 @@ a { color: inherit; }
   object-fit: contain;
   filter: drop-shadow(0 10px 24px rgba(15, 118, 110, 0.08));
   transition: transform 0.3s ease;
+}
+.hero .hero-privacy-note {
+  margin-top: 12px;
+  color: #64748B;
+  font-size: 12.5px;
+  font-weight: 750;
+  line-height: 1.5;
+}
+.application-summary {
+  width: min(640px, calc(100% - 16px));
+  margin: 36px auto 0;
+  display: grid;
+  grid-template-columns: 1.05fr 1.55fr 0.8fr 1.1fr;
+  overflow: hidden;
+  background: #FFFFFF;
+  border-top: 1px solid #CFE2E0;
+  border-bottom: 1px solid #CFE2E0;
+}
+.application-summary-item {
+  min-width: 0;
+  padding: 14px 12px;
+  border-right: 1px solid #E1ECEB;
+}
+.application-summary-item:nth-child(4) { border-right: 0; }
+.application-summary-label {
+  display: block;
+  margin-bottom: 5px;
+  color: #718096;
+  font-size: 11px;
+  font-weight: 850;
+}
+.application-summary-value {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.4;
+  word-break: keep-all;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.application-summary-value.status.open { color: #047857; }
+.application-summary-value.status.waitlist { color: #B45309; }
+.application-summary-value.status.closed { color: #B42318; }
+.application-summary-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 10px 14px;
+  color: #526079;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.45;
+  text-align: center;
+  background: #F4F9F8;
+  border-top: 1px solid #E1ECEB;
 }
 .hero-image:hover {
   transform: translateY(-4px);
@@ -331,6 +387,40 @@ a { color: inherit; }
   background: white;
   box-shadow: var(--shadow);
 }
+.form-group {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 0 0 24px;
+  border-bottom: 1px solid #DDE9E8;
+}
+.form-group + .form-group { padding-top: 6px; }
+.form-group-consent {
+  padding-top: 6px;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.form-group-title {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--teal);
+  font-size: 19px;
+  font-weight: 950;
+}
+.form-group-title::before {
+  width: 5px;
+  height: 20px;
+  flex: 0 0 auto;
+  background: var(--orange);
+  border-radius: 2px;
+  content: '';
+}
 .form-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
 .form-field.full { grid-column: 1 / -1; }
 .form-field label,
@@ -457,7 +547,8 @@ a { color: inherit; }
   .section { padding: 56px 16px; }
   .meaning-grid,
   .operation-grid,
-  .application-form { grid-template-columns: 1fr; }
+  .application-form,
+  .form-group { grid-template-columns: 1fr; }
   .meaning-img-wrap {
     height: 155px;
   }
@@ -465,6 +556,7 @@ a { color: inherit; }
     min-height: auto;
   }
   .form-field.full,
+  .form-group-title,
   .form-submit,
   .form-message { grid-column: auto; }
   .steps { grid-template-columns: 1fr; gap: 16px; }
@@ -474,6 +566,15 @@ a { color: inherit; }
   .application-form { padding: 18px; }
   .day-options { gap: 6px; }
   .day-option span { padding: 7px 8px; font-size: 13px; white-space: nowrap; }
+  .application-summary {
+    width: calc(100% - 32px);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 28px;
+  }
+  .application-summary-item { border-bottom: 1px solid #E1ECEB; }
+  .application-summary-item:nth-child(2) { border-right: 0; }
+  .application-summary-item:nth-child(3),
+  .application-summary-item:nth-child(4) { border-bottom: 0; }
 }
 
 @media (max-width: 340px) {

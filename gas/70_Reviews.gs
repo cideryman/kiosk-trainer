@@ -164,6 +164,24 @@ function submitReview(data) {
 function maskPublicReviewName(name) {
   const text = String(name == null ? '' : name).trim();
   if (!text || text === '익명의 온기') return '익명의 온기';
+  const sensitiveTerms = [
+    '장애인',
+    '장애우',
+    '발달장애',
+    '지적장애',
+    '정신장애',
+    '신체장애',
+    '시각장애',
+    '청각장애'
+  ];
+  if (sensitiveTerms.some(term => text.indexOf(term) !== -1)) {
+    const neutralNames = ['따뜻한 손님', '반가운 이웃', '다정한 손님', '고마운 이웃', '소중한 손님'];
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+      hash = ((hash * 31) + text.charCodeAt(i)) >>> 0;
+    }
+    return neutralNames[hash % neutralNames.length];
+  }
   if (text.length <= 1) return text;
   if (text.length === 2) return text[0] + '*';
   if (text.length <= 4) {
