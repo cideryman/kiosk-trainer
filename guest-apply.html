@@ -14,10 +14,13 @@
 <body>
   <div class="apply-page-container">
     <header class="public-nav-header">
-      <a class="public-nav-brand" href="guest.html" aria-label="배달왔삼 홈">
+      <button type="button" class="public-nav-brand" data-public-brand-story aria-haspopup="dialog" aria-controls="public-brand-story-dialog" aria-label="배달왔삼 이름 이야기 보기">
         <img src="icons/guest-192.png" alt="배달왔삼 로고">
-        <span class="public-nav-brand-title"><span class="public-nav-brand-main">배달왔</span><span class="public-nav-brand-accent">삼</span></span>
-      </a>
+        <span class="public-nav-brand-copy">
+          <span class="public-nav-brand-title"><span class="public-nav-brand-main">배달왔</span><span class="public-nav-brand-accent">삼</span></span>
+          <span class="public-nav-brand-subtitle">삼각지 카페 배달 서비스</span>
+        </span>
+      </button>
       <nav class="public-tab-nav" aria-label="공개 서비스 메뉴">
         <a href="guest-apply.html" class="public-tab-item tab-apply active" aria-current="page">
           <span class="tab-label">이용신청</span>
@@ -212,6 +215,7 @@
     이 페이지의 신청은 주문 접수가 아닙니다. 승인 안내를 받은 뒤 운영일에 배달왔삼 주문 화면을 이용해 주세요.
   </footer>
 
+  <script src="js/public-nav.js"></script>
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>
   <script src="js/guest-apply.js"></script>

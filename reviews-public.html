@@ -19,10 +19,13 @@
   <div class="public-reviews-container">
     <!-- 상단 내비게이션 / 3색 탭Bar (일체화) -->
     <header class="public-nav-header">
-      <a class="public-nav-brand" href="guest.html" aria-label="배달왔삼 홈">
+      <button type="button" class="public-nav-brand" data-public-brand-story aria-haspopup="dialog" aria-controls="public-brand-story-dialog" aria-label="배달왔삼 이름 이야기 보기">
         <img src="icons/guest-192.png" alt="배달왔삼 로고">
-        <span class="public-nav-brand-title"><span class="public-nav-brand-main">배달왔</span><span class="public-nav-brand-accent">삼</span></span>
-      </a>
+        <span class="public-nav-brand-copy">
+          <span class="public-nav-brand-title"><span class="public-nav-brand-main">배달왔</span><span class="public-nav-brand-accent">삼</span></span>
+          <span class="public-nav-brand-subtitle">삼각지 카페 배달 서비스</span>
+        </span>
+      </button>
       <nav class="public-tab-nav" aria-label="공개 서비스 메뉴">
         <a href="guest-apply.html" class="public-tab-item tab-apply">
           <span class="tab-label">이용신청</span>
@@ -127,6 +130,7 @@
     </footer>
   </div>
 
+  <script src="js/public-nav.js"></script>
   <script src="js/config.js"></script>
   <script src="js/reviews-public.js"></script>
 </body>

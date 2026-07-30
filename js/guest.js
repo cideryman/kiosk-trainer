@@ -511,18 +511,23 @@ window.addEventListener('DOMContentLoaded', () => {
         if (settingsRes.guestMenuMode === 'event') {
           const eventName = settingsRes.guestEventName || '장애인식 개선 캠페인';
           brandTitleEl.innerHTML = sanitizeEventTitleHtml(eventName);
+          const accessibleEventName = brandTitleEl.textContent.trim() || '행사';
           brandTitleEl.classList.add('is-event');
-          if (brandSubEl) brandSubEl.textContent = '특별 이벤트 & 캠페인 간식';
+          if (brandSubEl) brandSubEl.textContent = '행사 간식 주문';
           if (brandImgEl && settingsRes.guestEventEmblemBase64) {
             brandImgEl.src = settingsRes.guestEventEmblemBase64;
           } else if (brandImgEl) {
             brandImgEl.src = 'icons/guest-192.png';
           }
+          if (brandImgEl) brandImgEl.alt = `${accessibleEventName} 엠블럼`;
         } else {
           brandTitleEl.innerHTML = '<span class="public-nav-brand-main">배달왔</span><span class="public-nav-brand-accent">삼</span>';
           brandTitleEl.classList.remove('is-event');
           if (brandSubEl) brandSubEl.textContent = '삼각지 카페 배달 서비스';
-          if (brandImgEl) brandImgEl.src = 'icons/guest-192.png';
+          if (brandImgEl) {
+            brandImgEl.src = 'icons/guest-192.png';
+            brandImgEl.alt = '배달왔삼 로고';
+          }
         }
       }
 
