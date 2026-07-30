@@ -604,6 +604,10 @@ window.addEventListener('DOMContentLoaded', () => {
   const btnCloseReviewModal = document.getElementById('btn-close-review-modal');
   const btnCancelReview = document.getElementById('btn-cancel-review');
   const btnSubmitReview = document.getElementById('btn-submit-review');
+  const reviewPublicCheckbox = document.getElementById('review-is-public');
+  const reviewPhotoPublicConfirm = document.getElementById('review-photo-public-confirm');
+  const reviewPhotoPublicConsent = document.getElementById('review-photo-public-consent');
+  const reviewPhotoConsentError = document.getElementById('review-photo-consent-error');
   const stampButtons = document.querySelectorAll('#stamp-select-group .stamp-btn');
   const tagCapsules = document.querySelectorAll('#tags-select-group .tag-capsule');
 
@@ -619,7 +623,8 @@ window.addEventListener('DOMContentLoaded', () => {
     });
     tagCapsules.forEach(c => c.classList.remove('active'));
     document.getElementById('review-comment').value = '';
-    document.getElementById('review-is-public').checked = true;
+    reviewPublicCheckbox.checked = true;
+    updateReviewPhotoPublicConfirmation(true);
     
     if (btnSubmitReview) {
       btnSubmitReview.disabled = false;
@@ -636,6 +641,24 @@ window.addEventListener('DOMContentLoaded', () => {
   // 후기 사진 첨부 관련 상태 및 헬퍼 함수
   let selectedReviewPhotoFile = null;
 
+  function updateReviewPhotoPublicConfirmation(resetConsent = false) {
+    const shouldConfirm = Boolean(selectedReviewPhotoFile && reviewPublicCheckbox?.checked);
+    if (reviewPhotoPublicConfirm) {
+      reviewPhotoPublicConfirm.hidden = !shouldConfirm;
+      reviewPhotoPublicConfirm.classList.remove('has-error');
+    }
+    if (reviewPhotoPublicConsent && (resetConsent || !shouldConfirm)) {
+      reviewPhotoPublicConsent.checked = false;
+    }
+    if (reviewPhotoConsentError) reviewPhotoConsentError.hidden = true;
+  }
+
+  function showReviewPhotoConsentError() {
+    if (reviewPhotoPublicConfirm) reviewPhotoPublicConfirm.classList.add('has-error');
+    if (reviewPhotoConsentError) reviewPhotoConsentError.hidden = false;
+    if (reviewPhotoPublicConsent) reviewPhotoPublicConsent.focus();
+  }
+
   window.handleReviewPhotoSelected = function(fileInput) {
     const file = fileInput.files[0];
     if (!file) return;
@@ -643,6 +666,7 @@ window.addEventListener('DOMContentLoaded', () => {
     selectedReviewPhotoFile = file;
 
     const preview = document.getElementById('review-photo-preview');
+    const previewWrap = document.getElementById('review-photo-preview-wrap');
     const status = document.getElementById('review-photo-status');
     const removeBtn = document.getElementById('btn-remove-review-photo');
 
@@ -654,11 +678,13 @@ window.addEventListener('DOMContentLoaded', () => {
         preview.src = e.target.result;
         preview.style.display = 'block';
       }
+      if (previewWrap) previewWrap.style.display = 'inline-block';
       if (removeBtn) {
         removeBtn.style.display = 'flex';
       }
     };
     reader.readAsDataURL(file);
+    updateReviewPhotoPublicConfirmation(true);
     AppState.vibrate(30);
   };
 
@@ -666,6 +692,7 @@ window.addEventListener('DOMContentLoaded', () => {
     selectedReviewPhotoFile = null;
     const input = document.getElementById('review-photo-input');
     const preview = document.getElementById('review-photo-preview');
+    const previewWrap = document.getElementById('review-photo-preview-wrap');
     const status = document.getElementById('review-photo-status');
     const removeBtn = document.getElementById('btn-remove-review-photo');
 
@@ -674,10 +701,25 @@ window.addEventListener('DOMContentLoaded', () => {
       preview.src = '';
       preview.style.display = 'none';
     }
+    if (previewWrap) previewWrap.style.display = 'none';
     if (status) status.textContent = '선택된 사진 없음';
     if (removeBtn) removeBtn.style.display = 'none';
+    updateReviewPhotoPublicConfirmation(true);
     AppState.vibrate(20);
   };
+
+  if (reviewPublicCheckbox) {
+    reviewPublicCheckbox.addEventListener('change', () => {
+      updateReviewPhotoPublicConfirmation(true);
+    });
+  }
+
+  if (reviewPhotoPublicConsent) {
+    reviewPhotoPublicConsent.addEventListener('change', () => {
+      if (reviewPhotoPublicConfirm) reviewPhotoPublicConfirm.classList.remove('has-error');
+      if (reviewPhotoConsentError) reviewPhotoConsentError.hidden = true;
+    });
+  }
 
   function compressImage(file, maxWidth, maxHeight, quality) {
     return new Promise((resolve, reject) => {
@@ -761,7 +803,13 @@ window.addEventListener('DOMContentLoaded', () => {
       const tags = Array.from(activeCapsules).map(c => c.getAttribute('data-tag')).join(', ');
       
       const comment = document.getElementById('review-comment').value.trim();
-      const isPublic = document.getElementById('review-is-public').checked;
+      const isPublic = reviewPublicCheckbox.checked;
+
+      if (selectedReviewPhotoFile && isPublic && !reviewPhotoPublicConsent?.checked) {
+        showReviewPhotoConsentError();
+        AppState.vibrate([60, 40, 60]);
+        return;
+      }
 
       btnSubmitReview.disabled = true;
       btnSubmitReview.textContent = '제출 중...';
