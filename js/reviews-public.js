@@ -48,6 +48,10 @@
     '시각장애',
     '청각장애'
   ];
+  const REVIEWS_PAGE_SIZE = 12;
+  let allReviews = [];
+  let activeReviewFilter = 'all';
+  let visibleReviewCount = REVIEWS_PAGE_SIZE;
 
   // DOM 요소 참조
   const elemCycleBadge = document.getElementById('warmth-cycle-badge');
@@ -61,6 +65,9 @@
   const elemLoadingState = document.getElementById('reviews-loading-state');
   const elemEmptyState = document.getElementById('reviews-empty-state');
   const elemReviewsGrid = document.getElementById('public-reviews-grid');
+  const elemVisibleStatus = document.getElementById('reviews-visible-status');
+  const btnLoadMore = document.getElementById('reviews-load-more');
+  const reviewFilterButtons = Array.from(document.querySelectorAll('[data-review-filter]'));
   const btnRefresh = document.getElementById('btn-refresh-reviews');
 
   /**
@@ -145,7 +152,7 @@
       }
 
       renderHeroWarmth(data);
-      renderReviewsGrid(data.reviews || []);
+      setReviews(data.reviews || []);
     } catch (error) {
       console.error('공개 후기 로드 중 오류:', error);
       elemLoadingState.innerHTML = '<p class="error">후기를 불러오는 데 실패했습니다. 다시 시도해 주세요.</p>';
@@ -226,12 +233,73 @@
     if (elemRemainingCount) elemRemainingCount.textContent = Math.max(0, 50 - progress);
   }
 
+  function hasReviewPhoto(item) {
+    return Boolean(item && String(item.imageUrl || '').trim());
+  }
+
+  function hasReviewReply(item) {
+    return Boolean(item && String(item.replyText || '').trim());
+  }
+
+  function setReviews(reviews) {
+    allReviews = Array.isArray(reviews) ? reviews : [];
+    visibleReviewCount = REVIEWS_PAGE_SIZE;
+    updateReviewCounts();
+    renderCurrentReviews();
+  }
+
+  function updateReviewCounts() {
+    const counts = {
+      all: allReviews.length,
+      photo: allReviews.filter(hasReviewPhoto).length,
+      reply: allReviews.filter(hasReviewReply).length
+    };
+    Object.entries(counts).forEach(([key, count]) => {
+      const elem = document.getElementById(`review-count-${key}`);
+      if (elem) elem.textContent = count;
+    });
+  }
+
+  function getFilteredReviews() {
+    if (activeReviewFilter === 'photo') return allReviews.filter(hasReviewPhoto);
+    if (activeReviewFilter === 'reply') return allReviews.filter(hasReviewReply);
+    return allReviews;
+  }
+
+  function renderCurrentReviews() {
+    const filteredReviews = getFilteredReviews();
+    const visibleReviews = filteredReviews.slice(0, visibleReviewCount);
+    renderReviewsGrid(visibleReviews);
+
+    const shownCount = visibleReviews.length;
+    const totalCount = filteredReviews.length;
+    if (elemVisibleStatus) {
+      elemVisibleStatus.textContent = totalCount > 0
+        ? `${totalCount}개 중 ${shownCount}개 표시`
+        : '조건에 맞는 후기가 없습니다.';
+    }
+
+    if (btnLoadMore) {
+      const remainingCount = Math.max(0, totalCount - shownCount);
+      btnLoadMore.hidden = remainingCount === 0;
+      if (remainingCount > 0) {
+        btnLoadMore.textContent = `후기 ${Math.min(REVIEWS_PAGE_SIZE, remainingCount)}개 더보기`;
+      }
+    }
+  }
+
   /**
-   * 후기 카드 리스트 렌더링 (바둑판식 레이아웃 대응)
+   * 후기 카드 리스트 렌더링
    */
   function renderReviewsGrid(reviews) {
     if (!reviews || reviews.length === 0) {
       elemEmptyState.style.display = 'block';
+      const emptyText = elemEmptyState.querySelector('p');
+      if (emptyText) {
+        emptyText.innerHTML = allReviews.length === 0
+          ? '🌱 아직 등록된 공개 후기가 없습니다.<br>첫 번째 따뜻한 마음을 남겨주세요!'
+          : '조건에 맞는 후기가 없습니다.<br>다른 유형을 선택해 주세요.';
+      }
       elemReviewsGrid.innerHTML = '';
       return;
     }
@@ -257,10 +325,17 @@
         }
       }
 
-      // 태그 처리
-      const tagsList = item.tags
-        ? item.tags.split(',').map(t => `<span class="review-tag-badge">#${escapeHtml(t.trim())}</span>`).join('')
-        : '';
+      // 태그는 핵심 3개만 먼저 보여주고 나머지는 개수로 정리한다.
+      const tags = item.tags
+        ? item.tags.split(',').map(tag => tag.trim()).filter(Boolean)
+        : [];
+      const visibleTags = tags.slice(0, 3)
+        .map(tag => `<span class="review-tag-badge">#${escapeHtml(tag)}</span>`)
+        .join('');
+      const hiddenTagCount = Math.max(0, tags.length - 3);
+      const tagsList = visibleTags + (hiddenTagCount > 0
+        ? `<span class="review-tag-more" aria-label="추가 태그 ${hiddenTagCount}개">+${hiddenTagCount}</span>`
+        : '');
       
       // 구글 드라이브 이미지 변환 & onerror 예외 처리
       const convertedImgUrl = convertDriveImageUrl(item.imageUrl);
@@ -287,10 +362,9 @@
           </div>
 
           ${stampTag}
-          ${tagsList ? `<div class="review-tags-box">${tagsList}</div>` : ''}
-          ${imageBox}
-
           <div class="review-content">${escapeHtml(item.comment || '')}</div>
+          ${imageBox}
+          ${tagsList ? `<div class="review-tags-box">${tagsList}</div>` : ''}
           ${replyBox}
         </article>
       `;
@@ -318,6 +392,26 @@
   if (btnRefresh) {
     btnRefresh.addEventListener('click', () => {
       loadPublicReviews();
+    });
+  }
+
+  reviewFilterButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      activeReviewFilter = button.dataset.reviewFilter || 'all';
+      visibleReviewCount = REVIEWS_PAGE_SIZE;
+      reviewFilterButtons.forEach(filterButton => {
+        const isActive = filterButton === button;
+        filterButton.classList.toggle('active', isActive);
+        filterButton.setAttribute('aria-pressed', String(isActive));
+      });
+      renderCurrentReviews();
+    });
+  });
+
+  if (btnLoadMore) {
+    btnLoadMore.addEventListener('click', () => {
+      visibleReviewCount += REVIEWS_PAGE_SIZE;
+      renderCurrentReviews();
     });
   }
 

@@ -32,7 +32,7 @@ html, body {
   max-width: 720px;
   margin: 0 auto; /* 중앙 정렬 */
   padding: 16px;
-  padding-bottom: 100px; /* 풋터 여백 */
+  padding-bottom: calc(112px + env(safe-area-inset-bottom)); /* 고정 풋터와 기기 안전 영역 */
   box-sizing: border-box;
 }
 
@@ -158,22 +158,16 @@ html, body {
 .dalgom-avatar {
   width: 48px;
   height: 48px;
-  background: #FFF;
-  border-radius: 50%;
-  border: 2px solid var(--teal-light);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
 }
 
 .dalgom-avatar-img {
-  width: 40px;
-  height: 40px;
+  width: 46px;
+  height: 46px;
   object-fit: contain;
-  border-radius: 50%;
 }
 
 .dalgom-speech-bubble {
@@ -281,6 +275,69 @@ html, body {
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.04);
 }
 
+.reviews-filter-bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  background: #EAF6F5;
+  border: 1px solid #CFE7E4;
+  border-radius: 8px;
+}
+
+.review-filter-btn {
+  min-width: 0;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 10px;
+  color: #60748A;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 750;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.review-filter-btn strong {
+  min-width: 24px;
+  padding: 2px 6px;
+  color: #58706D;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 8px;
+}
+
+.review-filter-btn.active {
+  color: var(--teal-main);
+  background: #FFFFFF;
+  box-shadow: 0 2px 7px rgba(15, 118, 110, 0.12);
+}
+
+.review-filter-btn.active strong {
+  color: #FFFFFF;
+  background: var(--teal-main);
+}
+
+.review-filter-btn:focus-visible,
+.reviews-load-more:focus-visible {
+  outline: 3px solid rgba(32, 184, 170, 0.3);
+  outline-offset: 2px;
+}
+
+.reviews-visible-status {
+  margin: 8px 2px 16px;
+  color: #718096;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-align: right;
+}
+
 .state-message {
   text-align: center;
   padding: 40px 20px;
@@ -308,7 +365,7 @@ html, body {
   display: grid;
   grid-template-columns: repeat(2, 1fr); /* 2열 고정 */
   gap: 16px;
-  align-items: stretch;
+  align-items: start;
   width: 100%;
 }
 
@@ -410,6 +467,17 @@ html, body {
   border-radius: 8px;
 }
 
+.review-tag-more {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  color: #68778A;
+  font-size: 0.72rem;
+  font-weight: 750;
+  background: #F0F3F6;
+  border-radius: 8px;
+}
+
 .review-content {
   font-size: 0.9rem;
   color: #333;
@@ -418,6 +486,8 @@ html, body {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+.review-content:empty { display: none; }
 
 .review-image-box {
   margin-bottom: 10px;
@@ -438,8 +508,31 @@ html, body {
   border-left: 3px solid var(--warm-orange);
   border-radius: 8px;
   padding: 10px 12px;
-  margin-top: auto; /* 카드 하단 밀착 */
+  margin-top: 2px;
 }
+
+.reviews-load-more-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.reviews-load-more {
+  min-width: 220px;
+  min-height: 46px;
+  padding: 10px 22px;
+  color: var(--teal-main);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 800;
+  background: #FFFFFF;
+  border: 1.5px solid #BFDCD8;
+  border-radius: 8px;
+  box-shadow: 0 3px 10px rgba(15, 118, 110, 0.06);
+  cursor: pointer;
+}
+
+.reviews-load-more[hidden] { display: none; }
 
 .reply-header {
   font-size: 0.76rem;
@@ -464,7 +557,7 @@ html, body {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
   border-top: 1px solid var(--teal-card-border);
-  padding: 12px 16px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
   display: flex;
   gap: 10px;
   justify-content: center;
@@ -481,6 +574,11 @@ html, body {
   padding: 12px 8px;
   border-radius: 14px;
   transition: all 0.2s ease;
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 .footer-btn.primary {
@@ -530,4 +628,20 @@ html, body {
   100% {
     background-position: -200% 0;
   }
+}
+
+@media (max-width: 340px) {
+  .cycle-badge {
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  .cycle-badge-wrapper { gap: 5px; }
+  .cycle-trees { font-size: 1rem; letter-spacing: 0; }
+  .milestone-step.step-1,
+  .milestone-step.step-3 { display: none; }
+  .review-filter-btn { gap: 4px; padding-inline: 6px; }
+  .review-filter-btn strong { min-width: 21px; padding-inline: 5px; }
+  .footer-btn { font-size: 0.82rem; }
 }

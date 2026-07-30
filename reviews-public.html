@@ -99,6 +99,22 @@
         <button id="btn-refresh-reviews" class="btn-refresh" title="새로고침">🔄 새로고침</button>
       </div>
 
+      <div class="reviews-filter-bar" role="group" aria-label="후기 유형 필터">
+        <button type="button" class="review-filter-btn active" data-review-filter="all" aria-pressed="true">
+          <span>전체</span>
+          <strong id="review-count-all">0</strong>
+        </button>
+        <button type="button" class="review-filter-btn" data-review-filter="photo" aria-pressed="false">
+          <span>사진</span>
+          <strong id="review-count-photo">0</strong>
+        </button>
+        <button type="button" class="review-filter-btn" data-review-filter="reply" aria-pressed="false">
+          <span>답글</span>
+          <strong id="review-count-reply">0</strong>
+        </button>
+      </div>
+      <p class="reviews-visible-status" id="reviews-visible-status" aria-live="polite">후기를 확인하고 있습니다.</p>
+
       <!-- 로딩 / 빈 상태 / 에러 안내 -->
       <div id="reviews-loading-state" class="state-message">
         <div class="spinner"></div>
@@ -117,6 +133,9 @@
 
       <!-- 후기 리스트 카드 목록 -->
       <div id="public-reviews-grid" class="public-reviews-grid"></div>
+      <div class="reviews-load-more-wrap">
+        <button type="button" class="reviews-load-more" id="reviews-load-more" hidden>후기 더보기</button>
+      </div>
     </main>
 
     <!-- 하단 고정 풋터 액션 바 -->
@@ -125,7 +144,7 @@
         ✍️ 후기 남기기
       </a>
       <a href="guest-apply.html" class="footer-btn secondary">
-        💌 배달왔삼 신청하기
+        💌 이용 신청
       </a>
     </footer>
   </div>
