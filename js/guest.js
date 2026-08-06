@@ -272,12 +272,13 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-          const res = await fetchAPI('getGuestProfileByGuestKey', {
+          const res = await fetchAPIReadWithRetry('getGuestProfileByGuestKey', {
             method: 'POST',
             body: {
               authProvider: auth.provider,
               guestKey: auth.guestKey
-            }
+            },
+            timeoutMs: 30000
           });
 
           if (res && res.success) {
@@ -326,9 +327,10 @@ window.addEventListener('DOMContentLoaded', () => {
             body.guestKey = auth.guestKey;
           }
 
-          const res = await fetchAPI('getGuestCreditStatus', {
+          const res = await fetchAPIReadWithRetry('getGuestCreditStatus', {
             method: 'POST',
-            body
+            body,
+            timeoutMs: 30000
           });
           if (res && res.success) {
             guestCreditStatus = res;
@@ -359,8 +361,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
         try {
           const redirectUri = getKakaoRedirectUri();
-          const config = await fetchAPI('getKakaoLoginConfig', {
-            params: { redirectUri }
+          const config = await fetchAPIReadWithRetry('getKakaoLoginConfig', {
+            params: { redirectUri },
+            timeoutMs: 30000
           });
 
           if (!config || !config.success || !config.clientId) {
@@ -552,7 +555,7 @@ window.addEventListener('DOMContentLoaded', () => {
       // 운영 상태 확인
       async function loadSettings() {
         try {
-          const settingsRes = await fetchAPI('getGuestSettings');
+          const settingsRes = await fetchAPIReadWithRetry('getGuestSettings', { timeoutMs: 30000 });
           if (settingsRes && settingsRes.success) {
             isGuestOpen = settingsRes.isGuestOpenNow;
             guestBaseCredit = settingsRes.guestBaseCredit ?? GUEST_DEFAULT_CREDIT;
@@ -1001,7 +1004,7 @@ window.addEventListener('DOMContentLoaded', () => {
           const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
           if (guestOrders.length === 0) return;
 
-          const response = await fetchAPI('getOrdersToday');
+          const response = await fetchAPIReadWithRetry('getOrdersToday', { timeoutMs: 30000 });
           if (response && response.success && Array.isArray(response.orders)) {
             let updated = false;
             guestOrders.forEach(localOrder => {
@@ -1264,7 +1267,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!container) return;
 
         try {
-          const res = await fetchAPI('getRecentReviews');
+          const res = await fetchAPIReadWithRetry('getRecentReviews', { timeoutMs: 30000 });
           if (res && res.success && Array.isArray(res.reviews) && res.reviews.length > 0) {
             allReviews = res.reviews;
             renderReviews();

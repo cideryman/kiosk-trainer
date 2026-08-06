@@ -2876,6 +2876,11 @@ body.admin-shell-page {
 }
 
 /* PC / 데스크톱 뷰 (768px 이상 - 울렁거림 0% 고정 100% 꽉 찬 레이아웃) */
+.admin-sidebar {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 @media (min-width: 768px) {
   .admin-sidebar {
     width: 240px;
@@ -3101,6 +3106,7 @@ body.admin-shell-page {
   border-top: 1px solid rgba(215, 236, 233, 0.18);
 }
 
+.sidebar-app-update,
 .sidebar-logout {
   width: 100%;
   min-height: 44px;
@@ -3116,6 +3122,45 @@ body.admin-shell-page {
   font-size: 14px;
   font-weight: 800;
   cursor: pointer;
+}
+
+.sidebar-app-update {
+  color: #D7ECE9;
+}
+
+.sidebar-app-update:hover,
+.sidebar-app-update:focus-visible {
+  color: #FFFFFF;
+  background-color: rgba(47, 189, 179, 0.16);
+  border-color: rgba(47, 189, 179, 0.48);
+  outline: 2px solid rgba(47, 189, 179, 0.2);
+  outline-offset: 2px;
+}
+
+.sidebar-app-update:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.sidebar-update-status {
+  min-height: 18px;
+  margin: 7px 4px 10px;
+  color: #A9D5D0;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.sidebar-update-status[hidden] {
+  display: none;
+}
+
+.sidebar-update-status.is-error {
+  color: #FFD0D0;
+}
+
+.sidebar-logout {
+  margin-top: 8px;
 }
 
 .sidebar-logout:hover,

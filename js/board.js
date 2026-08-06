@@ -81,7 +81,7 @@ function getShortNo(orderNo) {
 // 데이터 호출 및 렌더링
 async function loadBoardData() {
   try {
-    const res = await fetchAPI('getOrdersToday');
+    const res = await fetchAPIReadWithRetry('getOrdersToday', { timeoutMs: 30000 });
     if (res && res.success && Array.isArray(res.orders)) {
       processOrders(res.orders);
     }

@@ -170,7 +170,9 @@
 
   async function loadSettings() {
     try {
-      const settings = useLocalMock ? getMockSettings() : await fetchAPI('getGuestApplicationSettings');
+      const settings = useLocalMock
+        ? getMockSettings()
+        : await fetchAPIReadWithRetry('getGuestApplicationSettings', { timeoutMs: 30000 });
       if (!settings?.success) throw new Error(settings?.message || '설정 조회 실패');
       renderSettings(settings);
     } catch (error) {

@@ -370,9 +370,14 @@ if (typeof window !== 'undefined') {
 async function fetchAPI(action, options = {}) {
   const method = String(options.method || 'GET').toUpperCase();
   const requestedTimeoutMs = Number(options.timeoutMs);
+  const defaultTimeoutMs = method === 'POST'
+    || action === 'getAdminDashboard'
+    || action === 'getKitchenDashboard'
+    ? 40000
+    : 20000;
   const timeoutMs = Number.isFinite(requestedTimeoutMs) && requestedTimeoutMs >= 1000
     ? Math.min(requestedTimeoutMs, 120000)
-    : 20000;
+    : defaultTimeoutMs;
   const diagnosticRequest = API_DIAGNOSTICS.beginRequest(action, method, options.params);
 
   // 1. 뮤테이션(쓰기 작업) 발생 시 모든 캐시 삭제하여 정합성 유지
@@ -423,7 +428,7 @@ async function fetchAPI(action, options = {}) {
     redirect: 'follow', // GAS Web App Redirect 필수 처리
   };
 
-  // 기본 20초이며 인증·관리자 쓰기처럼 GAS 지연에 민감한 요청은 호출부에서 늘릴 수 있습니다.
+  // 일반 조회는 20초, 관리자 POST와 통합 대시보드는 GAS 콜드 스타트를 고려해 40초를 사용합니다.
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
     console.warn(`[API Timeout] ${action} 요청이 ${timeoutMs}ms 동안 응답이 없어 강제 중단합니다.`);
@@ -519,6 +524,23 @@ async function fetchAPI(action, options = {}) {
       error: String(error)
     };
   }
+}
+
+/**
+ * 데이터 변경이 없는 조회 요청을 일시적인 GAS 네트워크 오류에 한해 한 번 재시도합니다.
+ * POST 형식의 관리자 조회에도 쓰지만, 저장·수정 액션에는 사용하지 않습니다.
+ */
+async function fetchAPIReadWithRetry(action, options = {}) {
+  const requestOptions = {
+    ...options,
+    timeoutMs: options.timeoutMs ?? 40000
+  };
+  let response = await fetchAPI(action, requestOptions);
+  if (!response?.networkError) return response;
+
+  await new Promise(resolve => setTimeout(resolve, 700));
+  response = await fetchAPI(action, requestOptions);
+  return response;
 }
 
 function getMockSnacks() {

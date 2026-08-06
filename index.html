@@ -109,7 +109,7 @@
       userGrid.innerHTML = '';
 
       try {
-        const response = await fetchAPI('getUsers');
+        const response = await fetchAPIReadWithRetry('getUsers', { timeoutMs: 30000 });
         
         if (response && response.success && Array.isArray(response.users)) {
           renderUsers(response.users);
@@ -196,12 +196,15 @@
       });
     }
 
+    const CANCELLATION_POLL_MS = 10000;
     let cancellationInterval = null;
+    let cancellationPollingActive = false;
+    let cancellationPollInFlight = false;
 
     // 첫 실행 시 기존 취소 내역을 dismiss에 선등록하여 새로고침 시 옛날 취소 건이 다시 보이는 문제 방지
     async function initCancellationAlerts() {
       try {
-        const response = await fetchAPI('getOrdersToday');
+        const response = await fetchAPIReadWithRetry('getOrdersToday', { timeoutMs: 30000 });
         if (response && response.success && Array.isArray(response.orders)) {
           const existingCancelled = response.orders
             .filter(o => o.servedYn === 'C')
@@ -216,15 +219,28 @@
       }
     }
 
-    // 5초 간격으로 취소 주문 감시 폴링
+    function scheduleCancellationPolling(delay = CANCELLATION_POLL_MS) {
+      if (cancellationInterval) clearTimeout(cancellationInterval);
+      if (!cancellationPollingActive) return;
+      cancellationInterval = setTimeout(checkCancelledOrders, delay);
+    }
+
+    // 앞선 조회가 끝난 뒤 10초 후 다음 조회를 시작해 느린 API 요청이 겹치지 않게 한다.
     function startCancellationPolling() {
+      cancellationPollingActive = true;
       checkCancelledOrders();
-      cancellationInterval = setInterval(checkCancelledOrders, 5000);
     }
 
     async function checkCancelledOrders() {
+      if (!cancellationPollingActive || cancellationPollInFlight) return;
+      if (document.hidden) {
+        scheduleCancellationPolling();
+        return;
+      }
+
+      cancellationPollInFlight = true;
       try {
-        const response = await fetchAPI('getOrdersToday');
+        const response = await fetchAPIReadWithRetry('getOrdersToday', { timeoutMs: 30000 });
         if (response && response.success && Array.isArray(response.orders)) {
           const now = new Date();
           const cancelledOrders = response.orders.filter(o => o.servedYn === 'C');
@@ -284,8 +300,17 @@
         }
       } catch (e) {
         console.warn('취소 주문 폴링 에러:', e);
+      } finally {
+        cancellationPollInFlight = false;
+        scheduleCancellationPolling();
       }
     }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible' || !cancellationPollingActive) return;
+      if (cancellationInterval) clearTimeout(cancellationInterval);
+      checkCancelledOrders();
+    });
 
     // 내 실시간 주문 상태 표시 및 음성 호출 기능
     function checkMyOrderStatus(orders) {

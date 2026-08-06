@@ -773,6 +773,111 @@ function initOfflineDetector() {
   }
 }
 
+const SERVICE_WORKER_UPDATE_INTERVAL_MS = 60 * 60 * 1000;
+const SERVICE_WORKER_RECHECK_MIN_MS = 5 * 60 * 1000;
+let activeServiceWorkerRegistration = null;
+let serviceWorkerUpdatePromise = null;
+let lastServiceWorkerUpdateCheckAt = 0;
+
+function setAppUpdateUi(message = '', options = {}) {
+  const busy = options.busy === true;
+  document.querySelectorAll('[data-app-update-button]').forEach(button => {
+    button.disabled = busy;
+    button.setAttribute('aria-busy', busy ? 'true' : 'false');
+    const label = button.querySelector('[data-app-update-label]');
+    if (label) label.textContent = busy ? '업데이트 확인 중' : '앱 업데이트 확인';
+  });
+  document.querySelectorAll('[data-app-update-status]').forEach(status => {
+    status.textContent = message;
+    status.hidden = !message;
+    status.classList.toggle('is-error', options.error === true);
+  });
+}
+
+function watchServiceWorkerUpdate(registration) {
+  if (!registration || registration.__kioskUpdateWatcherBound) return;
+  registration.__kioskUpdateWatcherBound = true;
+  registration.addEventListener('updatefound', () => {
+    const installingWorker = registration.installing;
+    if (!installingWorker) return;
+    setAppUpdateUi('새 버전을 적용하고 있습니다.', { busy: true });
+    installingWorker.addEventListener('statechange', () => {
+      if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+        setAppUpdateUi('업데이트 완료 후 다시 열립니다.', { busy: true });
+      }
+    });
+  });
+}
+
+async function checkForAppUpdate(options = {}) {
+  const manual = options.manual === true;
+  const force = options.force === true;
+  const now = Date.now();
+  if (!manual && !force && now - lastServiceWorkerUpdateCheckAt < SERVICE_WORKER_RECHECK_MIN_MS) {
+    return activeServiceWorkerRegistration;
+  }
+  if (serviceWorkerUpdatePromise) {
+    if (!manual) return serviceWorkerUpdatePromise;
+    setAppUpdateUi('최신 버전을 확인하고 있습니다.', { busy: true });
+    const registration = await serviceWorkerUpdatePromise;
+    if (!registration) {
+      setAppUpdateUi('업데이트를 확인하지 못했습니다.', { error: true });
+    } else if (!registration.installing && !registration.waiting) {
+      setAppUpdateUi('현재 최신 버전입니다.');
+    }
+    return registration;
+  }
+  if (!navigator.onLine) {
+    if (manual) setAppUpdateUi('인터넷 연결을 확인해 주세요.', { error: true });
+    return null;
+  }
+
+  if (manual) setAppUpdateUi('최신 버전을 확인하고 있습니다.', { busy: true });
+  lastServiceWorkerUpdateCheckAt = now;
+  serviceWorkerUpdatePromise = (async () => {
+    const registration = activeServiceWorkerRegistration
+      || await navigator.serviceWorker.getRegistration();
+    if (!registration) {
+      if (manual) setAppUpdateUi('업데이트 기능을 준비하지 못했습니다.', { error: true });
+      return null;
+    }
+    activeServiceWorkerRegistration = registration;
+    watchServiceWorkerUpdate(registration);
+    await registration.update();
+    if (manual && !registration.installing && !registration.waiting) {
+      setAppUpdateUi('현재 최신 버전입니다.');
+    }
+    return registration;
+  })().catch(error => {
+    console.error('[Service Worker] 업데이트 확인 실패:', error);
+    if (manual) setAppUpdateUi('업데이트를 확인하지 못했습니다.', { error: true });
+    return null;
+  }).finally(() => {
+    serviceWorkerUpdatePromise = null;
+    document.querySelectorAll('[data-app-update-button]').forEach(button => {
+      button.disabled = false;
+      button.setAttribute('aria-busy', 'false');
+      const label = button.querySelector('[data-app-update-label]');
+      if (label) label.textContent = '앱 업데이트 확인';
+    });
+  });
+  return serviceWorkerUpdatePromise;
+}
+
+function bindAppUpdateControls() {
+  document.querySelectorAll('[data-app-update-button]').forEach(button => {
+    if (button.dataset.bound) return;
+    button.dataset.bound = 'true';
+    button.addEventListener('click', () => checkForAppUpdate({ manual: true, force: true }));
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bindAppUpdateControls, { once: true });
+} else {
+  bindAppUpdateControls();
+}
+
 // Progressive Web App 서비스 워커 등록 및 실시간 업데이트 처리
 if ('serviceWorker' in navigator) {
   if (localStorage.getItem('sw_version_fixed') !== 'v61') {
@@ -790,23 +895,15 @@ if ('serviceWorker' in navigator) {
     });
   } else {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('service-worker.js')
+      navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' })
         .then((registration) => {
+          activeServiceWorkerRegistration = registration;
+          watchServiceWorkerUpdate(registration);
           console.log('서비스 워커 등록 성공! 범위:', registration.scope);
-
-          // 업데이트 감지 시 처리
-          registration.addEventListener('updatefound', () => {
-            const installingWorker = registration.installing;
-            if (installingWorker) {
-              installingWorker.addEventListener('statechange', () => {
-                if (installingWorker.state === 'installed') {
-                  if (navigator.serviceWorker.controller) {
-                    console.log('[Service Worker] 새 버전의 캐시가 준비되었습니다. 곧 업데이트됩니다.');
-                  }
-                }
-              });
-            }
-          });
+          if (document.body.classList.contains('admin-shell-page')) {
+            checkForAppUpdate({ force: true });
+            window.setInterval(() => checkForAppUpdate(), SERVICE_WORKER_UPDATE_INTERVAL_MS);
+          }
         })
         .catch((error) => {
           console.error('서비스 워커 등록 실패:', error);
@@ -818,11 +915,23 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (!refreshing) {
         refreshing = true;
+        setAppUpdateUi('업데이트가 완료되어 다시 여는 중입니다.', { busy: true });
         console.log('[Service Worker] 최신 캐시 적용을 위해 페이지를 자동으로 새로고침합니다.');
         window.location.reload();
       }
     });
+
+    document.addEventListener('visibilitychange', () => {
+      if (
+        document.visibilityState === 'visible'
+        && document.body.classList.contains('admin-shell-page')
+      ) {
+        checkForAppUpdate();
+      }
+    });
   }
+} else {
+  setAppUpdateUi('이 브라우저에서는 업데이트 확인을 지원하지 않습니다.', { error: true });
 }
 
 

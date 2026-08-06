@@ -194,6 +194,16 @@ function maskPublicReviewName(name) {
  * 23. 최근 공개 후기 조회 API (칭찬 보드용)
  */
 function getRecentReviews() {
+  const cache = CacheService.getScriptCache();
+  const cachedData = cache.get('recent_reviews_data');
+  if (cachedData) {
+    try {
+      return JSON.parse(cachedData);
+    } catch (e) {
+      // 캐시가 손상된 경우 시트에서 다시 계산한다.
+    }
+  }
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const reviewSheet = ss.getSheetByName(SHEET.REVIEWS);
   if (!reviewSheet) {
@@ -223,10 +233,18 @@ function getRecentReviews() {
     .reverse() // 최신 작성순
     .slice(0, 10); // 최대 10개만 반환
 
-  return {
+  const result = {
     success: true,
     reviews
   };
+
+  try {
+    cache.put('recent_reviews_data', JSON.stringify(result), 300);
+  } catch (e) {
+    // 캐시 저장 오류는 조회 결과에 영향을 주지 않는다.
+  }
+
+  return result;
 }
 
 /**
@@ -658,6 +676,8 @@ function findHeaderIndex(headers, targets) {
  */
 function clearReviewCache() {
   try {
-    CacheService.getScriptCache().remove("public_reviews_data");
+    const cache = CacheService.getScriptCache();
+    cache.remove("public_reviews_data");
+    cache.remove("recent_reviews_data");
   } catch (e) {}
 }

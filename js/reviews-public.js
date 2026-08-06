@@ -4,17 +4,6 @@
 (function () {
   'use strict';
 
-  // API Endpoint 구하기 (js/config.js의 API_URL 활용)
-  function getScriptUrl() {
-    if (typeof API_URL !== 'undefined' && API_URL) return API_URL;
-    if (window.API_URL) return window.API_URL;
-    if (window.SCRIPT_URL) return window.SCRIPT_URL;
-    if (window.CONFIG && window.CONFIG.SCRIPT_URL) return window.CONFIG.SCRIPT_URL;
-    const urlFromStorage = localStorage.getItem('kiosk_script_url');
-    if (urlFromStorage) return urlFromStorage;
-    return 'https://script.google.com/macros/s/AKfycbz_Placeholder/exec';
-  }
-
   // 달곰이 공식 에셋 이미지 매핑 (마일스톤 구간별)
   const DALGOM_STAGES = [
     { stage: 0, avatarImg: 'assets/dalgomi_milestone_36.png', speech: '"여러분의 따뜻한 온기로 작은 싹이 무럭무럭 자라고 있어요. 🌱"' },
@@ -121,41 +110,28 @@
    */
   async function loadPublicReviews() {
     showLoading(true);
-    const SCRIPT_URL = getScriptUrl();
 
     try {
-      let data = null;
-      if (SCRIPT_URL) {
-        try {
-          const response = await fetch(`${SCRIPT_URL}?action=getPublicReviews&_t=${Date.now()}`, {
-            method: 'GET',
-            redirect: 'follow'
-          });
-          if (response.ok) {
-            data = await response.json();
-          }
-        } catch (err) {
-          console.warn('GAS Fetch 실패:', err);
-        }
-      }
-
+      const data = await fetchAPIReadWithRetry('getPublicReviews', {
+        params: { _t: Date.now() },
+        timeoutMs: 30000
+      });
       if (!data || !data.success) {
-        data = {
-          success: true,
-          reviews: [],
-          totalCount: 0,
-          cycle: 1,
-          progress: 0,
-          temperature: 36.5,
-          stage: 0
-        };
+        throw new Error((data && data.message) || '후기 데이터를 불러오지 못했습니다.');
       }
 
       renderHeroWarmth(data);
       setReviews(data.reviews || []);
     } catch (error) {
       console.error('공개 후기 로드 중 오류:', error);
-      elemLoadingState.innerHTML = '<p class="error">후기를 불러오는 데 실패했습니다. 다시 시도해 주세요.</p>';
+      elemReviewsGrid.innerHTML = '';
+      elemEmptyState.style.display = 'block';
+      const emptyText = elemEmptyState.querySelector('p');
+      if (emptyText) {
+        emptyText.innerHTML = '후기 연결을 확인하지 못했습니다.<br>위의 새로고침 버튼으로 다시 시도해 주세요.';
+      }
+      if (elemVisibleStatus) elemVisibleStatus.textContent = '후기 연결 확인 필요';
+      if (btnLoadMore) btnLoadMore.hidden = true;
     } finally {
       showLoading(false);
     }

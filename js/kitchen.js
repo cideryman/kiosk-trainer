@@ -859,7 +859,10 @@ let refreshTimer = null;
         let tagsText = '등록된 태그 없음';
         let tagsHtml = '<span style="font-size:13px; color:var(--text-muted);">오늘 작성된 후기 태그가 없습니다.</span>';
 
-        const reviewsRes = await fetchAPI('getReviewsForAdmin', { method: 'POST', body: withAdminToken({}) });
+        const reviewsRes = await fetchAPIReadWithRetry('getReviewsForAdmin', {
+          method: 'POST',
+          body: withAdminToken({})
+        });
         if (reviewsRes && reviewsRes.success && Array.isArray(reviewsRes.reviews)) {
           const todayStr = getKoreaDateString(new Date());
           const todayReviews = reviewsRes.reviews.filter(r => {

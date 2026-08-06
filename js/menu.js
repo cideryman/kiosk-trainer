@@ -100,9 +100,10 @@ async function refreshGuestCreditStatus() {
       body.guestKey = user.guestKey;
     }
 
-    const res = await fetchAPI('getGuestCreditStatus', {
+    const res = await fetchAPIReadWithRetry('getGuestCreditStatus', {
       method: 'POST',
-      body
+      body,
+      timeoutMs: 30000
     });
 
     const remainingCredit = Number(res && res.remainingCredit);
@@ -193,7 +194,10 @@ async function loadSnacks() {
     const guestKey = localStorage.getItem('guestKey') || sessionStorage.getItem('guestKey') || '';
     const guestDeviceId = localStorage.getItem('guestDeviceId') || sessionStorage.getItem('guestDeviceId') || '';
     const userId = user ? user.userId : 'guest';
-    const response = await fetchAPI('getSnacks', { params: { mode, guestKey, guestDeviceId, userId } });
+    const response = await fetchAPIReadWithRetry('getSnacks', {
+      params: { mode, guestKey, guestDeviceId, userId },
+      timeoutMs: 30000
+    });
     if (response && response.success && Array.isArray(response.snacks)) {
       snacks = response.snacks;
 

@@ -201,7 +201,10 @@ async function pollOrderStatus() {
       params.orderNo = summaryData.orderNo;
     }
 
-    const response = await fetchAPI('getOrderStatus', { params });
+    const response = await fetchAPIReadWithRetry('getOrderStatus', {
+      params,
+      timeoutMs: 30000
+    });
     if (response && response.success) {
       const currentStatus = response.servedYn || 'N';
       updateTrackingUI(currentStatus, summaryData.nickname, response.reviewed, response.cancelReason, response.cancelReasonDetail);

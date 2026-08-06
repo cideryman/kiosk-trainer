@@ -71,9 +71,10 @@ window.addEventListener('DOMContentLoaded', () => {
       };
 
       if (tokens.length > 0) {
-        const tokenRes = await fetchAPI('getGuestOrderByToken', {
+        const tokenRes = await fetchAPIReadWithRetry('getGuestOrderByToken', {
           method: 'POST',
-          body: { tokens: tokens, includeArchived: includeArchived }
+          body: { tokens: tokens, includeArchived: includeArchived },
+          timeoutMs: 30000
         });
         if (tokenRes && tokenRes.success) {
           appendRows(tokenRes.orders);
@@ -83,13 +84,14 @@ window.addEventListener('DOMContentLoaded', () => {
       }
 
       if (guestAuth) {
-        const authRes = await fetchAPI('getGuestOrdersByGuestKey', {
+        const authRes = await fetchAPIReadWithRetry('getGuestOrdersByGuestKey', {
           method: 'POST',
           body: {
             authProvider: guestAuth.provider,
             guestKey: guestAuth.guestKey,
             includeArchived: includeArchived
-          }
+          },
+          timeoutMs: 30000
         });
         if (authRes && authRes.success) {
           appendRows(authRes.orders);
@@ -101,7 +103,7 @@ window.addEventListener('DOMContentLoaded', () => {
       // 후기 및 장애인 직원 AAC 답글 실시간 동기화 (Join)
       let reviewMapByOrderNo = {};
       try {
-        const reviewsRes = await fetchAPI('getRecentReviews');
+        const reviewsRes = await fetchAPIReadWithRetry('getRecentReviews', { timeoutMs: 30000 });
         if (reviewsRes && reviewsRes.success && Array.isArray(reviewsRes.reviews)) {
           reviewsRes.reviews.forEach(rev => {
             if (rev.orderId) {

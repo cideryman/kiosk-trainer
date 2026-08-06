@@ -113,13 +113,17 @@ function clearAdminTokenIfDenied(res) {
 async function loadAdminData() {
   const diagnosticFlow = API_DIAGNOSTICS.startFlow('reviews:main');
   try {
-    const reviewsRes = await fetchAPI('getReviewsForAdmin', { method: 'POST', body: withAdminToken({}) });
+    const reviewsRes = await fetchAPIReadWithRetry('getReviewsForAdmin', {
+      method: 'POST',
+      body: withAdminToken({})
+    });
 
     // 4. 후기 데이터 처리
     if (reviewsRes && reviewsRes.success && Array.isArray(reviewsRes.reviews)) {
       renderReviews(reviewsRes.reviews);
     } else {
-      throw new Error('후기 API 응답 결과가 올바르지 않습니다.');
+      clearAdminTokenIfDenied(reviewsRes);
+      throw new Error(reviewsRes?.message || '후기 API 응답 결과가 올바르지 않습니다.');
     }
 
   } catch (error) {

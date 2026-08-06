@@ -195,9 +195,10 @@ async function refreshGuestCreditStatus() {
       body.guestKey = user.guestKey;
     }
 
-    const res = await fetchAPI('getGuestCreditStatus', {
+    const res = await fetchAPIReadWithRetry('getGuestCreditStatus', {
       method: 'POST',
-      body
+      body,
+      timeoutMs: 30000
     });
 
     const remainingCredit = Number(res && res.remainingCredit);

@@ -598,7 +598,7 @@ async function loadGuestApplications(status = currentApplicationFilter) {
   if (container) container.innerHTML = '<div class="application-loading">신청 목록을 불러오고 있습니다.</div>';
 
   try {
-    const res = await fetchAPI('getGuestApplicationsForAdmin', {
+    const res = await fetchAPIReadWithRetry('getGuestApplicationsForAdmin', {
       method: 'POST',
       body: {
         adminToken: getAdminToken(),
@@ -691,7 +691,7 @@ async function openGuestApplicationDetail(applicationId, options = {}) {
     content.innerHTML = '<div class="application-loading">상세 정보를 불러오고 있습니다.</div>';
   }
   try {
-    const res = await fetchAPI('getGuestApplicationDetail', {
+    const res = await fetchAPIReadWithRetry('getGuestApplicationDetail', {
       method: 'POST',
       body: { adminToken: getAdminToken(), applicationId }
     });
