@@ -50,6 +50,7 @@ const ADMIN_ACTIONS = [
   'getGuestApplicationsForAdmin',
   'getGuestApplicationDetail',
   'updateGuestApplication',
+  'skipGuestApplicationWeek',
   'updateGuestApplicationSettings',
   'auditExpiredGuestApplications',
   'anonymizeExpiredGuestApplications'

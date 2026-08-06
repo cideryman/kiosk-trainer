@@ -542,10 +542,20 @@ const AdminAuth = {
     }
 
     try {
-      const res = await fetchAPI('verifyAdminAccess', {
+      const requestAccess = timeoutMs => fetchAPI('verifyAdminAccess', {
         method: 'POST',
-        body: { adminToken: token }
+        body: { adminToken: token },
+        timeoutMs
       });
+      let res = await requestAccess(30000);
+
+      // 인증 확인은 데이터를 변경하지 않으므로 일시적인 GAS 연결 실패에 한해 한 번만 재시도합니다.
+      if (res?.networkError) {
+        if (submitButton) submitButton.textContent = '다시 연결 중...';
+        await new Promise(resolve => setTimeout(resolve, 700));
+        res = await requestAccess(40000);
+      }
+
       if (!res?.success) {
         sessionStorage.removeItem(this.storageKey);
         if (input) input.value = '';

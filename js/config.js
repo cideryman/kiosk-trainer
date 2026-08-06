@@ -368,7 +368,11 @@ if (typeof window !== 'undefined') {
  * @returns {Promise<Object>} API 응답 데이터
  */
 async function fetchAPI(action, options = {}) {
-  const method = options.method || 'GET';
+  const method = String(options.method || 'GET').toUpperCase();
+  const requestedTimeoutMs = Number(options.timeoutMs);
+  const timeoutMs = Number.isFinite(requestedTimeoutMs) && requestedTimeoutMs >= 1000
+    ? Math.min(requestedTimeoutMs, 120000)
+    : 20000;
   const diagnosticRequest = API_DIAGNOSTICS.beginRequest(action, method, options.params);
 
   // 1. 뮤테이션(쓰기 작업) 발생 시 모든 캐시 삭제하여 정합성 유지
@@ -419,12 +423,12 @@ async function fetchAPI(action, options = {}) {
     redirect: 'follow', // GAS Web App Redirect 필수 처리
   };
 
-  // 20초 타임아웃 제어 설정 (GAS 콜드 스타트 및 네트워크 지연 대비)
+  // 기본 20초이며 인증·관리자 쓰기처럼 GAS 지연에 민감한 요청은 호출부에서 늘릴 수 있습니다.
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
-    console.warn(`[API Timeout] ${action} 요청이 20초 동안 응답이 없어 강제 중단합니다.`);
+    console.warn(`[API Timeout] ${action} 요청이 ${timeoutMs}ms 동안 응답이 없어 강제 중단합니다.`);
     controller.abort();
-  }, 20000);
+  }, timeoutMs);
   fetchOptions.signal = controller.signal;
 
   // POST 요청 설정
@@ -496,6 +500,7 @@ async function fetchAPI(action, options = {}) {
     return data;
   } catch (error) {
     clearTimeout(timeoutId);
+    const isTimeout = error && error.name === 'AbortError';
     API_DIAGNOSTICS.finishRequest(diagnosticRequest, {
       source: 'network',
       success: false,
@@ -506,7 +511,11 @@ async function fetchAPI(action, options = {}) {
     // 에러 발생 시 사용자 경험 중단을 막기 위해 Mock 데이터로 폴백 제공
     return {
       success: false,
-      message: '데이터 연결에 실패했습니다.',
+      message: isTimeout
+        ? '서버 응답이 늦어 연결 시간이 초과되었습니다.'
+        : '데이터 연결에 실패했습니다.',
+      networkError: true,
+      errorType: isTimeout ? 'timeout' : 'network',
       error: String(error)
     };
   }

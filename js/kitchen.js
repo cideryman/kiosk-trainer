@@ -238,6 +238,7 @@ let refreshTimer = null;
     let diagnoseRefreshPausedBeforeOpen = false;
     let isModalOpen = false;
     const ADMIN_TOKEN_STORAGE_KEY = AdminAuth.storageKey;
+    const ADMIN_WRITE_TIMEOUT_MS = 40000;
     const pendingUpdates = new Map(); // 서버 통신 중인 주문 상태 추적
 
     function esc(value) {
@@ -703,7 +704,8 @@ let refreshTimer = null;
           try {
             const res = await fetchAPI('updateOrderServed', {
               method: 'POST',
-              body: withAdminToken({ orderId: orderNo, servedYn: 'Y' })
+              body: withAdminToken({ orderId: orderNo, servedYn: 'Y' }),
+              timeoutMs: ADMIN_WRITE_TIMEOUT_MS
             });
             if (res && res.success) {
               successCount++;
@@ -1099,7 +1101,8 @@ let refreshTimer = null;
       try {
         const res = await fetchAPI('updateOrderServed', {
           method: 'POST',
-          body: withAdminToken({ orderId: orderNo, servedYn: 'R' })
+          body: withAdminToken({ orderId: orderNo, servedYn: 'R' }),
+          timeoutMs: ADMIN_WRITE_TIMEOUT_MS
         });
         
         if (res && res.success) {
@@ -1142,7 +1145,8 @@ let refreshTimer = null;
       try {
         const res = await fetchAPI('updateOrderServed', {
           method: 'POST',
-          body: withAdminToken({ orderId: orderNo, servedYn: nextStatus })
+          body: withAdminToken({ orderId: orderNo, servedYn: nextStatus }),
+          timeoutMs: ADMIN_WRITE_TIMEOUT_MS
         });
         
         if (res && res.success) {
@@ -2052,7 +2056,8 @@ let refreshTimer = null;
         }
         const res = await fetchAPI('updateGuestSettings', {
           method: 'POST',
-          body: body
+          body: body,
+          timeoutMs: ADMIN_WRITE_TIMEOUT_MS
         });
         if (res && res.success) {
           alert(res.message || '설정이 변경되었습니다.');
@@ -2110,7 +2115,8 @@ let refreshTimer = null;
             guestEventEmblemBase64: window.guestEventEmblemBase64 || '',
             adminToken,
             adminMemo: getAdminMemo()
-          }
+          },
+          timeoutMs: ADMIN_WRITE_TIMEOUT_MS
         });
         if (res && res.success) {
           updateGuestSettingsSaveState(false);
