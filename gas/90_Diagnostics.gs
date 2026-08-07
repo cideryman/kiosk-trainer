@@ -4,6 +4,7 @@
  * 토큰이 무효하거나 누락된 경우 기본 연결 성공(Ping-pong)만 반환하고 상세 진단은 생략합니다.
  */
 function diagnoseSystem(data) {
+  const diagnosisStartedAt = Date.now();
   // 1. 토큰 검증 시도
   const auth = verifyAdminToken(data);
   if (!auth.success) {
@@ -18,15 +19,24 @@ function diagnoseSystem(data) {
   const report = {
     success: true,
     mode: 'detailed',
+    apiContractVersion: API_CONTRACT_VERSION,
+    environment: 'unset',
     sheets: {},
     properties: {},
+    security: {},
+    triggers: {},
+    cache: {},
+    timingsMs: {},
     overallStatus: 'OK'
   };
 
+  const spreadsheetStartedAt = Date.now();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  report.timingsMs.spreadsheetConnection = Date.now() - spreadsheetStartedAt;
   if (!ss) {
     report.overallStatus = 'ERROR';
     report.message = '스프레드시트를 연결할 수 없습니다. 스프레드시트 바인딩 상태를 확인하세요.';
+    report.timingsMs.total = Date.now() - diagnosisStartedAt;
     return report;
   }
 
@@ -54,12 +64,7 @@ function diagnoseSystem(data) {
       'periodKey', 'guestDeviceId', 'guestKey', 'baseCredit', 'bonusCredit',
       'creditLimit', 'usedCredit', 'remainingCredit', 'updatedAt'
     ],
-    [SHEET.GUEST_APPLICATIONS]: [
-      'createdAt', 'applicationId', 'requestId', 'name', 'relationType',
-      'relationDetail', 'phone', 'deliveryPlace', 'deliveryDetail',
-      'preferredDays', 'message', 'consentAt', 'status', 'contactedAt',
-      'reviewedAt', 'retentionUntil', 'anonymizedAt', 'adminMemo', 'updatedAt'
-    ],
+    [SHEET.GUEST_APPLICATIONS]: GUEST_APPLICATION_HEADERS.slice(),
   };
 
   const headerAliases = {
@@ -104,6 +109,7 @@ function diagnoseSystem(data) {
   };
 
   // A. 시트 존재 유무 및 헤더 정합성 체크
+  const sheetChecksStartedAt = Date.now();
   for (let key in SHEET) {
     const sheetName = SHEET[key];
     const sheet = ss.getSheetByName(sheetName);
@@ -152,10 +158,13 @@ function diagnoseSystem(data) {
       report.sheets[sheetName] = { exists: true, status: 'OK' };
     }
   }
+  report.timingsMs.sheetChecks = Date.now() - sheetChecksStartedAt;
 
   // B. 스크립트 속성 설정 체크
+  const propertiesStartedAt = Date.now();
   const props = PropertiesService.getScriptProperties();
   const keysToCheck = [
+    { key: 'APP_ENV', required: true, description: '배포 환경 구분(production 또는 staging)' },
     { key: 'ADMIN_TOKEN', required: true, description: '관리자 API 요청 토큰' },
     { key: 'KAKAO_REST_API_KEY', required: true, description: '카카오 로그인 API 키' },
     { key: 'KAKAO_GUEST_KEY_SALT', required: true, description: '게스트 식별키 암호화 솔트' },
@@ -184,5 +193,149 @@ function diagnoseSystem(data) {
     }
   });
 
+  report.environment = String(props.getProperty('APP_ENV') || 'unset').trim().toLowerCase();
+  if (report.environment !== 'production' && report.environment !== 'staging') {
+    report.properties.APP_ENV = Object.assign({}, report.properties.APP_ENV, {
+      status: 'ERROR',
+      configured: false,
+      message: 'APP_ENV는 production 또는 staging이어야 합니다.'
+    });
+    report.overallStatus = 'WARN';
+  }
+
+  const legacyAdminGetEnabled = String(
+    props.getProperty('ALLOW_LEGACY_ADMIN_GET') || ''
+  ).trim().toUpperCase() === 'Y';
+  report.security.legacyAdminGet = {
+    enabled: legacyAdminGetEnabled,
+    status: legacyAdminGetEnabled ? 'WARN' : 'OK',
+    message: legacyAdminGetEnabled
+      ? 'Legacy administrator GET access is temporarily enabled.'
+      : 'Administrator dashboard GET access is disabled.'
+  };
+  if (legacyAdminGetEnabled) {
+    report.overallStatus = 'WARN';
+  }
+  report.timingsMs.properties = Date.now() - propertiesStartedAt;
+
+  // C. 주간 이용신청 순환 트리거 체크
+  const triggerStartedAt = Date.now();
+  try {
+    const weeklyTriggers = ScriptApp.getProjectTriggers().filter(trigger => (
+      trigger.getHandlerFunction() === 'rotateGuestApplicationWeekly'
+    ));
+    report.triggers.weeklyRotation = {
+      status: weeklyTriggers.length === 1 ? 'OK' : 'WARN',
+      count: weeklyTriggers.length,
+      handler: 'rotateGuestApplicationWeekly'
+    };
+    if (weeklyTriggers.length !== 1) report.overallStatus = 'WARN';
+  } catch (triggerError) {
+    report.triggers.weeklyRotation = {
+      status: 'WARN',
+      count: null,
+      error: triggerError.message || String(triggerError)
+    };
+    report.overallStatus = 'WARN';
+  }
+  report.timingsMs.triggers = Date.now() - triggerStartedAt;
+
+  // D. 서비스 캐시 왕복 체크. 진단 전용 키만 사용하고 즉시 제거합니다.
+  const cacheStartedAt = Date.now();
+  const cacheKey = 'system-diagnosis-' + Utilities.getUuid();
+  try {
+    const cache = CacheService.getScriptCache();
+    const cacheValue = String(Date.now());
+    cache.put(cacheKey, cacheValue, 30);
+    const cachedValue = cache.get(cacheKey);
+    cache.remove(cacheKey);
+    report.cache.scriptCache = {
+      status: cachedValue === cacheValue ? 'OK' : 'WARN',
+      roundTrip: cachedValue === cacheValue
+    };
+    if (cachedValue !== cacheValue) report.overallStatus = 'WARN';
+  } catch (cacheError) {
+    report.cache.scriptCache = {
+      status: 'WARN',
+      roundTrip: false,
+      error: cacheError.message || String(cacheError)
+    };
+    report.overallStatus = 'WARN';
+  }
+  report.timingsMs.cache = Date.now() - cacheStartedAt;
+  report.timingsMs.total = Date.now() - diagnosisStartedAt;
+
   return report;
+}
+
+/**
+ * staging 안정성 검사에서만 쓰는 고정 fixture를 준비합니다.
+ * 운영 환경에서는 관리자 토큰이 맞아도 실행되지 않습니다.
+ */
+function prepareStabilityFixtures() {
+  const environment = String(
+    PropertiesService.getScriptProperties().getProperty('APP_ENV') || ''
+  ).trim().toLowerCase();
+  if (environment !== 'staging') {
+    return {
+      success: false,
+      message: 'Stability fixtures can only be prepared in staging.'
+    };
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    return {
+      success: false,
+      message: 'Fixture preparation is already in progress. Please retry shortly.'
+    };
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const userSheet = ss.getSheetByName(SHEET.USERS);
+    const snackSheet = ss.getSheetByName(SHEET.SNACKS);
+    if (!userSheet || !snackSheet) {
+      return { success: false, message: 'Required fixture sheets are missing.' };
+    }
+
+    const userIds = Array.from({ length: 10 }, (_, index) => (
+      'STAB_USER_' + String(index + 1).padStart(2, '0')
+    ));
+    const users = userIds.map((userId, index) => ({
+      userId: userId,
+      nickname: 'STAB User ' + String(index + 1).padStart(2, '0')
+    }));
+    const userRows = userSheet.getDataRange().getValues();
+    users.forEach(user => {
+      const rowIndex = userRows.findIndex((row, index) => index > 0 && String(row[0]) === user.userId);
+      const values = [user.userId, user.nickname, 15, 'Y', ''];
+      if (rowIndex === -1) {
+        userSheet.appendRow(values);
+      } else {
+        userSheet.getRange(rowIndex + 1, 1, 1, values.length).setValues([values]);
+      }
+    });
+
+    const snackNames = ['STAB Idempotency', 'STAB Concurrency', 'STAB Oversubscription'];
+    const snacks = snackNames.map((name, index) => ({ snackId: 9901 + index, name: name }));
+    const snackRows = snackSheet.getDataRange().getValues();
+    snacks.forEach((snack, index) => {
+      const rowIndex = snackRows.findIndex((row, rowNumber) => (
+        rowNumber > 0 && Number(row[0]) === snack.snackId
+      ));
+      const values = [snack.snackId, snack.name, 1, '', 'Y', 30, 9901 + index, 'user,guest', 0];
+      if (rowIndex === -1) {
+        snackSheet.appendRow(values);
+      } else {
+        snackSheet.getRange(rowIndex + 1, 1, 1, values.length).setValues([values]);
+      }
+    });
+
+    clearUserReadCache();
+    clearSnackReadCache();
+    return { success: true, users: users, snacks: snacks };
+  } finally {
+    lock.releaseLock();
+  }
 }

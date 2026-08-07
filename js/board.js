@@ -43,17 +43,13 @@ function playChimeSound() {
 }
 
 // TTS 음성 호출
-function speakCalling(orderNo, nickname, isDelivery, deliveryPlace) {
+function speakCalling(orderNo, nickname, isDelivery) {
   if (!isAudioEnabled) return;
   
   const shortNo = getShortNo(orderNo);
   let text = '';
   if (isDelivery) {
-    if (deliveryPlace) {
-      text = `주문번호 ${shortNo}번, ${nickname} 님, ${deliveryPlace}로 간식이 배달 중입니다. 조금만 기다려주세요!`;
-    } else {
-      text = `주문번호 ${shortNo}번, ${nickname} 님, 간식이 배달 중입니다. 조금만 기다려주세요!`;
-    }
+    text = `주문번호 ${shortNo}번, ${nickname} 님, 간식이 배달 중입니다. 조금만 기다려주세요!`;
   } else {
     text = `주문번호 ${shortNo}번, ${nickname} 님, 간식이 준비되었습니다. 받아가세요!`;
   }
@@ -81,7 +77,7 @@ function getShortNo(orderNo) {
 // 데이터 호출 및 렌더링
 async function loadBoardData() {
   try {
-    const res = await fetchAPIReadWithRetry('getOrdersToday', { timeoutMs: 30000 });
+    const res = await fetchAPIReadWithRetry('getPublicOrderFeed', { timeoutMs: 30000 });
     if (res && res.success && Array.isArray(res.orders)) {
       processOrders(res.orders);
     }
@@ -110,8 +106,7 @@ function processOrders(rawOrders) {
         timestamp: o.timestamp,
         servedYn: o.servedYn || 'N',
         deliveryType: o.deliveryType || 'pickup',
-        deliveryPlace: o.deliveryPlace || '',
-        authProvider: o.authProvider || '',
+        isKakao: o.isKakao === true,
         snacks: []
       };
     }
@@ -141,7 +136,7 @@ function processOrders(rawOrders) {
       // 즉시 호출 방송 실행
       setTimeout(() => {
         playChimeSound();
-        speakCalling(order.orderNo, order.nickname, order.deliveryType === 'delivery', order.deliveryPlace);
+        speakCalling(order.orderNo, order.nickname, order.deliveryType === 'delivery');
       }, 100);
     }
   });
@@ -182,7 +177,7 @@ function renderList(containerId, list, type) {
     // 번호가 너무 길어 원을 벗어나는 현상 방지 (뒤 4자리만 표시)
     const displayNo = String(shortNo).length > 4 ? '...' + String(shortNo).slice(-4) : shortNo;
     let displayName = order.nickname || '';
-    const isKakao = order.authProvider === 'kakao';
+    const isKakao = order.isKakao === true;
     if (isKakao) {
       displayName = '💬 ' + displayName.replace(/ \((체험|비회원)\)/g, '').trim();
     }
@@ -202,16 +197,11 @@ function renderList(containerId, list, type) {
       statusBadgeText = isDelivery ? '배달중 🛵' : '가져가세요!';
     }
 
-    const deliveryPlaceHtml = (isDelivery && order.deliveryPlace)
-      ? `<div class="board-delivery-place">📍 배달지: ${AppState.escapeHtml(order.deliveryPlace)}</div>`
-      : '';
-
     card.innerHTML = `
       <div class="board-number-box">${displayNo}</div>
       <div class="board-info-box">
         <div class="board-username">${safeNickname} 님</div>
         <div class="board-snacks-list">${safeSnacksText}</div>
-        ${deliveryPlaceHtml}
       </div>
       <div class="board-status-badge">${statusBadgeText}</div>
     `;

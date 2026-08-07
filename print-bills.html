@@ -516,9 +516,44 @@
       page-break-inside: avoid !important;
       break-inside: avoid !important;
     }
+
+    body.admin-auth-locked .print-app {
+      display: none;
+    }
+
+    .print-auth-gate .admin-auth-gate-image {
+      width: min(180px, 44vw);
+    }
   </style>
 </head>
 <body>
+
+  <section class="admin-auth-bar print-auth-gate" data-admin-auth aria-label="관리자 잠금 해제">
+    <div class="admin-auth-gate-visual">
+      <img class="admin-auth-gate-image" src="icons/admin-512.png" alt="관리자 안내 이미지">
+      <div class="admin-auth-gate-title">관리자 로그인</div>
+      <p class="admin-auth-gate-description">관리자 키를 입력하면 오늘 주문 인쇄 화면이 표시됩니다.</p>
+    </div>
+    <div class="admin-auth-info">
+      <span class="admin-auth-icon" data-admin-auth-icon role="img" aria-label="관리자 잠금 상태">🔒</span>
+      <div>
+        <strong class="admin-auth-title">관리자 잠금</strong>
+        <span class="admin-auth-status" data-admin-auth-status>주문 정보 확인 전 잠금 해제 필요</span>
+      </div>
+    </div>
+    <div class="admin-auth-actions" data-admin-auth-actions>
+      <form class="admin-auth-form" data-admin-auth-form>
+        <input class="admin-auth-username" type="text" name="username" value="kiosk-admin" autocomplete="username" aria-label="관리자 계정" tabindex="-1">
+        <label class="admin-auth-label" for="admin-auth-password-print">관리자 키</label>
+        <input class="admin-auth-password" id="admin-auth-password-print" data-admin-auth-password name="password" type="password" autocomplete="current-password" placeholder="관리자 키 입력" required>
+        <button class="btn btn-secondary admin-auth-submit" data-admin-auth-submit type="submit">잠금 해제</button>
+      </form>
+      <button class="btn btn-gray admin-auth-lock" data-admin-auth-lock type="button" hidden>잠그기</button>
+      <div class="admin-auth-error" data-admin-auth-error role="alert" hidden></div>
+    </div>
+  </section>
+
+  <main class="print-app">
 
   <div class="action-bar no-print">
     <div style="font-size: 20px; font-weight: 850; color: #2d3748;">🖨️ 오늘 주문 빌지 인쇄</div>
@@ -574,6 +609,7 @@
 
   <!-- 포장 주문 체크리스트 컨테이너 -->
   <div id="takeout-checklist-container" class="checklist-print-section" style="display: none;"></div>
+  </main>
 
   <!-- 스크립트 참조 -->
   <script src="js/config.js"></script>
@@ -683,7 +719,11 @@
     async function loadBills() {
       const container = document.getElementById('bills-container');
       try {
-        const res = await fetchAPI('getOrdersToday');
+        const res = await fetchAPIReadWithRetry('getAdminOrdersToday', {
+          method: 'POST',
+          body: { adminToken: AdminAuth.requireToken() },
+          timeoutMs: 40000
+        });
         
         if (res && res.success && Array.isArray(res.orders)) {
           // 취소된 주문 제외
@@ -696,6 +736,7 @@
 
           renderBills();
         } else {
+          AdminAuth.handleDenied(res);
           container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; font-size: 18px; font-weight: 700; color: #e53e3e;">주문 데이터를 불러오지 못했습니다.</div>';
         }
       } catch (err) {
@@ -1190,6 +1231,15 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
+      AdminAuth.init({
+        onUnlock: loadBills,
+        onLock: () => {
+          allValidOrders = [];
+          const container = document.getElementById('bills-container');
+          if (container) container.innerHTML = '';
+        }
+      });
+
       // 인쇄 모드 복원 및 이벤트 등록
       const select = document.getElementById('print-mode-select');
       const excludeCheck = document.getElementById('exclude-served-check');
@@ -1248,7 +1298,6 @@
       }
 
       initMiniGrid();
-      loadBills();
     });
   </script>
 </body>

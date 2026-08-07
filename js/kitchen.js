@@ -118,7 +118,8 @@ let refreshTimer = null;
         // 3. 상세 진단 성공 (detailed)
         if (res.mode === 'detailed') {
           // 전체적인 상태에 따른 카드 컬러링
-          if (res.overallStatus === 'OK') {
+          const contractStatus = typeof getApiContractStatus === 'function' ? getApiContractStatus(res) : { compatible: true };
+          if (res.overallStatus === 'OK' && contractStatus.compatible) {
             summaryCard.style.backgroundColor = '#F0FFF4';
             summaryCard.style.borderColor = '#9AE6B4';
             summaryCard.style.color = '#22543D';
@@ -131,6 +132,9 @@ let refreshTimer = null;
           }
 
           let itemsHtml = '';
+          if (typeof renderSystemDiagnosisExtras === 'function') {
+            itemsHtml += renderSystemDiagnosisExtras(res);
+          }
 
           // A. 구글 시트 검사 결과 렌더링
           itemsHtml += `<h3 style="font-size: 16px; font-weight: 850; margin: 10px 0 6px 0; border-bottom: 2px dashed var(--border-color); padding-bottom: 4px;">📊 구글 스프레드시트 탭/헤더 점검</h3>`;
@@ -529,7 +533,16 @@ let refreshTimer = null;
       stockListEl.innerHTML = '<div class="snack-stock-message">불러오는 중...</div>';
 
       try {
-        const snacksRes = await fetchAPI('getSnacks');
+        const dashboardRes = await fetchAPIReadWithRetry('getKitchenDashboard', {
+          method: 'POST',
+          body: withAdminToken({}),
+          timeoutMs: 40000
+        });
+        if (!dashboardRes || !dashboardRes.success) {
+          clearAdminTokenIfDenied(dashboardRes);
+          throw new Error(dashboardRes?.message || '주방 재고 조회에 실패했습니다.');
+        }
+        const snacksRes = dashboardRes.snacks;
         if (!snacksRes || !snacksRes.success || !Array.isArray(snacksRes.snacks)) {
           throw new Error('간식 재고 응답 결과가 올바르지 않습니다.');
         }
@@ -558,24 +571,13 @@ let refreshTimer = null;
       }
 
       try {
-        let dashboardRes = await fetchAPI('getKitchenDashboard');
+        const dashboardRes = await fetchAPIReadWithRetry('getKitchenDashboard', {
+          method: 'POST',
+          body: withAdminToken({}),
+          timeoutMs: 40000
+        });
         if (!dashboardRes || !dashboardRes.success) {
-          console.warn('배치 API를 사용할 수 없어 기존 주방 조회 방식으로 전환합니다.');
-          const [orders, users, snacks, guestSettings] = await Promise.all([
-            fetchAPI('getOrdersToday'),
-            fetchAPI('getUsers', { params: { includeInactive: 'Y' } }),
-            fetchAPI('getSnacks'),
-            fetchAPI('getGuestSettings')
-          ]);
-          dashboardRes = {
-            success: orders && orders.success !== false,
-            orders,
-            users,
-            snacks,
-            guestSettings
-          };
-        }
-        if (!dashboardRes || !dashboardRes.success) {
+          clearAdminTokenIfDenied(dashboardRes);
           throw new Error('주방 화면 API 응답 결과가 올바르지 않습니다.');
         }
         const ordersRes = dashboardRes.orders;
@@ -1048,10 +1050,17 @@ let refreshTimer = null;
     // 로딩 메시지 없이 조용히 최신 데이터 갱신
     async function silentRefreshAdminData() {
       try {
-        const [ordersRes, usersRes] = await Promise.all([
-          fetchAPI('getOrdersToday'),
-          fetchAPI('getUsers', { params: { includeInactive: 'Y' } })
-        ]);
+        const dashboardRes = await fetchAPIReadWithRetry('getKitchenDashboard', {
+          method: 'POST',
+          body: withAdminToken({}),
+          timeoutMs: 40000
+        });
+        if (!dashboardRes || !dashboardRes.success) {
+          clearAdminTokenIfDenied(dashboardRes);
+          throw new Error(dashboardRes?.message || '주방 새로고침에 실패했습니다.');
+        }
+        const ordersRes = dashboardRes.orders;
+        const usersRes = dashboardRes.users;
         if (usersRes && usersRes.success && Array.isArray(usersRes.users)) {
           currentUsers = usersRes.users;
           usersRes.users.forEach(u => {

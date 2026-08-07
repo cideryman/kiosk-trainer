@@ -1,5 +1,25 @@
 // Google Apps Script API 설정
-const API_URL = "https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ9_UPux8bq0xROvNK9E1NCBam0Qe/exec";
+const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ9_UPux8bq0xROvNK9E1NCBam0Qe/exec";
+const API_CONTRACT_VERSION = '2026-08-07.1';
+
+function resolveApiUrl() {
+  try {
+    const hostname = String(window.location.hostname || '').toLowerCase();
+    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+    if (!isLocal) return DEFAULT_API_URL;
+
+    const params = new URLSearchParams(window.location.search);
+    const override = params.get('apiUrl') || localStorage.getItem('KIOSK_API_URL_OVERRIDE') || '';
+    if (/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(override)) {
+      return override;
+    }
+  } catch (error) {
+    console.warn('[API Config] 로컬 API URL 재정의를 확인하지 못했습니다.', error);
+  }
+  return DEFAULT_API_URL;
+}
+
+const API_URL = resolveApiUrl();
 
 // 게스트 기본 설정 상수
 const GUEST_DEFAULT_CREDIT = 10;
@@ -361,9 +381,35 @@ if (typeof window !== 'undefined') {
   window.ApiDiagnostics = API_DIAGNOSTICS;
 }
 
+const warnedApiContractVersions = new Set();
+
+function getApiContractStatus(response) {
+  const actual = String(response?.apiContractVersion || '').trim();
+  return {
+    expected: API_CONTRACT_VERSION,
+    actual,
+    compatible: actual === API_CONTRACT_VERSION
+  };
+}
+
+function warnIfApiContractMismatched(action, response) {
+  const status = getApiContractStatus(response);
+  if (status.compatible) return;
+  const warningKey = status.actual || '(missing)';
+  if (warnedApiContractVersions.has(warningKey)) return;
+  warnedApiContractVersions.add(warningKey);
+  console.warn(
+    `[API Contract] ${action} 응답 버전이 다릅니다. expected=${status.expected}, actual=${warningKey}`
+  );
+}
+
+if (typeof window !== 'undefined') {
+  window.getApiContractStatus = getApiContractStatus;
+}
+
 /**
  * Apps Script API 통신을 담당하는 헬퍼 함수
- * @param {string} action - API 요청 액션 (getUsers, getSnacks, placeOrder, getOrdersToday)
+ * @param {string} action - API 요청 액션 (getUsers, getSnacks, placeOrder, getPublicOrderFeed)
  * @param {Object} [options] - fetch 옵션 (method, body 등)
  * @returns {Promise<Object>} API 응답 데이터
  */
@@ -381,7 +427,7 @@ async function fetchAPI(action, options = {}) {
   const diagnosticRequest = API_DIAGNOSTICS.beginRequest(action, method, options.params);
 
   // 1. 뮤테이션(쓰기 작업) 발생 시 모든 캐시 삭제하여 정합성 유지
-  const isMutation = method === 'POST' || /^(update|delete|place|cancel|submit|toggle|archive)/.test(action);
+  const isMutation = /^(update|delete|place|cancel|submit|toggle|archive|add|autoFill|skip|anonymize)/.test(action);
   if (isMutation) {
     for (const key in API_CACHE) {
       delete API_CACHE[key];
@@ -469,6 +515,7 @@ async function fetchAPI(action, options = {}) {
     const data = await response.json();
     const parseFinishedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
     safeLog("API Response", data);
+    warnIfApiContractMismatched(action, data);
 
     // 구글 드라이브 이미지 URL 변환 처리
     if (data && data.success) {
@@ -568,37 +615,41 @@ function parseMockMaxPerPerson(value) {
  */
 function getMockFallback(action, options) {
   let res;
-  if (action === 'getAdminDashboard') {
-    const snacks = getMockFallback('getSnacks', { params: { includeHidden: 'Y' } });
-    const users = getMockFallback('getUsers', { params: { includeInactive: 'Y' } });
+  if (action === 'healthCheck') {
+    res = { success: true, status: 'ok' };
+  } else if (action === 'getAdminDashboard') {
+    const snacks = { success: true, snacks: getMockSnacks() };
+    const users = JSON.parse(JSON.stringify(MOCK_DATA.getUsers));
     res = { success: snacks.success !== false, snacks, users };
   } else if (action === 'getKitchenDashboard') {
-    const orders = getMockFallback('getOrdersToday', {});
-    const users = getMockFallback('getUsers', { params: { includeInactive: 'Y' } });
-    const snacks = getMockFallback('getSnacks', {});
+    const orders = getMockFallback('getAdminOrdersToday', {});
+    const users = JSON.parse(JSON.stringify(MOCK_DATA.getUsers));
+    const snacks = { success: true, snacks: getMockSnacks() };
     const guestSettings = getMockFallback('getGuestSettings', {});
     res = { success: orders.success !== false, orders, users, snacks, guestSettings };
+  } else if (action === 'getAdminOrdersToday') {
+    const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
+    const mockOrders = [...localOrders, ...MOCK_DATA.getOrdersToday.orders];
+    res = {
+      success: true,
+      orders: mockOrders.map(order => ({ ...order, reviewed: order.reviewed || false })),
+      orderSheetRowCount: mockOrders.length
+    };
   } else if (action === 'getUsers') {
     res = JSON.parse(JSON.stringify(MOCK_DATA.getUsers));
-    const includeInactive = String(options.params?.includeInactive || '').trim().toUpperCase() === 'Y';
-    if (!includeInactive) {
-      res.users = res.users.filter(u => {
-        const active = String(u.useYn ?? u.active ?? 'Y').trim().toUpperCase();
-        return active === 'TRUE' || active === '사용' || active === 'Y' || active === 'O' || active === '예';
-      });
-    }
+    res.users = res.users.filter(u => {
+      const active = String(u.useYn ?? u.active ?? 'Y').trim().toUpperCase();
+      return active === 'TRUE' || active === '사용' || active === 'Y' || active === 'O' || active === '예';
+    });
   } else if (action === 'getSnacks') {
     res = {
       success: true,
       snacks: getMockSnacks()
     };
-    const includeHidden = String(options.params?.includeHidden || '').trim().toUpperCase() === 'Y';
-    if (!includeHidden) {
-      res.snacks = res.snacks.filter(s => {
-        const active = String(s.saleYn ?? s.active ?? 'Y').trim().toUpperCase();
-        return active === 'TRUE' || active === '판매' || active === 'Y' || active === 'O' || active === '예';
-      });
-    }
+    res.snacks = res.snacks.filter(s => {
+      const active = String(s.saleYn ?? s.active ?? 'Y').trim().toUpperCase();
+      return active === 'TRUE' || active === '판매' || active === 'Y' || active === 'O' || active === '예';
+    });
     const mode = options.params?.mode;
     if (mode) {
       const cleanedMode = String(mode).trim().toLowerCase();
@@ -879,13 +930,11 @@ function getMockFallback(action, options) {
       res = {
         success: true,
         orderNo: matched.orderNo,
-        orderToken: '',
         servedYn: matched.servedYn || 'N',
         cancelTimestamp: matched.cancelTimestamp || '',
         deliveryType: matched.deliveryType || 'pickup',
-        deliveryFee: matched.deliveryFee || 0,
-        deliveryPlace: matched.deliveryPlace || '',
-        reviewed: matched.reviewed || false
+        reviewed: matched.reviewed || false,
+        cancelReason: matched.cancelReason || ''
       };
     } else {
       res = {
@@ -893,22 +942,6 @@ function getMockFallback(action, options) {
         message: '해당 주문을 찾을 수 없습니다.'
       };
     }
-  } else if (action === 'getGuestOrdersToday') {
-    const guestName = options.params?.guestName || '';
-    const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
-    const allMockOrders = [...localOrders, ...MOCK_DATA.getOrdersToday.orders];
-    
-    const todayStr = new Date().toISOString().slice(2, 10).replace(/-/g, '');
-    const matchedOrders = allMockOrders.filter(o => {
-      const isToday = o.timestamp && o.timestamp.slice(2, 10).replace(/-/g, '') === todayStr;
-      const nickname = o.nickname || '';
-      return isToday && nickname.indexOf('(비회원)') !== -1 && nickname.indexOf(guestName) !== -1;
-    });
-
-    res = {
-      success: true,
-      orders: matchedOrders.map(o => ({ ...o, orderToken: '', reviewed: o.reviewed || false }))
-    };
   } else if (action === 'getGuestOrdersByGuestKey') {
     const authProvider = options.body?.authProvider;
     const guestKey = options.body?.guestKey;
@@ -973,14 +1006,24 @@ function getMockFallback(action, options) {
         profile: profiles[guestKey]
       };
     }
-  } else if (action === 'getOrdersToday') {
+  } else if (action === 'getPublicOrderFeed' || action === 'getOrdersToday') {
     // 로컬 스토리지에 저장된 테스트용 주문 내역이 있으면 그것을 병합
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
     const mockOrders = [...localOrders, ...MOCK_DATA.getOrdersToday.orders];
     res = {
       success: true,
-      orders: mockOrders.map(o => ({ ...o, orderToken: '', reviewed: o.reviewed || false })),
-      orderSheetRowCount: mockOrders.length
+      orders: mockOrders.map(o => ({
+        timestamp: o.timestamp,
+        orderNo: o.orderNo,
+        nickname: o.nickname,
+        snackName: o.snackName,
+        quantity: o.quantity,
+        servedYn: o.servedYn || 'N',
+        deliveryType: o.deliveryType || 'pickup',
+        isKakao: o.authProvider === 'kakao',
+        cancelTimestamp: o.cancelTimestamp || '',
+        cancelReason: o.cancelReason || ''
+      }))
     };
   } else if (action === 'placeOrder') {
     // 주문 완료 시 로컬 스토리지에 임시 주문 추가 (관리자 화면에서 확인 가능하게)
@@ -1776,6 +1819,8 @@ function getMockFallback(action, options) {
         success: true,
         mode: 'detailed',
         overallStatus: 'OK',
+        apiContractVersion: API_CONTRACT_VERSION,
+        environment: 'staging',
         sheets: {
           '간식목록': { exists: true, status: 'OK' },
           '이용자목록': { exists: true, status: 'OK' },
@@ -1789,10 +1834,25 @@ function getMockFallback(action, options) {
           '이용신청': { exists: true, status: 'OK' }
         },
         properties: {
+          'APP_ENV': { configured: true, required: true, description: '배포 환경 구분(production 또는 staging)', status: 'OK' },
           'ADMIN_TOKEN': { configured: true, required: true, description: '관리자 API 요청 토큰', status: 'OK' },
           'KAKAO_REST_API_KEY': { configured: true, required: true, description: '카카오 로그인 API 키', status: 'OK' },
           'KAKAO_GUEST_KEY_SALT': { configured: true, required: true, description: '게스트 식별키 암호화 솔트', status: 'OK' },
           'KAKAO_CLIENT_SECRET': { configured: false, required: false, description: '카카오 로그인 보안 비밀키 (선택)', status: 'INFO' }
+        },
+        triggers: {
+          weeklyRotation: { status: 'OK', count: 1, handler: 'rotateGuestApplicationWeekly' }
+        },
+        cache: {
+          scriptCache: { status: 'OK', roundTrip: true }
+        },
+        timingsMs: {
+          spreadsheetConnection: 3,
+          sheetChecks: 12,
+          properties: 1,
+          triggers: 1,
+          cache: 2,
+          total: 19
         }
       };
     }
@@ -1816,7 +1876,10 @@ function getMockFallback(action, options) {
     }
   }
 
-  return res;
+  return Object.assign({}, res || {}, {
+    apiContractVersion: API_CONTRACT_VERSION,
+    serverTime: new Date().toISOString()
+  });
 }
 
 function getMockGuestSettings() {

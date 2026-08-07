@@ -484,6 +484,31 @@ function getOrdersToday() {
 }
 
 /**
+ * 호출판과 키오스크에서 사용하는 공개 주문 현황입니다.
+ * 내부 식별자, 온기, 배달지, 게스트 인증 정보는 반환하지 않습니다.
+ */
+function getPublicOrderFeed() {
+  const result = getOrdersToday();
+  if (!result || result.success === false) return result;
+
+  return {
+    success: true,
+    orders: (result.orders || []).map(order => ({
+      timestamp: order.timestamp,
+      orderNo: order.orderNo,
+      nickname: order.nickname,
+      snackName: order.snackName,
+      quantity: order.quantity,
+      servedYn: order.servedYn,
+      deliveryType: order.deliveryType,
+      isKakao: order.authProvider === 'kakao',
+      cancelTimestamp: order.cancelTimestamp,
+      cancelReason: order.cancelReason
+    }))
+  };
+}
+
+/**
  * 8.5. 특정 주문의 진행 상태 단일 조회 API
  */
 function getOrderStatus(id) {
@@ -507,9 +532,6 @@ function getOrderStatus(id) {
   const rows = values.slice(1);
 
   const reviewedIdx = headers.indexOf('reviewed');
-  const authProviderIdx = headers.indexOf('authProvider');
-  const guestKeyIdx = headers.indexOf('guestKey');
-
   // orderNo(index 1) 또는 orderToken(index 10) 필터링
   const matchedRows = rows.filter(row => {
     return String(row[1]) === String(id) || (row[10] && String(row[10]) === String(id));
@@ -533,18 +555,11 @@ function getOrderStatus(id) {
   return {
     success: true,
     orderNo: firstRow[1],
-    orderToken: '', // 보안을 위해 공개 API에서는 토큰 노출 제외
     servedYn: servedYn,
     cancelTimestamp: cancelTimestamp,
     deliveryType: firstRow[11] || 'pickup',
-    deliveryFee: Number(firstRow[12] || 0),
-    totalCredit: Number(firstRow[13] || 0),
     reviewed: isReviewed,
-    deliveryPlace: firstRow[15] || '',
-    authProvider: authProviderIdx !== -1 ? firstRow[authProviderIdx] || '' : '',
-    guestKey: guestKeyIdx !== -1 ? firstRow[guestKeyIdx] || '' : '',
-    cancelReason: firstRow[16] || '',
-    cancelReasonDetail: firstRow[17] || ''
+    cancelReason: firstRow[16] || ''
   };
 }
 

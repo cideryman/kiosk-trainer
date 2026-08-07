@@ -54,3 +54,11 @@ function getKitchenDashboard(perfDebug) {
   }
   return response;
 }
+
+/**
+ * 관리자·주방·인쇄 화면에서 사용하는 오늘 주문 상세 조회입니다.
+ * 라우터의 ADMIN_ACTIONS 인증을 통과한 POST 요청에서만 노출합니다.
+ */
+function getAdminOrdersToday() {
+  return getOrdersToday();
+}

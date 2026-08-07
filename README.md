@@ -132,7 +132,7 @@ Apps Script에서는 파일 순서가 실행 모듈을 나누는 것이 아니�
 | `게스트크레딧` | 날짜별 게스트 지갑과 사용 크레딧 |
 | `이용신청` | 배달왔삼 사전 이용 신청과 승인 상태. `setupGuestApplicationSheet()`로 준비 |
 
-이용 신청 계약은 19열이며, 기본 시범 정원은 5명입니다. 관리자가 신청 운영 설정에서 1~100명 범위로 조절할 수 있고, `PENDING + APPROVED` 신청이 정원을 차지합니다. 신청자 상태 조회 페이지나 자동 문자·카카오 발송은 현재 범위에 포함하지 않습니다.
+이용 신청 계약은 `GUEST_APPLICATION_HEADERS`를 기준으로 한 22열(A:V)이며, 기본 시범 정원은 5명입니다. 관리자가 신청 운영 설정에서 1~100명 범위로 조절할 수 있고, `PENDING + APPROVED` 신청이 정원을 차지합니다. 신청자 상태 조회 페이지나 자동 문자·카카오 발송은 현재 범위에 포함하지 않습니다.
 
 ## 문서와 작업 방식
 
@@ -152,6 +152,22 @@ Apps Script에서는 파일 순서가 실행 모듈을 나누는 것이 아니�
 ```powershell
 node scripts/check-handoff.js
 ```
+
+## 시스템 안정성 점검
+
+운영 읽기 검사와 staging 전용 동시 주문 검사는 [시스템 안정성 점검 안내](docs/system-stability.md)를 따릅니다.
+운영 환경에서는 `read`만 사용하며 `full` 쓰기 검사는 절대 실행하지 않습니다.
+
+```powershell
+$env:KIOSK_API_URL='GAS /exec URL'
+$env:KIOSK_ADMIN_TOKEN='관리자 토큰'
+$env:KIOSK_STABILITY_MODE='read'
+node scripts/stability-check.js
+```
+
+관리자·주방 대시보드와 인쇄용 주문 조회는 관리자 토큰이 필요한 POST 요청입니다.
+공개 주문 피드는 호출판에 필요한 최소 필드만 반환하며 배달지, 이용자 ID,
+게스트 키, 온기·배달비를 포함하지 않습니다.
 
 ## 로컬 개발과 배포
 

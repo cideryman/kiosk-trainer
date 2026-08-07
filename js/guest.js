@@ -1004,11 +1004,20 @@ window.addEventListener('DOMContentLoaded', () => {
           const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
           if (guestOrders.length === 0) return;
 
-          const response = await fetchAPIReadWithRetry('getOrdersToday', { timeoutMs: 30000 });
+          const tokens = guestOrders.map(order => order.orderToken).filter(Boolean);
+          if (tokens.length === 0) return;
+
+          const response = await fetchAPIReadWithRetry('getGuestOrderByToken', {
+            method: 'POST',
+            body: { tokens, includeArchived: false },
+            timeoutMs: 30000
+          });
           if (response && response.success && Array.isArray(response.orders)) {
             let updated = false;
             guestOrders.forEach(localOrder => {
-              const serverOrder = response.orders.find(o => o.orderNo === localOrder.orderNo);
+              const serverOrder = response.orders.find(o => (
+                o.orderToken === localOrder.orderToken || o.orderNo === localOrder.orderNo
+              ));
               if (serverOrder) {
                 if (localOrder.status !== serverOrder.servedYn || localOrder.reviewed !== serverOrder.reviewed) {
                   localOrder.status = serverOrder.servedYn;

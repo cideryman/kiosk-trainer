@@ -1,3 +1,9 @@
+function isLegacyAdminGetEnabled() {
+  return String(
+    PropertiesService.getScriptProperties().getProperty('ALLOW_LEGACY_ADMIN_GET') || ''
+  ).trim().toUpperCase() === 'Y';
+}
+
 /**
  * 2. GET 요청 라우터 (조회 API)
  */
@@ -5,33 +11,38 @@ function doGet(e) {
   Logger.log('doGet Request: ' + JSON.stringify(e.parameter));
   const action = e.parameter.action;
 
-  if (action === 'getUsers') {
-    return jsonResponse(getUsers(e.parameter.includeInactive));
+  if (action === 'healthCheck') {
+    return jsonResponse({ success: true, status: 'ok' });
   }
 
-  if (action === 'getAdminDashboard') {
+  // Temporary rollout bridge. Remove the property after the new frontend is live.
+  if (isLegacyAdminGetEnabled() && action === 'getAdminDashboard') {
     return jsonResponse(getAdminDashboard(e.parameter.perfDebug));
   }
 
-  if (action === 'getKitchenDashboard') {
+  if (isLegacyAdminGetEnabled() && action === 'getKitchenDashboard') {
     return jsonResponse(getKitchenDashboard(e.parameter.perfDebug));
   }
 
+  if (action === 'getUsers') {
+    return jsonResponse(getUsers('N'));
+  }
+
   if (action === 'getSnacks') {
-    return jsonResponse(getSnacks(e.parameter.includeHidden, e.parameter.mode, e.parameter.guestKey, e.parameter.guestDeviceId, e.parameter.userId));
+    return jsonResponse(getSnacks('N', e.parameter.mode, e.parameter.guestKey, e.parameter.guestDeviceId, e.parameter.userId));
+  }
+
+  if (action === 'getPublicOrderFeed') {
+    return jsonResponse(getPublicOrderFeed());
   }
 
   if (action === 'getOrdersToday') {
-    return jsonResponse(getOrdersToday());
+    return jsonResponse(isLegacyAdminGetEnabled() ? getOrdersToday() : getPublicOrderFeed());
   }
 
   if (action === 'getOrderStatus') {
     const identifier = e.parameter.orderNo || e.parameter.orderToken;
     return jsonResponse(getOrderStatus(identifier));
-  }
-
-  if (action === 'getGuestOrdersToday') {
-    return jsonResponse(getGuestOrdersToday(e.parameter.guestName));
   }
 
   if (action === 'getGuestSettings') {
@@ -79,6 +90,14 @@ function doPost(e) {
 
     if (action === 'verifyAdminAccess') {
       return jsonResponse(verifyAdminAccess());
+    } else if (action === 'getAdminDashboard') {
+      return jsonResponse(getAdminDashboard(data.perfDebug));
+    } else if (action === 'getKitchenDashboard') {
+      return jsonResponse(getKitchenDashboard(data.perfDebug));
+    } else if (action === 'getAdminOrdersToday') {
+      return jsonResponse(getAdminOrdersToday());
+    } else if (action === 'prepareStabilityFixtures') {
+      return jsonResponse(prepareStabilityFixtures());
     } else if (action === 'placeOrder') {
       return jsonResponse(placeOrder(data));
     } else if (action === 'updateOrderServed') {
@@ -178,8 +197,12 @@ function doPost(e) {
  * 4. JSON 응답 변환 유틸리티
  */
 function jsonResponse(data) {
+  const payload = Object.assign({}, data || {}, {
+    apiContractVersion: API_CONTRACT_VERSION,
+    serverTime: new Date().toISOString()
+  });
   return ContentService
-    .createTextOutput(JSON.stringify(data))
+    .createTextOutput(JSON.stringify(payload))
     .setMimeType(ContentService.MimeType.JSON);
 }
 

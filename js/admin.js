@@ -102,7 +102,8 @@ async function runSystemDiagnosis() {
     // 3. 상세 진단 성공 (detailed)
     if (res.mode === 'detailed') {
       // 전체적인 상태에 따른 카드 컬러링
-      if (res.overallStatus === 'OK') {
+      const contractStatus = typeof getApiContractStatus === 'function' ? getApiContractStatus(res) : { compatible: true };
+      if (res.overallStatus === 'OK' && contractStatus.compatible) {
         summaryCard.style.backgroundColor = '#F0FFF4';
         summaryCard.style.borderColor = '#9AE6B4';
         summaryCard.style.color = '#22543D';
@@ -115,6 +116,9 @@ async function runSystemDiagnosis() {
       }
 
       let itemsHtml = '';
+      if (typeof renderSystemDiagnosisExtras === 'function') {
+        itemsHtml += renderSystemDiagnosisExtras(res);
+      }
 
       // A. 구글 시트 검사 결과 렌더링
       itemsHtml += `<h3 style="font-size: 16px; font-weight: 850; margin: 10px 0 6px 0; border-bottom: 2px dashed var(--border-color); padding-bottom: 4px;">📊 구글 스프레드시트 탭/헤더 점검</h3>`;
@@ -870,16 +874,13 @@ async function loadAdminData() {
   }
 
   try {
-    let dashboardRes = await fetchAPI('getAdminDashboard');
+    const dashboardRes = await fetchAPIReadWithRetry('getAdminDashboard', {
+      method: 'POST',
+      body: withAdminToken({}),
+      timeoutMs: 40000
+    });
     if (!dashboardRes || !dashboardRes.success) {
-      console.warn('배치 API를 사용할 수 없어 기존 관리자 조회 방식으로 전환합니다.');
-      const [snacks, users] = await Promise.all([
-        fetchAPI('getSnacks', { params: { includeHidden: 'Y' } }),
-        fetchAPI('getUsers', { params: { includeInactive: 'Y' } })
-      ]);
-      dashboardRes = { success: snacks && snacks.success !== false, snacks, users };
-    }
-    if (!dashboardRes || !dashboardRes.success) {
+      clearAdminTokenIfDenied(dashboardRes);
       throw new Error('관리자 화면 API 응답 결과가 올바르지 않습니다.');
     }
     const snacksRes = dashboardRes.snacks;
@@ -944,7 +945,12 @@ async function loadAdminData() {
               snackWarningEl.innerHTML = `✅ <b>알림:</b> ${autoFillRes.filledCount}개의 빈 간식ID를 자동으로 채웠습니다.`;
             }
             // 간식 목록 다시 불러오기
-            const reSnacksRes = await fetchAPI('getSnacks', { params: { includeHidden: 'Y' } });
+            const refreshedDashboard = await fetchAPIReadWithRetry('getAdminDashboard', {
+              method: 'POST',
+              body: withAdminToken({}),
+              timeoutMs: 40000
+            });
+            const reSnacksRes = refreshedDashboard?.snacks;
             if (reSnacksRes && reSnacksRes.success && Array.isArray(reSnacksRes.snacks)) {
               currentSnacks = reSnacksRes.snacks;
             }
