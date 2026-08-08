@@ -96,6 +96,10 @@ function doPost(e) {
       return jsonResponse(getKitchenDashboard(data.perfDebug));
     } else if (action === 'getAdminOrdersToday') {
       return jsonResponse(getAdminOrdersToday());
+    } else if (action === 'getDeliveryPlaceAliases') {
+      return jsonResponse(getDeliveryPlaceAliases());
+    } else if (action === 'updateDeliveryPlaceAliases') {
+      return jsonResponse(updateDeliveryPlaceAliases(data));
     } else if (action === 'prepareStabilityFixtures') {
       return jsonResponse(prepareStabilityFixtures());
     } else if (action === 'placeOrder') {

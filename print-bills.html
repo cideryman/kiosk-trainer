@@ -646,6 +646,7 @@
     }
 
     let allValidOrders = [];
+    let currentDeliveryPlaceAliases = [];
     let startRow = 1;
     let startCol = 1;
 
@@ -726,6 +727,7 @@
         });
         
         if (res && res.success && Array.isArray(res.orders)) {
+          currentDeliveryPlaceAliases = res.deliveryPlaceAliases?.aliases || [];
           // 취소된 주문 제외
           allValidOrders = res.orders.filter(o => o.servedYn !== 'C');
 
@@ -1046,28 +1048,23 @@
 
     // 배달 주문만 필터링 후 배송지별로 그룹화 및 정렬하는 독립형 함수
     function groupDeliveryOrdersByPlace(orderGroups) {
-      const deliveryGroups = {};
+      const deliveryGroups = new Map();
       
       orderGroups.forEach(group => {
         // 배달 주문만 대상 (pickup 제외)
         if (group.deliveryType !== 'delivery') return;
         
-        const place = (group.deliveryPlace || '').trim() || '배송지 미입력';
-        if (!deliveryGroups[place]) {
-          deliveryGroups[place] = [];
-        }
-        deliveryGroups[place].push(group);
+        const rawPlace = String(group.deliveryPlace || '').replace(/\s+/g, ' ').trim();
+        const normalizedPlace = rawPlace || '배송지 미입력';
+        const alias = currentDeliveryPlaceAliases.find(item =>
+          item && item.enabled !== false && String(item.alias || '').replace(/\s+/g, ' ').trim() === normalizedPlace
+        );
+        const place = alias ? String(alias.canonicalPlace || '').replace(/\s+/g, ' ').trim() : normalizedPlace;
+        if (!deliveryGroups.has(place)) deliveryGroups.set(place, []);
+        deliveryGroups.get(place).push(group);
       });
       
-      // 배송지 이름 가나다순 정렬 (추후 동선 정렬 등 최적화 구현이 가능하도록 분리)
-      const sortedPlaces = Object.keys(deliveryGroups).sort();
-      
-      const sortedResult = {};
-      sortedPlaces.forEach(place => {
-        sortedResult[place] = deliveryGroups[place];
-      });
-      
-      return sortedResult;
+      return Object.fromEntries(deliveryGroups.entries());
     }
 
     // 배달 체크리스트 렌더링 함수

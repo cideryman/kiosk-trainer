@@ -1,6 +1,6 @@
 // Google Apps Script API 설정
 const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ9_UPux8bq0xROvNK9E1NCBam0Qe/exec";
-const API_CONTRACT_VERSION = '2026-08-07.1';
+const API_CONTRACT_VERSION = '2026-08-09.2';
 
 function resolveApiUrl() {
   try {
@@ -626,15 +626,21 @@ function getMockFallback(action, options) {
     const users = JSON.parse(JSON.stringify(MOCK_DATA.getUsers));
     const snacks = { success: true, snacks: getMockSnacks() };
     const guestSettings = getMockFallback('getGuestSettings', {});
-    res = { success: orders.success !== false, orders, users, snacks, guestSettings };
+    const deliveryPlaceAliases = getMockFallback('getDeliveryPlaceAliases', {});
+    res = { success: orders.success !== false, orders, users, snacks, guestSettings, deliveryPlaceAliases };
   } else if (action === 'getAdminOrdersToday') {
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
     const mockOrders = [...localOrders, ...MOCK_DATA.getOrdersToday.orders];
     res = {
       success: true,
       orders: mockOrders.map(order => ({ ...order, reviewed: order.reviewed || false })),
-      orderSheetRowCount: mockOrders.length
+      orderSheetRowCount: mockOrders.length,
+      deliveryPlaceAliases: getMockFallback('getDeliveryPlaceAliases', {})
     };
+  } else if (action === 'getDeliveryPlaceAliases') {
+    res = { success: true, aliases: [] };
+  } else if (action === 'updateDeliveryPlaceAliases') {
+    res = { success: true, aliases: options.body?.aliases || [], message: '배송지 별칭을 저장했습니다.' };
   } else if (action === 'getUsers') {
     res = JSON.parse(JSON.stringify(MOCK_DATA.getUsers));
     res.users = res.users.filter(u => {
@@ -849,6 +855,7 @@ function getMockFallback(action, options) {
         kakaoGuestBonusCredit: settings.kakaoGuestBonusCredit ?? 2,
         guestDeliveryFee: settings.guestDeliveryFee,
         guestDefaultDeliveryPlace: settings.guestDefaultDeliveryPlace ?? '사무실 원탁',
+        guestAllowRandomDisplayName: settings.guestAllowRandomDisplayName !== false,
         guestMenuMode: settings.guestMenuMode || 'normal',
         guestEventName: settings.guestEventName || '장애인식 개선 캠페인',
         guestOrderGraceMinutes: GUEST_ORDER_COMPLETION_GRACE_MINUTES,
@@ -910,6 +917,9 @@ function getMockFallback(action, options) {
       settings.guestBaseCredit = Number(options.body?.guestBaseCredit);
       settings.guestDeliveryFee = Number(options.body?.guestDeliveryFee);
       settings.guestDefaultDeliveryPlace = String(options.body?.guestDefaultDeliveryPlace || '사무실 원탁').trim();
+      if (options.body?.guestAllowRandomDisplayName !== undefined) {
+        settings.guestAllowRandomDisplayName = options.body.guestAllowRandomDisplayName !== false;
+      }
       if (options.body?.guestMenuMode !== undefined) {
         settings.guestMenuMode = String(options.body.guestMenuMode).toLowerCase();
       }
@@ -1894,7 +1904,8 @@ function getMockGuestSettings() {
     guestBaseCredit: GUEST_DEFAULT_CREDIT,
     kakaoGuestBonusCredit: 2,
     guestDeliveryFee: GUEST_DELIVERY_FEE,
-    guestDefaultDeliveryPlace: '사무실 원탁'
+    guestDefaultDeliveryPlace: '사무실 원탁',
+    guestAllowRandomDisplayName: true
   };
 }
 

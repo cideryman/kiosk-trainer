@@ -3372,6 +3372,42 @@ body.admin-shell-page {
   grid-column: 1 / -1;
 }
 
+.guest-random-display-name-setting {
+  gap: 4px;
+}
+
+.guest-random-display-name-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.guest-random-display-name-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.guest-random-display-name-toggle input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--secondary-color);
+}
+
+.guest-random-display-name-setting small {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .guest-mode-segmented {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3437,6 +3473,80 @@ body.admin-shell-page {
   box-shadow: none;
   cursor: not-allowed;
   opacity: 1;
+}
+
+.delivery-alias-settings {
+  margin-top: 16px;
+}
+
+.settings-help-text {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.delivery-alias-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.delivery-alias-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+
+.delivery-alias-row input[type="text"] {
+  min-width: 0;
+}
+
+.delivery-alias-enabled {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.delivery-alias-remove {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1.5px solid #fca5a5;
+  border-radius: var(--radius-sm);
+  background: #fff5f5;
+  color: #b91c1c;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .delivery-alias-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .delivery-alias-row input[type="text"] {
+    grid-column: 1 / -1;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .delivery-alias-enabled,
+  .delivery-alias-remove {
+    justify-self: stretch;
+  }
+
+  .delivery-alias-remove {
+    grid-column: 2;
+  }
 }
 
 @media (max-width: 767px) {

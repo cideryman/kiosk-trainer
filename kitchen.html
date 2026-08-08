@@ -198,6 +198,16 @@
                     <span>기본 배달지</span>
                     <input type="text" id="input-guest-delivery-place" class="admin-inline-input" value="사무실 원탁">
                   </label>
+                  <div class="guest-ops-setting guest-ops-setting-wide guest-random-display-name-setting">
+                    <div class="guest-random-display-name-heading">
+                      <span>랜덤 주문표시명</span>
+                      <label class="guest-random-display-name-toggle">
+                        <input type="checkbox" id="input-guest-random-display-name" aria-label="랜덤 주문표시명 허용">
+                        허용
+                      </label>
+                    </div>
+                    <small>허용 시 랜덤 이름 버튼을 표시합니다.</small>
+                  </div>
                 </div>
               </section>
 
@@ -285,6 +295,18 @@
             <div class="guest-settings-save-row">
               <button class="btn-small-action" id="btn-save-guest-settings" type="button" onclick="saveGuestSettings()" disabled>변경사항 저장</button>
             </div>
+
+            <section class="guest-settings-section delivery-alias-settings">
+              <div class="guest-settings-section-header">
+                <h3>📍 배송지 별칭</h3>
+                <button class="btn-small-action" id="btn-add-delivery-alias" type="button">+ 별칭 추가</button>
+              </div>
+              <p class="settings-help-text">공백만 다른 배송지만 자동으로 정리합니다. 다른 장소는 별칭을 직접 등록해야 함께 묶입니다.</p>
+              <div id="delivery-alias-list" class="delivery-alias-list"></div>
+              <div class="guest-settings-save-row">
+                <button class="btn-small-action" id="btn-save-delivery-aliases" type="button" disabled>배송지 별칭 저장</button>
+              </div>
+            </section>
           </div>
         </div>
       </section>

@@ -26,6 +26,7 @@
 | 9 | `주문내역` | A1:W307 | 23 | 현재 주문 원장 |
 | 10 | `설정` | A1 | 1 | 현재 비어 있는 미사용 시트 |
 | 11 | `이용신청` | A1:V | 22 | 배달왔삼 사전 이용 신청과 승인·보관·대기자 상태 |
+| 12 | `배송지별칭` | A1:D | 4 | 관리자가 등록한 배송지 별칭과 대표 표시명 |
 
 ## 실제 1행 헤더
 
@@ -79,6 +80,13 @@
 
 `key`, `value`
 
+### 배송지별칭 A:D
+
+`alias`, `canonicalPlace`, `enabled`, `updatedAt`
+
+- 초기 시트는 헤더만 만들고 실제 배송지 별칭은 자동으로 추가하지 않습니다.
+- 앞뒤 공백과 연속 공백 정리는 코드에서 처리하지만, 의미가 다른 장소는 관리자가 명시적으로 별칭을 등록해야 합니다.
+
 ### 후기내역 A:J
 
 `createdAt`, `orderId`, `guestName`, `stamp`, `tags`, `comment`, `isPublic`, `imageUrl`, `replyText`, `replyCreatedAt`
@@ -111,6 +119,8 @@
 `guestApplicationOpen`, `guestApplicationTarget`, `guestApplicationOperatingDays`, `guestApplicationOrderTime`, `guestApplicationDeliveryTime`, `guestApplicationArea`, `guestApplicationUsage`, `guestApplicationDayOptions`, `guestApplicationCapacity`, `guestApplicationClosedMessage`, `guestApplicationCooldownWeeks`, `guestApplicationWaitlistLimit`
 
 `guestApplicationCapacity`는 기본 5이며 관리자 화면에서 1~100명 사이 정수로 조절합니다. 현재 활성 신청 수보다 낮춰도 기존 신청 행은 유지하고 신규 접수만 마감합니다.
+
+`guestAllowRandomDisplayName`은 `TRUE` 또는 `FALSE`로 저장하며, 기존 키가 없는 운영 시트에서는 `TRUE`로 자동 추가합니다. `TRUE`일 때만 게스트 주문 화면의 랜덤 주문표시명 버튼을 표시합니다.
 
 `운영설정`은 키가 추가되는 세로형 구조이므로 신규 키 반영 후 기존 A1:B15 사용 범위보다 행 수가 늘어납니다.
 

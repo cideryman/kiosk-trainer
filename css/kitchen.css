@@ -390,6 +390,27 @@
       gap: 16px;
       margin-top: 12px;
     }
+
+    .delivery-place-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 12px;
+      border: 2px solid #fecaca;
+      border-radius: var(--radius-md);
+      background: #fffafa;
+    }
+
+    .delivery-place-group-title {
+      color: #b91c1c;
+      font-size: 17px;
+      font-weight: 900;
+      line-height: 1.3;
+    }
+
+    .delivery-place-group .user-order-card {
+      margin: 0;
+    }
     
     @media (min-width: 600px) {
       .pending-group-container {

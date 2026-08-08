@@ -1850,6 +1850,21 @@ function closeEditSnackModal() {
   isModalOpen = false;
 }
 
+function openSnackImageGuide(source) {
+  const modal = document.getElementById('modal-snack-image-guide');
+  if (!modal) return;
+  modal.dataset.source = source || '';
+  modal.style.display = 'flex';
+  isModalOpen = true;
+  modal.querySelector('.admin-modal-close')?.focus();
+}
+
+function closeSnackImageGuide() {
+  const modal = document.getElementById('modal-snack-image-guide');
+  if (modal) modal.style.display = 'none';
+  isModalOpen = false;
+}
+
 async function updateSnackAction() {
   const snackId = document.getElementById('edit-snack-id').value;
   const name = document.getElementById('edit-snack-name').value.trim();
@@ -2319,9 +2334,16 @@ window.addEventListener('DOMContentLoaded', () => {
     if (event.target.id === 'modal-guest-application') closeGuestApplicationModal();
   });
 
+  document.getElementById('modal-snack-image-guide')?.addEventListener('click', event => {
+    if (event.target.id === 'modal-snack-image-guide') closeSnackImageGuide();
+  });
+
   window.addEventListener('keydown', event => {
     if (event.key === 'Escape' && document.getElementById('modal-guest-application')?.style.display === 'flex') {
       closeGuestApplicationModal();
+    }
+    if (event.key === 'Escape' && document.getElementById('modal-snack-image-guide')?.style.display === 'flex') {
+      closeSnackImageGuide();
     }
   });
 

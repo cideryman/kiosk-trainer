@@ -3,6 +3,8 @@ let refreshTimer = null;
     const MAX_REFRESH_TIME = 30;
     let currentOrders = [];
     let currentSnackStock = [];
+    let currentDeliveryPlaceAliases = [];
+    let deliveryAliasesDirty = false;
     let currentSnackSummaryText = '';
     let currentGuestMenuMode = 'normal';
     let showAllStockChannels = false;
@@ -260,6 +262,97 @@ let refreshTimer = null;
 
     function jsString(value) {
       return JSON.stringify(String(value ?? ''));
+    }
+
+    function normalizeDeliveryPlaceText(value) {
+      return String(value || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function getCanonicalDeliveryPlace(value) {
+      const normalized = normalizeDeliveryPlaceText(value);
+      if (!normalized) return '배송지 미입력';
+      const alias = currentDeliveryPlaceAliases.find(item =>
+        item && item.enabled !== false && normalizeDeliveryPlaceText(item.alias) === normalized
+      );
+      return alias ? normalizeDeliveryPlaceText(alias.canonicalPlace) : normalized;
+    }
+
+    function updateDeliveryAliasSaveState(isDirty) {
+      deliveryAliasesDirty = Boolean(isDirty);
+      const button = document.getElementById('btn-save-delivery-aliases');
+      if (!button) return;
+      button.disabled = !deliveryAliasesDirty;
+      button.setAttribute('aria-disabled', String(!deliveryAliasesDirty));
+    }
+
+    function renderDeliveryPlaceAliases(aliases) {
+      const list = document.getElementById('delivery-alias-list');
+      if (!list) return;
+      list.innerHTML = '';
+      currentDeliveryPlaceAliases = Array.isArray(aliases) ? aliases.map(item => ({
+        alias: String(item.alias || ''),
+        canonicalPlace: String(item.canonicalPlace || ''),
+        enabled: item.enabled !== false
+      })) : [];
+
+      currentDeliveryPlaceAliases.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = 'delivery-alias-row';
+        row.innerHTML = `
+          <input type="text" class="admin-inline-input" data-alias-field="alias" placeholder="다르게 입력되는 배송지명" value="${attr(item.alias)}" aria-label="배송지 별칭">
+          <input type="text" class="admin-inline-input" data-alias-field="canonicalPlace" placeholder="대표 배송지명" value="${attr(item.canonicalPlace)}" aria-label="대표 배송지명">
+          <label class="delivery-alias-enabled"><input type="checkbox" data-alias-field="enabled" ${item.enabled ? 'checked' : ''}> 사용</label>
+          <button type="button" class="delivery-alias-remove">삭제</button>
+        `;
+        row.querySelectorAll('[data-alias-field]').forEach(field => {
+          field.addEventListener('input', () => {
+            currentDeliveryPlaceAliases[index][field.dataset.aliasField] = field.type === 'checkbox' ? field.checked : field.value;
+            updateDeliveryAliasSaveState(true);
+          });
+          field.addEventListener('change', () => {
+            currentDeliveryPlaceAliases[index][field.dataset.aliasField] = field.type === 'checkbox' ? field.checked : field.value;
+            updateDeliveryAliasSaveState(true);
+          });
+        });
+        row.querySelector('.delivery-alias-remove').addEventListener('click', () => {
+          currentDeliveryPlaceAliases.splice(index, 1);
+          renderDeliveryPlaceAliases(currentDeliveryPlaceAliases);
+          updateDeliveryAliasSaveState(true);
+        });
+        list.appendChild(row);
+      });
+      updateDeliveryAliasSaveState(false);
+    }
+
+    function addDeliveryPlaceAliasRow() {
+      currentDeliveryPlaceAliases.push({ alias: '', canonicalPlace: '', enabled: true });
+      renderDeliveryPlaceAliases(currentDeliveryPlaceAliases);
+      updateDeliveryAliasSaveState(true);
+      document.querySelector('#delivery-alias-list .delivery-alias-row:last-child input')?.focus();
+    }
+
+    async function saveDeliveryPlaceAliases() {
+      if (!deliveryAliasesDirty) return;
+      const button = document.getElementById('btn-save-delivery-aliases');
+      if (button) button.disabled = true;
+      try {
+        const res = await fetchAPI('updateDeliveryPlaceAliases', {
+          method: 'POST',
+          body: withAdminToken({ aliases: currentDeliveryPlaceAliases }),
+          timeoutMs: ADMIN_WRITE_TIMEOUT_MS
+        });
+        if (!res || !res.success) {
+          clearAdminTokenIfDenied(res);
+          throw new Error(res?.message || '배송지 별칭 저장에 실패했습니다.');
+        }
+        currentDeliveryPlaceAliases = res.aliases || currentDeliveryPlaceAliases;
+        renderDeliveryPlaceAliases(currentDeliveryPlaceAliases);
+        alert(res.message || '배송지 별칭을 저장했습니다.');
+        if (currentOrders.length > 0) renderData(currentOrders);
+      } catch (error) {
+        alert(error.message || '배송지 별칭 저장 중 오류가 발생했습니다.');
+        updateDeliveryAliasSaveState(true);
+      }
     }
 
     function getAdminMemo() {
@@ -594,6 +687,12 @@ let refreshTimer = null;
         const usersRes = dashboardRes.users;
         const snacksRes = dashboardRes.snacks;
         const guestSettingsRes = dashboardRes.guestSettings;
+        const deliveryPlaceAliasesRes = dashboardRes.deliveryPlaceAliases;
+
+        if (deliveryPlaceAliasesRes && deliveryPlaceAliasesRes.success && Array.isArray(deliveryPlaceAliasesRes.aliases)) {
+          currentDeliveryPlaceAliases = deliveryPlaceAliasesRes.aliases;
+          renderDeliveryPlaceAliases(currentDeliveryPlaceAliases);
+        }
 
         // 주문 요약 보드가 처음 렌더링될 때 상품 이미지 매핑을 사용할 수 있도록 먼저 저장합니다.
         if (snacksRes && snacksRes.success && Array.isArray(snacksRes.snacks)) {
@@ -1424,6 +1523,8 @@ let refreshTimer = null;
           if (pendingDeliveryContainer) pendingDeliveryContainer.innerHTML = '<div class="empty-text" style="padding:15px; font-size:15px;">대기 중인 배달 주문이 없습니다. ⏳</div>';
         }
 
+        const deliveryPlaceContainers = new Map();
+
         sortedOrderGroups.forEach(group => {
           const rawNickname = String(group.nickname || '');
           const isKakao = group.authProvider === 'kakao';
@@ -1535,7 +1636,18 @@ let refreshTimer = null;
           if (isKiosk) {
             if (pendingKioskContainer) pendingKioskContainer.appendChild(card);
           } else if (isDelivery) {
-            if (pendingDeliveryContainer) pendingDeliveryContainer.appendChild(card);
+            if (pendingDeliveryContainer) {
+              const place = getCanonicalDeliveryPlace(group.items[0] && group.items[0].deliveryPlace);
+              let placeContainer = deliveryPlaceContainers.get(place);
+              if (!placeContainer) {
+                placeContainer = document.createElement('section');
+                placeContainer.className = 'delivery-place-group';
+                placeContainer.innerHTML = `<div class="delivery-place-group-title">📍 ${esc(place)}</div>`;
+                deliveryPlaceContainers.set(place, placeContainer);
+                pendingDeliveryContainer.appendChild(placeContainer);
+              }
+              placeContainer.appendChild(card);
+            }
           } else {
             if (pendingPickupContainer) pendingPickupContainer.appendChild(card);
           }
@@ -1918,6 +2030,7 @@ let refreshTimer = null;
       const creditEl = document.getElementById('input-guest-credit');
       const feeEl = document.getElementById('input-guest-fee');
       const deliveryPlaceEl = document.getElementById('input-guest-delivery-place');
+      const randomDisplayNameEl = document.getElementById('input-guest-random-display-name');
 
       const teamEnabledEl = document.getElementById('input-team-enabled');
       const teamTitleEl = document.getElementById('input-team-title');
@@ -1928,6 +2041,7 @@ let refreshTimer = null;
         if (creditEl) creditEl.value = data.guestBaseCredit ?? 10;
         if (feeEl) feeEl.value = data.guestDeliveryFee ?? 3;
         if (deliveryPlaceEl) deliveryPlaceEl.value = data.guestDefaultDeliveryPlace ?? '사무실 원탁';
+        if (randomDisplayNameEl) randomDisplayNameEl.checked = data.guestAllowRandomDisplayName !== false;
         
         if (teamEnabledEl) teamEnabledEl.checked = data.todayDeliveryTeamEnabled !== false && String(data.todayDeliveryTeamEnabled).toLowerCase() !== 'false';
         if (teamTitleEl) teamTitleEl.value = data.todayDeliveryTeamTitle || '';
@@ -2135,6 +2249,7 @@ let refreshTimer = null;
       const creditInput = document.getElementById('input-guest-credit');
       const feeInput = document.getElementById('input-guest-fee');
       const deliveryPlaceInput = document.getElementById('input-guest-delivery-place');
+      const randomDisplayNameInput = document.getElementById('input-guest-random-display-name');
       const teamEnabledInput = document.getElementById('input-team-enabled');
       const teamTitleInput = document.getElementById('input-team-title');
       const teamMessageInput = document.getElementById('input-team-message');
@@ -2149,6 +2264,7 @@ let refreshTimer = null;
       const guestBaseCredit = Number(creditInput.value);
       const guestDeliveryFee = Number(feeInput.value);
       const guestDefaultDeliveryPlace = deliveryPlaceInput.value.trim();
+      const guestAllowRandomDisplayName = randomDisplayNameInput ? randomDisplayNameInput.checked : true;
       const todayDeliveryTeamEnabled = teamEnabledInput ? teamEnabledInput.checked : true;
       const todayDeliveryTeamTitle = teamTitleInput ? teamTitleInput.value.trim() : '';
       const todayDeliveryTeamMembers = getComposedTeamMembers();
@@ -2165,6 +2281,7 @@ let refreshTimer = null;
             guestBaseCredit,
             guestDeliveryFee,
             guestDefaultDeliveryPlace,
+            guestAllowRandomDisplayName,
             todayDeliveryTeamEnabled,
             todayDeliveryTeamTitle,
             todayDeliveryTeamMembers,
@@ -2232,6 +2349,9 @@ let refreshTimer = null;
           if (event.target.matches('input')) markGuestSettingsDirty();
         });
       }
+
+      document.getElementById('btn-add-delivery-alias')?.addEventListener('click', addDeliveryPlaceAliasRow);
+      document.getElementById('btn-save-delivery-aliases')?.addEventListener('click', saveDeliveryPlaceAliases);
 
       const toggleAllStockChannels = document.getElementById('toggle-all-stock-channels');
       if (toggleAllStockChannels) {

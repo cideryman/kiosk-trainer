@@ -83,6 +83,7 @@ function buildGuestSettingsResponse(settings) {
     todayDeliveryTeamMembers: settings.todayDeliveryTeamMembers || '',
     todayDeliveryTeamMessage: settings.todayDeliveryTeamMessage || '',
     guestAllowMultipleOrders: String(settings.guestAllowMultipleOrders || 'TRUE').toUpperCase() !== 'FALSE',
+    guestAllowRandomDisplayName: String(settings.guestAllowRandomDisplayName || 'TRUE').toUpperCase() !== 'FALSE',
     guestMenuMode: String(settings.guestMenuMode || 'normal').toLowerCase(),
     guestEventName: settings.guestEventName || '장애인식 개선 캠페인',
     guestEventEmblemBase64: settings.guestEventEmblemBase64 || '',
@@ -144,6 +145,7 @@ function getGuestSettings() {
     welcomeTitle: '배달왔삼에 오신 것을 환영합니다 😊',
     welcomeSubtitle: '오늘의 간식을 주문해보세요!',
     guestAllowMultipleOrders: 'TRUE',
+    guestAllowRandomDisplayName: 'TRUE',
     guestOrderLimitPolicyVersion: 'creditWalletV1',
     guestMenuMode: 'normal',
     guestEventName: '장애인식 개선 캠페인',
@@ -174,6 +176,7 @@ function getGuestSettings() {
     welcomeTitle: '배달왔삼에 오신 것을 환영합니다 😊',
     welcomeSubtitle: '오늘의 간식을 주문해보세요!',
     guestAllowMultipleOrders: 'TRUE',
+    guestAllowRandomDisplayName: 'TRUE',
     guestOrderLimitPolicyVersion: 'creditWalletV1',
     guestMenuMode: 'normal',
     guestEventName: '장애인식 개선 캠페인',
@@ -246,6 +249,7 @@ function updateGuestSettings(data) {
     const todayDeliveryTeamMembers = data.todayDeliveryTeamMembers || '';
     const todayDeliveryTeamMessage = data.todayDeliveryTeamMessage || '';
     const guestAllowMultipleOrders = data.guestAllowMultipleOrders !== undefined ? (data.guestAllowMultipleOrders ? 'TRUE' : 'FALSE') : undefined;
+    const guestAllowRandomDisplayName = data.guestAllowRandomDisplayName !== undefined ? (data.guestAllowRandomDisplayName ? 'TRUE' : 'FALSE') : undefined;
 
     const values = sheet.getDataRange().getValues();
     let rowCredit = -1;
@@ -256,6 +260,7 @@ function updateGuestSettings(data) {
     let rowTeamMembers = -1;
     let rowTeamMessage = -1;
     let rowAllowMultiple = -1;
+    let rowAllowRandomDisplayName = -1;
     for (let i = 1; i < values.length; i++) {
       const key = String(values[i][0]).trim();
       if (key === 'guestBaseCredit') rowCredit = i + 1;
@@ -266,6 +271,7 @@ function updateGuestSettings(data) {
       if (key === 'todayDeliveryTeamMembers') rowTeamMembers = i + 1;
       if (key === 'todayDeliveryTeamMessage') rowTeamMessage = i + 1;
       if (key === 'guestAllowMultipleOrders') rowAllowMultiple = i + 1;
+      if (key === 'guestAllowRandomDisplayName') rowAllowRandomDisplayName = i + 1;
     }
 
     if (rowCredit > 0) {
@@ -315,6 +321,14 @@ function updateGuestSettings(data) {
         sheet.getRange(rowAllowMultiple, 2).setValue(guestAllowMultipleOrders);
       } else {
         sheet.appendRow(['guestAllowMultipleOrders', guestAllowMultipleOrders]);
+      }
+    }
+
+    if (guestAllowRandomDisplayName !== undefined) {
+      if (rowAllowRandomDisplayName > 0) {
+        sheet.getRange(rowAllowRandomDisplayName, 2).setValue(guestAllowRandomDisplayName);
+      } else {
+        sheet.appendRow(['guestAllowRandomDisplayName', guestAllowRandomDisplayName]);
       }
     }
 

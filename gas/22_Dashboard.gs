@@ -40,6 +40,7 @@ function getKitchenDashboard(perfDebug) {
   const users = measureDashboardStep(timings, 'getUsers', () => getUsers('Y'));
   const snacks = measureDashboardStep(timings, 'getSnacks', () => getSnacks());
   const guestSettings = measureDashboardStep(timings, 'getGuestSettings', () => getGuestSettings());
+  const deliveryPlaceAliases = measureDashboardStep(timings, 'getDeliveryPlaceAliases', () => getDeliveryPlaceAliases());
 
   const response = {
     success: orders && orders.success !== false,
@@ -47,6 +48,7 @@ function getKitchenDashboard(perfDebug) {
     users,
     snacks,
     guestSettings,
+    deliveryPlaceAliases,
   };
   if (shouldIncludeDashboardTimings(perfDebug)) {
     timings.total = Date.now() - startedAt;
@@ -60,5 +62,8 @@ function getKitchenDashboard(perfDebug) {
  * 라우터의 ADMIN_ACTIONS 인증을 통과한 POST 요청에서만 노출합니다.
  */
 function getAdminOrdersToday() {
-  return getOrdersToday();
+  const orders = getOrdersToday();
+  return Object.assign({}, orders, {
+    deliveryPlaceAliases: getDeliveryPlaceAliases()
+  });
 }

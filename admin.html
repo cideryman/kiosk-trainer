@@ -419,7 +419,7 @@
           <input type="number" id="new-snack-point" min="1" value="1">
         </div>
         <div class="form-field">
-          <label for="new-snack-image">이미지 등록 (구글 드라이브 또는 공백)</label>
+          <label for="new-snack-image">이미지 등록 (구글 드라이브 또는 공백) <button type="button" class="image-guide-trigger" onclick="openSnackImageGuide('new')" aria-label="간식 썸네일 제작 도움말">ⓘ</button></label>
           <input type="text" id="new-snack-image" placeholder="공유용 이미지 링크 (선택)" style="width: 100%; margin-bottom: 6px;">
           <input type="file" id="new-snack-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'new-snack-image', 'new-snack-name', 'snack')">
           <button type="button" class="btn btn-gray" style="min-height: 40px; margin: 0; font-size: 14px; font-weight: 800; border: 2px solid var(--border-color); background-color: #F8F9FA; width: 100%;" onclick="document.getElementById('new-snack-file').click()">📷 기기에서 이미지 선택하여 업로드</button>
@@ -517,7 +517,7 @@
           <input type="number" id="edit-snack-point" min="1">
         </div>
         <div class="form-field">
-          <label for="edit-snack-image">이미지 등록 (구글 드라이브 등)</label>
+          <label for="edit-snack-image">이미지 등록 (구글 드라이브 등) <button type="button" class="image-guide-trigger" onclick="openSnackImageGuide('edit')" aria-label="간식 썸네일 제작 도움말">ⓘ</button></label>
           <input type="text" id="edit-snack-image" style="width: 100%; margin-bottom: 6px;" placeholder="구글 드라이브 링크">
           <input type="file" id="edit-snack-file" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'edit-snack-image', 'edit-snack-name', 'snack')">
           <button type="button" class="btn btn-gray" style="min-height: 40px; margin: 0; font-size: 14px; font-weight: 800; border: 2px solid var(--border-color); background-color: #F8F9FA; width: 100%;" onclick="document.getElementById('edit-snack-file').click()">📷 기기에서 이미지 선택하여 업로드</button>
@@ -558,6 +558,31 @@
       <div class="admin-modal-footer">
         <button class="btn btn-gray" onclick="closeEditSnackModal()" style="flex: 1; min-height: 48px; font-size: 16px;">취소</button>
         <button class="btn btn-secondary" onclick="updateSnackAction()" style="flex: 1; min-height: 48px; font-size: 16px; margin: 0;">저장하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 간식 썸네일 제작 도움말 -->
+  <div class="admin-modal" id="modal-snack-image-guide" role="dialog" aria-modal="true" aria-labelledby="snack-image-guide-title">
+    <div class="admin-modal-content snack-image-guide-modal">
+      <div class="admin-modal-header">
+        <h2 class="admin-modal-title" id="snack-image-guide-title">ⓘ 간식 이미지 도움말</h2>
+        <button class="admin-modal-close" type="button" onclick="closeSnackImageGuide()" aria-label="도움말 닫기">&times;</button>
+      </div>
+      <div class="admin-modal-body snack-image-guide-body">
+        <p class="snack-image-guide-lead">작은 화면에서도 간식을 쉽게 구분할 수 있도록 아래 기준을 지켜 주세요.</p>
+        <ul>
+          <li>상품이 한눈에 보이는 밝고 단순한 배경을 사용합니다.</li>
+          <li>상품을 가운데에 두고, 등록하는 이미지의 비율을 비슷하게 맞춥니다.</li>
+          <li>이미지 안에는 긴 설명이나 작은 글씨를 넣지 않습니다.</li>
+          <li>모바일 썸네일에서도 색과 모양이 잘 보이도록 대비를 확보합니다.</li>
+          <li>가능하면 가로·세로 800px 이하, WebP 형식을 권장합니다.</li>
+          <li>이미지가 없어도 간식 이름만으로 구분할 수 있게 등록합니다.</li>
+        </ul>
+        <p class="snack-image-guide-note">이미지 등록은 선택 사항이며, 도움말을 닫아도 입력 중인 내용은 유지됩니다.</p>
+      </div>
+      <div class="admin-modal-footer">
+        <button class="btn btn-gray" type="button" onclick="closeSnackImageGuide()" style="flex: 1; min-height: 48px; font-size: 16px;">닫기</button>
       </div>
     </div>
   </div>

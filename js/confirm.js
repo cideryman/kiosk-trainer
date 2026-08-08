@@ -76,6 +76,7 @@ function applyLocalGuestDisplayNamePolicy() {
   const isLocalGuest = !isGuestPreviewMode() && !(user.authProvider === 'kakao' && user.guestKey);
   const savedName = isLocalGuest ? AppState.getLocalGuestDisplayName() : '';
   const isLocked = Boolean(savedName);
+  const allowRandomDisplayName = sessionStorage.getItem('guestAllowRandomDisplayName') !== 'false';
 
   if (isLocked && input) {
     input.value = savedName;
@@ -84,7 +85,7 @@ function applyLocalGuestDisplayNamePolicy() {
     input.readOnly = isLocked;
     input.setAttribute('aria-readonly', String(isLocked));
   }
-  if (randomButton) randomButton.hidden = isLocked;
+  if (randomButton) randomButton.hidden = isLocked || !allowRandomDisplayName;
   if (policyNotice) policyNotice.hidden = !isLocked;
   if (policyValue) policyValue.textContent = savedName;
 }

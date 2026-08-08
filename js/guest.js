@@ -576,6 +576,10 @@ window.addEventListener('DOMContentLoaded', () => {
             sessionStorage.setItem('kakaoGuestBonusCredit', String(kakaoGuestBonusCredit));
             sessionStorage.setItem('guestDeliveryFee', String(guestDeliveryFee));
             sessionStorage.setItem('guestDefaultDeliveryPlace', settingsRes.guestDefaultDeliveryPlace ?? '사무실 원탁');
+            sessionStorage.setItem('guestAllowRandomDisplayName', String(settingsRes.guestAllowRandomDisplayName !== false));
+            if (btnRandomName) {
+              btnRandomName.hidden = settingsRes.guestAllowRandomDisplayName === false;
+            }
 
             // 크레딧 배지 적용
             renderGuestCreditBadge();

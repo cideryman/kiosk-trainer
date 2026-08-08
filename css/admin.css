@@ -815,6 +815,72 @@
   flex-shrink: 0;
 }
 
+.image-guide-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 2px solid #94A3B8;
+  border-radius: 50%;
+  background: #F8FAFC;
+  color: #334155;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.image-guide-trigger:hover,
+.image-guide-trigger:focus-visible {
+  border-color: var(--secondary-color);
+  color: var(--secondary-color);
+  outline: 3px solid rgba(46, 196, 182, 0.2);
+}
+
+.snack-image-guide-modal {
+  max-width: 560px;
+}
+
+.snack-image-guide-body {
+  line-height: 1.55;
+}
+
+.snack-image-guide-lead,
+.snack-image-guide-note {
+  margin: 0;
+  font-weight: 750;
+  color: var(--text-main);
+}
+
+.snack-image-guide-body ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--text-main);
+  font-weight: 650;
+}
+
+.snack-image-guide-note {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: #F0FDFA;
+  color: #0F766E;
+  font-size: 14px;
+}
+
+@media (max-width: 480px) {
+  .snack-image-guide-modal {
+    padding: 18px;
+  }
+
+  .snack-image-guide-modal .admin-modal-title {
+    font-size: 19px;
+  }
+}
+
 /* 간식 표시 순서 편집 패널 */
 .snack-order-list {
   display: grid;
