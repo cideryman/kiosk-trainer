@@ -3331,7 +3331,7 @@ body.admin-shell-page {
 
 .guest-menu-mode-settings {
   display: grid;
-  grid-template-rows: auto 111px auto auto;
+  grid-template-rows: auto auto auto;
 }
 
 .guest-menu-mode-settings .guest-settings-section-header {
@@ -3339,11 +3339,11 @@ body.admin-shell-page {
 }
 
 .guest-menu-mode-settings .guest-mode-segmented {
-  grid-row: 3;
+  grid-row: 2;
 }
 
 .guest-menu-mode-settings .guest-event-settings {
-  grid-row: 4;
+  grid-row: 3;
 }
 
 .guest-ops-base-settings {
@@ -3508,6 +3508,26 @@ body.admin-shell-page {
   min-width: 0;
 }
 
+.delivery-alias-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.delivery-alias-field > span {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.delivery-alias-field .admin-inline-input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
 .delivery-alias-enabled {
   display: inline-flex;
   align-items: center;
@@ -3533,7 +3553,7 @@ body.admin-shell-page {
     grid-template-columns: 1fr 1fr;
   }
 
-  .delivery-alias-row input[type="text"] {
+  .delivery-alias-field {
     grid-column: 1 / -1;
     width: 100%;
     box-sizing: border-box;

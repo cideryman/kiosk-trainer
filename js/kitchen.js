@@ -299,8 +299,14 @@ let refreshTimer = null;
         const row = document.createElement('div');
         row.className = 'delivery-alias-row';
         row.innerHTML = `
-          <input type="text" class="admin-inline-input" data-alias-field="alias" placeholder="다르게 입력되는 배송지명" value="${attr(item.alias)}" aria-label="배송지 별칭">
-          <input type="text" class="admin-inline-input" data-alias-field="canonicalPlace" placeholder="대표 배송지명" value="${attr(item.canonicalPlace)}" aria-label="대표 배송지명">
+          <label class="delivery-alias-field">
+            <span>별칭</span>
+            <input type="text" class="admin-inline-input" data-alias-field="alias" placeholder="다르게 입력되는 배송지명" value="${attr(item.alias)}" aria-label="배송지 별칭">
+          </label>
+          <label class="delivery-alias-field">
+            <span>대표 배송지</span>
+            <input type="text" class="admin-inline-input" data-alias-field="canonicalPlace" placeholder="대표 배송지명" value="${attr(item.canonicalPlace)}" aria-label="대표 배송지명">
+          </label>
           <label class="delivery-alias-enabled"><input type="checkbox" data-alias-field="enabled" ${item.enabled ? 'checked' : ''}> 사용</label>
           <button type="button" class="delivery-alias-remove">삭제</button>
         `;
