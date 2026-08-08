@@ -3,6 +3,7 @@ let refreshTimer = null;
     const MAX_REFRESH_TIME = 30;
     let currentOrders = [];
     let currentSnackStock = [];
+    let currentSnackSummaryText = '';
     let currentGuestMenuMode = 'normal';
     let showAllStockChannels = false;
     let guestSettingsDirty = false;
@@ -340,6 +341,15 @@ let refreshTimer = null;
       if (window.speechSynthesis) window.speechSynthesis.cancel();
     }
 
+    function readSnackSummary() {
+      if (!currentSnackSummaryText || !window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(currentSnackSummaryText);
+      utterance.lang = 'ko-KR';
+      utterance.rate = 0.9;
+      window.speechSynthesis.speak(utterance);
+    }
+
     async function toggleNewOrderSound() {
       if (isNewOrderSoundEnabled) {
         isNewOrderSoundEnabled = false;
@@ -584,6 +594,11 @@ let refreshTimer = null;
         const usersRes = dashboardRes.users;
         const snacksRes = dashboardRes.snacks;
         const guestSettingsRes = dashboardRes.guestSettings;
+
+        // 주문 요약 보드가 처음 렌더링될 때 상품 이미지 매핑을 사용할 수 있도록 먼저 저장합니다.
+        if (snacksRes && snacksRes.success && Array.isArray(snacksRes.snacks)) {
+          currentSnackStock = snacksRes.snacks;
+        }
         
         // 1. 유저 이미지 매핑 데이터 생성
         userImageMap = {};
@@ -605,7 +620,6 @@ let refreshTimer = null;
 
         // 3. 간식 재고 처리
         if (snacksRes && snacksRes.success && Array.isArray(snacksRes.snacks)) {
-          currentSnackStock = snacksRes.snacks;
           renderSnackStock(currentSnackStock);
         } else if (stockListEl) {
           stockListEl.innerHTML = '<div class="snack-stock-message is-error">재고를 불러오지 못했습니다.</div>';
@@ -1246,6 +1260,18 @@ let refreshTimer = null;
 
       // 2. 미제공 간식 총합 계산 및 렌더링
       const snackTotals = {};
+      const snackImageByName = {};
+      const snackImageById = {};
+      currentSnackStock.forEach(snack => {
+        const imageUrl = String(snack.imageUrl || '').trim();
+        if (imageUrl) {
+          const convertedUrl = AppState.convertDriveImageUrl(imageUrl);
+          if (convertedUrl) {
+            snackImageByName[String(snack.name || '').trim()] = convertedUrl;
+            if (snack.snackId != null) snackImageById[String(snack.snackId)] = convertedUrl;
+          }
+        }
+      });
       pendingOrders.forEach(order => {
         const name = order.snackName;
         const qty = Number(order.quantity || 1);
@@ -1256,14 +1282,35 @@ let refreshTimer = null;
       const entries = Object.entries(snackTotals);
       
       if (entries.length > 0) {
+        const summaryItems = entries.map(([name, qty]) => {
+          const matchingOrder = pendingOrders.find(order => String(order.snackName || '') === String(name));
+          const imageUrl = (matchingOrder && snackImageById[String(matchingOrder.snackId)]) || snackImageByName[String(name).trim()] || '';
+          const imageHtml = imageUrl
+            ? `<img class="total-item-image" src="${attr(imageUrl)}" alt="${attr(name)}" data-summary-image>`
+            : '';
+          return `<div class="total-item-badge">
+              ${imageHtml}
+              <strong class="total-item-name">${esc(name)}</strong>
+              <span class="highlight">${Number(qty)}개</span>
+            </div>`;
+        });
+        currentSnackSummaryText = entries.map(([name, qty]) => `${name} ${Number(qty)}개`).join(', ') + '입니다.';
         board.style.display = 'block';
         board.innerHTML = `
-          <div class="admin-section-title" style="margin-top: 0; color: var(--primary-hover); border-left-color: var(--primary-hover);">📋 지금 꺼내올 간식 (미제공 총수량)</div>
+          <div class="admin-summary-heading">
+            <div class="admin-section-title" style="margin-top: 0; color: var(--primary-hover); border-left-color: var(--primary-hover);">📋 지금 꺼내올 간식 (미제공 총수량)</div>
+            <button type="button" class="btn-summary-tts" id="btn-read-snack-summary" aria-label="꺼내올 간식 읽어주기">🔊 간식 읽어주기</button>
+          </div>
           <div class="totals-grid">
-            ${entries.map(([name, qty]) => `<div class="total-item-badge"><strong>${esc(name)}</strong> <span class="highlight">${Number(qty)}개</span></div>`).join('')}
+            ${summaryItems.join('')}
           </div>
         `;
+        board.querySelectorAll('[data-summary-image]').forEach(image => {
+          image.addEventListener('error', () => image.remove());
+        });
+        document.getElementById('btn-read-snack-summary')?.addEventListener('click', readSnackSummary);
       } else {
+        currentSnackSummaryText = '';
         board.style.display = 'none';
         board.innerHTML = '';
       }
