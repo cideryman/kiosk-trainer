@@ -8,12 +8,6 @@ function attr(value) {
   return AppState.escapeAttr(value);
 }
 
-function stripEmojis(text) {
-  if (!text) return '';
-  // 이모티콘 및 확장 유니코드 기호 제거 정규식
-  return text.replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDC00-\uDFFF]/g, '').trim();
-}
-
 const replyStampMapping = {
   '응원 고마워요': { img: 'assets/dalgomi_reply_heart.png', text: '감동이야!' },
   '맛있게 먹어줘서 기뻐요': { img: 'assets/dalgomi_reply_thumb.png', text: '최고예요!' },
@@ -35,7 +29,7 @@ function speakReviewText(text) {
   if (!window.speechSynthesis) return;
   try {
     window.speechSynthesis.cancel();
-    const cleanedText = stripEmojis(text);
+    const cleanedText = cleanSpeechText(text);
     if (!cleanedText) return;
     const utterance = new SpeechSynthesisUtterance(cleanedText);
     utterance.lang = 'ko-KR';

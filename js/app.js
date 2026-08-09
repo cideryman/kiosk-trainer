@@ -1,4 +1,19 @@
 // 공통 앱 상태 관리 및 유틸리티
+// 화면 원문은 보존하고, TTS에서 장식 기호가 그대로 발화되지 않도록 정리합니다.
+function cleanSpeechText(text) {
+  return String(text || '')
+    .replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDC00-\uDFFF]/g, '')
+    .replace(/["“”‘’「」『』`]/g, '')
+    .replace(/~+/g, ' ')
+    .replace(/[!！?？]+/g, ' ')
+    .replace(/\.{2,}/g, '.')
+    .replace(/[^\p{L}\p{N}\s.,。]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[.,。]+$/g, '')
+    .trim();
+}
+
 const AppState = {
   tapMoveTolerancePx: 40,
   tapMaxDurationMs: 700,
@@ -296,7 +311,9 @@ const AppState = {
       // 진행 중인 음성 취소
       window.speechSynthesis.cancel();
       
-      const utterance = new SpeechSynthesisUtterance(text);
+      const cleanedText = cleanSpeechText(text);
+      if (!cleanedText) return;
+      const utterance = new SpeechSynthesisUtterance(cleanedText);
       utterance.lang = 'ko-KR';
       utterance.rate = 1.1; // 살짝 빠른 한국어 템포가 더 자연스러움
       window.speechSynthesis.speak(utterance);

@@ -443,7 +443,7 @@ let refreshTimer = null;
     function readSnackSummary() {
       if (!currentSnackSummaryText || !window.speechSynthesis) return;
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(currentSnackSummaryText);
+      const utterance = new SpeechSynthesisUtterance(cleanSpeechText(currentSnackSummaryText));
       utterance.lang = 'ko-KR';
       utterance.rate = 0.9;
       window.speechSynthesis.speak(utterance);
@@ -990,15 +990,6 @@ let refreshTimer = null;
             const dateStr = getKoreaDateString(r.createdAt);
             return dateStr && dateStr === todayStr;
           });
-          
-          textMsg += `- 오늘 전달받은 누적 온기: ${totalPoints}개 ❤️\n`;
-          textMsg += `- 총 주문 건수: ${totalOrders}건\n`;
-          textMsg += `- 완료된 주문: ${completedCount}건\n`;
-          if (canceledCount > 0) textMsg += `- 취소된 주문: ${canceledCount}건\n`;
-
-          htmlMsg += `
-            <div style="font-size: 16px; font-weight: 700; line-height: 1.6; color: var(--text-main);">
-              <div>❤️ 오늘 전달받은 누적 온기: <span style="font-size: 18px; font-weight: 900; color: var(--primary-color);">${totalPoints}개 ❤️</span></div>`;
           
           totalReviews = todayReviews.length;
           photoReviews = todayReviews.filter(r => r.imageUrl && r.imageUrl.trim() !== '').length;
