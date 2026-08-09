@@ -2463,6 +2463,14 @@ let refreshTimer = null;
         });
       }
 
+      const adminActionMenu = document.querySelector('.admin-action-menu');
+      const adminActionMenuPanel = adminActionMenu?.querySelector('.admin-action-menu-panel');
+      if (adminActionMenu && adminActionMenuPanel) {
+        adminActionMenu.addEventListener('toggle', () => {
+          if (adminActionMenu.open) adminActionMenuPanel.scrollTop = 0;
+        });
+      }
+
       // 지난 주문 보관 전 읽기 전용 점검
       let archiveAuditPassed = false;
       const btnAuditArchive = document.getElementById('btn-audit-archive');

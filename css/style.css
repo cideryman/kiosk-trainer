@@ -1441,14 +1441,19 @@ body {
   }
 
   .admin-action-menu-panel {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    right: auto;
-    width: min(220px, calc(100vw - 24px));
+    position: fixed !important;
+    top: calc(env(safe-area-inset-top, 0px) + 112px);
+    left: auto;
+    right: 12px;
+    width: min(260px, calc(100vw - 24px));
     min-width: 0;
     max-width: calc(100vw - 24px);
     margin-top: 0;
+    max-height: calc(100vh - 136px);
+    box-sizing: border-box;
+    padding-top: 12px;
+    overflow-y: auto;
+    z-index: 1000;
   }
 
   .admin-action-menu-panel .btn-small-action {
@@ -1463,6 +1468,18 @@ body {
     background-color: #4A5568 !important;
     color: white !important;
     border: none !important;
+  }
+
+  .admin-action-menu-panel .mobile-only-action {
+    position: static !important;
+    inset: auto !important;
+    align-self: stretch !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 38px !important;
+    margin: 0 !important;
+    transform: none !important;
   }
 
   .admin-action-menu-panel .btn-small-action:disabled {
