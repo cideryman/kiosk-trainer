@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>배달왔삼 주문 방법</title>
+  <meta name="theme-color" content="#0F766E">
+  <meta name="description" content="배달왔삼 주문 과정을 그림으로 쉽게 안내합니다.">
+  <link rel="stylesheet" href="css/public-nav.css">
+  <link rel="stylesheet" href="css/guide.css">
+  <link rel="manifest" href="manifest-guest.json">
+  <link rel="apple-touch-icon" href="icons/guest-180.png">
+</head>
+<body class="guide-page order-guide-page">
+  <div class="guide-container">
+    <header class="public-nav-header">
+      <button type="button" class="public-nav-brand" data-public-brand-story aria-haspopup="dialog" aria-controls="public-brand-story-dialog" aria-label="배달왔삼 이름 이야기 보기">
+        <img src="icons/guest-192.png" alt="배달왔삼 로고">
+        <span class="public-nav-brand-copy">
+          <span class="public-nav-brand-title"><span class="public-nav-brand-main">배달왔</span><span class="public-nav-brand-accent">삼</span></span>
+          <span class="public-nav-brand-subtitle">삼각지 카페 배달 서비스</span>
+        </span>
+      </button>
+      <nav class="public-tab-nav guide-tab-nav" aria-label="배달왔삼 안내 메뉴">
+        <a href="order-guide.html" class="public-tab-item guide-tab-item active" aria-current="page">
+          <span class="tab-label">주문방법</span>
+        </a>
+        <a href="review-guide.html" class="public-tab-item guide-tab-item">
+          <span class="tab-label">후기 작성방법</span>
+        </a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="guide-hero" aria-labelledby="guide-title">
+        <p class="guide-kicker">처음 주문하시나요?</p>
+        <h1 id="guide-title">배달왔삼 주문 방법</h1>
+        <p class="guide-intro">그림을 보면서 순서대로 따라 해보세요.<br>다섯 단계면 주문이 끝나요!</p>
+      </section>
+
+      <ol class="guide-step-list" aria-label="배달왔삼 주문 순서">
+        <li>
+          <article class="guide-step-card">
+            <div class="guide-step-heading">
+              <span class="guide-step-number" aria-hidden="true">1</span>
+              <div>
+                <h2>주문 페이지 열기</h2>
+                <p>배달왔삼 주문 페이지에서<br><strong>새 주문하기</strong>를 눌러주세요.</p>
+              </div>
+            </div>
+            <img src="assets/order-guide/order-guide-01-start.png" alt="배달왔삼 주문 페이지의 새 주문하기 버튼" decoding="async" fetchpriority="high">
+          </article>
+        </li>
+
+        <li>
+          <article class="guide-step-card">
+            <div class="guide-step-heading">
+              <span class="guide-step-number" aria-hidden="true">2</span>
+              <div>
+                <h2>메뉴 고르기</h2>
+                <p>원하는 음료나 간식을 선택하고<br><strong>주문 확인하기</strong>를 눌러주세요.</p>
+              </div>
+            </div>
+            <img src="assets/order-guide/order-guide-02-menu.png" alt="간식을 선택하고 주문 확인하기 버튼을 누르는 화면" loading="lazy" decoding="async">
+          </article>
+        </li>
+
+        <li>
+          <article class="guide-step-card">
+            <div class="guide-step-heading">
+              <span class="guide-step-number" aria-hidden="true">3</span>
+              <div>
+                <h2>수령 방법 고르기</h2>
+                <p><strong>포장</strong> 또는 <strong>배달</strong> 중<br>원하는 방법을 선택해주세요.</p>
+              </div>
+            </div>
+            <img src="assets/order-guide/order-guide-03-method.png" alt="포장과 배달 중 수령 방법을 선택하는 화면" loading="lazy" decoding="async">
+          </article>
+        </li>
+
+        <li>
+          <article class="guide-step-card">
+            <div class="guide-step-heading">
+              <span class="guide-step-number" aria-hidden="true">4</span>
+              <div>
+                <h2>이름과 받을 곳 적기</h2>
+                <p>이름을 적고, 배달을 선택했다면<br><strong>받을 곳</strong>도 적어주세요.</p>
+              </div>
+            </div>
+            <img src="assets/order-guide/order-guide-04-info.png" alt="주문자 이름과 배달받을 장소를 입력한 화면" loading="lazy" decoding="async">
+          </article>
+        </li>
+
+        <li>
+          <article class="guide-step-card">
+            <div class="guide-step-heading">
+              <span class="guide-step-number" aria-hidden="true">5</span>
+              <div>
+                <h2>주문 완료</h2>
+                <p><strong>주문번호</strong>가 보이면<br>주문이 완료된 것입니다.</p>
+              </div>
+            </div>
+            <img src="assets/order-guide/order-guide-05-confirm.png" alt="주문번호 1번과 주문 접수 상태가 표시된 주문 완료 화면" loading="lazy" decoding="async">
+          </article>
+        </li>
+      </ol>
+
+      <section class="guide-finish" aria-labelledby="guide-finish-title">
+        <img src="assets/dalgomi_delivery.png" alt="배달하는 달곰이" loading="lazy" decoding="async">
+        <div>
+          <h2 id="guide-finish-title">이제 주문해볼까요?</h2>
+          <p>천천히 순서대로 하면 어렵지 않아요.</p>
+        </div>
+      </section>
+
+      <a class="guide-primary-button guide-order-button" href="guest.html" aria-label="배달왔삼 주문하기">배달왔삼 주문하기</a>
+    </main>
+
+    <footer class="guide-footer">배달왔삼이 맛있는 음료와 간식을 준비할게요.</footer>
+  </div>
+
+  <script src="js/public-nav.js"></script>
+</body>
+</html>
