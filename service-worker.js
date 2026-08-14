@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kiosk-cache-v310';
+const CACHE_NAME = 'kiosk-cache-v314';
 const urlsToCache = [
   'index.html',
   'index.html?type=kiosk',
@@ -13,6 +13,8 @@ const urlsToCache = [
   'reviews-public.html',
   'guest.html',
   'guest-apply.html',
+  'order-guide.html',
+  'review-guide.html',
   'guest-orders.html',
   'board.html',
   'print-bills.html',
@@ -26,6 +28,7 @@ const urlsToCache = [
   'css/admin.css',
   'css/kitchen.css',
   'css/guest.css',
+  'css/guide.css',
   'css/reviews.css',
   'css/reviews-public.css',
   'js/app.js',
@@ -66,6 +69,15 @@ const urlsToCache = [
   'assets/meaning-1.jpg',
   'assets/meaning-2.jpg',
   'assets/meaning-3.jpg',
+  'assets/dalgomi_delivery.png',
+  'assets/order-guide/order-guide-01-start.png',
+  'assets/order-guide/order-guide-02-menu.png',
+  'assets/order-guide/order-guide-03-method.png',
+  'assets/order-guide/order-guide-04-info.png',
+  'assets/order-guide/order-guide-05-confirm.png',
+  'assets/order-guide/order-guide-06.png',
+  'assets/order-guide/order-guide-07.png',
+  'assets/order-guide/order-guide-08.png',
   'sounds/new-order.mp3',
   'sounds/new-pickup-order.mp3',
   'sounds/new-delivery-order.mp3'

@@ -26,6 +26,8 @@
 | `menu.html` | 일반 키오스크 또는 `?browse=guest` 배달왔삼 간식 선택 |
 | `confirm.html`, `complete.html` | 주문 확인·수령 방식 선택·주문 완료 |
 | `guest.html` | 배달왔삼 운영 상태, 카카오 연결, 주문 시작과 이용 안내 |
+| `order-guide.html` | 문자 안내에서 연결하는 배달왔삼 5단계 주문방법 안내 |
+| `review-guide.html` | 배달 완료 후 두 가지 진입 경로를 설명하는 후기 작성 안내 |
 | `guest-orders.html` | 배달왔삼 주문 조회·취소 |
 | `guest-apply.html` | 배달왔삼 사전 이용 신청 |
 | `admin.html` | 이용자·간식·순서·이용 신청 관리 |
