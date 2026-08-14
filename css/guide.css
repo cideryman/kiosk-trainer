@@ -44,7 +44,7 @@ body.guide-page {
   min-height: 100vh;
   margin: 0 auto;
   padding: 16px 16px 36px;
-  overflow: hidden;
+  overflow: clip;
   background: var(--guide-paper);
   box-shadow: 0 4px 25px rgba(15, 118, 110, 0.07);
 }
@@ -112,6 +112,36 @@ body.guide-page {
   font-weight: 750;
   line-height: 1.65;
   word-break: keep-all;
+}
+
+.guide-hero-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  margin-top: 22px;
+  padding: 10px 22px;
+  color: #FFFFFF;
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-decoration: none;
+  background: var(--guide-page-accent-strong);
+  border-radius: 8px;
+  box-shadow: 0 5px 14px var(--guide-page-accent-shadow);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.guide-hero-action:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px var(--guide-page-accent-shadow);
+}
+
+.guide-hero-action:active { transform: translateY(0); }
+
+.guide-hero-action:focus-visible {
+  outline: 4px solid rgba(234, 106, 23, 0.42);
+  outline-offset: 4px;
 }
 
 .guide-step-list {
@@ -398,5 +428,6 @@ body.guide-page {
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .guide-primary-button { transition: none; }
+  .guide-primary-button,
+  .guide-hero-action { transition: none; }
 }

@@ -9,6 +9,8 @@
   const useLocalMock = queryParams.get('mock') === '1';
   const useLocalMockFull = queryParams.get('mockFull') === '1';
   const useLocalMockWaitlist = queryParams.get('mockWaitlist') === '1';
+  const useLocalMockClosed = queryParams.get('mockClosed') === '1';
+  const useLocalMockError = queryParams.get('mockError') === '1';
   const localMockCapacityValue = Number(queryParams.get('mockCapacity'));
   const localMockCapacity = Number.isInteger(localMockCapacityValue) && localMockCapacityValue >= 1 && localMockCapacityValue <= 100
     ? localMockCapacityValue
@@ -65,6 +67,74 @@
     });
   }
 
+  function getApplicationDisplayModel(settings) {
+    const capacity = Math.max(1, Number(settings.capacity) || 5);
+    const closedReason = String(settings.applicationClosedReason || '').toUpperCase();
+
+    if (closedReason === 'ERROR') {
+      return {
+        mode: 'error',
+        stateText: '신청 상태 확인 필요',
+        stateClass: 'error',
+        capacityText: '이번 주 이용 정원 확인 필요',
+        openButtonText: '신청 안내 보기',
+        submitButtonText: '이용 신청 접수하기',
+        submitBusyText: '신청 접수 중...',
+        canApply: false
+      };
+    }
+
+    if (settings.waitlistFull === true) {
+      return {
+        mode: 'closed',
+        stateText: '신청 접수 마감',
+        stateClass: 'closed',
+        capacityText: `이번 주 이용 정원 ${capacity}명 · 대기 신청까지 마감`,
+        openButtonText: '신청 마감 안내 보기',
+        submitButtonText: '이용 신청 접수하기',
+        submitBusyText: '신청 접수 중...',
+        canApply: false
+      };
+    }
+
+    if (settings.waitlistActive === true) {
+      return {
+        mode: 'waitlist',
+        stateText: '대기 신청 접수 중',
+        stateClass: 'waitlist',
+        capacityText: `이번 주 이용 정원 ${capacity}명 · 현재 대기 접수 중`,
+        openButtonText: '배달왔삼 대기 신청하기',
+        submitButtonText: '대기 신청 접수하기',
+        submitBusyText: '대기 신청 접수 중...',
+        canApply: true
+      };
+    }
+
+    if (settings.applicationOpen === true) {
+      return {
+        mode: 'open',
+        stateText: '신청 접수 중',
+        stateClass: 'open',
+        capacityText: `이번 주 이용 정원 ${capacity}명 · 정원 초과 시 대기 접수`,
+        openButtonText: '배달왔삼 이용 신청하기',
+        submitButtonText: '이용 신청 접수하기',
+        submitBusyText: '신청 접수 중...',
+        canApply: true
+      };
+    }
+
+    return {
+      mode: 'closed',
+      stateText: '신청 접수 마감',
+      stateClass: 'closed',
+      capacityText: `이번 주 이용 정원 ${capacity}명 · 신청 접수 마감`,
+      openButtonText: '신청 마감 안내 보기',
+      submitButtonText: '이용 신청 접수하기',
+      submitBusyText: '신청 접수 중...',
+      canApply: false
+    };
+  }
+
   function renderSettings(settings) {
     applicationSettings = settings;
     setText('info-target', settings.target);
@@ -76,78 +146,45 @@
     setText('summary-target', settings.target);
     setText('summary-days', settings.operatingDays);
     setText('summary-area', settings.serviceArea);
-    const capacity = Math.max(1, Number(settings.capacity) || 5);
-    const remainingSlots = Math.max(0, Number(settings.remainingSlots) || 0);
-    const waitlistCount = Math.max(0, Number(settings.waitlistCount) || 0);
-    const waitlistActive = settings.waitlistActive === true;
-    const waitlistFull = settings.waitlistFull === true;
-    const isOpen = settings.applicationOpen === true;
+    const displayModel = getApplicationDisplayModel(settings);
 
-    // 정원 정보 표시
-    if (waitlistActive) {
-      setText('info-capacity', `1차 ${capacity}명 · 접수 완료 · 대기 ${waitlistCount}명`);
-    } else if (settings.applicationFull && !waitlistActive) {
-      setText('info-capacity', `1차 ${capacity}명 모집 완료`);
-    } else {
-      setText('info-capacity', `1차 ${capacity}명 · 남은 ${remainingSlots}명`);
-    }
+    setText('info-capacity', displayModel.capacityText);
     renderDayOptions(settings.preferredDayOptions);
 
     // 신청 상태 표시
     const state = document.getElementById('application-state');
-    let stateText = '';
-    let stateClass = '';
-    if (waitlistFull) {
-      stateText = '이용 신청 마감';
-      stateClass = 'closed';
-    } else if (waitlistActive) {
-      stateText = `대기 접수 중 · ${waitlistCount}명`;
-      stateClass = 'waitlist';
-    } else if (isOpen) {
-      stateText = `신청 가능 · ${remainingSlots}명 남음`;
-      stateClass = 'open';
-    } else {
-      stateText = settings.applicationFull ? '1차 모집 마감' : '이용 신청 마감';
-      stateClass = 'closed';
-    }
-    state.textContent = waitlistFull ? '이용 신청 마감 (대기 포화)' : stateText;
-    state.className = `application-state ${stateClass}`;
+    state.textContent = displayModel.stateText;
+    state.className = `application-state ${displayModel.stateClass}`;
     const summaryState = document.getElementById('summary-state');
     if (summaryState) {
-      summaryState.textContent = stateText;
-      summaryState.className = `application-summary-value status ${stateClass}`;
+      summaryState.textContent = displayModel.stateText;
+      summaryState.className = `application-summary-value status ${displayModel.stateClass}`;
     }
     document.querySelectorAll('[data-open-application]').forEach(button => {
-      if (waitlistFull) {
-        button.textContent = '신청 마감 안내 보기';
-      } else if (waitlistActive) {
-        button.textContent = '배달왔삼 대기 신청하기';
-      } else {
-        button.textContent = isOpen ? '배달왔삼 이용 신청하기' : '신청 마감 안내 보기';
-      }
+      button.textContent = displayModel.openButtonText;
     });
-    const canApply = isOpen || waitlistActive;
-    submitButton.disabled = !canApply;
-    form.hidden = !canApply;
-    closedPanel.style.display = canApply ? 'none' : 'block';
+    submitButton.textContent = displayModel.submitButtonText;
+    submitButton.disabled = !displayModel.canApply;
+    form.hidden = !displayModel.canApply;
+    closedPanel.style.display = displayModel.canApply ? 'none' : 'block';
     closedPanel.textContent = settings.closedMessage || '현재 이용 신청을 받고 있지 않습니다.';
   }
 
   function getMockSettings() {
     const activeCount = useLocalMockFull ? localMockCapacity : Math.min(1, localMockCapacity);
     const remainingSlots = Math.max(0, localMockCapacity - activeCount);
-    const waitlistActive = useLocalMockFull && !useLocalMockWaitlist;
+    const waitlistActive = useLocalMockFull && !useLocalMockWaitlist && !useLocalMockClosed;
     const waitlistCount = waitlistActive ? localMockWaitlistCount : 0;
     return {
       success: true,
-      applicationOpen: !useLocalMockFull || waitlistActive,
-      applicationOpenConfigured: true,
+      applicationOpen: !useLocalMockClosed && (!useLocalMockFull || waitlistActive),
+      applicationOpenConfigured: !useLocalMockClosed,
       applicationFull: useLocalMockFull,
       waitlistActive,
       waitlistFull: useLocalMockWaitlist,
       waitlistCount,
       waitlistLimit: 100,
-      applicationClosedReason: useLocalMockWaitlist ? 'WAITLIST_FULL' : (useLocalMockFull ? 'FULL' : ''),
+      applicationClosedReason: useLocalMockWaitlist ? 'WAITLIST_FULL' : (useLocalMockClosed ? 'MANUAL' : (useLocalMockFull ? 'FULL' : '')),
       capacity: localMockCapacity,
       activeCount,
       remainingSlots,
@@ -161,18 +198,19 @@
       preferredDayOptions: ['수요일'],
       closedMessage: useLocalMockWaitlist
         ? '대기자가 100명을 초과하여 추가 접수를 받지 않습니다. 기관 담당자에게 문의해 주세요.'
-        : (useLocalMockFull
+        : (useLocalMockClosed
+          ? '현재 이용 신청을 받고 있지 않습니다.'
+          : (useLocalMockFull
           ? `${localMockCapacity}명의 정원이 꽉 찼지만 대기자로 접수 가능합니다.`
-          : '현재 이용 신청을 받고 있지 않습니다.'),
+          : '현재 이용 신청을 받고 있지 않습니다.')),
       configuredClosedMessage: '현재 이용 신청을 받고 있지 않습니다.'
     };
   }
 
   async function loadSettings() {
     try {
-      const settings = useLocalMock
-        ? getMockSettings()
-        : await fetchAPIReadWithRetry('getGuestApplicationSettings', { timeoutMs: 30000 });
+      if (useLocalMock && useLocalMockError) throw new Error('로컬 설정 조회 오류');
+      const settings = useLocalMock ? getMockSettings() : await fetchAPIReadWithRetry('getGuestApplicationSettings', { timeoutMs: 30000 });
       if (!settings?.success) throw new Error(settings?.message || '설정 조회 실패');
       renderSettings(settings);
     } catch (error) {
@@ -225,7 +263,8 @@
   form.addEventListener('submit', async event => {
     event.preventDefault();
     setFormMessage('');
-    if (!applicationSettings?.applicationOpen && !applicationSettings?.waitlistActive) {
+    const displayModel = getApplicationDisplayModel(applicationSettings || {});
+    if (!displayModel.canApply) {
       setFormMessage('현재 이용 신청을 받고 있지 않습니다.');
       return;
     }
@@ -238,7 +277,7 @@
     }
 
     submitButton.disabled = true;
-    submitButton.textContent = '신청 접수 중...';
+    submitButton.textContent = displayModel.submitBusyText;
     const body = {
       requestId: getRequestId(),
       name: document.getElementById('applicant-name').value.trim(),
@@ -304,9 +343,9 @@
     } catch (error) {
       setFormMessage('응답을 확인하지 못했습니다. 같은 화면에서 다시 누르면 동일 신청으로 안전하게 확인합니다.');
     } finally {
-      const canApply = applicationSettings?.applicationOpen || applicationSettings?.waitlistActive;
-      submitButton.disabled = !canApply;
-      submitButton.textContent = '이용 신청 접수하기';
+      const nextDisplayModel = getApplicationDisplayModel(applicationSettings || {});
+      submitButton.disabled = !nextDisplayModel.canApply;
+      submitButton.textContent = nextDisplayModel.submitButtonText;
     }
   });
 

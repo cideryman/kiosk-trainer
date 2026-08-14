@@ -18,7 +18,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
       // 혹시 있을 상태 초기화
       AppState.resetAll();
-      const isGuestPreviewMode = new URLSearchParams(window.location.search).get('preview') === '1';
+      const guestPageParams = new URLSearchParams(window.location.search);
+      const isGuestPreviewMode = guestPageParams.get('preview') === '1';
+      const requestedAction = guestPageParams.get('action') || (window.location.hash === '#review' ? 'review' : '');
       if (isGuestPreviewMode) {
         sessionStorage.setItem('guestPreviewMode', 'Y');
         sessionStorage.removeItem('guestRemainingCredit');
@@ -27,6 +29,11 @@ window.addEventListener('DOMContentLoaded', () => {
       } else {
         sessionStorage.removeItem('guestPreviewMode');
         sessionStorage.removeItem('guestOrderStartedAt');
+      }
+
+      if (requestedAction === 'review' && !isGuestPreviewMode) {
+        window.location.replace('guest-orders.html?openReview=true');
+        return;
       }
 
       const viewSelect = document.getElementById('view-select');

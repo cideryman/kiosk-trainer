@@ -243,6 +243,7 @@ a { color: inherit; }
 .application-summary-value.status.open { color: #047857; }
 .application-summary-value.status.waitlist { color: #B45309; }
 .application-summary-value.status.closed { color: #B42318; }
+.application-summary-value.status.error { color: #475569; }
 .application-summary-note {
   grid-column: 1 / -1;
   margin: 0;
@@ -370,7 +371,9 @@ a { color: inherit; }
   font-weight: 900;
 }
 .application-state.open { color: #047857; border-color: #6EE7B7; background: #ECFDF5; }
+.application-state.waitlist { color: #B45309; border-color: #FCD34D; background: #FFFBEB; }
 .application-state.closed { color: #B42318; border-color: #FDA29B; background: #FEF3F2; }
+.application-state.error { color: #475569; border-color: #CBD5E1; background: #F8FAFC; }
 
 .form-section { scroll-margin-top: 76px; }
 .application-form-wrap {
