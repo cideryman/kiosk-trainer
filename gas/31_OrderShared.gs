@@ -5,6 +5,15 @@ function getSheetHeaderRow(sheet) {
 
 const ORDER_IDEMPOTENCY_HEADER = 'idempotencyKey';
 const ORDER_IDEMPOTENCY_COL = 23; // W열
+const ORDER_COMMIT_STATUS_HEADER = 'commitStatus';
+const ORDER_COMMIT_STATUS_COL = 24; // X열
+
+function isCommittedOrderRow(row, headers) {
+  const statusIdx = headers.indexOf(ORDER_COMMIT_STATUS_HEADER);
+  if (statusIdx === -1) return true;
+  const status = String(row[statusIdx] || '').trim().toUpperCase();
+  return status === '' || status === 'COMMITTED';
+}
 
 function normalizeIdempotencyKey(value) {
   return String(value || '').trim();
@@ -15,15 +24,19 @@ function isValidIdempotencyKey(value) {
   return key.length >= 8 && key.length <= 120 && /^[A-Za-z0-9._:-]+$/.test(key);
 }
 
-function getExistingIdempotentOrderResult(orderSheet, userSheet, headers, idempotencyKey, userId) {
+function getExistingIdempotentOrderResult(orderSheet, userSheet, headers, idempotencyKey, userId, knownValues) {
   const key = normalizeIdempotencyKey(idempotencyKey);
   const keyIdx = headers.indexOf(ORDER_IDEMPOTENCY_HEADER);
   if (!key || keyIdx === -1 || orderSheet.getLastRow() <= 1) return null;
 
   const colCount = Math.max(orderSheet.getLastColumn(), keyIdx + 1);
-  const values = orderSheet.getRange(2, 1, orderSheet.getLastRow() - 1, colCount).getValues();
+  const values = Array.isArray(knownValues)
+    ? knownValues
+    : orderSheet.getRange(2, 1, orderSheet.getLastRow() - 1, colCount).getValues();
   const matchedRows = values.filter(row =>
-    String(row[keyIdx] || '').trim() === key && String(row[2]) === String(userId)
+    isCommittedOrderRow(row, headers)
+      && String(row[keyIdx] || '').trim() === key
+      && String(row[2]) === String(userId)
   );
   if (matchedRows.length === 0) return null;
 
@@ -85,28 +98,28 @@ function getExistingIdempotentOrderResult(orderSheet, userSheet, headers, idempo
 /**
   * 당일 특정 주문자의 간식별 주문 수량을 집계하여 { snackId: count } Map 형태로 반환
   */
-function getUserTodaySnackCountsMap(guestKey, guestDeviceId, userId) {
+function getUserTodaySnackCountsMap(guestKey, guestDeviceId, userId, knownRows, knownHeaders) {
   const countsMap = {};
   const cleanedGuestKey = String(guestKey || '').trim();
   const cleanedGuestDeviceId = String(guestDeviceId || '').trim();
   const cleanedUserId = String(userId || '').trim();
   if (!cleanedGuestKey && !cleanedGuestDeviceId && !cleanedUserId) return countsMap;
 
-  const ss = SpreadsheetApp.getActive();
-  const orderSheet = ss.getSheetByName(SHEET.ORDERS);
-  if (!orderSheet || orderSheet.getLastRow() <= 1) return countsMap;
+  const orderSheet = knownRows ? null : SpreadsheetApp.getActive().getSheetByName(SHEET.ORDERS);
+  if (!knownRows && (!orderSheet || orderSheet.getLastRow() <= 1)) return countsMap;
 
-  const headers = getSheetHeaderRow(orderSheet);
+  const headers = knownHeaders || getSheetHeaderRow(orderSheet);
   const deviceIdIdx = headers.indexOf('guestDeviceId');
   const guestKeyIdx = headers.indexOf('guestKey');
   const servedYnIdx = headers.indexOf('제공여부');
   const isGuest = !cleanedUserId || cleanedUserId === 'guest';
   const nowTime = new Date();
 
-  const values = orderSheet.getRange(2, 1, orderSheet.getLastRow() - 1, Math.max(orderSheet.getLastColumn(), 9)).getValues();
+  const values = knownRows || orderSheet.getRange(2, 1, orderSheet.getLastRow() - 1, Math.max(orderSheet.getLastColumn(), 9)).getValues();
 
   for (let i = 0; i < values.length; i++) {
     const row = values[i];
+    if (!isCommittedOrderRow(row, headers)) continue;
     const orderTime = row[0];
     if (!orderTime || !isSameKoreaDate(orderTime, nowTime)) continue;
 

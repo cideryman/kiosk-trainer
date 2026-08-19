@@ -50,6 +50,7 @@ function placeOrder(data) {
     };
   }
 
+  let transaction = null;
   try {
     const ss = SpreadsheetApp.getActive();
     const userSheet = ss.getSheetByName(SHEET.USERS);
@@ -62,13 +63,28 @@ function placeOrder(data) {
     const isGuest = (String(userId) === 'guest');
     let guestFee = 0;
 
-    ensureOrderHeaders();
-    const headers = getSheetHeaderRow(orderSheet);
+    if (!userSheet || !snackSheet || !orderSheet) {
+      throw new Error('주문 처리에 필요한 시트를 찾을 수 없습니다.');
+    }
+    const orderValues = orderSheet.getDataRange().getValues();
+    const headers = orderValues[0] || [];
+    const orderRowsSnapshot = orderValues.slice(1);
     const deviceIdIdx = headers.indexOf('guestDeviceId');
     const authProviderIdx = headers.indexOf('authProvider');
     const guestKeyIdx = headers.indexOf('guestKey');
     const idempotencyIdx = headers.indexOf(ORDER_IDEMPOTENCY_HEADER);
-    const existingOrderResult = getExistingIdempotentOrderResult(orderSheet, userSheet, headers, rawIdempotencyKey, userId);
+    const commitStatusIdx = headers.indexOf(ORDER_COMMIT_STATUS_HEADER);
+    if (idempotencyIdx === -1 || commitStatusIdx === -1) {
+      throw new Error('주문 시트 초기화가 필요합니다. ensureOrderHeaders를 실행해 주세요.');
+    }
+    const existingOrderResult = getExistingIdempotentOrderResult(
+      orderSheet,
+      userSheet,
+      headers,
+      rawIdempotencyKey,
+      userId,
+      orderRowsSnapshot
+    );
     if (existingOrderResult) {
       return existingOrderResult;
     }
@@ -98,12 +114,12 @@ function placeOrder(data) {
       }
 
       if (!guestSettings.guestAllowMultipleOrders && (data.guestDeviceId || guestKey)) {
-        const orderValues = orderSheet.getDataRange().getValues();
         const servedYnIdx = headers.indexOf('제공여부');
         let hasActiveOrder = false;
         const nowTime = new Date();
-        for (let i = 1; i < orderValues.length; i++) {
-          const row = orderValues[i];
+        for (let i = 0; i < orderRowsSnapshot.length; i++) {
+          const row = orderRowsSnapshot[i];
+          if (!isCommittedOrderRow(row, headers)) continue;
           const sameDevice = deviceIdIdx !== -1 && data.guestDeviceId && String(row[deviceIdIdx]) === String(data.guestDeviceId);
           const sameGuestKey = guestKeyIdx !== -1 && guestKey && String(row[guestKeyIdx]) === guestKey;
           if (sameDevice || sameGuestKey) {
@@ -145,6 +161,13 @@ function placeOrder(data) {
 
     let totalPoint = 0;
     const orderItems = [];
+    const todayCountsMap = getUserTodaySnackCountsMap(
+      guestKey,
+      data.guestDeviceId,
+      userId,
+      orderRowsSnapshot,
+      headers
+    );
 
     normalizedItems.forEach(item => {
       const snackRowIndex = snacks.findIndex((row, index) => {
@@ -174,7 +197,6 @@ function placeOrder(data) {
 
       const maxPerPerson = Number(snack[8] || 0);
       if (maxPerPerson > 0) {
-        const todayCountsMap = getUserTodaySnackCountsMap(guestKey, data.guestDeviceId, userId);
         const alreadyOrderedCount = Number(todayCountsMap[snackId] || 0);
         if (alreadyOrderedCount + quantity > maxPerPerson) {
           if (alreadyOrderedCount > 0) {
@@ -228,9 +250,8 @@ function placeOrder(data) {
     }
 
     const todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyMMdd');
-    const lastOrderRow = orderSheet.getLastRow();
-    const todayOrders = lastOrderRow > 1
-      ? orderSheet.getRange(2, 1, lastOrderRow - 1, 2).getValues().filter(row => {
+    const todayOrders = orderRowsSnapshot.length > 0
+      ? orderRowsSnapshot.filter(row => {
           if (!row[0]) return false;
           try {
             const orderDate = Utilities.formatDate(new Date(row[0]), Session.getScriptTimeZone(), 'yyMMdd');
@@ -294,12 +315,15 @@ function placeOrder(data) {
       setOptionalCell(deviceIdIdx, data.guestDeviceId || '');
       setOptionalCell(authProviderIdx, authProvider);
       setOptionalCell(guestKeyIdx, guestKey);
+      setOptionalCell(idempotencyIdx, rawIdempotencyKey);
+      setOptionalCell(commitStatusIdx, 'PENDING');
 
       return newRow;
     });
 
     const maxOrderCols = Math.max(
       orderSheet.getLastColumn(),
+      commitStatusIdx + 1,
       ...orderRows.map(row => row.length)
     );
     const safeOrderRows = orderRows.map(row => {
@@ -313,16 +337,40 @@ function placeOrder(data) {
     orderSheet
       .getRange(orderStartRow, 1, safeOrderRows.length, maxOrderCols)
       .setValues(safeOrderRows);
+    const stockValuesBefore = snacks.slice(1).map(row => [row[5]]);
+    transaction = {
+      orderSheet,
+      orderStartRow,
+      orderRowCount: safeOrderRows.length,
+      commitStatusIdx,
+      snackSheet,
+      stockValuesBefore,
+      stockApplied: false,
+      creditApplied: false,
+      committed: false,
+      isGuest,
+      userSheet,
+      userRowIndex,
+      currentCredit,
+      totalCredit,
+      guestSettings,
+      guestDeviceId: data.guestDeviceId || '',
+      authProvider,
+      guestKey,
+      orderNo,
+      idempotencyKey: rawIdempotencyKey
+    };
+    throwStagingOrderFailure(data, 'order');
     orderSheet
       .getRange(orderStartRow, 1, safeOrderRows.length, 1)
       .setNumberFormat('yyyy. m. d AM/PM h:mm:ss');
 
-    orderItems.forEach(item => {
-      // 간식 재고 차감 반영
-      snackSheet
-        .getRange(item.snackRowIndex + 1, 6)
-        .setValue(item.afterStock);
-    });
+    orderItems.forEach(item => { snacks[item.snackRowIndex][5] = item.afterStock; });
+    snackSheet
+      .getRange(2, 6, snacks.length - 1, 1)
+      .setValues(snacks.slice(1).map(row => [row[5]]));
+    transaction.stockApplied = true;
+    throwStagingOrderFailure(data, 'stock');
     clearSnackReadCache();
     clearOrderReadCache();
 
@@ -330,6 +378,7 @@ function placeOrder(data) {
     let newCredit = currentCredit - totalCredit;
     if (!isGuest) {
       userSheet.getRange(userRowIndex + 1, 3).setValue(newCredit);
+      transaction.creditApplied = true;
       clearUserReadCache();
     } else {
       const walletUpdate = resolveGuestCreditWallet({
@@ -345,7 +394,9 @@ function placeOrder(data) {
         throw new Error(walletUpdate.message || '게스트 온기를 업데이트하지 못했습니다.');
       }
       newCredit = walletUpdate.remainingCredit;
+      transaction.creditApplied = true;
     }
+    throwStagingOrderFailure(data, 'credit');
 
     if (isGuest && authProvider === 'kakao' && guestKey && shouldRememberGuestProfile) {
       try {
@@ -355,15 +406,10 @@ function placeOrder(data) {
       }
     }
 
-    if (rawIdempotencyKey && idempotencyIdx !== -1) {
-      try {
-        orderSheet
-          .getRange(orderStartRow, idempotencyIdx + 1, safeOrderRows.length, 1)
-          .setValues(safeOrderRows.map(() => [rawIdempotencyKey]));
-      } catch (idempotencyError) {
-        Logger.log('idempotency key write failed after order success: ' + (idempotencyError && idempotencyError.stack ? idempotencyError.stack : idempotencyError));
-      }
-    }
+    orderSheet
+      .getRange(orderStartRow, commitStatusIdx + 1, safeOrderRows.length, 1)
+      .setValues(safeOrderRows.map(() => ['COMMITTED']));
+    transaction.committed = true;
 
     clearOrderReadCache();
 
@@ -393,12 +439,73 @@ function placeOrder(data) {
       items: orderItems,
     };
   } catch (error) {
+    if (transaction && !transaction.committed) {
+      try {
+        if (transaction.creditApplied) {
+          if (transaction.isGuest) {
+            resolveGuestCreditWallet({
+              guestDeviceId: transaction.guestDeviceId,
+              authProvider: transaction.authProvider,
+              guestKey: transaction.guestKey
+            }, {
+              settings: transaction.guestSettings,
+              refundCredit: transaction.totalCredit,
+              create: true
+            });
+          } else {
+            transaction.userSheet
+              .getRange(transaction.userRowIndex + 1, 3)
+              .setValue(transaction.currentCredit);
+          }
+        }
+      } catch (creditRollbackError) {
+        Logger.log('주문 온기 롤백 실패: ' + (creditRollbackError && creditRollbackError.stack ? creditRollbackError.stack : creditRollbackError));
+      }
+      try {
+        if (transaction.stockApplied && transaction.stockValuesBefore.length > 0) {
+          transaction.snackSheet
+            .getRange(2, 6, transaction.stockValuesBefore.length, 1)
+            .setValues(transaction.stockValuesBefore);
+        }
+      } catch (stockRollbackError) {
+        Logger.log('주문 재고 롤백 실패: ' + (stockRollbackError && stockRollbackError.stack ? stockRollbackError.stack : stockRollbackError));
+      }
+      try {
+        transaction.orderSheet
+          .getRange(transaction.orderStartRow, transaction.commitStatusIdx + 1, transaction.orderRowCount, 1)
+          .setValues(Array.from({ length: transaction.orderRowCount }, () => ['FAILED']));
+      } catch (statusRollbackError) {
+        Logger.log('주문 실패 상태 기록 실패: ' + (statusRollbackError && statusRollbackError.stack ? statusRollbackError.stack : statusRollbackError));
+      }
+      clearSnackReadCache();
+      clearUserReadCache();
+      clearOrderReadCache();
+    }
+    Logger.log('placeOrder failed: ' + JSON.stringify({
+      orderNo: transaction ? transaction.orderNo : '',
+      idempotencyKey: rawIdempotencyKey,
+      stage: transaction
+        ? (transaction.creditApplied ? 'credit' : (transaction.stockApplied ? 'stock' : 'order'))
+        : 'validation',
+      error: error && error.message ? error.message : String(error)
+    }));
     return {
       success: false,
       message: error.message || '주문 처리 중 오류가 발생했습니다.'
     };
   } finally {
     lock.releaseLock();
+  }
+}
+
+function throwStagingOrderFailure(data, stage) {
+  const requestedStage = String(data && data.testFailureStage || '').trim().toLowerCase();
+  if (!requestedStage || requestedStage !== stage) return;
+  const environment = String(
+    PropertiesService.getScriptProperties().getProperty('APP_ENV') || ''
+  ).trim().toLowerCase();
+  if (environment === 'staging') {
+    throw new Error('STAGING_ORDER_FAILURE_' + stage.toUpperCase());
   }
 }
 
@@ -458,7 +565,9 @@ function getOrdersToday() {
   const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET.ORDERS);
   const values = getOrderValuesForRead(sheet);
   const headers = values[0] || [];
-  const rows = values.slice(1).filter(row => row.some(value => value !== ''));
+  const rows = values.slice(1).filter(row => (
+    row.some(value => value !== '') && isCommittedOrderRow(row, headers)
+  ));
 
   const reviewedIdx = headers.indexOf('reviewed');
   const rIdx = reviewedIdx !== -1 ? reviewedIdx : 14;
@@ -561,7 +670,8 @@ function getOrderStatus(id) {
   const reviewedIdx = headers.indexOf('reviewed');
   // orderNo(index 1) 또는 orderToken(index 10) 필터링
   const matchedRows = rows.filter(row => {
-    return String(row[1]) === String(id) || (row[10] && String(row[10]) === String(id));
+    return isCommittedOrderRow(row, headers)
+      && (String(row[1]) === String(id) || (row[10] && String(row[10]) === String(id)));
   });
 
   if (matchedRows.length === 0) {
@@ -629,6 +739,7 @@ function getGuestOrdersToday(guestName) {
   // 오늘이면서 userId가 'guest'이고, 닉네임에 검색어가 포함된 주문 필터링
   const orders = rows
     .filter(row => {
+      if (!isCommittedOrderRow(row, headers)) return false;
       const orderDate = Utilities.formatDate(
         new Date(row[0]),
         Session.getScriptTimeZone(),
@@ -739,6 +850,7 @@ function getGuestOrderByToken(data) {
 
   let orders = rows
     .filter(row => {
+      if (!isCommittedOrderRow(row, headers)) return false;
       const rowToken = String(row[tIdx] || '');
       return rowToken && tokens.includes(rowToken);
     })
@@ -850,6 +962,7 @@ function getGuestOrdersByGuestKey(data) {
 
   let orders = rows
     .filter(row => {
+      if (!isCommittedOrderRow(row, headers)) return false;
       const orderDate = Utilities.formatDate(
         new Date(row[0]),
         Session.getScriptTimeZone(),
@@ -1594,7 +1707,7 @@ function ensureOrderHeaders() {
   const orderSheet = ss.getSheetByName(SHEET.ORDERS);
   if (!orderSheet) return;
 
-  const REQUIRED_COLS = ORDER_IDEMPOTENCY_COL;
+  const REQUIRED_COLS = ORDER_COMMIT_STATUS_COL;
   if (orderSheet.getMaxColumns() < REQUIRED_COLS) {
     orderSheet.insertColumnsAfter(orderSheet.getMaxColumns(), REQUIRED_COLS - orderSheet.getMaxColumns());
   }
@@ -1642,6 +1755,10 @@ function ensureOrderHeaders() {
   const latestHeaders = getSheetHeaderRow(orderSheet);
   if (latestHeaders.indexOf(ORDER_IDEMPOTENCY_HEADER) === -1) {
     orderSheet.getRange(1, ORDER_IDEMPOTENCY_COL).setValue(ORDER_IDEMPOTENCY_HEADER);
+    clearOrderReadCache();
+  }
+  if (latestHeaders.indexOf(ORDER_COMMIT_STATUS_HEADER) === -1) {
+    orderSheet.getRange(1, ORDER_COMMIT_STATUS_COL).setValue(ORDER_COMMIT_STATUS_HEADER);
     clearOrderReadCache();
   }
   return '헤더 보정이 완료되었습니다.';

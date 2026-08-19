@@ -397,6 +397,36 @@ async function runIdempotencyScenario(fixtures) {
   addCheck('Cancel restores credit exactly once', Number(cancelledState.user?.credit) === 15, `credit=${cancelledState.user?.credit}`);
 }
 
+async function runOrderRollbackScenario(fixtures) {
+  const user = fixtures.users[0];
+  const snack = fixtures.snacks[0];
+  for (const stage of ['order', 'stock', 'credit']) {
+    await resetCredit(user.userId);
+    await resetStock(snack.snackId, 30);
+    const idempotencyKey = `stab.rollback.${stage}.${RUN_ID}`;
+    const failed = await safeWrite('placeOrder', {
+      userId: user.userId,
+      items: [{ snackId: snack.snackId, quantity: 1 }],
+      idempotencyKey,
+      testFailureStage: stage
+    }, 'business-rule');
+    addCheck(`Rollback ${stage} failure is explicit`, failed.data?.success === false);
+    const rolledBack = await verifyUserAndSnack(user.userId, snack.snackId);
+    addCheck(`Rollback ${stage} restores stock`, Number(rolledBack.snack?.stock) === 30, `stock=${rolledBack.snack?.stock}`);
+    addCheck(`Rollback ${stage} restores credit`, Number(rolledBack.user?.credit) === 15, `credit=${rolledBack.user?.credit}`);
+
+    if (stage === 'credit') {
+      const retried = await safeWrite('placeOrder', {
+        userId: user.userId,
+        items: [{ snackId: snack.snackId, quantity: 1 }],
+        idempotencyKey
+      });
+      addCheck('Failed idempotency key can be retried', retried.data?.success === true);
+      if (retried.data?.orderNo) await cancelOrders([retried.data.orderNo]);
+    }
+  }
+}
+
 async function runConcurrentScenario(fixtures) {
   const snack = fixtures.snacks[1];
   await resetStock(snack.snackId, CONCURRENCY);
@@ -610,6 +640,7 @@ async function runFullSuite() {
   const fixtures = await seedFixtures();
   addCheck('Stability fixtures are ready', fixtures.users.length === CONCURRENCY && fixtures.snacks.length === 3);
   await runIdempotencyScenario(fixtures);
+  await runOrderRollbackScenario(fixtures);
   await runConcurrentScenario(fixtures);
   await runOversubscriptionScenario(fixtures);
   await runGuestAndReviewScenario(fixtures);
