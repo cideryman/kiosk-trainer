@@ -2021,6 +2021,21 @@ let refreshTimer = null;
       if (markDirty && previousValue !== isAllowed) markGuestSettingsDirty();
     }
 
+    function setAdminOrderEmailNotification(enabled, markDirty = false) {
+      const isEnabled = enabled !== false && String(enabled).toLowerCase() !== 'false';
+      const inputEl = document.getElementById('input-admin-order-email-notification');
+      const previousValue = inputEl ? inputEl.value === 'true' : true;
+
+      if (inputEl) inputEl.value = isEnabled ? 'true' : 'false';
+      document.querySelectorAll('[data-admin-order-email-notification]').forEach(button => {
+        const isActive = button.dataset.adminOrderEmailNotification === String(isEnabled);
+        button.classList.toggle('is-active', isActive);
+        button.setAttribute('aria-pressed', String(isActive));
+      });
+
+      if (markDirty && previousValue !== isEnabled) markGuestSettingsDirty();
+    }
+
     async function loadGuestOpsPanel(isAutoRefresh = false) {
       const diagnosticFlow = API_DIAGNOSTICS.startFlow('kitchen:guestSettings');
       try {
@@ -2053,6 +2068,7 @@ let refreshTimer = null;
         if (feeEl) feeEl.value = data.guestDeliveryFee ?? 3;
         if (deliveryPlaceEl) deliveryPlaceEl.value = data.guestDefaultDeliveryPlace ?? '사무실 원탁';
         setGuestRandomDisplayName(data.guestAllowRandomDisplayName !== false);
+        setAdminOrderEmailNotification(data.adminOrderEmailNotificationEnabled !== false);
         
         if (teamEnabledEl) teamEnabledEl.checked = data.todayDeliveryTeamEnabled !== false && String(data.todayDeliveryTeamEnabled).toLowerCase() !== 'false';
         if (teamTitleEl) teamTitleEl.value = data.todayDeliveryTeamTitle || '';
@@ -2261,6 +2277,7 @@ let refreshTimer = null;
       const feeInput = document.getElementById('input-guest-fee');
       const deliveryPlaceInput = document.getElementById('input-guest-delivery-place');
       const randomDisplayNameInput = document.getElementById('input-guest-random-display-name');
+      const emailNotificationInput = document.getElementById('input-admin-order-email-notification');
       const teamEnabledInput = document.getElementById('input-team-enabled');
       const teamTitleInput = document.getElementById('input-team-title');
       const teamMessageInput = document.getElementById('input-team-message');
@@ -2276,6 +2293,7 @@ let refreshTimer = null;
       const guestDeliveryFee = Number(feeInput.value);
       const guestDefaultDeliveryPlace = deliveryPlaceInput.value.trim();
       const guestAllowRandomDisplayName = randomDisplayNameInput ? randomDisplayNameInput.value === 'true' : true;
+      const adminOrderEmailNotificationEnabled = emailNotificationInput ? emailNotificationInput.value === 'true' : true;
       const todayDeliveryTeamEnabled = teamEnabledInput ? teamEnabledInput.checked : true;
       const todayDeliveryTeamTitle = teamTitleInput ? teamTitleInput.value.trim() : '';
       const todayDeliveryTeamMembers = getComposedTeamMembers();
@@ -2293,6 +2311,7 @@ let refreshTimer = null;
             guestDeliveryFee,
             guestDefaultDeliveryPlace,
             guestAllowRandomDisplayName,
+            adminOrderEmailNotificationEnabled,
             todayDeliveryTeamEnabled,
             todayDeliveryTeamTitle,
             todayDeliveryTeamMembers,
@@ -2306,6 +2325,8 @@ let refreshTimer = null;
           timeoutMs: ADMIN_WRITE_TIMEOUT_MS
         });
         if (res && res.success) {
+          setGuestRandomDisplayName(res.guestAllowRandomDisplayName !== false);
+          setAdminOrderEmailNotification(res.adminOrderEmailNotificationEnabled !== false);
           updateGuestSettingsSaveState(false);
           alert('게스트 설정이 저장되었습니다.');
           await loadGuestOpsPanel();
@@ -2353,6 +2374,10 @@ let refreshTimer = null;
 
       document.querySelectorAll('[data-guest-random-name]').forEach(button => {
         button.addEventListener('click', () => setGuestRandomDisplayName(button.dataset.guestRandomName === 'true', true));
+      });
+
+      document.querySelectorAll('[data-admin-order-email-notification]').forEach(button => {
+        button.addEventListener('click', () => setAdminOrderEmailNotification(button.dataset.adminOrderEmailNotification === 'true', true));
       });
 
       const guestSettingsPanel = document.getElementById('guest-ops-settings');

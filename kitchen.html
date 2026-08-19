@@ -209,6 +209,17 @@
                     </div>
                     <small>활성화 시 게스트 화면에 랜덤 닉네임 생성 버튼을 표시합니다.</small>
                   </div>
+                  <div class="guest-ops-setting guest-ops-setting-wide guest-email-notification-setting">
+                    <div class="guest-random-display-name-heading">
+                      <span>새 주문 이메일 알림</span>
+                      <input type="hidden" id="input-admin-order-email-notification" value="true">
+                      <div class="guest-mode-segmented guest-email-notification-segmented" role="group" aria-label="새 주문 이메일 알림 사용 여부">
+                        <button class="guest-mode-option is-active" type="button" data-admin-order-email-notification="true" aria-pressed="true">🟢 ON</button>
+                        <button class="guest-mode-option" type="button" data-admin-order-email-notification="false" aria-pressed="false">⚪ OFF</button>
+                      </div>
+                    </div>
+                    <small>OFF로 두면 주문 완료 응답을 빠르게 돌려주고 Gmail 발송을 생략합니다.</small>
+                  </div>
                 </div>
               </section>
 

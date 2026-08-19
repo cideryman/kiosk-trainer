@@ -367,16 +367,18 @@ function placeOrder(data) {
 
     clearOrderReadCache();
 
-    // 새 주문 정상 접수 시 담당자 Gmail 알림 발송 (오류 격리)
-    sendOrderNotification({
-      orderNo: orderNo,
-      nickname: nickname,
-      deliveryType: deliveryType,
-      deliveryPlace: deliveryPlace,
-      items: orderItems,
-      totalPoint: totalCredit,
-      timestamp: now.getTime(),
-    });
+    if (isOrderEmailNotificationEnabled(guestSettings)) {
+      // 새 주문 정상 접수 시 담당자 Gmail 알림 발송 (오류 격리)
+      sendOrderNotification({
+        orderNo: orderNo,
+        nickname: nickname,
+        deliveryType: deliveryType,
+        deliveryPlace: deliveryPlace,
+        items: orderItems,
+        totalPoint: totalCredit,
+        timestamp: now.getTime(),
+      });
+    }
 
     return {
       success: true,
@@ -398,6 +400,20 @@ function placeOrder(data) {
     };
   } finally {
     lock.releaseLock();
+  }
+}
+
+function isOrderEmailNotificationEnabled(knownGuestSettings) {
+  if (knownGuestSettings) {
+    return knownGuestSettings.adminOrderEmailNotificationEnabled !== false;
+  }
+
+  try {
+    const settings = getGuestSettings();
+    return settings.adminOrderEmailNotificationEnabled !== false;
+  } catch (error) {
+    Logger.log('주문 알림 설정 조회 실패, 기본값 ON 적용: ' + (error && error.stack ? error.stack : error));
+    return true;
   }
 }
 

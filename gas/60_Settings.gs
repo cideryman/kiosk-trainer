@@ -93,6 +93,7 @@ function buildGuestSettingsResponse(settings) {
     todayDeliveryTeamMessage: settings.todayDeliveryTeamMessage || '',
     guestAllowMultipleOrders: parseSettingBoolean(settings.guestAllowMultipleOrders, true),
     guestAllowRandomDisplayName: parseSettingBoolean(settings.guestAllowRandomDisplayName, true),
+    adminOrderEmailNotificationEnabled: parseSettingBoolean(settings.adminOrderEmailNotificationEnabled, true),
     guestMenuMode: String(settings.guestMenuMode || 'normal').toLowerCase(),
     guestEventName: settings.guestEventName || '장애인식 개선 캠페인',
     guestEventEmblemBase64: settings.guestEventEmblemBase64 || '',
@@ -155,6 +156,7 @@ function getGuestSettings() {
     welcomeSubtitle: '오늘의 간식을 주문해보세요!',
     guestAllowMultipleOrders: 'TRUE',
     guestAllowRandomDisplayName: 'TRUE',
+    adminOrderEmailNotificationEnabled: 'TRUE',
     guestOrderLimitPolicyVersion: 'creditWalletV1',
     guestMenuMode: 'normal',
     guestEventName: '장애인식 개선 캠페인',
@@ -186,6 +188,7 @@ function getGuestSettings() {
     welcomeSubtitle: '오늘의 간식을 주문해보세요!',
     guestAllowMultipleOrders: 'TRUE',
     guestAllowRandomDisplayName: 'TRUE',
+    adminOrderEmailNotificationEnabled: 'TRUE',
     guestOrderLimitPolicyVersion: 'creditWalletV1',
     guestMenuMode: 'normal',
     guestEventName: '장애인식 개선 캠페인',
@@ -259,6 +262,7 @@ function updateGuestSettings(data) {
     const todayDeliveryTeamMessage = data.todayDeliveryTeamMessage || '';
     const guestAllowMultipleOrders = data.guestAllowMultipleOrders !== undefined ? (parseSettingBoolean(data.guestAllowMultipleOrders, true) ? 'TRUE' : 'FALSE') : undefined;
     const guestAllowRandomDisplayName = data.guestAllowRandomDisplayName !== undefined ? (parseSettingBoolean(data.guestAllowRandomDisplayName, true) ? 'TRUE' : 'FALSE') : undefined;
+    const adminOrderEmailNotificationEnabled = data.adminOrderEmailNotificationEnabled !== undefined ? (parseSettingBoolean(data.adminOrderEmailNotificationEnabled, true) ? 'TRUE' : 'FALSE') : undefined;
 
     const values = sheet.getDataRange().getValues();
     let rowCredit = -1;
@@ -270,6 +274,7 @@ function updateGuestSettings(data) {
     let rowTeamMessage = -1;
     let rowAllowMultiple = -1;
     let rowAllowRandomDisplayName = -1;
+    let rowEmailNotification = -1;
     for (let i = 1; i < values.length; i++) {
       const key = String(values[i][0]).trim();
       if (key === 'guestBaseCredit') rowCredit = i + 1;
@@ -281,6 +286,7 @@ function updateGuestSettings(data) {
       if (key === 'todayDeliveryTeamMessage') rowTeamMessage = i + 1;
       if (key === 'guestAllowMultipleOrders') rowAllowMultiple = i + 1;
       if (key === 'guestAllowRandomDisplayName') rowAllowRandomDisplayName = i + 1;
+      if (key === 'adminOrderEmailNotificationEnabled') rowEmailNotification = i + 1;
     }
 
     if (rowCredit > 0) {
@@ -341,6 +347,14 @@ function updateGuestSettings(data) {
       }
     }
 
+    if (adminOrderEmailNotificationEnabled !== undefined) {
+      if (rowEmailNotification > 0) {
+        sheet.getRange(rowEmailNotification, 2).setValue(adminOrderEmailNotificationEnabled);
+      } else {
+        sheet.appendRow(['adminOrderEmailNotificationEnabled', adminOrderEmailNotificationEnabled]);
+      }
+    }
+
     if (data.guestMenuMode !== undefined) {
       upsertSettingValue(sheet, 'guestMenuMode', String(data.guestMenuMode).trim().toLowerCase());
     }
@@ -353,7 +367,8 @@ function updateGuestSettings(data) {
 
     safeAppendAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `온기:${guestBaseCredit}, 배달비:${guestDeliveryFee}, 기본배달지:${guestDefaultDeliveryPlace}`, data.adminMemo);
     clearGuestSettingsCache();
-    return { success: true, message: '게스트 설정이 저장되었습니다.' };
+    const latestSettings = getGuestSettings();
+    return Object.assign({ message: '게스트 설정이 저장되었습니다.' }, latestSettings, { success: true });
   } else if (action === 'updateMenuMode') {
     const guestMenuMode = String(data.guestMenuMode || 'normal').trim().toLowerCase();
     const guestEventName = String(data.guestEventName || '장애인식 개선 캠페인').trim();

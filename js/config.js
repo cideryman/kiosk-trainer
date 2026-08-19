@@ -856,6 +856,7 @@ function getMockFallback(action, options) {
         guestDeliveryFee: settings.guestDeliveryFee,
         guestDefaultDeliveryPlace: settings.guestDefaultDeliveryPlace ?? '사무실 원탁',
         guestAllowRandomDisplayName: settings.guestAllowRandomDisplayName !== false,
+        adminOrderEmailNotificationEnabled: settings.adminOrderEmailNotificationEnabled !== false,
         guestMenuMode: settings.guestMenuMode || 'normal',
         guestEventName: settings.guestEventName || '장애인식 개선 캠페인',
         guestOrderGraceMinutes: GUEST_ORDER_COMPLETION_GRACE_MINUTES,
@@ -919,6 +920,9 @@ function getMockFallback(action, options) {
       settings.guestDefaultDeliveryPlace = String(options.body?.guestDefaultDeliveryPlace || '사무실 원탁').trim();
       if (options.body?.guestAllowRandomDisplayName !== undefined) {
         settings.guestAllowRandomDisplayName = options.body.guestAllowRandomDisplayName !== false;
+      }
+      if (options.body?.adminOrderEmailNotificationEnabled !== undefined) {
+        settings.adminOrderEmailNotificationEnabled = options.body.adminOrderEmailNotificationEnabled !== false;
       }
       if (options.body?.guestMenuMode !== undefined) {
         settings.guestMenuMode = String(options.body.guestMenuMode).toLowerCase();
@@ -1905,7 +1909,8 @@ function getMockGuestSettings() {
     kakaoGuestBonusCredit: 2,
     guestDeliveryFee: GUEST_DELIVERY_FEE,
     guestDefaultDeliveryPlace: '사무실 원탁',
-    guestAllowRandomDisplayName: true
+    guestAllowRandomDisplayName: true,
+    adminOrderEmailNotificationEnabled: true
   };
 }
 
