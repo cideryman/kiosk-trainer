@@ -4,6 +4,10 @@
 
 - 이 문서에는 최종 상태가 `완료`인 작업만 기록합니다. 구현·배포·수동검증이 남은 작업과 보류 과제는 기록하지 않습니다. 이전 혼합 기록은 [2026-07-13 작업 로그 아카이브](work-log-archive-2026-07-13.md)에 보관합니다.
 
+## 2026-08-19 - 게스트 첫 화면 랜덤 닉네임 허용 설정 반영 (P76 보완)
+
+- **P76 보완**: 주방 운영설정에서 '랜덤 주문표시명 허용'을 해제했을 때, 주문 확인 화면(`confirm.js`)뿐만 아니라 게스트 첫 진입 화면(`guest.html`/`js/guest.js`)에서도 랜덤 닉네임 생성 버튼(`btn-random-name`)이 정상적으로 숨겨지도록 `applyLocalGuestDisplayNamePolicy`에 `guestAllowRandomDisplayName` 확인 로직을 추가했습니다.
+
 ## 2026-08-19 - 새 주문 접수 시 담당자 Gmail 알림 발송 (P86)
 
 - **P86**: 새 주문이 정상적으로 저장되었을 때 담당자 Gmail로 실시간 알림 메일을 발송하는 `sendOrderNotification` 헬퍼 함수를 구현하고 `placeOrder` 완료 직전에 연동했습니다.

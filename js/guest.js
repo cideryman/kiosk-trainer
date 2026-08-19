@@ -242,13 +242,14 @@ window.addEventListener('DOMContentLoaded', () => {
         const isLocalGuest = !isGuestPreviewMode && !AppState.getGuestAuth();
         const savedName = isLocalGuest ? AppState.getLocalGuestDisplayName() : '';
         const isLocked = Boolean(savedName);
+        const allowRandomDisplayName = sessionStorage.getItem('guestAllowRandomDisplayName') !== 'false';
 
         if (isLocked) {
           input.value = savedName;
         }
         input.readOnly = isLocked;
         input.setAttribute('aria-readonly', String(isLocked));
-        if (btnRandomName) btnRandomName.hidden = isLocked;
+        if (btnRandomName) btnRandomName.hidden = isLocked || !allowRandomDisplayName;
         if (localGuestNamePolicy) localGuestNamePolicy.hidden = !isLocked;
         if (localGuestNameValue) localGuestNameValue.textContent = savedName;
       }
