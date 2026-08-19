@@ -867,6 +867,7 @@ function getGuestOrderByToken(data) {
 
       const archivedOrders = archiveRows
         .filter(row => {
+          if (!isCommittedOrderRow(row, archiveHeaders)) return false;
           const rowToken = String(row[useATokenIdx] || '');
           return rowToken && tokens.includes(rowToken);
         })
@@ -987,6 +988,7 @@ function getGuestOrdersByGuestKey(data) {
       if (aAuthIdx !== -1 && aGuestKeyIdx !== -1) {
         const archivedOrders = archiveRows
           .filter(row => {
+            if (!isCommittedOrderRow(row, archiveHeaders)) return false;
             if (String(row[2]) !== 'guest') return false;
             if (String(row[aAuthIdx] || '').trim().toLowerCase() !== authProvider) return false;
             return String(row[aGuestKeyIdx] || '').trim() === guestKey;

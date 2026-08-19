@@ -25,6 +25,7 @@ function diagnoseSystem(data) {
     properties: {},
     security: {},
     triggers: {},
+    emailQueue: {},
     cache: {},
     timingsMs: {},
     overallStatus: 'OK'
@@ -49,7 +50,7 @@ function diagnoseSystem(data) {
       '수량', '차감포인트', '제공여부', 'cancelTimestamp', 'orderToken',
       'deliveryType', 'deliveryFee', 'totalCredit', 'reviewed', 'deliveryPlace',
       'cancelReason', 'cancelReasonDetail', 'guestDeviceId', 'authProvider', 'guestKey',
-      'idempotencyKey'
+      'idempotencyKey', 'commitStatus'
     ],
     [SHEET.LOGS]: ['timestamp', 'action', 'targetType', 'targetId', 'targetName', 'beforeValue', 'afterValue', 'memo'],
     [SHEET.SETTINGS]: ['key', 'value'],
@@ -65,6 +66,7 @@ function diagnoseSystem(data) {
       'creditLimit', 'usedCredit', 'remainingCredit', 'updatedAt'
     ],
     [SHEET.GUEST_APPLICATIONS]: GUEST_APPLICATION_HEADERS.slice(),
+    [SHEET.EMAIL_QUEUE]: ORDER_EMAIL_QUEUE_HEADERS.slice(),
   };
 
   const headerAliases = {
@@ -168,7 +170,8 @@ function diagnoseSystem(data) {
     { key: 'ADMIN_TOKEN', required: true, description: '관리자 API 요청 토큰' },
     { key: 'KAKAO_REST_API_KEY', required: true, description: '카카오 로그인 API 키' },
     { key: 'KAKAO_GUEST_KEY_SALT', required: true, description: '게스트 식별키 암호화 솔트' },
-    { key: 'KAKAO_CLIENT_SECRET', required: false, description: '카카오 로그인 보안 비밀키 (선택)' }
+    { key: 'KAKAO_CLIENT_SECRET', required: false, description: '카카오 로그인 보안 비밀키 (선택)' },
+    { key: 'ADMIN_EMAIL', required: false, description: '새 주문 이메일 알림 수신 주소' }
   ];
 
   keysToCheck.forEach(item => {
@@ -203,6 +206,15 @@ function diagnoseSystem(data) {
     report.overallStatus = 'WARN';
   }
 
+  const emailNotificationEnabled = getGuestSettings().adminOrderEmailNotificationEnabled !== false;
+  if (emailNotificationEnabled && !props.getProperty('ADMIN_EMAIL')) {
+    report.properties.ADMIN_EMAIL = Object.assign({}, report.properties.ADMIN_EMAIL, {
+      status: 'WARN',
+      message: '이메일 알림이 ON이지만 ADMIN_EMAIL이 없어 실행자 계정 주소에 의존합니다.'
+    });
+    report.overallStatus = 'WARN';
+  }
+
   const legacyAdminGetEnabled = String(
     props.getProperty('ALLOW_LEGACY_ADMIN_GET') || ''
   ).trim().toUpperCase() === 'Y';
@@ -230,6 +242,15 @@ function diagnoseSystem(data) {
       handler: 'rotateGuestApplicationWeekly'
     };
     if (weeklyTriggers.length !== 1) report.overallStatus = 'WARN';
+    const emailQueueTriggers = ScriptApp.getProjectTriggers().filter(trigger => (
+      trigger.getHandlerFunction() === 'processOrderEmailQueue'
+    ));
+    report.triggers.orderEmailQueue = {
+      status: emailQueueTriggers.length === 1 ? 'OK' : (emailNotificationEnabled ? 'WARN' : 'INFO'),
+      count: emailQueueTriggers.length,
+      handler: 'processOrderEmailQueue'
+    };
+    if (emailNotificationEnabled && emailQueueTriggers.length !== 1) report.overallStatus = 'WARN';
   } catch (triggerError) {
     report.triggers.weeklyRotation = {
       status: 'WARN',
@@ -239,6 +260,44 @@ function diagnoseSystem(data) {
     report.overallStatus = 'WARN';
   }
   report.timingsMs.triggers = Date.now() - triggerStartedAt;
+
+  const emailQueueStartedAt = Date.now();
+  try {
+    const queueSheet = ss.getSheetByName(SHEET.EMAIL_QUEUE);
+    if (!queueSheet || queueSheet.getLastRow() <= 1) {
+      report.emailQueue = {
+        status: queueSheet ? 'OK' : (emailNotificationEnabled ? 'WARN' : 'INFO'),
+        pending: 0,
+        failed: 0,
+        oldestPendingAt: ''
+      };
+      if (!queueSheet && emailNotificationEnabled) report.overallStatus = 'WARN';
+    } else {
+      const queueValues = queueSheet
+        .getRange(2, 1, queueSheet.getLastRow() - 1, ORDER_EMAIL_QUEUE_HEADERS.length)
+        .getValues();
+      const pendingRows = queueValues.filter(row => {
+        const status = String(row[5] || '').trim().toUpperCase();
+        return status === 'PENDING' || status === 'PROCESSING';
+      });
+      const failedRows = queueValues.filter(row => String(row[5] || '').trim().toUpperCase() === 'FAILED');
+      const oldestPendingMs = pendingRows.reduce((oldest, row) => {
+        const createdMs = row[0] ? new Date(row[0]).getTime() : 0;
+        return createdMs && (!oldest || createdMs < oldest) ? createdMs : oldest;
+      }, 0);
+      report.emailQueue = {
+        status: failedRows.length > 0 ? 'WARN' : 'OK',
+        pending: pendingRows.length,
+        failed: failedRows.length,
+        oldestPendingAt: oldestPendingMs ? new Date(oldestPendingMs).toISOString() : ''
+      };
+      if (failedRows.length > 0) report.overallStatus = 'WARN';
+    }
+  } catch (queueError) {
+    report.emailQueue = { status: 'WARN', error: queueError.message || String(queueError) };
+    report.overallStatus = 'WARN';
+  }
+  report.timingsMs.emailQueue = Date.now() - emailQueueStartedAt;
 
   // D. 서비스 캐시 왕복 체크. 진단 전용 키만 사용하고 즉시 제거합니다.
   const cacheStartedAt = Date.now();
