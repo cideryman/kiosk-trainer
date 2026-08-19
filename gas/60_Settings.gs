@@ -2,14 +2,86 @@
  * 20. 게스트 운영 설정 조회
  */
 function upsertSettingValue(sheet, key, value) {
-  const values = sheet.getDataRange().getValues();
-  for (let i = 1; i < values.length; i++) {
-    if (String(values[i][0]).trim() === key) {
-      sheet.getRange(i + 1, 2).setValue(value);
-      return;
-    }
+  writeSettingValuesBatch(sheet, { [key]: value });
+}
+
+function getDefaultGuestSettings() {
+  return {
+    guestOpen: 'N',
+    guestCloseAt: '',
+    guestBaseCredit: 10,
+    kakaoGuestBonusCredit: 2,
+    guestDeliveryFee: 3,
+    guestDefaultDeliveryPlace: '사무실 원탁',
+    todayDeliveryTeamEnabled: true,
+    todayDeliveryTeamTitle: '📦 오늘의 배달팀',
+    todayDeliveryTeamMembers: '김○○|배달 담당, 박○○|상품 준비 담당',
+    todayDeliveryTeamMessage: '맛있게 준비해서 배달하겠습니다!',
+    welcomeTitle: '배달왔삼에 오신 것을 환영합니다 😊',
+    welcomeSubtitle: '오늘의 간식을 주문해보세요!',
+    guestAllowMultipleOrders: 'TRUE',
+    guestAllowRandomDisplayName: 'TRUE',
+    adminOrderEmailNotificationEnabled: 'TRUE',
+    guestOrderLimitPolicyVersion: 'creditWalletV1',
+    guestMenuMode: 'normal',
+    guestEventName: '장애인식 개선 캠페인',
+    guestEventEmblemBase64: ''
+  };
+}
+
+function writeSettingValuesBatch(sheet, updates) {
+  let values = sheet.getLastRow() > 0
+    ? sheet.getRange(1, 1, sheet.getLastRow(), 2).getValues()
+    : [];
+  if (values.length === 0 || String(values[0][0] || '').trim() !== 'key') {
+    values.unshift(['key', 'value']);
   }
-  sheet.appendRow([key, value]);
+  const rowByKey = {};
+  for (let i = 1; i < values.length; i++) {
+    const key = String(values[i][0] || '').trim();
+    if (key) rowByKey[key] = i;
+  }
+  Object.keys(updates).forEach(key => {
+    if (Object.prototype.hasOwnProperty.call(rowByKey, key)) {
+      values[rowByKey[key]][1] = updates[key];
+    } else {
+      rowByKey[key] = values.length;
+      values.push([key, updates[key]]);
+    }
+  });
+  sheet.getRange(1, 1, values.length, 2).setValues(values);
+}
+
+function ensureGuestSettingsSchema() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) throw new Error('운영설정 초기화 락을 획득하지 못했습니다.');
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName(SHEET.SETTINGS);
+    if (!sheet) sheet = ss.insertSheet(SHEET.SETTINGS);
+    const currentValues = sheet.getLastRow() > 0
+      ? sheet.getRange(1, 1, sheet.getLastRow(), 2).getValues()
+      : [];
+    const existingKeys = {};
+    currentValues.slice(1).forEach(row => {
+      const key = String(row[0] || '').trim();
+      if (key) existingKeys[key] = true;
+    });
+    const defaults = getDefaultGuestSettings();
+    const missing = {};
+    Object.keys(defaults).forEach(key => {
+      if (!existingKeys[key]) missing[key] = defaults[key];
+    });
+    if (!existingKeys.guestOrderLimitPolicyVersion) {
+      missing.guestAllowMultipleOrders = 'TRUE';
+      missing.guestOrderLimitPolicyVersion = 'creditWalletV1';
+    }
+    writeSettingValuesBatch(sheet, missing);
+    clearGuestSettingsCache();
+    return { success: true, addedKeys: Object.keys(missing) };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 const GUEST_SETTINGS_CACHE_KEY = 'guestSettings.v1';
@@ -135,79 +207,14 @@ function getGuestSettings() {
   }
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(SHEET.SETTINGS);
-
-  if (!sheet) {
-    sheet = ss.insertSheet(SHEET.SETTINGS);
-    sheet.appendRow(['key', 'value']);
-  }
-
-  const values = sheet.getDataRange().getValues();
-  const settings = {
-    guestOpen: 'N',
-    guestCloseAt: '',
-    guestBaseCredit: 10,
-    kakaoGuestBonusCredit: 2,
-    guestDeliveryFee: 3,
-    guestDefaultDeliveryPlace: '사무실 원탁',
-    todayDeliveryTeamEnabled: true,
-    todayDeliveryTeamTitle: '📦 오늘의 배달팀',
-    todayDeliveryTeamMembers: '김○○|배달 담당, 박○○|상품 준비 담당',
-    todayDeliveryTeamMessage: '맛있게 준비해서 배달하겠습니다!',
-    welcomeTitle: '배달왔삼에 오신 것을 환영합니다 😊',
-    welcomeSubtitle: '오늘의 간식을 주문해보세요!',
-    guestAllowMultipleOrders: 'TRUE',
-    guestAllowRandomDisplayName: 'TRUE',
-    adminOrderEmailNotificationEnabled: 'TRUE',
-    guestOrderLimitPolicyVersion: 'creditWalletV1',
-    guestMenuMode: 'normal',
-    guestEventName: '장애인식 개선 캠페인',
-    guestEventEmblemBase64: ''
-  };
-
-  const existingKeys = [];
-  values.slice(1).forEach(row => {
-    const key = String(row[0]).trim();
-    if (key) {
-      settings[key] = row[1];
-      existingKeys.push(key);
-    }
-  });
-
-  // 누락된 기본 설정값이 있다면 시트에 자동 추가
-  const defaultSettings = {
-    guestOpen: 'N',
-    guestCloseAt: '',
-    guestBaseCredit: 10,
-    kakaoGuestBonusCredit: 2,
-    guestDeliveryFee: 3,
-    guestDefaultDeliveryPlace: '사무실 원탁',
-    todayDeliveryTeamEnabled: true,
-    todayDeliveryTeamTitle: '📦 오늘의 배달팀',
-    todayDeliveryTeamMembers: '김○○|배달 담당, 박○○|상품 준비 담당',
-    todayDeliveryTeamMessage: '맛있게 준비해서 배달하겠습니다!',
-    welcomeTitle: '배달왔삼에 오신 것을 환영합니다 😊',
-    welcomeSubtitle: '오늘의 간식을 주문해보세요!',
-    guestAllowMultipleOrders: 'TRUE',
-    guestAllowRandomDisplayName: 'TRUE',
-    adminOrderEmailNotificationEnabled: 'TRUE',
-    guestOrderLimitPolicyVersion: 'creditWalletV1',
-    guestMenuMode: 'normal',
-    guestEventName: '장애인식 개선 캠페인',
-    guestEventEmblemBase64: ''
-  };
-
-  for (const key in defaultSettings) {
-    if (existingKeys.indexOf(key) === -1) {
-      sheet.appendRow([key, defaultSettings[key]]);
-    }
-  }
-
-  if (existingKeys.indexOf('guestOrderLimitPolicyVersion') === -1) {
-    settings.guestAllowMultipleOrders = 'TRUE';
-    settings.guestOrderLimitPolicyVersion = 'creditWalletV1';
-    upsertSettingValue(sheet, 'guestAllowMultipleOrders', 'TRUE');
-    upsertSettingValue(sheet, 'guestOrderLimitPolicyVersion', 'creditWalletV1');
+  const sheet = ss.getSheetByName(SHEET.SETTINGS);
+  const settings = getDefaultGuestSettings();
+  if (sheet && sheet.getLastRow() > 1) {
+    const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
+    values.forEach(row => {
+      const key = String(row[0] || '').trim();
+      if (key) settings[key] = row[1];
+    });
   }
 
   setGuestSettingsCache(settings);
@@ -218,6 +225,11 @@ function getGuestSettings() {
  * 21. 게스트 운영 설정 변경
  */
 function updateGuestSettings(data) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    return { success: false, message: '다른 설정 변경을 처리 중입니다. 잠시 후 다시 시도해 주세요.' };
+  }
+  try {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET.SETTINGS);
 
@@ -266,106 +278,22 @@ function updateGuestSettings(data) {
     const guestAllowRandomDisplayName = data.guestAllowRandomDisplayName !== undefined ? (parseSettingBoolean(data.guestAllowRandomDisplayName, true) ? 'TRUE' : 'FALSE') : undefined;
     const adminOrderEmailNotificationEnabled = data.adminOrderEmailNotificationEnabled !== undefined ? (parseSettingBoolean(data.adminOrderEmailNotificationEnabled, true) ? 'TRUE' : 'FALSE') : undefined;
 
-    const values = sheet.getDataRange().getValues();
-    let rowCredit = -1;
-    let rowFee = -1;
-    let rowDeliveryPlace = -1;
-    let rowTeamEnabled = -1;
-    let rowTeamTitle = -1;
-    let rowTeamMembers = -1;
-    let rowTeamMessage = -1;
-    let rowAllowMultiple = -1;
-    let rowAllowRandomDisplayName = -1;
-    let rowEmailNotification = -1;
-    for (let i = 1; i < values.length; i++) {
-      const key = String(values[i][0]).trim();
-      if (key === 'guestBaseCredit') rowCredit = i + 1;
-      if (key === 'guestDeliveryFee') rowFee = i + 1;
-      if (key === 'guestDefaultDeliveryPlace') rowDeliveryPlace = i + 1;
-      if (key === 'todayDeliveryTeamEnabled') rowTeamEnabled = i + 1;
-      if (key === 'todayDeliveryTeamTitle') rowTeamTitle = i + 1;
-      if (key === 'todayDeliveryTeamMembers') rowTeamMembers = i + 1;
-      if (key === 'todayDeliveryTeamMessage') rowTeamMessage = i + 1;
-      if (key === 'guestAllowMultipleOrders') rowAllowMultiple = i + 1;
-      if (key === 'guestAllowRandomDisplayName') rowAllowRandomDisplayName = i + 1;
-      if (key === 'adminOrderEmailNotificationEnabled') rowEmailNotification = i + 1;
-    }
-
-    if (rowCredit > 0) {
-      sheet.getRange(rowCredit, 2).setValue(guestBaseCredit);
-    } else {
-      sheet.appendRow(['guestBaseCredit', guestBaseCredit]);
-    }
-
-    if (rowFee > 0) {
-      sheet.getRange(rowFee, 2).setValue(guestDeliveryFee);
-    } else {
-      sheet.appendRow(['guestDeliveryFee', guestDeliveryFee]);
-    }
-
-    if (rowDeliveryPlace > 0) {
-      sheet.getRange(rowDeliveryPlace, 2).setValue(guestDefaultDeliveryPlace);
-    } else {
-      sheet.appendRow(['guestDefaultDeliveryPlace', guestDefaultDeliveryPlace]);
-    }
-
-    if (rowTeamEnabled > 0) {
-      sheet.getRange(rowTeamEnabled, 2).setValue(todayDeliveryTeamEnabled);
-    } else {
-      sheet.appendRow(['todayDeliveryTeamEnabled', todayDeliveryTeamEnabled]);
-    }
-
-    if (rowTeamTitle > 0) {
-      sheet.getRange(rowTeamTitle, 2).setValue(todayDeliveryTeamTitle);
-    } else {
-      sheet.appendRow(['todayDeliveryTeamTitle', todayDeliveryTeamTitle]);
-    }
-
-    if (rowTeamMembers > 0) {
-      sheet.getRange(rowTeamMembers, 2).setValue(todayDeliveryTeamMembers);
-    } else {
-      sheet.appendRow(['todayDeliveryTeamMembers', todayDeliveryTeamMembers]);
-    }
-
-    if (rowTeamMessage > 0) {
-      sheet.getRange(rowTeamMessage, 2).setValue(todayDeliveryTeamMessage);
-    } else {
-      sheet.appendRow(['todayDeliveryTeamMessage', todayDeliveryTeamMessage]);
-    }
-
-    if (guestAllowMultipleOrders !== undefined) {
-      if (rowAllowMultiple > 0) {
-        sheet.getRange(rowAllowMultiple, 2).setValue(guestAllowMultipleOrders);
-      } else {
-        sheet.appendRow(['guestAllowMultipleOrders', guestAllowMultipleOrders]);
-      }
-    }
-
-    if (guestAllowRandomDisplayName !== undefined) {
-      if (rowAllowRandomDisplayName > 0) {
-        sheet.getRange(rowAllowRandomDisplayName, 2).setValue(guestAllowRandomDisplayName);
-      } else {
-        sheet.appendRow(['guestAllowRandomDisplayName', guestAllowRandomDisplayName]);
-      }
-    }
-
-    if (adminOrderEmailNotificationEnabled !== undefined) {
-      if (rowEmailNotification > 0) {
-        sheet.getRange(rowEmailNotification, 2).setValue(adminOrderEmailNotificationEnabled);
-      } else {
-        sheet.appendRow(['adminOrderEmailNotificationEnabled', adminOrderEmailNotificationEnabled]);
-      }
-    }
-
-    if (data.guestMenuMode !== undefined) {
-      upsertSettingValue(sheet, 'guestMenuMode', String(data.guestMenuMode).trim().toLowerCase());
-    }
-    if (data.guestEventName !== undefined) {
-      upsertSettingValue(sheet, 'guestEventName', String(data.guestEventName).trim());
-    }
-    if (data.guestEventEmblemBase64 !== undefined) {
-      upsertSettingValue(sheet, 'guestEventEmblemBase64', String(data.guestEventEmblemBase64).trim());
-    }
+    const updates = {
+      guestBaseCredit,
+      guestDeliveryFee,
+      guestDefaultDeliveryPlace,
+      todayDeliveryTeamEnabled,
+      todayDeliveryTeamTitle,
+      todayDeliveryTeamMembers,
+      todayDeliveryTeamMessage
+    };
+    if (guestAllowMultipleOrders !== undefined) updates.guestAllowMultipleOrders = guestAllowMultipleOrders;
+    if (guestAllowRandomDisplayName !== undefined) updates.guestAllowRandomDisplayName = guestAllowRandomDisplayName;
+    if (adminOrderEmailNotificationEnabled !== undefined) updates.adminOrderEmailNotificationEnabled = adminOrderEmailNotificationEnabled;
+    if (data.guestMenuMode !== undefined) updates.guestMenuMode = String(data.guestMenuMode).trim().toLowerCase();
+    if (data.guestEventName !== undefined) updates.guestEventName = String(data.guestEventName).trim();
+    if (data.guestEventEmblemBase64 !== undefined) updates.guestEventEmblemBase64 = String(data.guestEventEmblemBase64).trim();
+    writeSettingValuesBatch(sheet, updates);
 
     safeAppendAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `온기:${guestBaseCredit}, 배달비:${guestDeliveryFee}, 기본배달지:${guestDefaultDeliveryPlace}`, data.adminMemo);
     clearGuestSettingsCache();
@@ -400,10 +328,9 @@ function updateGuestSettings(data) {
   } else if (action === 'updateMenuMode') {
     const guestMenuMode = String(data.guestMenuMode || 'normal').trim().toLowerCase();
     const guestEventName = String(data.guestEventName || '장애인식 개선 캠페인').trim();
-    upsertSettingValue(sheet, 'guestMenuMode', guestMenuMode);
-    if (data.guestEventName !== undefined) {
-      upsertSettingValue(sheet, 'guestEventName', guestEventName);
-    }
+    const updates = { guestMenuMode };
+    if (data.guestEventName !== undefined) updates.guestEventName = guestEventName;
+    writeSettingValuesBatch(sheet, updates);
     safeAppendAdminLog('updateGuestSettings', 'settings', 'guestMenuMode', '게스트 메뉴 모드 변경', '', `${guestMenuMode === 'event' ? '행사 모드 (' + guestEventName + ')' : '배달왔삼 기본 모드'}`, data.adminMemo);
     clearGuestSettingsCache();
     return { success: true, message: '게스트 메뉴 모드가 변경되었습니다.' };
@@ -411,30 +338,13 @@ function updateGuestSettings(data) {
     return { success: false, message: '알 수 없는 설정 변경 요청입니다.' };
   }
 
-  const values = sheet.getDataRange().getValues();
-  let rowOpen = -1;
-  let rowCloseAt = -1;
-
-  for (let i = 1; i < values.length; i++) {
-    const key = String(values[i][0]).trim();
-    if (key === 'guestOpen') rowOpen = i + 1;
-    if (key === 'guestCloseAt') rowCloseAt = i + 1;
-  }
-
-  if (rowOpen > 0) {
-    sheet.getRange(rowOpen, 2).setValue(guestOpen);
-  } else {
-    sheet.appendRow(['guestOpen', guestOpen]);
-  }
-
-  if (rowCloseAt > 0) {
-    sheet.getRange(rowCloseAt, 2).setValue(guestCloseAt);
-  } else {
-    sheet.appendRow(['guestCloseAt', guestCloseAt]);
-  }
+  writeSettingValuesBatch(sheet, { guestOpen, guestCloseAt });
 
   safeAppendAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', logBefore, logAfter, data.adminMemo);
   clearGuestSettingsCache();
 
   return { success: true, message: '게스트 운영 상태가 변경되었습니다.' };
+  } finally {
+    lock.releaseLock();
+  }
 }

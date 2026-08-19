@@ -8,8 +8,10 @@ function isLegacyAdminGetEnabled() {
  * 2. GET 요청 라우터 (조회 API)
  */
 function doGet(e) {
-  Logger.log('doGet Request: ' + JSON.stringify(e.parameter));
-  const action = e.parameter.action;
+  try {
+  const params = e && e.parameter ? e.parameter : {};
+  Logger.log('doGet Request: ' + JSON.stringify(params));
+  const action = params.action;
 
   if (action === 'healthCheck') {
     return jsonResponse({ success: true, status: 'ok' });
@@ -17,11 +19,11 @@ function doGet(e) {
 
   // Temporary rollout bridge. Remove the property after the new frontend is live.
   if (isLegacyAdminGetEnabled() && action === 'getAdminDashboard') {
-    return jsonResponse(getAdminDashboard(e.parameter.perfDebug));
+    return jsonResponse(getAdminDashboard(params.perfDebug));
   }
 
   if (isLegacyAdminGetEnabled() && action === 'getKitchenDashboard') {
-    return jsonResponse(getKitchenDashboard(e.parameter.perfDebug));
+    return jsonResponse(getKitchenDashboard(params.perfDebug));
   }
 
   if (action === 'getUsers') {
@@ -29,7 +31,7 @@ function doGet(e) {
   }
 
   if (action === 'getSnacks') {
-    return jsonResponse(getSnacks('N', e.parameter.mode, e.parameter.guestKey, e.parameter.guestDeviceId, e.parameter.userId));
+    return jsonResponse(getSnacks('N', params.mode, params.guestKey, params.guestDeviceId, params.userId));
   }
 
   if (action === 'getPublicOrderFeed') {
@@ -41,7 +43,7 @@ function doGet(e) {
   }
 
   if (action === 'getOrderStatus') {
-    const identifier = e.parameter.orderNo || e.parameter.orderToken;
+    const identifier = params.orderNo || params.orderToken;
     return jsonResponse(getOrderStatus(identifier));
   }
 
@@ -54,7 +56,7 @@ function doGet(e) {
   }
 
   if (action === 'getKakaoLoginConfig') {
-    return jsonResponse(getKakaoLoginConfig(e.parameter.redirectUri));
+    return jsonResponse(getKakaoLoginConfig(params.redirectUri));
   }
 
   if (action === 'getPublicReviews') {
@@ -69,6 +71,13 @@ function doGet(e) {
     success: false,
     message: '알 수 없는 요청입니다.',
   });
+  } catch (error) {
+    Logger.log('doGet Error: ' + (error && error.stack ? error.stack : error));
+    return jsonResponse({
+      success: false,
+      message: error && error.message ? error.message : '요청 처리 중 오류가 발생했습니다.',
+    });
+  }
 }
 
 /**
