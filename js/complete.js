@@ -69,9 +69,24 @@ function initView() {
   isGuestMode = (summaryData.userId === 'guest');
 
   if (isGuestMode) {
+    refreshCompleteGuestSettings();
     setupGuestMode();
   } else {
     setupNormalMode();
+  }
+}
+
+async function refreshCompleteGuestSettings() {
+  try {
+    const settingsRes = await fetchAPIReadWithRetry('getGuestSettings', { timeoutMs: 30000 });
+    if (!settingsRes || !settingsRes.success) return;
+
+    if (settingsRes.guestDefaultDeliveryPlace !== undefined) {
+      sessionStorage.setItem('guestDefaultDeliveryPlace', String(settingsRes.guestDefaultDeliveryPlace ?? '사무실 원탁'));
+    }
+    sessionStorage.setItem('guestAllowRandomDisplayName', String(settingsRes.guestAllowRandomDisplayName !== false));
+  } catch (error) {
+    console.warn('완료 화면 게스트 설정 재조회 실패:', error);
   }
 }
 

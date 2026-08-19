@@ -86,7 +86,9 @@ function buildGuestSettingsResponse(settings) {
     guestBaseCredit: Number(settings.guestBaseCredit || 10),
     kakaoGuestBonusCredit: Number(settings.kakaoGuestBonusCredit || 2),
     guestDeliveryFee: Number(settings.guestDeliveryFee || 3),
-    guestDefaultDeliveryPlace: settings.guestDefaultDeliveryPlace || '사무실 원탁',
+    guestDefaultDeliveryPlace: settings.guestDefaultDeliveryPlace === undefined || settings.guestDefaultDeliveryPlace === null
+      ? '사무실 원탁'
+      : String(settings.guestDefaultDeliveryPlace),
     todayDeliveryTeamEnabled: parseSettingBoolean(settings.todayDeliveryTeamEnabled, true),
     todayDeliveryTeamTitle: settings.todayDeliveryTeamTitle || '📦 오늘의 배달팀',
     todayDeliveryTeamMembers: settings.todayDeliveryTeamMembers || '',
@@ -372,7 +374,9 @@ function updateGuestSettings(data) {
       message: '게스트 설정이 저장되었습니다.',
       guestBaseCredit: Number(guestBaseCredit || 10),
       guestDeliveryFee: Number(guestDeliveryFee || 3),
-      guestDefaultDeliveryPlace: guestDefaultDeliveryPlace || '사무실 원탁',
+      guestDefaultDeliveryPlace: guestDefaultDeliveryPlace === undefined || guestDefaultDeliveryPlace === null
+        ? '사무실 원탁'
+        : String(guestDefaultDeliveryPlace),
       todayDeliveryTeamEnabled: parseSettingBoolean(todayDeliveryTeamEnabled, true),
       todayDeliveryTeamTitle,
       todayDeliveryTeamMembers,

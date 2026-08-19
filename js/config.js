@@ -917,7 +917,7 @@ function getMockFallback(action, options) {
     } else if (settingsAction === 'updateValues') {
       settings.guestBaseCredit = Number(options.body?.guestBaseCredit);
       settings.guestDeliveryFee = Number(options.body?.guestDeliveryFee);
-      settings.guestDefaultDeliveryPlace = String(options.body?.guestDefaultDeliveryPlace || '사무실 원탁').trim();
+      settings.guestDefaultDeliveryPlace = String(options.body?.guestDefaultDeliveryPlace ?? '사무실 원탁').trim();
       if (options.body?.guestAllowRandomDisplayName !== undefined) {
         settings.guestAllowRandomDisplayName = options.body.guestAllowRandomDisplayName !== false;
       }

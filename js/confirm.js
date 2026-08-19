@@ -107,7 +107,7 @@ async function refreshConfirmGuestSettings() {
       sessionStorage.setItem('guestDeliveryFee', String(settingsRes.guestDeliveryFee));
     }
     if (settingsRes.guestDefaultDeliveryPlace !== undefined) {
-      sessionStorage.setItem('guestDefaultDeliveryPlace', String(settingsRes.guestDefaultDeliveryPlace || '사무실 원탁'));
+      sessionStorage.setItem('guestDefaultDeliveryPlace', String(settingsRes.guestDefaultDeliveryPlace ?? '사무실 원탁'));
     }
     sessionStorage.setItem('guestAllowRandomDisplayName', String(settingsRes.guestAllowRandomDisplayName !== false));
     applyLocalGuestDisplayNamePolicy();
@@ -595,7 +595,8 @@ function initData() {
 
       // 기본 배달지 설정
       if (deliveryPlaceInput) {
-        const defaultPlace = sessionStorage.getItem('guestDefaultDeliveryPlace') || '사무실 원탁';
+        const storedDefaultPlace = sessionStorage.getItem('guestDefaultDeliveryPlace');
+        const defaultPlace = storedDefaultPlace === null ? '사무실 원탁' : storedDefaultPlace;
         deliveryPlaceInput.value = user.rememberedDeliveryPlace || defaultPlace;
       }
 
