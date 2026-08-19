@@ -872,6 +872,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
       // 이벤트 바인딩
       AppState.bindCardTap(btnNewOrder, () => {
+        if (btnNewOrder.disabled) return;
         if (!isGuestOpen && !isGuestPreviewMode) {
           AppState.vibrate([100, 100]);
           return;
@@ -888,6 +889,8 @@ window.addEventListener('DOMContentLoaded', () => {
         } else {
           input.value = '';
         }
+        btnNewOrder.disabled = true;
+        btnNewOrder.textContent = '메뉴 여는 중...';
         startGuestMode();
       });
 
@@ -1106,7 +1109,7 @@ window.addEventListener('DOMContentLoaded', () => {
       });
 
       // 시작하기 함수
-      async function startGuestMode() {
+      function startGuestMode() {
         if (!isGuestOpen && !isGuestPreviewMode) {
           alert('게스트 주문이 마감된 상태입니다.');
           return;
@@ -1115,30 +1118,11 @@ window.addEventListener('DOMContentLoaded', () => {
           sessionStorage.setItem('guestOrderStartedAt', new Date().toISOString());
         }
         const guestAuth = isGuestPreviewMode ? null : AppState.getGuestAuth();
-        if (!isGuestPreviewMode) {
-          try {
-            await guestCreditPromise;
-          } catch (error) {
-            console.warn('게스트 크레딧 확인 실패:', error);
-          }
-        }
-
         const startingCredit = isGuestPreviewMode
           ? guestBaseCredit
           : (guestCreditStatus && typeof guestCreditStatus.remainingCredit === 'number'
             ? guestCreditStatus.remainingCredit
             : guestBaseCredit + (guestAuth ? kakaoGuestBonusCredit : 0));
-
-        if (!isGuestPreviewMode && guestAuth && !rememberedGuestProfile) {
-          try {
-            await guestProfilePromise;
-          } catch (error) {
-            console.warn('저장된 게스트 정보 확인 실패:', error);
-          }
-          if (!input.value.trim() && rememberedGuestProfile && rememberedGuestProfile.displayName) {
-            input.value = rememberedGuestProfile.displayName;
-          }
-        }
 
         if (!isGuestPreviewMode && !guestAuth && !input.value.trim()) {
           const localGuestDisplayName = AppState.getLocalGuestDisplayName();

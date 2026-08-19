@@ -11,6 +11,7 @@ const SHEET = {
   GUEST_CREDITS: '게스트크레딧',
   GUEST_APPLICATIONS: '이용신청',
   DELIVERY_ALIASES: '배송지별칭',
+  EMAIL_QUEUE: '이메일알림큐',
 };
 
 // Google Drive 폴더 ID 상수 정의

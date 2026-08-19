@@ -368,8 +368,7 @@ function placeOrder(data) {
     clearOrderReadCache();
 
     if (isOrderEmailNotificationEnabled(guestSettings)) {
-      // 새 주문 정상 접수 시 담당자 Gmail 알림 발송 (오류 격리)
-      sendOrderNotification({
+      enqueueOrderNotification({
         orderNo: orderNo,
         nickname: nickname,
         deliveryType: deliveryType,
@@ -1646,87 +1645,5 @@ function ensureOrderHeaders() {
     clearOrderReadCache();
   }
   return '헤더 보정이 완료되었습니다.';
-}
-
-/**
- * 새 주문 접수 시 담당자 Gmail 알림 발송 헬퍼 함수
- * 
- * - 이메일 발송 실패가 주문 성공 및 데이터 무결성에 영향을 주지 않도록 전체 로직을 try-catch로 격리합니다.
- * - 수신처: 스크립트 속성 `ADMIN_EMAIL` 우선, 미설정 시 스크립트 실행자 계정(`Session.getEffectiveUser().getEmail()`) 사용.
- */
-function sendOrderNotification(orderContext) {
-  try {
-    if (!orderContext) return;
-
-    let adminEmail = '';
-    try {
-      adminEmail = PropertiesService.getScriptProperties().getProperty('ADMIN_EMAIL');
-    } catch (propErr) {
-      Logger.log('ADMIN_EMAIL script property read error: ' + propErr);
-    }
-
-    if (!adminEmail) {
-      try {
-        adminEmail = Session.getEffectiveUser().getEmail();
-      } catch (sessionErr) {
-        Logger.log('Effective user email read error: ' + sessionErr);
-      }
-    }
-
-    if (!adminEmail) {
-      Logger.log('주문 알림 이메일 발송 생략: 수신자 이메일 주소를 찾을 수 없습니다.');
-      return;
-    }
-
-    const typeLabel = orderContext.deliveryType === 'delivery' ? '배달' : '포장';
-    const items = Array.isArray(orderContext.items) ? orderContext.items : [];
-
-    // 제목 간식 요약 (2종 이하: 메뉴명 수량, 3종 이상: N종 · 총 N개)
-    let summary = '';
-    const totalQty = items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
-    if (items.length <= 2) {
-      summary = items.map(item => `${item.snackName} ${item.quantity}`).join(' · ');
-    } else {
-      summary = `${items.length}종 · 총 ${totalQty}개`;
-    }
-
-    const subject = `[배달왔삼 새 주문] ${typeLabel} | ${orderContext.nickname || '주문자'} | ${summary}`;
-
-    const timeStr = Utilities.formatDate(
-      new Date(orderContext.timestamp || new Date()),
-      Session.getScriptTimeZone(),
-      'yyyy-MM-dd HH:mm:ss'
-    );
-
-    const bodyLines = [
-      `주문번호: ${orderContext.orderNo || ''}`,
-      `주문시간: ${timeStr}`,
-      `주문자: ${orderContext.nickname || ''}`,
-      `주문방식: ${typeLabel}`
-    ];
-
-    if (orderContext.deliveryType === 'delivery' && orderContext.deliveryPlace) {
-      bodyLines.push(`배달지: ${orderContext.deliveryPlace}`);
-    }
-
-    bodyLines.push('');
-    bodyLines.push('--- 주문 메뉴 ---');
-    items.forEach(item => {
-      const qty = Number(item.quantity || 0);
-      const pt = item.totalPoint != null ? item.totalPoint : (Number(item.point || 0) * qty);
-      bodyLines.push(`- ${item.snackName}: ${qty}개 (${pt}온기)`);
-    });
-    bodyLines.push('-----------------');
-    bodyLines.push(`총 주문 수량: ${totalQty}개`);
-    bodyLines.push(`총 사용 온기: ${orderContext.totalPoint || 0}온기`);
-
-    MailApp.sendEmail({
-      to: adminEmail,
-      subject: subject,
-      body: bodyLines.join('\n')
-    });
-  } catch (error) {
-    Logger.log('새 주문 이메일 알림 발송 실패(주문은 정상 처리됨): ' + (error && error.stack ? error.stack : error));
-  }
 }
 
