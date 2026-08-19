@@ -90,6 +90,34 @@ function applyLocalGuestDisplayNamePolicy() {
   if (policyValue) policyValue.textContent = savedName;
 }
 
+async function refreshConfirmGuestSettings() {
+  if (!user || user.userId !== 'guest' || isGuestPreviewMode()) return;
+
+  try {
+    const settingsRes = await fetchAPIReadWithRetry('getGuestSettings', { timeoutMs: 30000 });
+    if (!settingsRes || !settingsRes.success) return;
+
+    if (settingsRes.guestBaseCredit !== undefined) {
+      sessionStorage.setItem('guestBaseCredit', String(settingsRes.guestBaseCredit));
+    }
+    if (settingsRes.kakaoGuestBonusCredit !== undefined) {
+      sessionStorage.setItem('kakaoGuestBonusCredit', String(settingsRes.kakaoGuestBonusCredit));
+    }
+    if (settingsRes.guestDeliveryFee !== undefined) {
+      sessionStorage.setItem('guestDeliveryFee', String(settingsRes.guestDeliveryFee));
+    }
+    if (settingsRes.guestDefaultDeliveryPlace !== undefined) {
+      sessionStorage.setItem('guestDefaultDeliveryPlace', String(settingsRes.guestDefaultDeliveryPlace || '사무실 원탁'));
+    }
+    sessionStorage.setItem('guestAllowRandomDisplayName', String(settingsRes.guestAllowRandomDisplayName !== false));
+    applyLocalGuestDisplayNamePolicy();
+    updateBill();
+  } catch (error) {
+    console.warn('확인 화면 게스트 설정 재조회 실패:', error);
+    applyLocalGuestDisplayNamePolicy();
+  }
+}
+
 function isGuestPreviewMode() {
   return sessionStorage.getItem('guestPreviewMode') === 'Y' || !!(user && user.previewMode);
 }
@@ -800,6 +828,7 @@ async function submitOrder() {
 // ── 바인딩 ───────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   initData();
+  refreshConfirmGuestSettings();
   if (!isGuestPreviewMode()) {
     refreshGuestCreditStatus();
   }
