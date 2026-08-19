@@ -367,8 +367,32 @@ function updateGuestSettings(data) {
 
     safeAppendAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `온기:${guestBaseCredit}, 배달비:${guestDeliveryFee}, 기본배달지:${guestDefaultDeliveryPlace}`, data.adminMemo);
     clearGuestSettingsCache();
-    const latestSettings = getGuestSettings();
-    return Object.assign({ message: '게스트 설정이 저장되었습니다.' }, latestSettings, { success: true });
+    return {
+      success: true,
+      message: '게스트 설정이 저장되었습니다.',
+      guestBaseCredit: Number(guestBaseCredit || 10),
+      guestDeliveryFee: Number(guestDeliveryFee || 3),
+      guestDefaultDeliveryPlace: guestDefaultDeliveryPlace || '사무실 원탁',
+      todayDeliveryTeamEnabled: parseSettingBoolean(todayDeliveryTeamEnabled, true),
+      todayDeliveryTeamTitle,
+      todayDeliveryTeamMembers,
+      todayDeliveryTeamMessage,
+      guestAllowRandomDisplayName: guestAllowRandomDisplayName === undefined
+        ? true
+        : parseSettingBoolean(guestAllowRandomDisplayName, true),
+      adminOrderEmailNotificationEnabled: adminOrderEmailNotificationEnabled === undefined
+        ? true
+        : parseSettingBoolean(adminOrderEmailNotificationEnabled, true),
+      guestMenuMode: data.guestMenuMode !== undefined
+        ? String(data.guestMenuMode || 'normal').trim().toLowerCase()
+        : undefined,
+      guestEventName: data.guestEventName !== undefined
+        ? String(data.guestEventName || '장애인식 개선 캠페인').trim()
+        : undefined,
+      guestEventEmblemBase64: data.guestEventEmblemBase64 !== undefined
+        ? String(data.guestEventEmblemBase64 || '').trim()
+        : undefined,
+    };
   } else if (action === 'updateMenuMode') {
     const guestMenuMode = String(data.guestMenuMode || 'normal').trim().toLowerCase();
     const guestEventName = String(data.guestEventName || '장애인식 개선 캠페인').trim();
