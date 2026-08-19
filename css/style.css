@@ -3401,21 +3401,15 @@ body.admin-shell-page {
   min-width: 0;
 }
 
-.guest-random-display-name-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--text-main);
+.guest-random-name-segmented {
+  min-width: 190px;
+  max-width: 220px;
 }
 
-.guest-random-display-name-toggle input {
-  width: 20px;
-  height: 20px;
-  margin: 0;
-  accent-color: var(--secondary-color);
+.guest-random-name-segmented .guest-mode-option {
+  min-height: 36px;
+  padding: 0 10px;
+  font-size: 13.5px;
 }
 
 .guest-random-display-name-setting small {

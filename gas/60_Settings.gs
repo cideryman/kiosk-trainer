@@ -43,6 +43,15 @@ function clearGuestSettingsCache() {
   }
 }
 
+function parseSettingBoolean(val, defaultValue = true) {
+  if (val === undefined || val === null || val === '') return defaultValue;
+  if (typeof val === 'boolean') return val;
+  const s = String(val).trim().toUpperCase();
+  if (s === 'FALSE' || s === 'N' || s === '0') return false;
+  if (s === 'TRUE' || s === 'Y' || s === '1') return true;
+  return defaultValue;
+}
+
 function buildGuestSettingsResponse(settings) {
   const now = new Date();
   let isGuestOpenNow = false;
@@ -78,12 +87,12 @@ function buildGuestSettingsResponse(settings) {
     kakaoGuestBonusCredit: Number(settings.kakaoGuestBonusCredit || 2),
     guestDeliveryFee: Number(settings.guestDeliveryFee || 3),
     guestDefaultDeliveryPlace: settings.guestDefaultDeliveryPlace || '사무실 원탁',
-    todayDeliveryTeamEnabled: settings.todayDeliveryTeamEnabled === true || String(settings.todayDeliveryTeamEnabled).toLowerCase() === 'true',
+    todayDeliveryTeamEnabled: parseSettingBoolean(settings.todayDeliveryTeamEnabled, true),
     todayDeliveryTeamTitle: settings.todayDeliveryTeamTitle || '📦 오늘의 배달팀',
     todayDeliveryTeamMembers: settings.todayDeliveryTeamMembers || '',
     todayDeliveryTeamMessage: settings.todayDeliveryTeamMessage || '',
-    guestAllowMultipleOrders: String(settings.guestAllowMultipleOrders || 'TRUE').toUpperCase() !== 'FALSE',
-    guestAllowRandomDisplayName: String(settings.guestAllowRandomDisplayName || 'TRUE').toUpperCase() !== 'FALSE',
+    guestAllowMultipleOrders: parseSettingBoolean(settings.guestAllowMultipleOrders, true),
+    guestAllowRandomDisplayName: parseSettingBoolean(settings.guestAllowRandomDisplayName, true),
     guestMenuMode: String(settings.guestMenuMode || 'normal').toLowerCase(),
     guestEventName: settings.guestEventName || '장애인식 개선 캠페인',
     guestEventEmblemBase64: settings.guestEventEmblemBase64 || '',
@@ -248,8 +257,8 @@ function updateGuestSettings(data) {
     const todayDeliveryTeamTitle = data.todayDeliveryTeamTitle || '📦 오늘의 배달팀';
     const todayDeliveryTeamMembers = data.todayDeliveryTeamMembers || '';
     const todayDeliveryTeamMessage = data.todayDeliveryTeamMessage || '';
-    const guestAllowMultipleOrders = data.guestAllowMultipleOrders !== undefined ? (data.guestAllowMultipleOrders ? 'TRUE' : 'FALSE') : undefined;
-    const guestAllowRandomDisplayName = data.guestAllowRandomDisplayName !== undefined ? (data.guestAllowRandomDisplayName ? 'TRUE' : 'FALSE') : undefined;
+    const guestAllowMultipleOrders = data.guestAllowMultipleOrders !== undefined ? (parseSettingBoolean(data.guestAllowMultipleOrders, true) ? 'TRUE' : 'FALSE') : undefined;
+    const guestAllowRandomDisplayName = data.guestAllowRandomDisplayName !== undefined ? (parseSettingBoolean(data.guestAllowRandomDisplayName, true) ? 'TRUE' : 'FALSE') : undefined;
 
     const values = sheet.getDataRange().getValues();
     let rowCredit = -1;

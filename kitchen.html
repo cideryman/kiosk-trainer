@@ -201,12 +201,13 @@
                   <div class="guest-ops-setting guest-ops-setting-wide guest-random-display-name-setting">
                     <div class="guest-random-display-name-heading">
                       <span>랜덤 주문표시명</span>
-                      <label class="guest-random-display-name-toggle">
-                        <input type="checkbox" id="input-guest-random-display-name" aria-label="랜덤 주문표시명 허용">
-                        허용
-                      </label>
+                      <input type="hidden" id="input-guest-random-display-name" value="true">
+                      <div class="guest-mode-segmented guest-random-name-segmented" role="group" aria-label="랜덤 주문표시명 허용 여부">
+                        <button class="guest-mode-option is-active" type="button" data-guest-random-name="true" aria-pressed="true">🟢 활성 (허용)</button>
+                        <button class="guest-mode-option" type="button" data-guest-random-name="false" aria-pressed="false">⚪ 비활성</button>
+                      </div>
                     </div>
-                    <small>허용 시 랜덤 이름 버튼을 표시합니다.</small>
+                    <small>활성화 시 게스트 화면에 랜덤 닉네임 생성 버튼을 표시합니다.</small>
                   </div>
                 </div>
               </section>

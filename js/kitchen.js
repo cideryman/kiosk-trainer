@@ -2006,6 +2006,21 @@ let refreshTimer = null;
       if (currentSnackStock.length > 0) renderSnackStock(currentSnackStock);
     }
 
+    function setGuestRandomDisplayName(allow, markDirty = false) {
+      const isAllowed = allow !== false && String(allow).toLowerCase() !== 'false';
+      const inputEl = document.getElementById('input-guest-random-display-name');
+      const previousValue = inputEl ? inputEl.value === 'true' : true;
+
+      if (inputEl) inputEl.value = isAllowed ? 'true' : 'false';
+      document.querySelectorAll('[data-guest-random-name]').forEach(button => {
+        const isActive = button.dataset.guestRandomName === String(isAllowed);
+        button.classList.toggle('is-active', isActive);
+        button.setAttribute('aria-pressed', String(isActive));
+      });
+
+      if (markDirty && previousValue !== isAllowed) markGuestSettingsDirty();
+    }
+
     async function loadGuestOpsPanel(isAutoRefresh = false) {
       const diagnosticFlow = API_DIAGNOSTICS.startFlow('kitchen:guestSettings');
       try {
@@ -2027,7 +2042,6 @@ let refreshTimer = null;
       const creditEl = document.getElementById('input-guest-credit');
       const feeEl = document.getElementById('input-guest-fee');
       const deliveryPlaceEl = document.getElementById('input-guest-delivery-place');
-      const randomDisplayNameEl = document.getElementById('input-guest-random-display-name');
 
       const teamEnabledEl = document.getElementById('input-team-enabled');
       const teamTitleEl = document.getElementById('input-team-title');
@@ -2038,7 +2052,7 @@ let refreshTimer = null;
         if (creditEl) creditEl.value = data.guestBaseCredit ?? 10;
         if (feeEl) feeEl.value = data.guestDeliveryFee ?? 3;
         if (deliveryPlaceEl) deliveryPlaceEl.value = data.guestDefaultDeliveryPlace ?? '사무실 원탁';
-        if (randomDisplayNameEl) randomDisplayNameEl.checked = data.guestAllowRandomDisplayName !== false;
+        setGuestRandomDisplayName(data.guestAllowRandomDisplayName !== false);
         
         if (teamEnabledEl) teamEnabledEl.checked = data.todayDeliveryTeamEnabled !== false && String(data.todayDeliveryTeamEnabled).toLowerCase() !== 'false';
         if (teamTitleEl) teamTitleEl.value = data.todayDeliveryTeamTitle || '';
@@ -2261,7 +2275,7 @@ let refreshTimer = null;
       const guestBaseCredit = Number(creditInput.value);
       const guestDeliveryFee = Number(feeInput.value);
       const guestDefaultDeliveryPlace = deliveryPlaceInput.value.trim();
-      const guestAllowRandomDisplayName = randomDisplayNameInput ? randomDisplayNameInput.checked : true;
+      const guestAllowRandomDisplayName = randomDisplayNameInput ? randomDisplayNameInput.value === 'true' : true;
       const todayDeliveryTeamEnabled = teamEnabledInput ? teamEnabledInput.checked : true;
       const todayDeliveryTeamTitle = teamTitleInput ? teamTitleInput.value.trim() : '';
       const todayDeliveryTeamMembers = getComposedTeamMembers();
@@ -2335,6 +2349,10 @@ let refreshTimer = null;
 
       document.querySelectorAll('[data-guest-menu-mode]').forEach(button => {
         button.addEventListener('click', () => setGuestMenuMode(button.dataset.guestMenuMode, true));
+      });
+
+      document.querySelectorAll('[data-guest-random-name]').forEach(button => {
+        button.addEventListener('click', () => setGuestRandomDisplayName(button.dataset.guestRandomName === 'true', true));
       });
 
       const guestSettingsPanel = document.getElementById('guest-ops-settings');
