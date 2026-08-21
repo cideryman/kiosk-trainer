@@ -31,6 +31,11 @@
   --vh: 1vh;
 }
 
+/* 컴포넌트의 display 규칙이 HTML hidden 속성을 덮어쓰지 않게 보장합니다. */
+[hidden] {
+  display: none !important;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

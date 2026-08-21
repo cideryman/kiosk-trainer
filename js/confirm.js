@@ -76,7 +76,7 @@ function applyLocalGuestDisplayNamePolicy() {
   const isLocalGuest = !isGuestPreviewMode() && !(user.authProvider === 'kakao' && user.guestKey);
   const savedName = isLocalGuest ? AppState.getLocalGuestDisplayName() : '';
   const isLocked = Boolean(savedName);
-  const allowRandomDisplayName = sessionStorage.getItem('guestAllowRandomDisplayName') !== 'false';
+  const allowRandomDisplayName = sessionStorage.getItem('guestAllowRandomDisplayName') === 'true';
 
   if (isLocked && input) {
     input.value = savedName;
@@ -109,7 +109,7 @@ async function refreshConfirmGuestSettings() {
     if (settingsRes.guestDefaultDeliveryPlace !== undefined) {
       sessionStorage.setItem('guestDefaultDeliveryPlace', String(settingsRes.guestDefaultDeliveryPlace ?? '사무실 원탁'));
     }
-    sessionStorage.setItem('guestAllowRandomDisplayName', String(settingsRes.guestAllowRandomDisplayName !== false));
+    sessionStorage.setItem('guestAllowRandomDisplayName', String(settingsRes.guestAllowRandomDisplayName === true));
     applyLocalGuestDisplayNamePolicy();
     updateBill();
   } catch (error) {

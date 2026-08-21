@@ -242,7 +242,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const isLocalGuest = !isGuestPreviewMode && !AppState.getGuestAuth();
         const savedName = isLocalGuest ? AppState.getLocalGuestDisplayName() : '';
         const isLocked = Boolean(savedName);
-        const allowRandomDisplayName = sessionStorage.getItem('guestAllowRandomDisplayName') !== 'false';
+        const allowRandomDisplayName = sessionStorage.getItem('guestAllowRandomDisplayName') === 'true';
 
         if (isLocked) {
           input.value = savedName;
@@ -584,9 +584,10 @@ window.addEventListener('DOMContentLoaded', () => {
             sessionStorage.setItem('kakaoGuestBonusCredit', String(kakaoGuestBonusCredit));
             sessionStorage.setItem('guestDeliveryFee', String(guestDeliveryFee));
             sessionStorage.setItem('guestDefaultDeliveryPlace', settingsRes.guestDefaultDeliveryPlace ?? '사무실 원탁');
-            sessionStorage.setItem('guestAllowRandomDisplayName', String(settingsRes.guestAllowRandomDisplayName !== false));
+            const allowRandomDisplayName = settingsRes.guestAllowRandomDisplayName === true;
+            sessionStorage.setItem('guestAllowRandomDisplayName', String(allowRandomDisplayName));
             if (btnRandomName) {
-              btnRandomName.hidden = settingsRes.guestAllowRandomDisplayName === false;
+              btnRandomName.hidden = !allowRandomDisplayName;
             }
 
             // 크레딧 배지 적용

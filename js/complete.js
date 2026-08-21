@@ -84,7 +84,7 @@ async function refreshCompleteGuestSettings() {
     if (settingsRes.guestDefaultDeliveryPlace !== undefined) {
       sessionStorage.setItem('guestDefaultDeliveryPlace', String(settingsRes.guestDefaultDeliveryPlace ?? '사무실 원탁'));
     }
-    sessionStorage.setItem('guestAllowRandomDisplayName', String(settingsRes.guestAllowRandomDisplayName !== false));
+    sessionStorage.setItem('guestAllowRandomDisplayName', String(settingsRes.guestAllowRandomDisplayName === true));
   } catch (error) {
     console.warn('완료 화면 게스트 설정 재조회 실패:', error);
   }
