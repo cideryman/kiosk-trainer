@@ -1,3 +1,199 @@
+const REVIEW_EDIT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const REVIEW_HEADERS = [
+  'createdAt', 'orderId', 'guestName', 'stamp', 'tags', 'comment',
+  'isPublic', 'imageUrl', 'replyText', 'replyCreatedAt', 'updatedAt', 'editCount'
+];
+
+function ensureReviewHeaders() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET.REVIEWS);
+  if (!sheet) sheet = ss.insertSheet(SHEET.REVIEWS);
+
+  const existing = sheet.getLastColumn() > 0
+    ? sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(value => String(value || '').trim())
+    : [];
+  const headers = existing.filter(Boolean);
+  let changed = headers.length === 0;
+  REVIEW_HEADERS.forEach(header => {
+    if (headers.indexOf(header) === -1) {
+      headers.push(header);
+      changed = true;
+    }
+  });
+  if (changed) {
+    if (sheet.getMaxColumns() < headers.length) {
+      sheet.insertColumnsAfter(sheet.getMaxColumns(), headers.length - sheet.getMaxColumns());
+    }
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
+  return `후기내역 헤더 준비 완료 (${headers.length}열)`;
+}
+
+function getReviewHeaderMap_(headers) {
+  const map = {};
+  REVIEW_HEADERS.forEach(header => {
+    map[header] = headers.indexOf(header);
+  });
+  return map;
+}
+
+function isTruthyReviewValue_(value) {
+  return value === true || ['TRUE', 'Y', 'O', 'YES', '예'].indexOf(String(value || '').trim().toUpperCase()) !== -1;
+}
+
+function verifyGuestReviewOrderOwnership_(data) {
+  const orderId = String(data && data.orderId || '').trim();
+  const orderToken = String(data && data.orderToken || '').trim();
+  if (!orderId || !orderToken) {
+    return { success: false, message: '주문번호와 주문 확인 정보(토큰)가 필요합니다.' };
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetNames = [SHEET.ORDERS, SHEET.ARCHIVE];
+  for (let s = 0; s < sheetNames.length; s++) {
+    const sheet = ss.getSheetByName(sheetNames[s]);
+    if (!sheet || sheet.getLastRow() < 2) continue;
+    const values = sheet.getDataRange().getValues();
+    const headers = values[0] || [];
+    const orderIdIdx = headers.indexOf('주문번호');
+    const tokenIdx = headers.indexOf('orderToken');
+    const userIdIdx = headers.indexOf('이용자ID');
+    if (orderIdIdx === -1 || tokenIdx === -1) continue;
+
+    const matches = values.slice(1).filter(row => String(row[orderIdIdx] || '').trim() === orderId);
+    if (!matches.length) continue;
+    const ownsOrder = matches.every(row =>
+      String(row[tokenIdx] || '').trim() === orderToken &&
+      (userIdIdx === -1 || String(row[userIdIdx] || '').trim() === 'guest')
+    );
+    if (!ownsOrder) {
+      return { success: false, message: '주문 확인 정보(토큰)가 일치하지 않습니다.' };
+    }
+    return { success: true, orderId, orderToken, sourceSheet: sheetNames[s] };
+  }
+  return { success: false, message: '수정할 주문 내역을 찾을 수 없습니다.' };
+}
+
+function getReviewEditState_(createdAt) {
+  const createdTime = createdAt instanceof Date ? createdAt.getTime() : new Date(createdAt).getTime();
+  if (!isFinite(createdTime)) {
+    return { editable: false, message: '후기 작성 시각을 확인할 수 없어 수정할 수 없습니다.' };
+  }
+  const expiresAt = new Date(createdTime + REVIEW_EDIT_WINDOW_MS);
+  return {
+    editable: Date.now() <= expiresAt.getTime(),
+    expiresAt,
+    message: Date.now() <= expiresAt.getTime() ? '' : '후기 작성 후 7일이 지나 수정할 수 없습니다.'
+  };
+}
+
+function reviewRowToObject_(row, headers) {
+  const idx = getReviewHeaderMap_(headers);
+  const editState = getReviewEditState_(row[idx.createdAt]);
+  return {
+    createdAt: row[idx.createdAt] || '',
+    orderId: row[idx.orderId] || '',
+    guestName: row[idx.guestName] || '',
+    stamp: row[idx.stamp] || '',
+    tags: row[idx.tags] || '',
+    comment: row[idx.comment] || '',
+    isPublic: isTruthyReviewValue_(row[idx.isPublic]),
+    imageUrl: row[idx.imageUrl] || '',
+    replyText: idx.replyText !== -1 ? row[idx.replyText] || '' : '',
+    replyCreatedAt: idx.replyCreatedAt !== -1 ? row[idx.replyCreatedAt] || '' : '',
+    updatedAt: idx.updatedAt !== -1 ? row[idx.updatedAt] || '' : '',
+    editCount: idx.editCount !== -1 ? Number(row[idx.editCount] || 0) : 0,
+    editable: editState.editable,
+    editExpiresAt: editState.expiresAt || ''
+  };
+}
+
+function getGuestReview(data) {
+  const ownership = verifyGuestReviewOrderOwnership_(data);
+  if (!ownership.success) return ownership;
+
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.REVIEWS);
+  if (!sheet || sheet.getLastRow() < 2) return { success: false, message: '작성된 후기를 찾을 수 없습니다.' };
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0] || [];
+  const orderIdIdx = headers.indexOf('orderId');
+  if (orderIdIdx === -1) return { success: false, message: '후기 데이터 구조를 확인할 수 없습니다.' };
+  const rows = values.slice(1).filter(row => String(row[orderIdIdx] || '').trim() === ownership.orderId);
+  if (rows.length !== 1) {
+    if (rows.length > 1) Logger.log(JSON.stringify({ event: 'duplicate_guest_review', orderId: ownership.orderId, count: rows.length }));
+    return { success: false, message: rows.length ? '중복 후기 데이터가 있어 관리자 확인이 필요합니다.' : '작성된 후기를 찾을 수 없습니다.' };
+  }
+  return { success: true, review: reviewRowToObject_(rows[0], headers) };
+}
+
+function updateGuestReview(data) {
+  const stamp = String(data && data.stamp || '').trim();
+  const tags = String(data && data.tags || '').trim();
+  const comment = String(data && data.comment || '').trim();
+  const imageAction = String(data && data.imageAction || 'keep').trim().toLowerCase();
+  const isPublic = data && data.isPublic !== false && data.isPublic !== 'false';
+  if (comment.length > 100) return { success: false, message: '응원 메시지는 100자 이내로 입력해주세요.' };
+  if (!stamp && !tags) return { success: false, message: '칭찬 스탬프나 태그를 1개 이상 선택해주세요.' };
+  if (['keep', 'replace', 'remove'].indexOf(imageAction) === -1) return { success: false, message: '사진 변경 방식이 올바르지 않습니다.' };
+  if (imageAction === 'replace' && !String(data.imageUrl || '').trim()) return { success: false, message: '교체할 사진 정보가 없습니다.' };
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return { success: false, message: '다른 작업을 처리 중입니다. 잠시 후 다시 시도해 주세요.' };
+  let staleImageUrl = '';
+  try {
+    const ownership = verifyGuestReviewOrderOwnership_(data);
+    if (!ownership.success) return ownership;
+    ensureReviewHeaders();
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.REVIEWS);
+    const values = sheet.getDataRange().getValues();
+    const headers = values[0] || [];
+    const idx = getReviewHeaderMap_(headers);
+    const matches = [];
+    for (let i = 1; i < values.length; i++) {
+      if (String(values[i][idx.orderId] || '').trim() === ownership.orderId) matches.push(i);
+    }
+    if (matches.length !== 1) {
+      if (matches.length > 1) Logger.log(JSON.stringify({ event: 'duplicate_guest_review_update', orderId: ownership.orderId, count: matches.length }));
+      return { success: false, message: matches.length ? '중복 후기 데이터가 있어 수정할 수 없습니다.' : '수정할 후기를 찾을 수 없습니다.' };
+    }
+
+    const rowIndex = matches[0];
+    const editState = getReviewEditState_(values[rowIndex][idx.createdAt]);
+    if (!editState.editable) return { success: false, message: editState.message };
+    const row = values[rowIndex].slice();
+    const oldImageUrl = String(row[idx.imageUrl] || '').trim();
+    const wasPublic = isTruthyReviewValue_(row[idx.isPublic]);
+    let nextImageUrl = oldImageUrl;
+    if (imageAction === 'replace') nextImageUrl = String(data.imageUrl || '').trim();
+    if (imageAction === 'remove') nextImageUrl = '';
+    const needsPhotoConsent = isPublic && nextImageUrl && (imageAction === 'replace' || !wasPublic);
+    const hasPhotoConsent = data.photoPublicConsent === true || data.photoPublicConsent === 'true';
+    if (needsPhotoConsent && !hasPhotoConsent) {
+      return { success: false, message: '사진 공개 확인에 동의해 주세요.' };
+    }
+
+    row[idx.stamp] = stamp;
+    row[idx.tags] = tags;
+    row[idx.comment] = comment;
+    row[idx.isPublic] = isPublic;
+    row[idx.imageUrl] = nextImageUrl;
+    row[idx.updatedAt] = new Date();
+    row[idx.editCount] = Number(row[idx.editCount] || 0) + 1;
+    sheet.getRange(rowIndex + 1, 1, 1, headers.length).setValues([row.slice(0, headers.length)]);
+    if (oldImageUrl && oldImageUrl !== nextImageUrl) staleImageUrl = oldImageUrl;
+    clearOrderReadCache();
+    clearReviewCache();
+    const review = reviewRowToObject_(row, headers);
+    return { success: true, message: '후기가 수정되었습니다.', review };
+  } catch (error) {
+    Logger.log(JSON.stringify({ event: 'update_guest_review_failed', orderId: String(data && data.orderId || ''), error: String(error) }));
+    return { success: false, message: '후기 수정 중 오류: ' + error.message };
+  } finally {
+    lock.releaseLock();
+    if (staleImageUrl) trashReviewImageFile_(staleImageUrl);
+  }
+}
+
 /**
  * 22. 후기 등록 API
  */
@@ -110,31 +306,23 @@ function submitReview(data) {
     }
 
     // 2. 후기내역 시트 가져오기/생성
-    let reviewSheet = ss.getSheetByName(SHEET.REVIEWS);
-    if (!reviewSheet) {
-      reviewSheet = ss.insertSheet(SHEET.REVIEWS);
-      reviewSheet.appendRow(['createdAt', 'orderId', 'guestName', 'stamp', 'tags', 'comment', 'isPublic', 'imageUrl']);
-    } else {
-      const reviewHeaders = reviewSheet.getDataRange().getValues()[0] || [];
-      if (reviewHeaders.length === 0) {
-        reviewSheet.appendRow(['createdAt', 'orderId', 'guestName', 'stamp', 'tags', 'comment', 'isPublic', 'imageUrl']);
-      } else if (reviewHeaders.indexOf('imageUrl') === -1) {
-        // H열에 imageUrl 헤더 추가
-        reviewSheet.getRange(1, 8).setValue('imageUrl');
-      }
-    }
+    ensureReviewHeaders();
+    const reviewSheet = ss.getSheetByName(SHEET.REVIEWS);
+    const reviewHeaders = reviewSheet.getRange(1, 1, 1, reviewSheet.getLastColumn()).getValues()[0];
+    const reviewIdx = getReviewHeaderMap_(reviewHeaders);
 
     // 3. 후기 기록 추가
-    reviewSheet.appendRow([
-      new Date(),
-      orderId,
-      guestName,
-      stamp,
-      tags,
-      comment,
-      isPublic,
-      data.imageUrl || ''
-    ]);
+    const reviewRow = new Array(reviewHeaders.length).fill('');
+    reviewRow[reviewIdx.createdAt] = new Date();
+    reviewRow[reviewIdx.orderId] = orderId;
+    reviewRow[reviewIdx.guestName] = guestName;
+    reviewRow[reviewIdx.stamp] = stamp;
+    reviewRow[reviewIdx.tags] = tags;
+    reviewRow[reviewIdx.comment] = comment;
+    reviewRow[reviewIdx.isPublic] = isPublic;
+    reviewRow[reviewIdx.imageUrl] = data.imageUrl || '';
+    reviewRow[reviewIdx.editCount] = 0;
+    reviewSheet.appendRow(reviewRow);
 
     // 4. 주문내역 시트에서 reviewed 상태 업데이트
     targetIndices.forEach(idx => {
@@ -211,24 +399,27 @@ function getRecentReviews() {
   }
 
   const values = reviewSheet.getDataRange().getValues();
+  const headers = values[0] || [];
+  const idx = getReviewHeaderMap_(headers);
   const rows = values.slice(1);
 
   // isPublic이 참인 것만 필터링하여 최신순으로 정렬
   const reviews = rows
     .filter(row => {
-      const isPub = String(row[6]).trim().toUpperCase();
-      return isPub === 'TRUE' || isPub === 'Y' || isPub === 'O' || isPub === '예' || row[6] === true;
+      return isTruthyReviewValue_(row[idx.isPublic]);
     })
     .map(row => ({
-      createdAt: row[0],
-      orderId: row[1],
-      guestName: maskPublicReviewName(row[2]),
-      stamp: row[3],
-      tags: row[4],
-      comment: row[5],
-      imageUrl: row[7] || '',
-      replyText: row[8] || '',
-      replyCreatedAt: row[9] || ''
+      createdAt: row[idx.createdAt],
+      orderId: row[idx.orderId],
+      guestName: maskPublicReviewName(row[idx.guestName]),
+      stamp: row[idx.stamp],
+      tags: row[idx.tags],
+      comment: row[idx.comment],
+      imageUrl: row[idx.imageUrl] || '',
+      replyText: idx.replyText !== -1 ? row[idx.replyText] || '' : '',
+      replyCreatedAt: idx.replyCreatedAt !== -1 ? row[idx.replyCreatedAt] || '' : '',
+      updatedAt: idx.updatedAt !== -1 ? row[idx.updatedAt] || '' : '',
+      editCount: idx.editCount !== -1 ? Number(row[idx.editCount] || 0) : 0
     }))
     .reverse() // 최신 작성순
     .slice(0, 10); // 최대 10개만 반환
@@ -258,20 +449,24 @@ function getReviewsForAdmin() {
   }
 
   const values = reviewSheet.getDataRange().getValues();
+  const headers = values[0] || [];
+  const idx = getReviewHeaderMap_(headers);
   const rows = values.slice(1);
 
   const reviews = rows
     .map(row => ({
-      createdAt: row[0],
-      orderId: row[1],
-      guestName: row[2],
-      stamp: row[3],
-      tags: row[4],
-      comment: row[5],
-      isPublic: row[6],
-      imageUrl: row[7] || '',
-      replyText: row[8] || '',
-      replyCreatedAt: row[9] || ''
+      createdAt: row[idx.createdAt],
+      orderId: row[idx.orderId],
+      guestName: row[idx.guestName],
+      stamp: row[idx.stamp],
+      tags: row[idx.tags],
+      comment: row[idx.comment],
+      isPublic: row[idx.isPublic],
+      imageUrl: row[idx.imageUrl] || '',
+      replyText: idx.replyText !== -1 ? row[idx.replyText] || '' : '',
+      replyCreatedAt: idx.replyCreatedAt !== -1 ? row[idx.replyCreatedAt] || '' : '',
+      updatedAt: idx.updatedAt !== -1 ? row[idx.updatedAt] || '' : '',
+      editCount: idx.editCount !== -1 ? Number(row[idx.editCount] || 0) : 0
     }))
     .reverse(); // 최신순
 
@@ -555,6 +750,8 @@ function getPublicReviews() {
     const imageIdx = findHeaderIndex(headers, ['imageUrl', '사진url', '이미지url']);
     const replyTextIdx = findHeaderIndex(headers, ['replyText', '답글', '관리자답글']);
     const replyDateIdx = findHeaderIndex(headers, ['replyCreatedAt', '답글작성일']);
+    const updatedAtIdx = findHeaderIndex(headers, ['updatedAt', '수정일', '수정시각']);
+    const editCountIdx = findHeaderIndex(headers, ['editCount', '수정횟수']);
 
     const rows = values.slice(1);
 
@@ -578,7 +775,9 @@ function getPublicReviews() {
           comment: (commentIdx !== -1 ? row[commentIdx] : row[5]) || '',
           imageUrl: (imageIdx !== -1 ? row[imageIdx] : row[7]) || '',
           replyText: (replyTextIdx !== -1 ? row[replyTextIdx] : row[8]) || '',
-          replyCreatedAt: formatReviewDateSafely(rDate)
+          replyCreatedAt: formatReviewDateSafely(rDate),
+          updatedAt: formatReviewDateSafely(updatedAtIdx !== -1 ? row[updatedAtIdx] : ''),
+          editCount: editCountIdx !== -1 ? Number(row[editCountIdx] || 0) : 0
         };
       })
       .reverse(); // 최신순

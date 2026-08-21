@@ -143,6 +143,10 @@ function doPost(e) {
       return jsonResponse(updateGuestSettings(data));
     } else if (action === 'submitReview') {
       return jsonResponse(submitReview(data));
+    } else if (action === 'getGuestReview') {
+      return jsonResponse(getGuestReview(data));
+    } else if (action === 'updateGuestReview') {
+      return jsonResponse(updateGuestReview(data));
     } else if (action === 'getPublicReviews') {
       return jsonResponse(getPublicReviews());
     } else if (action === 'auditArchiveOldOrders') {

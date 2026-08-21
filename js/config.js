@@ -1,6 +1,6 @@
 // Google Apps Script API 설정
 const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ9_UPux8bq0xROvNK9E1NCBam0Qe/exec";
-const API_CONTRACT_VERSION = '2026-08-19.1';
+const API_CONTRACT_VERSION = '2026-08-21.1';
 
 function resolveApiUrl() {
   try {
@@ -1590,7 +1590,7 @@ function getMockFallback(action, options) {
         res = { success: false, message: '유효하지 않은 주문 정보입니다.' };
       } else if (!matchedOrders.some(o => o.servedYn === 'Y' || o.status === '수령완료')) {
         res = { success: false, message: '수령완료된 주문만 후기 사진을 업로드할 수 있습니다.' };
-      } else if (matchedOrders.some(o => o.reviewed === true || String(o.reviewed).toUpperCase() === 'TRUE' || String(o.reviewed).toUpperCase() === 'Y')) {
+      } else if (!options.body?.reviewEdit && matchedOrders.some(o => o.reviewed === true || String(o.reviewed).toUpperCase() === 'TRUE' || String(o.reviewed).toUpperCase() === 'Y')) {
         res = { success: false, message: '이미 응원 메시지를 남긴 주문입니다.' };
       } else {
         res = {
@@ -1631,7 +1631,9 @@ function getMockFallback(action, options) {
           tags,
           comment,
           isPublic,
-          imageUrl
+          imageUrl,
+          updatedAt: '',
+          editCount: 0
         });
         localStorage.setItem('mockReviews', JSON.stringify(mockReviews));
 
@@ -1655,6 +1657,55 @@ function getMockFallback(action, options) {
         res = { success: true, message: '후기가 등록되었습니다.' };
       }
     }
+  } else if (action === 'getGuestReview') {
+    const orderId = String(options.body?.orderId || '');
+    const orderToken = String(options.body?.orderToken || '');
+    const mockReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
+    const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
+    const mockArchived = JSON.parse(localStorage.getItem('mockArchivedOrders') || '[]');
+    const allOrders = [...localOrders, ...mockArchived, ...MOCK_DATA.getOrdersToday.orders];
+    const ownsOrder = allOrders.some(o => String(o.orderNo || '') === orderId && String(o.orderToken || '') === orderToken);
+    const matches = mockReviews.filter(r => String(r.orderId || '') === orderId);
+    if (!ownsOrder) {
+      res = { success: false, message: '주문 확인 정보(토큰)가 일치하지 않습니다.' };
+    } else if (matches.length !== 1) {
+      res = { success: false, message: matches.length ? '중복 후기 데이터가 있습니다.' : '작성된 후기를 찾을 수 없습니다.' };
+    } else {
+      const review = { ...matches[0] };
+      const expiresAt = new Date(new Date(review.createdAt).getTime() + 7 * 24 * 60 * 60 * 1000);
+      review.editable = Date.now() <= expiresAt.getTime();
+      review.editExpiresAt = expiresAt.toISOString();
+      res = { success: true, review };
+    }
+  } else if (action === 'updateGuestReview') {
+    const orderId = String(options.body?.orderId || '');
+    const orderToken = String(options.body?.orderToken || '');
+    const mockReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
+    const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
+    const mockArchived = JSON.parse(localStorage.getItem('mockArchivedOrders') || '[]');
+    const allOrders = [...localOrders, ...mockArchived, ...MOCK_DATA.getOrdersToday.orders];
+    const ownsOrder = allOrders.some(o => String(o.orderNo || '') === orderId && String(o.orderToken || '') === orderToken);
+    const matches = mockReviews.filter(r => String(r.orderId || '') === orderId);
+    if (!ownsOrder || matches.length !== 1) {
+      res = { success: false, message: !ownsOrder ? '주문 확인 정보(토큰)가 일치하지 않습니다.' : '수정할 후기를 찾을 수 없습니다.' };
+    } else {
+      const review = matches[0];
+      const expiresAt = new Date(new Date(review.createdAt).getTime() + 7 * 24 * 60 * 60 * 1000);
+      if (Date.now() > expiresAt.getTime()) {
+        res = { success: false, message: '후기 작성 후 7일이 지나 수정할 수 없습니다.' };
+      } else {
+        review.stamp = options.body?.stamp || '';
+        review.tags = options.body?.tags || '';
+        review.comment = options.body?.comment || '';
+        review.isPublic = options.body?.isPublic !== false && options.body?.isPublic !== 'false';
+        if (options.body?.imageAction === 'replace') review.imageUrl = options.body?.imageUrl || '';
+        if (options.body?.imageAction === 'remove') review.imageUrl = '';
+        review.updatedAt = new Date().toISOString();
+        review.editCount = Number(review.editCount || 0) + 1;
+        localStorage.setItem('mockReviews', JSON.stringify(mockReviews));
+        res = { success: true, message: '후기가 수정되었습니다.', review: { ...review, editable: true, editExpiresAt: expiresAt.toISOString() } };
+      }
+    }
   } else if (action === 'getRecentReviews') {
     const mockReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
     const publicReviews = mockReviews
@@ -1668,7 +1719,9 @@ function getMockFallback(action, options) {
         comment: r.comment,
         imageUrl: r.imageUrl || '',
         replyText: r.replyText || '',
-        replyCreatedAt: r.replyCreatedAt || ''
+        replyCreatedAt: r.replyCreatedAt || '',
+        updatedAt: r.updatedAt || '',
+        editCount: Number(r.editCount || 0)
       }))
       .reverse()
       .slice(0, 10);

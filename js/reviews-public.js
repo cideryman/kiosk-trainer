@@ -334,7 +334,7 @@
             <div class="review-user-info">
               <span class="review-user-name">${escapeHtml(maskedName)}</span>
             </div>
-            <span class="review-date">${escapeHtml(item.createdAt || '')}</span>
+            <span class="review-date">${escapeHtml(item.createdAt || '')}${item.updatedAt || Number(item.editCount || 0) > 0 ? ' · 수정됨' : ''}</span>
           </div>
 
           ${stampTag}

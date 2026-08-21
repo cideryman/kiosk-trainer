@@ -54,7 +54,7 @@ function diagnoseSystem(data) {
     ],
     [SHEET.LOGS]: ['timestamp', 'action', 'targetType', 'targetId', 'targetName', 'beforeValue', 'afterValue', 'memo'],
     [SHEET.SETTINGS]: ['key', 'value'],
-    [SHEET.REVIEWS]: ['createdAt', 'orderId', 'guestName', 'stamp', 'tags', 'comment', 'isPublic', 'imageUrl'],
+    [SHEET.REVIEWS]: REVIEW_HEADERS.slice(),
     [SHEET.ARCHIVE]: [
       '주문시간', '주문번호', '이용자ID', '별명', '간식ID', '간식명',
       '수량', '차감포인트', '제공여부', 'cancelTimestamp', 'orderToken',

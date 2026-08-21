@@ -143,6 +143,8 @@ window.addEventListener('DOMContentLoaded', () => {
               tags: o.tags || prevLocal.tags || '',
               replyText: o.replyText || prevLocal.replyText || '',
               reviewComment: o.reviewComment || o.comment || prevLocal.reviewComment || prevLocal.comment || '',
+              reviewUpdatedAt: o.reviewUpdatedAt || prevLocal.reviewUpdatedAt || '',
+              reviewEditCount: Number(o.reviewEditCount || prevLocal.reviewEditCount || 0),
               cancelReason: o.cancelReason || '',
               authProvider: o.authProvider || '',
               guestKey: o.guestKey || '',
@@ -176,6 +178,8 @@ window.addEventListener('DOMContentLoaded', () => {
             if (matchedReview.comment) serverData.reviewComment = matchedReview.comment;
             if (matchedReview.stamp) serverData.stamp = matchedReview.stamp;
             if (matchedReview.tags) serverData.tags = matchedReview.tags;
+            serverData.reviewUpdatedAt = matchedReview.updatedAt || '';
+            serverData.reviewEditCount = Number(matchedReview.editCount || 0);
             serverData.reviewed = true;
           }
 
@@ -193,6 +197,8 @@ window.addEventListener('DOMContentLoaded', () => {
             comment: serverData.reviewComment || prevLocal.comment || prevLocal.reviewComment || '',
             stamp: serverData.stamp || prevLocal.stamp || '',
             tags: serverData.tags || prevLocal.tags || '',
+            reviewUpdatedAt: serverData.reviewUpdatedAt || prevLocal.reviewUpdatedAt || '',
+            reviewEditCount: Number(serverData.reviewEditCount || prevLocal.reviewEditCount || 0),
             guestName,
             createdAt: serverData.timestamp || prevLocal.createdAt || new Date().toISOString(),
             status: serverData.status,
@@ -340,6 +346,17 @@ window.addEventListener('DOMContentLoaded', () => {
           </button>
         </div>
       `;
+    } else if (isServed && isReviewed && order.orderToken) {
+      reviewBtnHtml = `
+        <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
+          <button class="btn btn-gray btn-edit-review-card"
+            data-order-no="${AppState.escapeAttr(order.orderNo)}"
+            data-guest-name="${AppState.escapeAttr(guestName)}"
+            style="min-height: 42px; font-size: 15px; font-weight: 850; padding: 0 16px; border: 2px solid var(--secondary-color); color: #00796B; background-color: #F0FDFA; box-shadow: none; margin: 0; width: auto; z-index: 10;">
+            후기 수정
+          </button>
+        </div>
+      `;
     }
 
     const isDelivery = (order.deliveryType === 'delivery' || order.method === 'delivery');
@@ -410,6 +427,7 @@ window.addEventListener('DOMContentLoaded', () => {
           <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; text-align: left;">
             <div style="font-size: 13px; font-weight: 850; color: #B45309; display: flex; align-items: center; gap: 4px;">
               💌 내가 남긴 응원 후기
+              ${order.reviewUpdatedAt || Number(order.reviewEditCount || 0) > 0 ? '<span style="font-size: 11px; color: #B45309; background: #FEF3C7; border-radius: 999px; padding: 2px 7px;">수정됨</span>' : ''}
             </div>
             ${commentText ? `<div style="font-size: 15px; color: #78350F; background-color: white; border: 1px solid #FFE0B2; padding: 8px 10px; border-radius: 6px; font-weight: 700; word-break: break-all;">"${AppState.escapeHtml(commentText)}"</div>` : ''}
             ${tagsHtml ? `<div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 2px;">${tagsHtml}</div>` : ''}
@@ -471,7 +489,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // 카드 클릭 시 complete.html 연동 또는 P25 소통 인터랙션
     AppState.bindCardTap(card, (e) => {
       // 후기 작성 버튼이나 취소 버튼 클릭 시 카드 클릭 이벤트 무시
-      if (e && e.target && (e.target.closest('.btn-write-review-card') || e.target.closest('.btn-guest-cancel-card'))) {
+      if (e && e.target && (e.target.closest('.btn-write-review-card') || e.target.closest('.btn-edit-review-card') || e.target.closest('.btn-guest-cancel-card'))) {
         return;
       }
 
@@ -555,6 +573,24 @@ window.addEventListener('DOMContentLoaded', () => {
       });
     }
 
+    const editReviewBtn = card.querySelector('.btn-edit-review-card');
+    if (editReviewBtn) {
+      editReviewBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        editReviewBtn.disabled = true;
+        const originalText = editReviewBtn.textContent;
+        editReviewBtn.textContent = '불러오는 중...';
+        try {
+          await window.openReviewEditModalFor(order.orderNo, guestName, order.orderToken);
+        } finally {
+          editReviewBtn.disabled = false;
+          editReviewBtn.textContent = originalText;
+        }
+      });
+      editReviewBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+      editReviewBtn.addEventListener('pointerup', (e) => e.stopPropagation());
+    }
+
     // 취소 버튼 이벤트 바인딩
     const cancelBtn = card.querySelector('.btn-guest-cancel-card');
     if (cancelBtn) {
@@ -606,17 +642,64 @@ window.addEventListener('DOMContentLoaded', () => {
   const btnCloseReviewModal = document.getElementById('btn-close-review-modal');
   const btnCancelReview = document.getElementById('btn-cancel-review');
   const btnSubmitReview = document.getElementById('btn-submit-review');
+  const reviewModalTitle = document.getElementById('review-modal-title');
+  const reviewEditDeadline = document.getElementById('review-edit-deadline');
   const reviewPublicCheckbox = document.getElementById('review-is-public');
   const reviewPhotoPublicConfirm = document.getElementById('review-photo-public-confirm');
   const reviewPhotoPublicConsent = document.getElementById('review-photo-public-consent');
   const reviewPhotoConsentError = document.getElementById('review-photo-consent-error');
   const stampButtons = document.querySelectorAll('#stamp-select-group .stamp-btn');
   const tagCapsules = document.querySelectorAll('#tags-select-group .tag-capsule');
+  let selectedReviewPhotoFile = null;
+  let currentReviewMode = 'create';
+  let currentReviewImageUrl = '';
+  let currentReviewImageAction = 'keep';
+  let currentReviewWasPublic = false;
+
+  function showReviewModal() {
+    if (reviewModal) reviewModal.style.display = 'flex';
+    document.documentElement.classList.add('modal-open');
+    document.body.classList.add('modal-open');
+    AppState.vibrate(50);
+    AppState.playClickSound();
+  }
+
+  function renderReviewPhotoState() {
+    const input = document.getElementById('review-photo-input');
+    const preview = document.getElementById('review-photo-preview');
+    const previewWrap = document.getElementById('review-photo-preview-wrap');
+    const status = document.getElementById('review-photo-status');
+    const removeBtn = document.getElementById('btn-remove-review-photo');
+    if (input && !selectedReviewPhotoFile) input.value = '';
+
+    if (selectedReviewPhotoFile) return;
+    const shouldShowExisting = currentReviewMode === 'edit' && currentReviewImageUrl && currentReviewImageAction !== 'remove';
+    if (preview) {
+      preview.src = shouldShowExisting ? AppState.convertDriveImageUrl(currentReviewImageUrl) : '';
+      preview.style.display = shouldShowExisting ? 'block' : 'none';
+    }
+    if (previewWrap) previewWrap.style.display = shouldShowExisting ? 'inline-block' : 'none';
+    if (removeBtn) removeBtn.style.display = shouldShowExisting ? 'flex' : 'none';
+    if (status) status.textContent = shouldShowExisting ? '현재 등록된 사진' : '선택된 사진 없음';
+  }
+
+  function resetReviewModalState() {
+    selectedReviewPhotoFile = null;
+    currentReviewImageUrl = '';
+    currentReviewImageAction = 'keep';
+    currentReviewWasPublic = false;
+    const input = document.getElementById('review-photo-input');
+    if (input) input.value = '';
+    if (reviewPhotoPublicConsent) reviewPhotoPublicConsent.checked = false;
+    renderReviewPhotoState();
+  }
 
   window.openReviewModalFor = function(orderNo, guestName, orderToken) {
     currentReviewOrderId = orderNo;
     currentReviewGuestName = guestName;
     currentReviewOrderToken = orderToken;
+    currentReviewMode = 'create';
+    resetReviewModalState();
     
     // 입력 필드 초기화
     stampButtons.forEach((b, idx) => {
@@ -626,6 +709,8 @@ window.addEventListener('DOMContentLoaded', () => {
     tagCapsules.forEach(c => c.classList.remove('active'));
     document.getElementById('review-comment').value = '';
     reviewPublicCheckbox.checked = true;
+    if (reviewModalTitle) reviewModalTitle.textContent = '💌 칭찬과 응원 보내기';
+    if (reviewEditDeadline) reviewEditDeadline.hidden = true;
     updateReviewPhotoPublicConfirmation(true);
     
     if (btnSubmitReview) {
@@ -633,22 +718,72 @@ window.addEventListener('DOMContentLoaded', () => {
       btnSubmitReview.textContent = '보내기';
     }
 
-    if (reviewModal) reviewModal.style.display = 'flex';
-    document.documentElement.classList.add('modal-open');
-    document.body.classList.add('modal-open');
-    AppState.vibrate(50);
-    AppState.playClickSound();
-  }
+    showReviewModal();
+  };
 
-  // 후기 사진 첨부 관련 상태 및 헬퍼 함수
-  let selectedReviewPhotoFile = null;
+  window.openReviewEditModalFor = async function(orderNo, guestName, orderToken) {
+    const res = await fetchAPIReadWithRetry('getGuestReview', {
+      method: 'POST',
+      body: { orderId: orderNo, orderToken },
+      timeoutMs: 30000
+    });
+    if (!res || !res.success || !res.review) {
+      alert('후기를 불러오지 못했습니다: ' + (res?.message || '데이터 연결에 실패했습니다.'));
+      return;
+    }
+    if (!res.review.editable) {
+      alert('후기 작성 후 7일이 지나 수정할 수 없습니다.');
+      return;
+    }
+
+    const review = res.review;
+    currentReviewOrderId = orderNo;
+    currentReviewGuestName = guestName;
+    currentReviewOrderToken = orderToken;
+    currentReviewMode = 'edit';
+    resetReviewModalState();
+    currentReviewImageUrl = String(review.imageUrl || '');
+    currentReviewWasPublic = review.isPublic === true;
+    currentReviewImageAction = 'keep';
+
+    stampButtons.forEach(button => {
+      button.classList.toggle('active', button.getAttribute('data-stamp') === String(review.stamp || ''));
+    });
+    tagCapsules.forEach(capsule => {
+      const selectedTags = String(review.tags || '').split(',').map(tag => tag.trim()).filter(Boolean);
+      capsule.classList.toggle('active', selectedTags.includes(capsule.getAttribute('data-tag')));
+    });
+    document.getElementById('review-comment').value = String(review.comment || '');
+    reviewPublicCheckbox.checked = review.isPublic === true;
+    if (reviewModalTitle) reviewModalTitle.textContent = '후기 수정';
+    if (reviewEditDeadline) {
+      const expiresAt = review.editExpiresAt ? new Date(review.editExpiresAt) : null;
+      reviewEditDeadline.textContent = expiresAt && !isNaN(expiresAt.getTime())
+        ? `${expiresAt.toLocaleDateString()}까지 수정할 수 있습니다.`
+        : '후기는 작성 후 7일 동안 수정할 수 있습니다.';
+      reviewEditDeadline.hidden = false;
+    }
+    if (btnSubmitReview) {
+      btnSubmitReview.disabled = false;
+      btnSubmitReview.textContent = '수정 저장';
+    }
+    renderReviewPhotoState();
+    updateReviewPhotoPublicConfirmation(true);
+    showReviewModal();
+  };
 
   function updateReviewPhotoPublicConfirmation(resetConsent = false) {
-    const shouldConfirm = Boolean(selectedReviewPhotoFile && reviewPublicCheckbox?.checked);
+    const hasEffectivePhoto = Boolean(
+      selectedReviewPhotoFile ||
+      (currentReviewMode === 'edit' && currentReviewImageUrl && currentReviewImageAction !== 'remove')
+    );
+    const needsFreshConsent = Boolean(selectedReviewPhotoFile || (currentReviewMode === 'edit' && !currentReviewWasPublic));
+    const shouldConfirm = Boolean(hasEffectivePhoto && reviewPublicCheckbox?.checked && needsFreshConsent);
     if (reviewPhotoPublicConfirm) {
       reviewPhotoPublicConfirm.hidden = !shouldConfirm;
       reviewPhotoPublicConfirm.classList.remove('has-error');
     }
+
     if (reviewPhotoPublicConsent && (resetConsent || !shouldConfirm)) {
       reviewPhotoPublicConsent.checked = false;
     }
@@ -666,6 +801,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (!file) return;
 
     selectedReviewPhotoFile = file;
+    currentReviewImageAction = currentReviewMode === 'edit' ? 'replace' : 'keep';
 
     const preview = document.getElementById('review-photo-preview');
     const previewWrap = document.getElementById('review-photo-preview-wrap');
@@ -691,13 +827,24 @@ window.addEventListener('DOMContentLoaded', () => {
   };
 
   window.removeReviewPhoto = function() {
-    selectedReviewPhotoFile = null;
     const input = document.getElementById('review-photo-input');
     const preview = document.getElementById('review-photo-preview');
     const previewWrap = document.getElementById('review-photo-preview-wrap');
     const status = document.getElementById('review-photo-status');
     const removeBtn = document.getElementById('btn-remove-review-photo');
 
+    if (currentReviewMode === 'edit' && selectedReviewPhotoFile && currentReviewImageUrl) {
+      selectedReviewPhotoFile = null;
+      currentReviewImageAction = 'keep';
+      if (input) input.value = '';
+      renderReviewPhotoState();
+      updateReviewPhotoPublicConfirmation(true);
+      AppState.vibrate(20);
+      return;
+    }
+
+    selectedReviewPhotoFile = null;
+    currentReviewImageAction = currentReviewMode === 'edit' && currentReviewImageUrl ? 'remove' : 'keep';
     if (input) input.value = '';
     if (preview) {
       preview.src = '';
@@ -766,7 +913,8 @@ window.addEventListener('DOMContentLoaded', () => {
     if (reviewModal) reviewModal.style.display = 'none';
     document.documentElement.classList.remove('modal-open');
     document.body.classList.remove('modal-open');
-    removeReviewPhoto();
+    currentReviewMode = 'create';
+    resetReviewModalState();
     AppState.vibrate(30);
   }
 
@@ -807,14 +955,14 @@ window.addEventListener('DOMContentLoaded', () => {
       const comment = document.getElementById('review-comment').value.trim();
       const isPublic = reviewPublicCheckbox.checked;
 
-      if (selectedReviewPhotoFile && isPublic && !reviewPhotoPublicConsent?.checked) {
+      if (reviewPhotoPublicConfirm && !reviewPhotoPublicConfirm.hidden && !reviewPhotoPublicConsent?.checked) {
         showReviewPhotoConsentError();
         AppState.vibrate([60, 40, 60]);
         return;
       }
 
       btnSubmitReview.disabled = true;
-      btnSubmitReview.textContent = '제출 중...';
+      btnSubmitReview.textContent = currentReviewMode === 'edit' ? '수정 중...' : '제출 중...';
 
       try {
         let imageUrl = '';
@@ -834,7 +982,9 @@ window.addEventListener('DOMContentLoaded', () => {
             body: {
               base64Data: base64Data,
               fileName: fileName,
+              orderId: currentReviewOrderId,
               orderToken: currentReviewOrderToken,
+              reviewEdit: currentReviewMode === 'edit',
               type: 'review'
             }
           });
@@ -843,6 +993,12 @@ window.addEventListener('DOMContentLoaded', () => {
             imageUrl = uploadRes.imageUrl;
           } else {
             const errMsg = (uploadRes && uploadRes.message) ? uploadRes.message : '네트워크 오류 또는 서버 응답 실패';
+            if (currentReviewMode === 'edit') {
+              alert(`후기 사진 업로드에 실패했습니다.\n\n${errMsg}`);
+              btnSubmitReview.disabled = false;
+              btnSubmitReview.textContent = '수정 저장';
+              return;
+            }
             if (!confirm(`⚠️ 후기 사진 업로드에 실패했습니다.\n\n[오류 내용]\n${errMsg}\n\n사진 없이 후기 텍스트만 등록하시겠습니까?`)) {
               btnSubmitReview.disabled = false;
               btnSubmitReview.textContent = '보내기';
@@ -851,8 +1007,12 @@ window.addEventListener('DOMContentLoaded', () => {
           }
         }
 
-        btnSubmitReview.textContent = '후기 제출 중...';
-        const res = await fetchAPI('submitReview', {
+        btnSubmitReview.textContent = currentReviewMode === 'edit' ? '후기 수정 중...' : '후기 제출 중...';
+        const action = currentReviewMode === 'edit' ? 'updateGuestReview' : 'submitReview';
+        const imageAction = currentReviewMode === 'edit'
+          ? (selectedReviewPhotoFile ? 'replace' : currentReviewImageAction)
+          : 'keep';
+        const res = await fetchAPI(action, {
           method: 'POST',
           body: {
             orderId: currentReviewOrderId,
@@ -862,13 +1022,19 @@ window.addEventListener('DOMContentLoaded', () => {
             tags: tags,
             comment: comment,
             isPublic: isPublic,
-            imageUrl: imageUrl
+            imageUrl: imageUrl,
+            imageAction: imageAction,
+            photoPublicConsent: reviewPhotoPublicConsent?.checked === true
           }
         });
 
         if (res && res.success) {
           AppState.vibrate(80);
-          alert('소중한 응원을 남겨주셔서 감사합니다! ❤️');
+          const wasEdit = currentReviewMode === 'edit';
+          const nextImageUrl = wasEdit
+            ? (imageAction === 'remove' ? '' : (imageAction === 'replace' ? imageUrl : currentReviewImageUrl))
+            : imageUrl;
+          alert(wasEdit ? '후기를 수정했습니다.' : '소중한 응원을 남겨주셔서 감사합니다! ❤️');
           closeReviewModal();
           
           // 로컬스토리지 guestOrders 상태 업데이트
@@ -881,7 +1047,10 @@ window.addEventListener('DOMContentLoaded', () => {
                   reviewComment: comment, 
                   comment: comment,
                   stamp: stamp,
-                  tags: tags
+                  tags: tags,
+                  imageUrl: nextImageUrl,
+                  reviewUpdatedAt: wasEdit ? (res.review?.updatedAt || new Date().toISOString()) : '',
+                  reviewEditCount: wasEdit ? Number(res.review?.editCount || Number(o.reviewEditCount || 0) + 1) : 0
                 };
               }
               return o;
@@ -892,15 +1061,15 @@ window.addEventListener('DOMContentLoaded', () => {
           // 화면 갱신
           loadOrders();
         } else {
-          alert('후기 제출에 실패했습니다: ' + (res.message || '오류'));
+          alert((currentReviewMode === 'edit' ? '후기 수정' : '후기 제출') + '에 실패했습니다: ' + (res.message || '오류'));
           btnSubmitReview.disabled = false;
-          btnSubmitReview.textContent = '보내기';
+          btnSubmitReview.textContent = currentReviewMode === 'edit' ? '수정 저장' : '보내기';
         }
       } catch (e) {
         console.error('후기 제출 오류:', e);
         alert('통신 오류가 발생했습니다.');
         btnSubmitReview.disabled = false;
-        btnSubmitReview.textContent = '보내기';
+        btnSubmitReview.textContent = currentReviewMode === 'edit' ? '수정 저장' : '보내기';
       }
     });
   }

@@ -261,7 +261,7 @@ function renderReviews(reviews) {
       <div class="review-card-header">
         <div class="review-card-meta">
           <span class="review-card-guest">${esc(review.guestName)} 님</span>
-          <span class="review-card-date">${esc(formattedDate)}</span>
+          <span class="review-card-date">${esc(formattedDate)}${review.updatedAt || Number(review.editCount || 0) > 0 ? ' · 수정됨' : ''}</span>
         </div>
         <div class="review-card-badges" style="display: flex; align-items: center; gap: 8px;">
           <span class="status-badge ${pubClass}" style="margin: 0; min-height: auto; padding: 2px 8px; font-size: 11px;">${pubLabel}</span>
@@ -346,6 +346,20 @@ function openReviewDetail(index) {
 
   document.getElementById('rd-guest-name').textContent = review.guestName;
   document.getElementById('rd-created-at').textContent = formattedDate;
+  const editedStatus = document.getElementById('rd-edited-status');
+  if (editedStatus) {
+    if (review.updatedAt || Number(review.editCount || 0) > 0) {
+      const rawUpdatedAt = review.updatedAt ? new Date(review.updatedAt) : null;
+      const formattedUpdatedAt = rawUpdatedAt && !isNaN(rawUpdatedAt.getTime())
+        ? `${rawUpdatedAt.toLocaleDateString()} ${String(rawUpdatedAt.getHours()).padStart(2, '0')}:${String(rawUpdatedAt.getMinutes()).padStart(2, '0')}`
+        : String(review.updatedAt || '');
+      editedStatus.textContent = `수정됨${formattedUpdatedAt ? ` · ${formattedUpdatedAt}` : ''} · ${Number(review.editCount || 0)}회`;
+      editedStatus.hidden = false;
+    } else {
+      editedStatus.textContent = '';
+      editedStatus.hidden = true;
+    }
+  }
   const stickerContainer = document.getElementById('rd-stamp-sticker-container');
   if (review.stamp) {
     const stampInfo = stampMapping[review.stamp] || { text: review.stamp };

@@ -59,6 +59,14 @@ function uploadImage(data) {
         return auth;
       }
     } else if (type === 'review') {
+      const isReviewEdit = data.reviewEdit === true || data.reviewEdit === 'true';
+      if (isReviewEdit) {
+        const reviewResult = getGuestReview(data);
+        if (!reviewResult.success) return reviewResult;
+        if (!reviewResult.review.editable) {
+          return { success: false, message: '후기 작성 후 7일이 지나 사진을 변경할 수 없습니다.' };
+        }
+      } else {
       // 게스트 후기 사진 업로드 시 orderToken 필수 검증
       const orderToken = String(data.orderToken || '').trim();
       if (!orderToken) {
@@ -116,6 +124,7 @@ function uploadImage(data) {
           message: '이미 응원 메시지를 남긴 주문입니다.'
         };
       }
+      }
     } else {
       return { success: false, message: '올바르지 않은 이미지 타입입니다.' };
     }
@@ -170,5 +179,36 @@ function uploadImage(data) {
       success: false,
       message: '이미지 업로드 중 오류 발생: ' + error.toString()
     };
+  }
+}
+
+function extractDriveFileId_(url) {
+  const text = String(url || '').trim();
+  const pathMatch = text.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (pathMatch && pathMatch[1]) return pathMatch[1];
+  const queryMatch = text.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  return queryMatch && queryMatch[1] ? queryMatch[1] : '';
+}
+
+function trashReviewImageFile_(imageUrl) {
+  const fileId = extractDriveFileId_(imageUrl);
+  if (!fileId) return;
+  try {
+    const file = DriveApp.getFileById(fileId);
+    const parents = file.getParents();
+    let belongsToReviewFolder = false;
+    while (parents.hasNext()) {
+      if (parents.next().getId() === REVIEW_IMAGE_FOLDER_ID) {
+        belongsToReviewFolder = true;
+        break;
+      }
+    }
+    if (!belongsToReviewFolder) {
+      Logger.log(JSON.stringify({ event: 'review_image_cleanup_skipped', fileId, reason: 'folder_mismatch' }));
+      return;
+    }
+    file.setTrashed(true);
+  } catch (error) {
+    Logger.log(JSON.stringify({ event: 'review_image_cleanup_failed', fileId, error: String(error) }));
   }
 }
