@@ -142,19 +142,33 @@ function getGuestApplicationOperations(data) {
   const byApplication = {};
   current.forEach(item => {
     const previous = byApplication[item.applicationId];
-    if (!previous || previous.status === GUEST_APPLICATION_OPERATION_STATUS.CANCELLED || item.status !== GUEST_APPLICATION_OPERATION_STATUS.CANCELLED) {
+    if (!previous) {
       byApplication[item.applicationId] = item;
+      return;
     }
+    const previousTime = new Date(previous.updatedAt || previous.createdAt || 0).getTime() || 0;
+    const currentTime = new Date(item.updatedAt || item.createdAt || 0).getTime() || 0;
+    if (currentTime >= previousTime) byApplication[item.applicationId] = item;
   });
-  const candidates = applicationObjects
+  const applications = applicationObjects
+    .filter(item => !item.anonymizedAt)
+    .map(item => {
+      const operation = byApplication[item.applicationId];
+      return {
+        applicationId: item.applicationId,
+        name: item.name,
+        status: item.status,
+        preferredDays: item.preferredDays,
+        waitlistPosition: item.waitlistPosition,
+        contactedAt: item.contactedAt,
+        testMarked: String(item.adminMemo || '').indexOf('[테스트]') === 0,
+        currentServiceStatus: operation?.status || '',
+        currentOperationId: operation?.operationId || '',
+        lastCompletedAt: latestCompleted[item.applicationId] || '',
+      };
+    });
+  const candidates = applications
     .filter(item => item.status === GUEST_APPLICATION_STATUS.APPROVED)
-    .map(item => ({
-      applicationId: item.applicationId,
-      name: item.name,
-      preferredDays: item.preferredDays,
-      currentServiceStatus: byApplication[item.applicationId]?.status || '',
-      lastCompletedAt: latestCompleted[item.applicationId] || '',
-    }))
     .sort((a, b) => String(a.lastCompletedAt || '').localeCompare(String(b.lastCompletedAt || '')) || String(a.applicationId).localeCompare(String(b.applicationId)));
   return {
     success: true,
@@ -162,6 +176,7 @@ function getGuestApplicationOperations(data) {
     settings: getApplicationOperationSettings(),
     operations: current,
     byApplication,
+    applications,
     lastCompletedAt: latestCompleted,
     candidates,
   };
@@ -278,6 +293,42 @@ function updateGuestApplicationSchedulingSettings(data) {
     clearGuestApplicationSettingsCache();
     safeAppendAdminLog('updateGuestApplicationSchedulingSettings', 'settings', pauseWeek || 'global', '주간 운영 설정', '', mode + '/' + paused, pauseReason);
     return { success: true, settings: getApplicationOperationSettings(), message: '주간 운영 설정이 저장되었습니다.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function cancelGuestApplicationOperations(data) {
+  const ids = Array.isArray(data && data.operationIds)
+    ? [...new Set(data.operationIds.map(String).map(value => value.trim()).filter(Boolean))]
+    : [];
+  if (!ids.length) return { success: false, message: '확정 취소할 대상을 선택해 주세요.' };
+  const requestId = String((data && data.requestId) || '').trim();
+  const cachedResult = getCachedGuestApplicationOperationResult('cancel', requestId);
+  if (cachedResult) return cachedResult;
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const table = getGuestApplicationOperationTable();
+    const idSet = new Set(ids);
+    const now = new Date();
+    let cancelled = 0;
+    table.rows.forEach(row => {
+      const operationId = String(row[table.map.operationId] || '').trim();
+      if (!idSet.has(operationId)) return;
+      if (String(row[table.map.status] || '').trim() !== GUEST_APPLICATION_OPERATION_STATUS.SELECTED) return;
+      row[table.map.status] = GUEST_APPLICATION_OPERATION_STATUS.CANCELLED;
+      row[table.map.adminMemo] = '[확정 취소] ' + String(row[table.map.adminMemo] || '').replace(/^\[확정 취소\]\s*/, '').slice(0, 480);
+      row[table.map.updatedAt] = now;
+      cancelled++;
+    });
+    if (!cancelled) return { success: false, message: '선택한 대상 중 확정 취소할 수 있는 운영 대상이 없습니다.' };
+    const values = table.rows.map(row => row.slice(0, table.headers.length));
+    table.sheet.getRange(2, 1, values.length, table.headers.length).setValues(values);
+    safeAppendAdminLog('cancelGuestApplicationOperations', 'guestApplication', ids.join(','), '이번 주 운영 확정 취소', '', cancelled + '건', requestId);
+    const result = { success: true, cancelled, message: cancelled + '명의 이번 주 운영 확정을 취소했습니다.' };
+    cacheGuestApplicationOperationResult('cancel', requestId, result);
+    return result;
   } finally {
     lock.releaseLock();
   }

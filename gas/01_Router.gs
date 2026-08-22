@@ -201,6 +201,8 @@ function doPost(e) {
       return jsonResponse(assignGuestApplicationsToWeek(data));
     } else if (action === 'completeGuestApplicationOperations') {
       return jsonResponse(completeGuestApplicationOperations(data));
+    } else if (action === 'cancelGuestApplicationOperations') {
+      return jsonResponse(cancelGuestApplicationOperations(data));
     } else if (action === 'updateGuestApplicationSchedulingSettings') {
       return jsonResponse(updateGuestApplicationSchedulingSettings(data));
     } else if (action === 'repairGuestApplicationOperationDuplicates') {

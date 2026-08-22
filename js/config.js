@@ -1,6 +1,6 @@
 // Google Apps Script API 설정
 const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ9_UPux8bq0xROvNK9E1NCBam0Qe/exec";
-const API_CONTRACT_VERSION = '2026-08-22.2';
+const API_CONTRACT_VERSION = '2026-08-22.3';
 
 function resolveApiUrl() {
   try {
@@ -245,6 +245,20 @@ function getMockGuestApplicationOperations(serviceWeek) {
       currentServiceStatus: byApplication[application.applicationId]?.status || '',
       lastCompletedAt: lastCompletedAt[application.applicationId] || ''
     }));
+  const applications = MOCK_GUEST_APPLICATIONS
+    .filter(application => !application.anonymizedAt)
+    .map(application => ({
+      applicationId: application.applicationId,
+      name: application.name,
+      status: application.status,
+      preferredDays: application.preferredDays,
+      waitlistPosition: application.waitlistPosition || '',
+      contactedAt: application.contactedAt || '',
+      testMarked: String(application.adminMemo || '').startsWith('[테스트]'),
+      currentServiceStatus: byApplication[application.applicationId]?.status || '',
+      currentOperationId: byApplication[application.applicationId]?.operationId || '',
+      lastCompletedAt: lastCompletedAt[application.applicationId] || ''
+    }));
   const configured = getMockGuestApplicationSettingsResponse();
   return {
     serviceWeek: week,
@@ -257,6 +271,7 @@ function getMockGuestApplicationOperations(serviceWeek) {
     },
     operations: rows,
     candidates,
+    applications,
     lastCompletedAt
   };
 }
@@ -927,6 +942,20 @@ function getMockFallback(action, options) {
       }
     });
     res = { success: true, count, message: `${count}명의 서비스 제공을 완료했습니다.` };
+  } else if (action === 'cancelGuestApplicationOperations') {
+    const ids = Array.isArray(options.body?.operationIds) ? options.body.operationIds.map(String) : [];
+    let count = 0;
+    MOCK_GUEST_APPLICATION_OPERATIONS.forEach(row => {
+      if (ids.includes(row.operationId) && row.status === 'SELECTED') {
+        row.status = 'CANCELLED';
+        row.adminMemo = '[확정 취소] ' + String(row.adminMemo || '').replace(/^\[확정 취소\]\s*/, '');
+        row.updatedAt = new Date().toISOString();
+        count++;
+      }
+    });
+    res = count
+      ? { success: true, cancelled: count, message: `${count}명의 이번 주 운영 확정을 취소했습니다.` }
+      : { success: false, message: '선택한 대상 중 확정 취소할 수 있는 운영 대상이 없습니다.' };
   } else if (action === 'repairGuestApplicationOperationDuplicates') {
     res = options.body?.confirmText === '운영기록중복정리'
       ? { success: true, cancelled: 0, backupName: '이용운영기록_목업백업', message: '중복 운영 기록이 없습니다.' }
