@@ -267,6 +267,7 @@
           <button type="button" class="application-filter-btn" data-application-filter="APPROVED">승인 <span class="application-filter-count" id="application-count-approved">0</span></button>
           <button type="button" class="application-filter-btn" data-application-filter="REJECTED">반려 <span class="application-filter-count" id="application-count-rejected">0</span></button>
           <button type="button" class="application-filter-btn" data-application-filter="INACTIVE">중지 <span class="application-filter-count" id="application-count-inactive">0</span></button>
+          <button type="button" class="application-filter-btn" data-application-filter="TEST">테스트 <span class="application-filter-count" id="application-count-test">0</span></button>
         </div>
 
         <section class="application-operations-panel" id="application-operations-panel" aria-labelledby="application-operations-title">
@@ -283,11 +284,11 @@
             </label>
             <label class="application-open-toggle"><input type="checkbox" id="application-scheduling-paused"> 이번 주 운영 중단</label>
             <input type="text" id="application-pause-reason" maxlength="160" placeholder="중단 사유 (예: 내부 행사)">
-            <button class="btn btn-gray" id="btn-save-application-scheduling" type="button">운영 설정 저장</button>
+            <button class="btn btn-gray" id="btn-save-application-scheduling" type="button">이번 주 운영 설정 저장</button>
           </div>
           <div class="application-operation-actions">
-            <button class="btn btn-secondary" id="btn-assign-application-week" type="button">선택 대상 운영 확정</button>
-            <button class="btn btn-gray" id="btn-complete-application-week" type="button">선택 대상 제공 완료</button>
+            <button class="btn btn-secondary" id="btn-assign-application-week" type="button" disabled>이번 주 운영 확정</button>
+            <button class="btn btn-gray" id="btn-complete-application-week" type="button" disabled>서비스 제공 완료</button>
           </div>
           <div class="application-operation-list" id="application-operation-list" aria-live="polite"></div>
         </section>
@@ -364,6 +365,20 @@
               <button class="btn btn-gray" id="btn-anonymize-applications" type="button" style="width: auto; min-height: 42px; margin: 0; color: #B91C1C; border-color: #FCA5A5;">익명화 실행</button>
             </div>
             <div class="application-retention-result" id="application-retention-result">아직 만료 점검을 실행하지 않았습니다.</div>
+            <hr class="application-maintenance-divider">
+            <p class="application-maintenance-help">테스트 표시가 된 신청만 정리할 수 있습니다. 운영 기록이 있는 테스트 신청은 삭제하지 않습니다.</p>
+            <div class="application-settings-actions application-test-cleanup-actions">
+              <input id="application-test-confirm" type="text" autocomplete="off" placeholder="테스트신청정리">
+              <button class="btn btn-gray" id="btn-delete-test-applications" type="button">테스트 신청 정리</button>
+            </div>
+            <div class="application-retention-result" id="application-test-result">정리할 테스트 신청을 선택하려면 목록에서 테스트 필터를 사용하세요.</div>
+            <hr class="application-maintenance-divider">
+            <p class="application-maintenance-help">같은 신청자·같은 주차의 중복 운영 기록을 백업한 뒤 추가 기록만 취소 상태로 보존합니다.</p>
+            <div class="application-settings-actions application-test-cleanup-actions">
+              <input id="application-operation-repair-confirm" type="text" autocomplete="off" placeholder="운영기록중복정리">
+              <button class="btn btn-gray" id="btn-repair-application-operations" type="button">중복 운영 기록 정리</button>
+            </div>
+            <div class="application-retention-result" id="application-operation-repair-result">중복 정리는 필요할 때만 실행하세요.</div>
           </div>
         </details>
       </div>
@@ -395,6 +410,7 @@
         <button class="btn btn-gray" type="button" data-application-action="INACTIVE" style="margin: 0; min-height: 44px;">이용 중지</button>
         <button class="btn btn-gray" id="btn-application-contacted" type="button" style="margin: 0; min-height: 44px;">연락 완료</button>
         <button class="btn btn-gray" id="btn-application-skip" type="button" style="margin: 0; min-height: 44px; color: #7C3AED;">이번 주 건너뛰기</button>
+        <button class="btn btn-gray" id="btn-application-test" type="button" style="margin: 0; min-height: 44px;">테스트 신청으로 표시</button>
         <button class="btn btn-primary" id="btn-save-application-memo" type="button" style="margin: 0; min-height: 44px;">메모 저장</button>
       </div>
     </div>

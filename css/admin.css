@@ -161,6 +161,7 @@
 .application-operations-settings > label { display: inline-flex; align-items: center; gap: 7px; font-weight: 850; color: #334155; }
 .application-operations-settings > input { flex: 1 1 180px; }
 .application-operation-actions { margin-top: 14px; }
+.application-operation-actions .btn { width: auto; min-height: 44px; margin: 0; flex: 1 1 220px; }
 .application-operation-list { display: grid; gap: 8px; margin-top: 14px; }
 .application-operation-group { padding: 10px; border-radius: var(--radius-sm); background: white; border: 1px solid #CCFBF1; }
 .application-operation-group h4 { margin: 0 0 8px; color: #334155; font-size: 14px; }
@@ -168,6 +169,12 @@
 .application-operation-row:first-of-type { border-top: 0; }
 .application-operation-row label { display: inline-flex; align-items: center; gap: 7px; min-width: 180px; font-weight: 800; }
 .application-operation-row small { color: #64748B; font-weight: 700; }
+.application-operation-row .application-operation-name { flex: 1 1 180px; min-width: 0; }
+.application-operation-row .application-operation-status { color: #0F766E; font-weight: 800; white-space: nowrap; }
+.application-maintenance-divider { border: 0; border-top: 1px solid #E2E8F0; margin: 16px 0 12px; }
+.application-maintenance-help { margin: 0 0 10px; color: #64748B; font-size: 13px; line-height: 1.5; }
+.application-test-cleanup-actions input { flex: 1 1 220px; min-height: 42px; box-sizing: border-box; padding: 8px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); font: inherit; font-weight: 750; }
+.application-test-cleanup-actions .btn { width: auto; min-height: 42px; margin: 0; color: #B91C1C; border-color: #FCA5A5; }
 
 .application-settings-panel,
 .application-retention-panel {
@@ -1097,7 +1104,9 @@
   .application-operations-settings > input,
   .application-operations-settings > label,
   .application-operations-settings > button { width: 100%; }
-  .application-operation-actions > button { flex: 1 1 100%; }
+  .application-operation-actions > button { flex: 1 1 calc(50% - 5px); }
+  .application-test-cleanup-actions input,
+  .application-test-cleanup-actions .btn { width: 100%; }
   .application-operation-row label { min-width: 0; width: 100%; }
   .admin-tabs {
     display: flex;

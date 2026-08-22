@@ -203,6 +203,8 @@ function doPost(e) {
       return jsonResponse(completeGuestApplicationOperations(data));
     } else if (action === 'updateGuestApplicationSchedulingSettings') {
       return jsonResponse(updateGuestApplicationSchedulingSettings(data));
+    } else if (action === 'repairGuestApplicationOperationDuplicates') {
+      return jsonResponse(repairGuestApplicationOperationDuplicates(data));
     } else if (action === 'markGuestApplicationTestData') {
       return jsonResponse(markGuestApplicationTestData(data));
     } else if (action === 'deleteTestGuestApplications') {

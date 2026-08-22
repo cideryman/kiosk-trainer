@@ -467,6 +467,7 @@ function updateApplicationCounts(counts = {}) {
   setApplicationCount('application-count-approved', counts.APPROVED);
   setApplicationCount('application-count-rejected', counts.REJECTED);
   setApplicationCount('application-count-inactive', counts.INACTIVE);
+  setApplicationCount('application-count-test', counts.TEST);
 
   const sidebarBadge = document.getElementById('sidebar-application-count');
   if (sidebarBadge) {
@@ -571,6 +572,7 @@ function renderGuestApplications(applications) {
           <div class="application-card-title">
             <span>${esc(application.name || '이름 없음')}</span>
             <span class="application-status-badge ${status.className}">${esc(status.label)}</span>
+            ${application.testMarked ? '<span class="application-status-badge inactive">테스트</span>' : ''}
             ${application.anonymizedAt ? '<span class="application-status-badge inactive">익명화</span>' : ''}
           </div>
           <div class="application-card-meta">
@@ -609,7 +611,7 @@ async function loadGuestApplications(status = currentApplicationFilter) {
       method: 'POST',
       body: {
         adminToken: getAdminToken(),
-        status: currentApplicationFilter
+        status: currentApplicationFilter === 'TEST' ? 'ALL' : currentApplicationFilter
       }
     });
     if (!res?.success) {
@@ -617,8 +619,12 @@ async function loadGuestApplications(status = currentApplicationFilter) {
       if (container) container.innerHTML = `<div class="application-error">${esc(res?.message || '신청 목록을 불러오지 못했습니다.')}</div>`;
       return;
     }
-    currentApplications = Array.isArray(res.applications) ? res.applications : [];
-    updateApplicationCounts(res.counts);
+    const allApplications = Array.isArray(res.applications) ? res.applications : [];
+    const counts = { ...(res.counts || {}), TEST: Number(res.counts?.TEST) || allApplications.filter(application => application.testMarked).length };
+    currentApplications = currentApplicationFilter === 'TEST'
+      ? allApplications.filter(application => application.testMarked)
+      : allApplications;
+    updateApplicationCounts(counts);
     renderGuestApplicationSettings(res.settings);
     renderGuestApplications(currentApplications);
     await loadGuestApplicationOperations();
@@ -657,26 +663,63 @@ function renderGuestApplicationOperations(data) {
     status.textContent = `${data?.serviceWeek || '-'} · ${data?.settings?.mode === 'AUTO' ? '자동 순환' : '수동 운영'}${pauseText}`;
   }
   if (!list) return;
-  const operations = Array.isArray(data?.operations) ? data.operations : [];
+  const operations = (Array.isArray(data?.operations) ? data.operations : [])
+    .filter(item => item.status !== 'CANCELLED');
   const candidates = Array.isArray(data?.candidates) ? data.candidates : [];
-  const currentIds = new Set(operations
-    .filter(item => ['SELECTED', 'COMPLETED'].includes(item.status))
-    .map(item => item.applicationId));
-  const selectedRows = operations.map(item => `
-    <div class="application-operation-row">
-      <label>${item.status === 'SELECTED' ? `<input type="checkbox" data-operation-id="${esc(item.operationId)}">` : ''}<span>${esc(item.applicationId)}</span></label>
-      <small>${item.status === 'COMPLETED' ? '서비스 제공 완료' : item.status === 'SELECTED' ? '이번 주 운영' : item.status}</small>
-    </div>`).join('');
-  const candidateRows = candidates.map(item => {
-    const isCurrent = currentIds.has(item.applicationId);
-    const statusLabel = item.currentServiceStatus === 'COMPLETED' ? '완료' : item.currentServiceStatus === 'SELECTED' ? '확정' : '';
+  const rowsByApplication = new Map();
+  operations.forEach(item => {
+    if (!rowsByApplication.has(item.applicationId)) {
+      rowsByApplication.set(item.applicationId, {
+        applicationId: item.applicationId,
+        name: item.name || item.applicationId,
+        status: item.status,
+        operationId: item.operationId,
+        lastCompletedAt: item.completedAt || ''
+      });
+    }
+  });
+  candidates.forEach(item => {
+    if (rowsByApplication.has(item.applicationId)) return;
+    rowsByApplication.set(item.applicationId, {
+      applicationId: item.applicationId,
+      name: item.name || item.applicationId,
+      status: '',
+      operationId: '',
+      lastCompletedAt: item.lastCompletedAt || ''
+    });
+  });
+  const rows = [...rowsByApplication.values()];
+  const statusRank = { SELECTED: 0, COMPLETED: 1, '': 2 };
+  rows.sort((a, b) => (statusRank[a.status] ?? 9) - (statusRank[b.status] ?? 9)
+    || String(a.lastCompletedAt || '').localeCompare(String(b.lastCompletedAt || ''))
+    || String(a.name).localeCompare(String(b.name), 'ko'));
+  const rowHtml = rows.map(item => {
+    const isSelected = item.status === 'SELECTED';
+    const isCompleted = item.status === 'COMPLETED';
+    const checkbox = isSelected
+      ? `<input type="checkbox" data-operation-id="${esc(item.operationId)}" aria-label="${esc(item.name)} 서비스 완료 선택">`
+      : !isCompleted
+        ? `<input type="checkbox" data-application-id="${esc(item.applicationId)}" aria-label="${esc(item.name)} 이번 주 운영 선택">`
+        : '';
+    const label = isSelected ? '이번 주 운영' : isCompleted ? '서비스 완료' : item.lastCompletedAt ? `마지막 완료 ${formatApplicationDate(item.lastCompletedAt)}` : '운영 이력 없음';
     return `<div class="application-operation-row">
-      <label>${!isCurrent ? `<input type="checkbox" data-application-id="${esc(item.applicationId)}">` : ''}<span>${esc(item.name || item.applicationId)}</span></label>
-      <small>${statusLabel || (item.lastCompletedAt ? `마지막 완료 ${esc(formatApplicationDate(item.lastCompletedAt))}` : '운영 이력 없음')}</small>
+      <label>${checkbox}<span class="application-operation-name">${esc(item.name)}</span></label>
+      <span class="application-operation-status">${esc(label)}</span>
     </div>`;
   }).join('');
-  list.innerHTML = `<div class="application-operation-group"><h4>이번 주 운영 대상</h4>${selectedRows || '<div class="application-empty">아직 확정된 대상이 없습니다.</div>'}</div>
-    <div class="application-operation-group"><h4>다음 운영 후보 (승인된 신청자)</h4>${candidateRows || '<div class="application-empty">선택 가능한 승인 신청자가 없습니다.</div>'}</div>`;
+  list.innerHTML = `<div class="application-operation-group"><h4>주간 운영 신청자</h4>${rowHtml || '<div class="application-empty">선택 가능한 승인 신청자가 없습니다.</div>'}</div>`;
+  updateApplicationOperationButtons();
+}
+
+function updateApplicationOperationButtons() {
+  const assignButton = document.getElementById('btn-assign-application-week');
+  const completeButton = document.getElementById('btn-complete-application-week');
+  const selectedApplications = document.querySelectorAll('[data-application-id]:checked').length;
+  const selectedOperations = document.querySelectorAll('[data-operation-id]:checked').length;
+  const paused = currentApplicationOperations?.settings?.paused === true
+    && (!currentApplicationOperations.settings.pauseWeek || currentApplicationOperations.settings.pauseWeek === currentApplicationOperations.serviceWeek);
+  if (assignButton) assignButton.disabled = paused || selectedApplications === 0;
+  if (completeButton) completeButton.disabled = selectedOperations === 0;
 }
 
 async function loadGuestApplicationOperations() {
@@ -773,6 +816,12 @@ function renderGuestApplicationDetail(application) {
   document.querySelectorAll('[data-application-action], #btn-application-contacted, #btn-application-skip, #btn-save-application-memo').forEach(button => {
     button.disabled = Boolean(application.anonymizedAt);
   });
+  const testButton = document.getElementById('btn-application-test');
+  if (testButton) {
+    const marked = String(application.adminMemo || '').startsWith('[테스트]');
+    testButton.disabled = Boolean(application.anonymizedAt) || marked;
+    testButton.textContent = marked ? '테스트 표시됨' : '테스트 신청으로 표시';
+  }
   const contactedButton = document.getElementById('btn-application-contacted');
   if (contactedButton) contactedButton.textContent = application.contactedAt ? '연락 표시 취소' : '연락 완료';
   const skipButton = document.getElementById('btn-application-skip');
@@ -888,6 +937,77 @@ async function saveGuestApplicationSettings() {
     if (button) button.disabled = false;
     isSubmitting = false;
   }
+}
+
+async function markCurrentGuestApplicationTest() {
+  if (!currentApplicationDetail || currentApplicationDetail.anonymizedAt) return;
+  if (!confirm('이 신청을 테스트 신청으로 표시할까요?')) return;
+  const res = await fetchAPI('markGuestApplicationTestData', {
+    method: 'POST',
+    body: { adminToken: getAdminToken(), applicationId: currentApplicationDetail.applicationId }
+  });
+  if (!res?.success) {
+    clearAdminTokenIfDenied(res);
+    return alert(res?.message || '테스트 표시를 저장하지 못했습니다.');
+  }
+  alert(res.message || '테스트 신청으로 표시했습니다.');
+  closeGuestApplicationModal();
+  await loadGuestApplications();
+}
+
+async function deleteTestGuestApplications() {
+  const confirmInput = document.getElementById('application-test-confirm');
+  const result = document.getElementById('application-test-result');
+  const confirmText = confirmInput?.value.trim() || '';
+  if (confirmText !== '테스트신청정리') {
+    alert('확인 문구 테스트신청정리를 정확히 입력해 주세요.');
+    confirmInput?.focus();
+    return;
+  }
+  const ids = (currentApplications || []).filter(item => item.testMarked).map(item => item.applicationId);
+  if (!ids.length) {
+    alert('현재 목록에 정리할 테스트 신청이 없습니다. 테스트 필터를 선택해 확인해 주세요.');
+    return;
+  }
+  if (!confirm(`테스트 표시된 ${ids.length}건을 정리할까요? 운영 기록이 있는 신청은 삭제되지 않습니다.`)) return;
+  const res = await fetchAPI('deleteTestGuestApplications', {
+    method: 'POST',
+    body: { adminToken: getAdminToken(), applicationIds: ids, confirmText }
+  });
+  if (!res?.success) {
+    clearAdminTokenIfDenied(res);
+    if (result) result.textContent = res?.message || '테스트 신청 정리에 실패했습니다.';
+    return;
+  }
+  if (confirmInput) confirmInput.value = '';
+  if (result) result.textContent = res.message || '테스트 신청을 정리했습니다.';
+  alert(res.message || '테스트 신청을 정리했습니다.');
+  await loadGuestApplications(currentApplicationFilter);
+}
+
+async function repairGuestApplicationOperationDuplicates() {
+  const confirmInput = document.getElementById('application-operation-repair-confirm');
+  const result = document.getElementById('application-operation-repair-result');
+  const confirmText = confirmInput?.value.trim() || '';
+  if (confirmText !== '운영기록중복정리') {
+    alert('확인 문구 운영기록중복정리를 정확히 입력해 주세요.');
+    confirmInput?.focus();
+    return;
+  }
+  if (!confirm('운영기록을 백업한 뒤 중복 기록을 CANCELLED 상태로 정리할까요?')) return;
+  const res = await fetchAPI('repairGuestApplicationOperationDuplicates', {
+    method: 'POST',
+    body: { adminToken: getAdminToken(), confirmText }
+  });
+  if (!res?.success) {
+    clearAdminTokenIfDenied(res);
+    if (result) result.textContent = res?.message || '중복 운영 기록 정리에 실패했습니다.';
+    return;
+  }
+  if (confirmInput) confirmInput.value = '';
+  if (result) result.textContent = res.message || '중복 운영 기록을 정리했습니다.';
+  alert(res.message || '중복 운영 기록을 정리했습니다.');
+  await loadGuestApplications(currentApplicationFilter);
 }
 
 async function auditGuestApplicationRetention() {
@@ -2390,8 +2510,12 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-save-application-scheduling')?.addEventListener('click', saveGuestApplicationSchedulingSettings);
   document.getElementById('btn-assign-application-week')?.addEventListener('click', assignSelectedGuestApplications);
   document.getElementById('btn-complete-application-week')?.addEventListener('click', completeSelectedGuestApplications);
+  document.getElementById('application-operation-list')?.addEventListener('change', updateApplicationOperationButtons);
   document.getElementById('btn-audit-applications')?.addEventListener('click', auditGuestApplicationRetention);
   document.getElementById('btn-anonymize-applications')?.addEventListener('click', anonymizeGuestApplications);
+  document.getElementById('btn-delete-test-applications')?.addEventListener('click', deleteTestGuestApplications);
+  document.getElementById('btn-repair-application-operations')?.addEventListener('click', repairGuestApplicationOperationDuplicates);
+  document.getElementById('btn-application-test')?.addEventListener('click', markCurrentGuestApplicationTest);
   document.getElementById('btn-save-application-memo')?.addEventListener('click', () => updateCurrentGuestApplication({}));
   document.getElementById('btn-application-contacted')?.addEventListener('click', () => {
     updateCurrentGuestApplication({ contacted: !Boolean(currentApplicationDetail?.contactedAt) });

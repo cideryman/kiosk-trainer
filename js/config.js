@@ -1,6 +1,6 @@
 // Google Apps Script API 설정
 const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ9_UPux8bq0xROvNK9E1NCBam0Qe/exec";
-const API_CONTRACT_VERSION = '2026-08-22.1';
+const API_CONTRACT_VERSION = '2026-08-22.2';
 
 function resolveApiUrl() {
   try {
@@ -135,9 +135,10 @@ let MOCK_GUEST_APPLICATIONS = [
 ];
 
 function getMockGuestApplicationCounts(applications) {
-  const counts = { ALL: applications.length, PENDING: 0, APPROVED: 0, REJECTED: 0, INACTIVE: 0, EXPIRED: 0 };
+  const counts = { ALL: applications.length, PENDING: 0, APPROVED: 0, REJECTED: 0, INACTIVE: 0, EXPIRED: 0, TEST: 0 };
   applications.forEach(application => {
     if (Object.prototype.hasOwnProperty.call(counts, application.status)) counts[application.status]++;
+    if (String(application.adminMemo || '').startsWith('[테스트]')) counts.TEST++;
   });
   return counts;
 }
@@ -902,6 +903,7 @@ function getMockFallback(action, options) {
       ids.forEach((id, index) => MOCK_GUEST_APPLICATION_OPERATIONS.push({
         operationId: `OP-MOCK-${Date.now()}-${index}`,
         applicationId: id,
+        name: MOCK_GUEST_APPLICATIONS.find(application => application.applicationId === id)?.name || id,
         serviceWeek: week,
         status: 'SELECTED',
         selectedAt: now,
@@ -925,6 +927,28 @@ function getMockFallback(action, options) {
       }
     });
     res = { success: true, count, message: `${count}명의 서비스 제공을 완료했습니다.` };
+  } else if (action === 'repairGuestApplicationOperationDuplicates') {
+    res = options.body?.confirmText === '운영기록중복정리'
+      ? { success: true, cancelled: 0, backupName: '이용운영기록_목업백업', message: '중복 운영 기록이 없습니다.' }
+      : { success: false, message: '확인 문구 운영기록중복정리를 정확히 입력해 주세요.' };
+  } else if (action === 'markGuestApplicationTestData') {
+    const application = MOCK_GUEST_APPLICATIONS.find(item => item.applicationId === options.body?.applicationId);
+    if (!application) {
+      res = { success: false, message: '신청 정보를 찾을 수 없습니다.' };
+    } else {
+      application.adminMemo = '[테스트] ' + String(application.adminMemo || '').replace(/^\[테스트\]\s*/, '');
+      application.updatedAt = new Date().toISOString();
+      res = { success: true, message: '테스트 신청으로 표시했습니다.' };
+    }
+  } else if (action === 'deleteTestGuestApplications') {
+    if (String(options.body?.confirmText || '').trim() !== '테스트신청정리') {
+      res = { success: false, message: '확인 문구 테스트신청정리를 정확히 입력해 주세요.' };
+    } else {
+      const ids = Array.isArray(options.body?.applicationIds) ? options.body.applicationIds.map(String) : [];
+      const before = MOCK_GUEST_APPLICATIONS.length;
+      MOCK_GUEST_APPLICATIONS = MOCK_GUEST_APPLICATIONS.filter(application => !ids.includes(application.applicationId) || !String(application.adminMemo || '').startsWith('[테스트]'));
+      res = { success: true, deleted: before - MOCK_GUEST_APPLICATIONS.length, message: `${before - MOCK_GUEST_APPLICATIONS.length}건의 테스트 신청을 정리했습니다.` };
+    }
   } else if (action === 'auditExpiredGuestApplications') {
     res = { success: true, count: 0, applications: [], message: '익명화할 만료 신청 정보가 없습니다.' };
   } else if (action === 'anonymizeExpiredGuestApplications') {

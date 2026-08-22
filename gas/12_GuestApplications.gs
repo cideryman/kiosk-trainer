@@ -705,9 +705,10 @@ function summarizeGuestApplicationPlace(value) {
 }
 
 function getGuestApplicationStatusCounts(applications, now) {
-  const counts = { ALL: applications.length, PENDING: 0, APPROVED: 0, REJECTED: 0, INACTIVE: 0, WAITLIST: 0, EXPIRED: 0 };
+  const counts = { ALL: applications.length, PENDING: 0, APPROVED: 0, REJECTED: 0, INACTIVE: 0, WAITLIST: 0, EXPIRED: 0, TEST: 0 };
   applications.forEach(application => {
     if (Object.prototype.hasOwnProperty.call(counts, application.status)) counts[application.status]++;
+    if (String(application.adminMemo || '').indexOf('[테스트]') === 0) counts.TEST++;
     const retentionTime = application.retentionUntil ? new Date(application.retentionUntil).getTime() : NaN;
     if (!application.anonymizedAt && !isNaN(retentionTime) && retentionTime <= now.getTime()) counts.EXPIRED++;
   });
@@ -756,6 +757,7 @@ function getGuestApplicationsForAdmin(data) {
       waitlistPosition: application.waitlistPosition,
       skipUntil: application.skipUntil,
       cooldownUntil: application.cooldownUntil,
+      testMarked: String(application.adminMemo || '').indexOf('[테스트]') === 0,
       updatedAt: application.updatedAt,
       currentServiceWeek: operationState.serviceWeek,
       currentServiceStatus: operationState.byApplication[application.applicationId]?.status || '',

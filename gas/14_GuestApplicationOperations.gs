@@ -123,10 +123,16 @@ function cacheGuestApplicationOperationResult(action, requestId, result) {
 function getGuestApplicationOperations(data) {
   const serviceWeek = getServiceWeekKey(data && data.serviceWeek);
   const table = getGuestApplicationOperationTable();
+  const applicationObjects = getGuestApplicationObjects(getGuestApplicationRows(ensureGuestApplicationSheet()));
+  const applicationById = {};
+  applicationObjects.forEach(item => { applicationById[item.applicationId] = item; });
   const operations = table.rows
     .filter(row => String(row[table.map.applicationId] || '').trim())
-    .map(row => guestApplicationOperationToObject(row, table.map));
-  const current = operations.filter(item => item.serviceWeek === serviceWeek);
+    .map(row => {
+      const item = guestApplicationOperationToObject(row, table.map);
+      return { ...item, name: applicationById[item.applicationId]?.name || item.applicationId };
+    });
+  const current = operations.filter(item => item.serviceWeek === serviceWeek && item.status !== GUEST_APPLICATION_OPERATION_STATUS.CANCELLED);
   const latestCompleted = {};
   operations.filter(item => item.status === GUEST_APPLICATION_OPERATION_STATUS.COMPLETED).forEach(item => {
     if (!latestCompleted[item.applicationId] || String(item.completedAt) > String(latestCompleted[item.applicationId])) {
@@ -134,8 +140,13 @@ function getGuestApplicationOperations(data) {
     }
   });
   const byApplication = {};
-  current.forEach(item => { byApplication[item.applicationId] = item; });
-  const candidates = getGuestApplicationObjects(getGuestApplicationRows(ensureGuestApplicationSheet()))
+  current.forEach(item => {
+    const previous = byApplication[item.applicationId];
+    if (!previous || previous.status === GUEST_APPLICATION_OPERATION_STATUS.CANCELLED || item.status !== GUEST_APPLICATION_OPERATION_STATUS.CANCELLED) {
+      byApplication[item.applicationId] = item;
+    }
+  });
+  const candidates = applicationObjects
     .filter(item => item.status === GUEST_APPLICATION_STATUS.APPROVED)
     .map(item => ({
       applicationId: item.applicationId,
@@ -161,7 +172,9 @@ function createGuestApplicationOperationId(serviceWeek, sequence) {
 }
 
 function assignGuestApplicationsToWeek(data) {
-  const ids = Array.isArray(data && data.applicationIds) ? data.applicationIds.map(String).map(value => value.trim()).filter(Boolean) : [];
+  const ids = Array.isArray(data && data.applicationIds)
+    ? [...new Set(data.applicationIds.map(String).map(value => value.trim()).filter(Boolean))]
+    : [];
   if (!ids.length) return { success: false, message: '이번 주 운영 대상자를 하나 이상 선택해 주세요.' };
   const serviceWeek = getServiceWeekKey(data && data.serviceWeek);
   const requestId = String((data && data.requestId) || '').trim();
@@ -265,6 +278,58 @@ function updateGuestApplicationSchedulingSettings(data) {
     clearGuestApplicationSettingsCache();
     safeAppendAdminLog('updateGuestApplicationSchedulingSettings', 'settings', pauseWeek || 'global', '주간 운영 설정', '', mode + '/' + paused, pauseReason);
     return { success: true, settings: getApplicationOperationSettings(), message: '주간 운영 설정이 저장되었습니다.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function repairGuestApplicationOperationDuplicates(data) {
+  if (String((data && data.confirmText) || '').trim() !== '운영기록중복정리') {
+    return { success: false, message: '확인 문구 운영기록중복정리를 정확히 입력해 주세요.' };
+  }
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const table = getGuestApplicationOperationTable();
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const backupBaseName = '이용운영기록_자동백업_' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd_HHmmss');
+    let backupName = backupBaseName;
+    let backupIndex = 2;
+    while (spreadsheet.getSheetByName(backupName)) backupName = backupBaseName + '_' + backupIndex++;
+    table.sheet.copyTo(spreadsheet).setName(backupName);
+    const grouped = {};
+    table.rows.forEach((row, index) => {
+      const item = guestApplicationOperationToObject(row, table.map);
+      if (!item.applicationId || !item.serviceWeek) return;
+      const key = item.applicationId + '|' + item.serviceWeek;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push({ row, index, item });
+    });
+    let cancelled = 0;
+    Object.keys(grouped).forEach(key => {
+      const entries = grouped[key].sort((a, b) => {
+        const aTime = new Date(a.item.createdAt || a.item.selectedAt || 0).getTime() || 0;
+        const bTime = new Date(b.item.createdAt || b.item.selectedAt || 0).getTime() || 0;
+        return aTime - bTime || a.index - b.index;
+      });
+      const keeper = entries.find(entry => entry.item.status !== GUEST_APPLICATION_OPERATION_STATUS.CANCELLED) || entries[0];
+      entries.forEach(entry => {
+        if (entry === keeper) return;
+        const statusIndex = table.map.status;
+        const memoIndex = table.map.adminMemo;
+        const updatedIndex = table.map.updatedAt;
+        entry.row[statusIndex] = GUEST_APPLICATION_OPERATION_STATUS.CANCELLED;
+        entry.row[memoIndex] = '[중복 정리] ' + String(entry.row[memoIndex] || '').slice(0, 480);
+        entry.row[updatedIndex] = new Date();
+        cancelled++;
+      });
+    });
+    if (cancelled) {
+      const values = table.rows.map(row => row.slice(0, table.headers.length));
+      table.sheet.getRange(2, 1, values.length, table.headers.length).setValues(values);
+    }
+    safeAppendAdminLog('repairGuestApplicationOperationDuplicates', 'guestApplicationOperation', table.sheet.getName(), '주간 운영 중복 정리', '', cancelled + '건 CANCELLED', backupName);
+    return { success: true, cancelled, backupName, message: cancelled + '건의 중복 운영 기록을 정리했습니다. 백업: ' + backupName };
   } finally {
     lock.releaseLock();
   }
