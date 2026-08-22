@@ -1394,6 +1394,7 @@ function auditArchiveOldOrders() {
           orderRows: Math.max(orderSheet.getLastRow() - 1, 0),
           archiveRows: 0,
           headersEqual: false,
+          headersCompatible: true,
           missingInArchive: [],
           extraInArchive: [],
           overlapKeys: 0,
@@ -1460,6 +1461,10 @@ function auditArchiveOldOrders() {
 
     const missingInArchive = orderHeader.filter(header => header && archiveHeader.indexOf(header) === -1);
     const extraInArchive = archiveHeader.filter(header => header && orderHeader.indexOf(header) === -1);
+    // 기존 보관 시트가 주문내역의 앞부분 열만 가진 경우(예: commitStatus 추가 전 A:W)는
+    // 열 이름과 순서가 보존되므로 안전하게 호환되는 구조로 취급한다.
+    const headersCompatible = archiveHeader.length <= orderHeader.length
+      && archiveHeader.every((header, index) => header === orderHeader[index]);
 
     return {
       success: true,
@@ -1471,6 +1476,7 @@ function auditArchiveOldOrders() {
         orderColumns: orderHeader.length,
         archiveColumns: archiveHeader.length,
         headersEqual: JSON.stringify(orderHeader) === JSON.stringify(archiveHeader),
+        headersCompatible,
         missingInArchive,
         extraInArchive,
         overlapKeys,
@@ -1530,10 +1536,10 @@ function archiveOldOrders(data) {
     const timestampIndex = header.indexOf('주문시간');
     const targetColumnCount = header.length;
 
-    const normalizeRow = (row) => {
+    const normalizeRow = (row, targetHeader = header) => {
       const safeRow = [...row];
-      while (safeRow.length < targetColumnCount) safeRow.push('');
-      return safeRow.slice(0, targetColumnCount);
+      while (safeRow.length < targetHeader.length) safeRow.push('');
+      return safeRow.slice(0, targetHeader.length);
     };
 
     const getKey = (row, headerRow) => {
@@ -1545,7 +1551,7 @@ function archiveOldOrders(data) {
       return orderNo && snackId ? `${orderNo}|${snackId}` : '';
     };
 
-    const mapRowByHeader = (row, sourceHeader) => {
+    const mapRowByHeader = (row, sourceHeader, targetHeader = header) => {
       const sourceIndexes = {};
       sourceHeader.forEach((name, index) => {
         const normalizedName = String(name == null ? '' : name).trim();
@@ -1553,7 +1559,7 @@ function archiveOldOrders(data) {
           sourceIndexes[normalizedName] = index;
         }
       });
-      return header.map(name => {
+      return targetHeader.map(name => {
         const sourceIndex = sourceIndexes[name];
         return sourceIndex === undefined ? '' : row[sourceIndex];
       });
@@ -1565,6 +1571,16 @@ function archiveOldOrders(data) {
       ? archiveValues[0].map(value => String(value == null ? '' : value).trim())
       : [];
     const archiveRows = archiveValues.length > 1 ? archiveValues.slice(1) : [];
+    const hasArchiveHeader = archiveHeader.some(Boolean);
+    const archiveTargetHeader = hasArchiveHeader ? archiveHeader : header;
+    const archiveHeadersCompatible = archiveTargetHeader.length <= header.length
+      && archiveTargetHeader.every((name, index) => name === header[index]);
+    if (!archiveHeadersCompatible) {
+      return {
+        success: false,
+        message: '주문내역과 주문보관의 열 구조가 안전하게 호환되지 않아 보관을 중단했습니다. 먼저 보관 점검을 확인해주세요.'
+      };
+    }
 
     // 오늘 날짜의 자정 기준 시각 구하기
     const today = new Date();
@@ -1583,10 +1599,10 @@ function archiveOldOrders(data) {
       if (!isNaN(timestamp.getTime()) && timestamp < today) {
         const key = getKey(row, header);
         if (key) {
-          archiveByKey.set(key, normalizeRow(row));
+          archiveByKey.set(key, mapRowByHeader(row, header, archiveTargetHeader));
         } else {
           // 키가 없는 행은 중복 판단이 불가능하므로 삭제하지 않고 보관한다.
-          fallbackArchiveRows.push(normalizeRow(row));
+          fallbackArchiveRows.push(mapRowByHeader(row, header, archiveTargetHeader));
         }
         movedOrderRows += 1;
       } else {
@@ -1599,10 +1615,10 @@ function archiveOldOrders(data) {
       const key = getKey(row, archiveHeader);
       if (key) {
         if (!archiveByKey.has(key)) {
-          archiveByKey.set(key, mapRowByHeader(row, archiveHeader));
+          archiveByKey.set(key, mapRowByHeader(row, archiveHeader, archiveTargetHeader));
         }
       } else if (row.some(value => value !== '')) {
-        fallbackArchiveRows.push(mapRowByHeader(row, archiveHeader));
+        fallbackArchiveRows.push(mapRowByHeader(row, archiveHeader, archiveTargetHeader));
       }
     });
 
@@ -1617,10 +1633,10 @@ function archiveOldOrders(data) {
     // 쓰기 전에 최종 보관 키 중복을 확인한다.
     const archiveKeys = new Set();
     rowsToArchive.forEach(row => {
-      const key = getKey(row, header);
+      const key = getKey(row, archiveTargetHeader);
       if (key) archiveKeys.add(key);
     });
-    if (archiveKeys.size !== rowsToArchive.filter(row => getKey(row, header)).length) {
+    if (archiveKeys.size !== rowsToArchive.filter(row => getKey(row, archiveTargetHeader)).length) {
       return {
         success: false,
         message: '최종 보관 목록에서 중복 주문 키가 발견되어 작업을 중단했습니다.'
@@ -1630,10 +1646,10 @@ function archiveOldOrders(data) {
     if (!archiveSheet) {
       archiveSheet = ss.insertSheet(SHEET.ARCHIVE);
     }
-    if (archiveSheet.getMaxColumns() < targetColumnCount) {
+    if (archiveSheet.getMaxColumns() < archiveTargetHeader.length) {
       archiveSheet.insertColumnsAfter(
         archiveSheet.getMaxColumns(),
-        targetColumnCount - archiveSheet.getMaxColumns()
+        archiveTargetHeader.length - archiveSheet.getMaxColumns()
       );
     }
 
@@ -1652,9 +1668,9 @@ function archiveOldOrders(data) {
 
     // 보관 시트 쓰기가 성공한 뒤에만 주문내역을 정리한다.
     archiveSheet.clearContents();
-    archiveSheet.getRange(1, 1, 1, targetColumnCount).setValues([header]);
+    archiveSheet.getRange(1, 1, 1, archiveTargetHeader.length).setValues([archiveTargetHeader]);
     if (rowsToArchive.length > 0) {
-      archiveSheet.getRange(2, 1, rowsToArchive.length, targetColumnCount).setValues(rowsToArchive);
+      archiveSheet.getRange(2, 1, rowsToArchive.length, archiveTargetHeader.length).setValues(rowsToArchive);
     }
 
     const safeRowsToKeep = rowsToKeep.map(normalizeRow);

@@ -2533,7 +2533,7 @@ let refreshTimer = null;
             const missing = (summary.missingInArchive || []).join(', ') || '없음';
             const extra = (summary.extraInArchive || []).join(', ') || '없음';
             const samples = (summary.sampleDuplicateKeys || []).join(', ') || '없음';
-            archiveAuditPassed = summary.headersEqual === true
+            archiveAuditPassed = (summary.headersEqual === true || summary.headersCompatible === true)
               && Number(summary.duplicateArchiveKeys || 0) === 0
               && Number(summary.orderRowsWithoutKey || 0) === 0
               && Number(summary.archiveRowsWithoutKey || 0) === 0;
@@ -2547,6 +2547,7 @@ let refreshTimer = null;
               `보관 시트에만 있는 키: ${summary.archiveOnlyKeys || 0}개`,
               `보관 시트에 없는 헤더: ${missing}`,
               `보관 시트에만 있는 헤더: ${extra}`,
+              `열 구조 호환: ${summary.headersCompatible ? '예' : '아니오'}${summary.headersEqual ? ' (완전 일치)' : ' (기존 보관 열 유지 가능)'}`,
               `중복 예시: ${samples}`,
               `보관 실행 가능: ${archiveAuditPassed ? '예' : '아니오'}`
             ].join('\n'));
