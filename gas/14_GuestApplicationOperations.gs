@@ -53,6 +53,11 @@ function guestApplicationOperationToObject(row, map) {
   GUEST_APPLICATION_OPERATION_HEADERS.forEach(header => {
     result[header] = map[header] === undefined ? '' : row[map[header]];
   });
+  if (result.serviceWeek instanceof Date && !isNaN(result.serviceWeek.getTime())) {
+    result.serviceWeek = Utilities.formatDate(result.serviceWeek, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  } else {
+    result.serviceWeek = String(result.serviceWeek || '').trim();
+  }
   ['selectedAt', 'completedAt', 'createdAt', 'updatedAt'].forEach(header => {
     result[header] = guestApplicationOperationDate(result[header]);
   });
