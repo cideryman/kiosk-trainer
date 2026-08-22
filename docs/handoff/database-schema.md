@@ -16,7 +16,7 @@
 | 순서 | 시트 | 검증 시 사용 범위 | 열 수 | 역할 |
 | ---: | --- | --- | ---: | --- |
 | 1 | `간식목록` | A1:I56 | 9 | 일반·게스트 간식, 재고, 노출 대상 |
-| 2 | `이메일알림큐` | A1:J7 | 10 | 주문 이메일 비동기 발송·재시도 상태 |
+| 2 | `이메일알림큐` | 배포 전 스냅샷 A1:J7 / P93 배포 후 A:L | 10 → 12 | 주문·이용신청 이메일 비동기 발송·재시도 상태 |
 | 3 | `배송지별칭` | A1:D2 | 4 | 관리자가 등록한 배송지 별칭과 대표 표시명 |
 | 4 | `이용신청` | A1:V1000 | 22 | 배달왔삼 사전 이용 신청과 승인·보관·대기자 상태 |
 | 5 | `게스트크레딧` | A1:I85 | 9 | 일일 게스트 크레딧 지갑 |
@@ -86,12 +86,22 @@
 
 `key`, `value`
 
-### 이메일알림큐 A:J
+### 이메일알림큐 A:L (P93 배포 후)
 
-`createdAt`, `orderNo`, `recipient`, `subject`, `body`, `status`, `attemptCount`, `nextAttemptAt`, `sentAt`, `lastError`
+배포 전 최신 DB 스냅샷은 A:J 구조였지만, P93의 `ensureOrderEmailQueueSheet()` 실행 후 기존 A:J 뒤에 K:L을 추가하여 12열로 확장합니다. 기존 주문 큐 행은 K:L이 비어 있어도 각각 `ORDER`와 주문번호로 호환 처리합니다.
 
-- `status`는 `PENDING`, `PROCESSING`, `SENT`, `FAILED` 중 하나입니다.
-- 주문번호별 한 행만 생성하며 1분 트리거가 발송과 재시도를 처리합니다.
+`createdAt`, `orderNo`, `recipient`, `subject`, `body`, `status`, `attemptCount`, `nextAttemptAt`, `sentAt`, `lastError`, `notificationType`, `referenceId`
+
+- `notificationType`: `ORDER` 또는 `GUEST_APPLICATION`
+- `referenceId`: 주문번호 또는 신청번호. 같은 유형·참조 ID는 한 번만 큐에 등록합니다.
+- `status`는 `PENDING`, `PROCESSING`, `SENT`, `FAILED` 중 하나이며 1분 트리거가 발송과 재시도를 처리합니다.
+- 신청 알림 본문에는 신청번호·신청 시각·관계 유형·희망 요일만 포함하고 연락처·상세 배송지는 포함하지 않습니다.
+
+### 이용운영기록 (P93 신규)
+
+P93 배포 시 설정 함수로 생성하는 별도 운영 이력 시트입니다. 기존 최신 DB에는 아직 없습니다.
+
+`operationId`, `applicationId`, `serviceWeek`, `status`, `selectedAt`, `completedAt`, `adminMemo`, `createdAt`, `updatedAt`
 
 ### 배송지별칭 A:D
 

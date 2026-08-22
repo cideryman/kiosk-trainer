@@ -55,6 +55,11 @@ const GUEST_APPLICATION_SETTINGS_DEFAULTS = {
   guestApplicationClosedMessage: '현재 이용 신청을 받고 있지 않습니다. 기관 담당자에게 문의해 주세요.',
   guestApplicationCooldownWeeks: String(GUEST_APPLICATION_DEFAULT_COOLDOWN_WEEKS),
   guestApplicationWaitlistLimit: String(GUEST_APPLICATION_DEFAULT_WAITLIST_LIMIT),
+  guestApplicationSchedulingMode: 'MANUAL',
+  guestApplicationPaused: 'N',
+  guestApplicationPauseWeek: '',
+  guestApplicationPauseReason: '',
+  guestApplicationEmailNotificationEnabled: 'N',
 };
 const GUEST_APPLICATION_SETTINGS_LEGACY_DEFAULTS = {
   guestApplicationTarget: '복지관 봉사자·후원자와 관리자가 인정하는 기타 관계자',
@@ -385,6 +390,11 @@ function buildGuestApplicationSettingsResponse(settings, capacityState) {
     waitlistFull,
     waitlistCount: capacity.waitlistCount,
     waitlistLimit,
+    schedulingMode: String(settings.guestApplicationSchedulingMode || 'MANUAL').toUpperCase() === 'AUTO' ? 'AUTO' : 'MANUAL',
+    paused: String(settings.guestApplicationPaused || 'N').toUpperCase() === 'Y',
+    pauseWeek: String(settings.guestApplicationPauseWeek || ''),
+    pauseReason: String(settings.guestApplicationPauseReason || ''),
+    emailNotificationEnabled: String(settings.guestApplicationEmailNotificationEnabled || 'N').toUpperCase() === 'Y',
     applicationClosedReason,
     capacity: capacity.capacity,
     activeCount: capacity.activeCount,
@@ -658,6 +668,7 @@ function submitGuestApplication(data) {
     };
 
     sheet.appendRow(guestApplicationObjectToRow(application, table.headers));
+    enqueueGuestApplicationNotification(application);
     clearGuestApplicationSettingsCache();
 
     var result = {
@@ -711,6 +722,7 @@ function getGuestApplicationsForAdmin(data) {
   const applications = getGuestApplicationObjects(table);
   const storedSettings = readGuestApplicationSettings();
   const capacityState = getGuestApplicationCapacityState(applications, storedSettings.guestApplicationCapacity);
+  const operationState = getGuestApplicationOperations({});
 
   applications.sort((a, b) => {
     const rankDiff = (statusRank[a.status] === undefined ? 9 : statusRank[a.status]) - (statusRank[b.status] === undefined ? 9 : statusRank[b.status]);
@@ -745,6 +757,9 @@ function getGuestApplicationsForAdmin(data) {
       skipUntil: application.skipUntil,
       cooldownUntil: application.cooldownUntil,
       updatedAt: application.updatedAt,
+      currentServiceWeek: operationState.serviceWeek,
+      currentServiceStatus: operationState.byApplication[application.applicationId]?.status || '',
+      lastCompletedAt: operationState.lastCompletedAt[application.applicationId] || '',
     })),
   };
 }
@@ -1039,8 +1054,19 @@ function rotateGuestApplicationWeekly() {
     var table = getGuestApplicationRows(sheet);
     var settings = readGuestApplicationSettings();
     var applications = getGuestApplicationObjects(table);
-    var capacity = getGuestApplicationCapacity(settings.guestApplicationCapacity);
     var now = new Date();
+    var schedulingMode = String(settings.guestApplicationSchedulingMode || 'MANUAL').toUpperCase();
+    var serviceWeek = getServiceWeekKey(now);
+    var schedulingPaused = String(settings.guestApplicationPaused || 'N').toUpperCase() === 'Y';
+    var pausedWeek = String(settings.guestApplicationPauseWeek || '');
+    if (schedulingMode !== 'AUTO' || (schedulingPaused && (!pausedWeek || pausedWeek === serviceWeek))) {
+      safeAppendAdminLog(
+        'rotateGuestApplicationWeekly', 'guestApplication', serviceWeek,
+        '주간 자동 순환 생략', '', schedulingPaused ? '운영 중단 주간' : '수동 운영 모드', ''
+      );
+      return { success: true, skipped: true, serviceWeek: serviceWeek, message: '수동 운영 모드 또는 중단 주간이어서 자동 순환을 실행하지 않았습니다.' };
+    }
+    var capacity = getGuestApplicationCapacity(settings.guestApplicationCapacity);
     var cooldownWeeks = Number(settings.guestApplicationCooldownWeeks) || GUEST_APPLICATION_DEFAULT_COOLDOWN_WEEKS;
 
     // cooldownDate: cooldownWeeks 후의 날짜 (자정 기준)
@@ -1224,6 +1250,9 @@ function updateGuestApplicationSettings(data) {
     if (Number.isInteger(wl) && wl >= 1) {
       values.guestApplicationWaitlistLimit = String(wl);
     }
+  }
+  if (data.emailNotificationEnabled !== undefined) {
+    values.guestApplicationEmailNotificationEnabled = data.emailNotificationEnabled === true || String(data.emailNotificationEnabled).toUpperCase() === 'Y' ? 'Y' : 'N';
   }
 
   const requiredKeys = [

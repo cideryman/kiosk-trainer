@@ -150,6 +150,25 @@
   color: #0F766E;
 }
 
+.application-operations-panel { margin: 14px 0 18px; padding: 16px; border: 2px solid #99F6E4; border-radius: var(--radius-sm); background: #F0FDFA; }
+.application-operations-header, .application-operations-settings, .application-operation-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.application-operations-header { justify-content: space-between; }
+.application-operations-header h3 { margin: 0; color: #0F766E; font-size: 18px; }
+.application-operations-header p { margin: 4px 0 0; color: #475569; font-size: 13px; font-weight: 750; }
+.application-week-field { display: inline-flex; align-items: center; gap: 6px; font-weight: 850; color: #334155; }
+.application-week-field input, .application-operations-settings input, .application-operations-settings select { min-height: 40px; box-sizing: border-box; padding: 7px 9px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background: white; font: inherit; font-weight: 750; }
+.application-operations-settings { margin-top: 14px; }
+.application-operations-settings > label { display: inline-flex; align-items: center; gap: 7px; font-weight: 850; color: #334155; }
+.application-operations-settings > input { flex: 1 1 180px; }
+.application-operation-actions { margin-top: 14px; }
+.application-operation-list { display: grid; gap: 8px; margin-top: 14px; }
+.application-operation-group { padding: 10px; border-radius: var(--radius-sm); background: white; border: 1px solid #CCFBF1; }
+.application-operation-group h4 { margin: 0 0 8px; color: #334155; font-size: 14px; }
+.application-operation-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 7px 0; border-top: 1px solid #E2E8F0; }
+.application-operation-row:first-of-type { border-top: 0; }
+.application-operation-row label { display: inline-flex; align-items: center; gap: 7px; min-width: 180px; font-weight: 800; }
+.application-operation-row small { color: #64748B; font-weight: 700; }
+
 .application-settings-panel,
 .application-retention-panel {
   margin-bottom: 18px;
@@ -1071,6 +1090,15 @@
 
 /* 모바일 화면에서 테이블 조작 버튼 축소 */
 @media (max-width: 768px) {
+  .application-operations-panel { padding: 12px; }
+  .application-operations-header { align-items: flex-start; }
+  .application-week-field { width: 100%; justify-content: space-between; }
+  .application-week-field input { flex: 1; }
+  .application-operations-settings > input,
+  .application-operations-settings > label,
+  .application-operations-settings > button { width: 100%; }
+  .application-operation-actions > button { flex: 1 1 100%; }
+  .application-operation-row label { min-width: 0; width: 100%; }
   .admin-tabs {
     display: flex;
     width: 100%;

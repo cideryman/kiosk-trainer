@@ -195,6 +195,18 @@ function doPost(e) {
       return jsonResponse(auditExpiredGuestApplications(data));
     } else if (action === 'anonymizeExpiredGuestApplications') {
       return jsonResponse(anonymizeExpiredGuestApplications(data));
+    } else if (action === 'getGuestApplicationOperations') {
+      return jsonResponse(getGuestApplicationOperations(data));
+    } else if (action === 'assignGuestApplicationsToWeek') {
+      return jsonResponse(assignGuestApplicationsToWeek(data));
+    } else if (action === 'completeGuestApplicationOperations') {
+      return jsonResponse(completeGuestApplicationOperations(data));
+    } else if (action === 'updateGuestApplicationSchedulingSettings') {
+      return jsonResponse(updateGuestApplicationSchedulingSettings(data));
+    } else if (action === 'markGuestApplicationTestData') {
+      return jsonResponse(markGuestApplicationTestData(data));
+    } else if (action === 'deleteTestGuestApplications') {
+      return jsonResponse(deleteTestGuestApplications(data));
     }
 
     return jsonResponse({

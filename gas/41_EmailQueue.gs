@@ -1,6 +1,6 @@
 const ORDER_EMAIL_QUEUE_HEADERS = [
   'createdAt', 'orderNo', 'recipient', 'subject', 'body', 'status',
-  'attemptCount', 'nextAttemptAt', 'sentAt', 'lastError'
+  'attemptCount', 'nextAttemptAt', 'sentAt', 'lastError', 'notificationType', 'referenceId'
 ];
 const ORDER_EMAIL_QUEUE_MAX_ATTEMPTS = 4;
 const ORDER_EMAIL_QUEUE_BATCH_SIZE = 20;
@@ -82,14 +82,7 @@ function enqueueOrderNotification(orderContext) {
     if (!orderContext || !orderContext.orderNo) return { queued: false };
     const sheet = ensureOrderEmailQueueSheet();
     const orderNo = String(orderContext.orderNo).trim();
-    if (sheet.getLastRow() > 1) {
-      const existing = sheet
-        .getRange(2, 2, sheet.getLastRow() - 1, 1)
-        .createTextFinder(orderNo)
-        .matchEntireCell(true)
-        .findNext();
-      if (existing) return { queued: false, duplicate: true };
-    }
+    if (hasQueuedNotification(sheet, 'ORDER', orderNo)) return { queued: false, duplicate: true };
 
     const message = buildOrderNotificationMessage(orderContext);
     const now = new Date();
@@ -103,11 +96,61 @@ function enqueueOrderNotification(orderContext) {
       0,
       now,
       '',
-      ''
+      '',
+      'ORDER',
+      orderNo
     ]);
     return { queued: true };
   } catch (error) {
     Logger.log('주문 이메일 큐 등록 실패(주문은 정상 처리됨): ' + (error && error.stack ? error.stack : error));
+    return { queued: false, error: error.message || String(error) };
+  }
+}
+
+function hasQueuedNotification(sheet, notificationType, referenceId) {
+  if (!sheet || sheet.getLastRow() <= 1) return false;
+  const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, ORDER_EMAIL_QUEUE_HEADERS.length).getValues();
+  return values.some(row => {
+    const type = String(row[10] || '').trim() || 'ORDER';
+    const reference = String(row[11] || '').trim() || String(row[1] || '').trim();
+    return type === notificationType && reference === referenceId;
+  });
+}
+
+function buildGuestApplicationNotificationMessage(application) {
+  const subject = '[배달왔삼 이용 신청] ' + String(application.applicationId || '신청 확인');
+  const createdAt = application.createdAt
+    ? Utilities.formatDate(new Date(application.createdAt), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss')
+    : '';
+  return {
+    subject,
+    body: [
+      '신청번호: ' + (application.applicationId || ''),
+      '신청 시각: ' + createdAt,
+      '관계 유형: ' + (application.relationType || ''),
+      '희망 요일: ' + (application.preferredDays || ''),
+      '',
+      '관리자 화면에서 상세 신청 내용을 확인해 주세요.'
+    ].join('\n')
+  };
+}
+
+function enqueueGuestApplicationNotification(application) {
+  try {
+    if (!application || !application.applicationId) return { queued: false };
+    const settings = readGuestApplicationSettings();
+    if (String(settings.guestApplicationEmailNotificationEnabled || 'N').toUpperCase() !== 'Y') {
+      return { queued: false, disabled: true };
+    }
+    const sheet = ensureOrderEmailQueueSheet();
+    const referenceId = String(application.applicationId).trim();
+    if (hasQueuedNotification(sheet, 'GUEST_APPLICATION', referenceId)) return { queued: false, duplicate: true };
+    const message = buildGuestApplicationNotificationMessage(application);
+    const now = new Date();
+    sheet.appendRow([now, referenceId, getOrderNotificationRecipient(), message.subject, message.body, 'PENDING', 0, now, '', '', 'GUEST_APPLICATION', referenceId]);
+    return { queued: true };
+  } catch (error) {
+    Logger.log('이용 신청 이메일 큐 등록 실패(신청은 정상 처리됨): ' + (error && error.stack ? error.stack : error));
     return { queued: false, error: error.message || String(error) };
   }
 }
@@ -137,7 +180,9 @@ function processOrderEmailQueue() {
           recipient: String(row[2] || ''),
           subject: String(row[3] || ''),
           body: String(row[4] || ''),
-          attemptCount: Number(row[6] || 0)
+          attemptCount: Number(row[6] || 0),
+          notificationType: String(row[10] || '').trim() || 'ORDER',
+          referenceId: String(row[11] || '').trim() || String(row[1] || '').trim()
         });
       } else if (isStale) {
         row[5] = 'PENDING';
@@ -153,10 +198,12 @@ function processOrderEmailQueue() {
       const recipient = item.recipient || getOrderNotificationRecipient();
       if (!recipient) throw new Error('ADMIN_EMAIL 수신자 주소가 설정되지 않았습니다.');
       MailApp.sendEmail({ to: recipient, subject: item.subject, body: item.body });
-      return { orderNo: item.orderNo, success: true, attemptCount: item.attemptCount + 1 };
+      return { orderNo: item.orderNo, notificationType: item.notificationType, referenceId: item.referenceId, success: true, attemptCount: item.attemptCount + 1 };
     } catch (error) {
       return {
         orderNo: item.orderNo,
+        notificationType: item.notificationType,
+        referenceId: item.referenceId,
         success: false,
         attemptCount: item.attemptCount + 1,
         error: error.message || String(error)
@@ -169,10 +216,12 @@ function processOrderEmailQueue() {
   try {
     const sheet = ensureOrderEmailQueueSheet();
     const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, ORDER_EMAIL_QUEUE_HEADERS.length).getValues();
-    const resultByOrderNo = {};
-    results.forEach(result => { resultByOrderNo[result.orderNo] = result; });
+    const resultByKey = {};
+    results.forEach(result => { resultByKey[result.notificationType + ':' + result.referenceId] = result; });
     values.forEach(row => {
-      const result = resultByOrderNo[String(row[1] || '')];
+      const notificationType = String(row[10] || '').trim() || 'ORDER';
+      const referenceId = String(row[11] || '').trim() || String(row[1] || '').trim();
+      const result = resultByKey[notificationType + ':' + referenceId];
       if (!result || String(row[5] || '') !== 'PROCESSING') return;
       row[6] = result.attemptCount;
       if (result.success) {

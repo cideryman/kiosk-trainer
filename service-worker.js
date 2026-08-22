@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kiosk-cache-v327';
+const CACHE_NAME = 'kiosk-cache-v328';
 const urlsToCache = [
   'index.html',
   'index.html?type=kiosk',

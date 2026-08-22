@@ -1,6 +1,6 @@
 // Google Apps Script API 설정
 const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ9_UPux8bq0xROvNK9E1NCBam0Qe/exec";
-const API_CONTRACT_VERSION = '2026-08-21.1';
+const API_CONTRACT_VERSION = '2026-08-22.1';
 
 function resolveApiUrl() {
   try {
@@ -100,8 +100,15 @@ const MOCK_GUEST_APPLICATION_SETTINGS = {
   usageGuide: '이용 신청과 관리자 확인을 완료한 뒤, 안내받은 배달왔삼 주문 페이지에서 직접 주문합니다.',
   preferredDayOptions: ['수요일'],
   capacity: MOCK_GUEST_APPLICATION_DEFAULT_CAPACITY,
-  closedMessage: '현재 이용 신청을 받고 있지 않습니다.'
+  closedMessage: '현재 이용 신청을 받고 있지 않습니다.',
+  schedulingMode: 'MANUAL',
+  paused: false,
+  pauseWeek: '',
+  pauseReason: '',
+  emailNotificationEnabled: false
 };
+
+let MOCK_GUEST_APPLICATION_OPERATIONS = [];
 
 let MOCK_GUEST_APPLICATIONS = [
   {
@@ -201,8 +208,56 @@ function getMockGuestApplicationList(status) {
     contactedAt: application.contactedAt,
     retentionUntil: application.retentionUntil,
     anonymizedAt: application.anonymizedAt,
+    testMarked: String(application.adminMemo || '').includes('[테스트]'),
+    currentServiceWeek: '',
+    currentServiceStatus: '',
+    lastCompletedAt: '',
     updatedAt: application.updatedAt
   }));
+}
+
+function getMockApplicationServiceWeek(value) {
+  const date = value ? new Date(value + (String(value).length === 10 ? 'T00:00:00' : '')) : new Date();
+  const day = date.getDay();
+  date.setDate(date.getDate() - (day === 0 ? 6 : day - 1));
+  return date.toISOString().slice(0, 10);
+}
+
+function getMockGuestApplicationOperations(serviceWeek) {
+  const week = getMockApplicationServiceWeek(serviceWeek);
+  const rows = MOCK_GUEST_APPLICATION_OPERATIONS.filter(row => row.serviceWeek === week);
+  const byApplication = {};
+  rows.forEach(row => { byApplication[row.applicationId] = row; });
+  const lastCompletedAt = {};
+  MOCK_GUEST_APPLICATION_OPERATIONS.forEach(row => {
+    if (row.status !== 'COMPLETED') return;
+    if (!lastCompletedAt[row.applicationId] || row.completedAt > lastCompletedAt[row.applicationId]) {
+      lastCompletedAt[row.applicationId] = row.completedAt;
+    }
+  });
+  const candidates = MOCK_GUEST_APPLICATIONS
+    .filter(application => application.status === 'APPROVED')
+    .map(application => ({
+      applicationId: application.applicationId,
+      name: application.name,
+      preferredDays: application.preferredDays,
+      currentServiceStatus: byApplication[application.applicationId]?.status || '',
+      lastCompletedAt: lastCompletedAt[application.applicationId] || ''
+    }));
+  const configured = getMockGuestApplicationSettingsResponse();
+  return {
+    serviceWeek: week,
+    settings: {
+      ...configured,
+      mode: configured.schedulingMode || 'MANUAL',
+      paused: configured.paused === true,
+      pauseWeek: configured.pauseWeek || '',
+      pauseReason: configured.pauseReason || ''
+    },
+    operations: rows,
+    candidates,
+    lastCompletedAt
+  };
 }
 
 /**
@@ -813,6 +868,63 @@ function getMockFallback(action, options) {
       MOCK_GUEST_APPLICATION_SETTINGS.closedMessage = options.body?.closedMessage || '';
       res = { success: true, message: 'Mock 신청 설정이 저장되었습니다.' };
     }
+  } else if (action === 'getGuestApplicationOperations') {
+    res = { success: true, ...getMockGuestApplicationOperations(options.body?.serviceWeek) };
+  } else if (action === 'updateGuestApplicationSchedulingSettings') {
+    const mode = String(options.body?.mode || options.body?.schedulingMode || 'MANUAL').toUpperCase();
+    const paused = Boolean(options.body?.paused);
+    if (!['MANUAL', 'AUTO'].includes(mode)) {
+      res = { success: false, message: '운영 방식이 올바르지 않습니다.' };
+    } else if (paused && !String(options.body?.pauseReason || '').trim()) {
+      res = { success: false, message: '중단 사유를 입력해 주세요.' };
+    } else {
+      MOCK_GUEST_APPLICATION_SETTINGS.schedulingMode = mode;
+      MOCK_GUEST_APPLICATION_SETTINGS.paused = paused;
+      MOCK_GUEST_APPLICATION_SETTINGS.pauseWeek = paused ? getMockApplicationServiceWeek(options.body?.pauseWeek) : '';
+      MOCK_GUEST_APPLICATION_SETTINGS.pauseReason = paused ? String(options.body?.pauseReason || '').trim() : '';
+      res = { success: true, message: '주간 운영 설정을 저장했습니다.' };
+    }
+  } else if (action === 'assignGuestApplicationsToWeek') {
+    const week = getMockApplicationServiceWeek(options.body?.serviceWeek);
+    const ids = Array.isArray(options.body?.applicationIds) ? options.body.applicationIds.map(String) : [];
+    const capacity = getMockGuestApplicationCapacityState().capacity;
+    const activeCount = MOCK_GUEST_APPLICATION_OPERATIONS.filter(row => row.serviceWeek === week && row.status === 'SELECTED').length;
+    if (MOCK_GUEST_APPLICATION_SETTINGS.paused && MOCK_GUEST_APPLICATION_SETTINGS.pauseWeek === week) {
+      res = { success: false, message: '이번 주 운영이 중단되어 배정할 수 없습니다.' };
+    } else if (!ids.length) {
+      res = { success: false, message: '이번 주 운영 대상자를 선택해 주세요.' };
+    } else if (activeCount + ids.length > capacity) {
+      res = { success: false, message: '운영 정원을 초과할 수 없습니다.' };
+    } else if (ids.some(id => MOCK_GUEST_APPLICATION_OPERATIONS.some(row => row.serviceWeek === week && row.applicationId === id && ['SELECTED', 'COMPLETED'].includes(row.status)))) {
+      res = { success: false, message: '이미 이번 주 운영 기록이 있는 신청자가 포함되어 있습니다.' };
+    } else {
+      const now = new Date().toISOString();
+      ids.forEach((id, index) => MOCK_GUEST_APPLICATION_OPERATIONS.push({
+        operationId: `OP-MOCK-${Date.now()}-${index}`,
+        applicationId: id,
+        serviceWeek: week,
+        status: 'SELECTED',
+        selectedAt: now,
+        completedAt: '',
+        adminMemo: '',
+        createdAt: now,
+        updatedAt: now
+      }));
+      res = { success: true, serviceWeek: week, count: ids.length, message: '이번 주 운영 대상자를 확정했습니다.' };
+    }
+  } else if (action === 'completeGuestApplicationOperations') {
+    const ids = Array.isArray(options.body?.operationIds) ? options.body.operationIds.map(String) : [];
+    const now = new Date().toISOString();
+    let count = 0;
+    MOCK_GUEST_APPLICATION_OPERATIONS.forEach(row => {
+      if (ids.includes(row.operationId) && row.status === 'SELECTED') {
+        row.status = 'COMPLETED';
+        row.completedAt = now;
+        row.updatedAt = now;
+        count++;
+      }
+    });
+    res = { success: true, count, message: `${count}명의 서비스 제공을 완료했습니다.` };
   } else if (action === 'auditExpiredGuestApplications') {
     res = { success: true, count: 0, applications: [], message: '익명화할 만료 신청 정보가 없습니다.' };
   } else if (action === 'anonymizeExpiredGuestApplications') {

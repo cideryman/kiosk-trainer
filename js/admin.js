@@ -226,6 +226,7 @@ let currentSnacks = [];
 let currentApplications = [];
 let currentApplicationFilter = 'ALL';
 let currentApplicationDetail = null;
+let currentApplicationOperations = null;
 let guestApplicationsLoaded = false;
 let guestApplicationSettingsDirty = false;
 let isModalOpen = false;
@@ -536,6 +537,8 @@ function renderGuestApplicationSettings(settings) {
   setValue('application-setting-usage', settings.usageGuide);
   setValue('application-setting-day-options', (settings.preferredDayOptions || []).join(', '));
   setValue('application-setting-closed-message', settings.configuredClosedMessage || settings.closedMessage);
+  const emailNotification = document.getElementById('application-setting-email-notification');
+  if (emailNotification) emailNotification.checked = settings.emailNotificationEnabled === true;
 }
 
 function renderGuestApplications(applications) {
@@ -618,12 +621,105 @@ async function loadGuestApplications(status = currentApplicationFilter) {
     updateApplicationCounts(res.counts);
     renderGuestApplicationSettings(res.settings);
     renderGuestApplications(currentApplications);
+    await loadGuestApplicationOperations();
     guestApplicationsLoaded = true;
   } catch (error) {
     if (container) container.innerHTML = '<div class="application-error">신청 목록을 불러오는 중 오류가 발생했습니다.</div>';
   } finally {
     API_DIAGNOSTICS.finishFlow(diagnosticFlow);
   }
+}
+
+function getApplicationServiceWeekInput() {
+  const input = document.getElementById('application-service-week');
+  if (!input) return '';
+  if (!input.value) {
+    const date = new Date();
+    const day = date.getDay();
+    date.setDate(date.getDate() - (day === 0 ? 6 : day - 1));
+    input.value = date.toISOString().slice(0, 10);
+  }
+  return input.value;
+}
+
+function renderGuestApplicationOperations(data) {
+  currentApplicationOperations = data;
+  const status = document.getElementById('application-operations-status');
+  const list = document.getElementById('application-operation-list');
+  const mode = document.getElementById('application-scheduling-mode');
+  const paused = document.getElementById('application-scheduling-paused');
+  const reason = document.getElementById('application-pause-reason');
+  if (mode) mode.value = data?.settings?.mode || 'MANUAL';
+  if (paused) paused.checked = data?.settings?.paused === true && (!data.settings.pauseWeek || data.settings.pauseWeek === data.serviceWeek);
+  if (reason) reason.value = data?.settings?.pauseReason || '';
+  if (status) {
+    const pauseText = data?.settings?.paused ? ` · 중단: ${data.settings.pauseReason || '사유 없음'}` : '';
+    status.textContent = `${data?.serviceWeek || '-'} · ${data?.settings?.mode === 'AUTO' ? '자동 순환' : '수동 운영'}${pauseText}`;
+  }
+  if (!list) return;
+  const operations = Array.isArray(data?.operations) ? data.operations : [];
+  const candidates = Array.isArray(data?.candidates) ? data.candidates : [];
+  const currentIds = new Set(operations
+    .filter(item => ['SELECTED', 'COMPLETED'].includes(item.status))
+    .map(item => item.applicationId));
+  const selectedRows = operations.map(item => `
+    <div class="application-operation-row">
+      <label>${item.status === 'SELECTED' ? `<input type="checkbox" data-operation-id="${esc(item.operationId)}">` : ''}<span>${esc(item.applicationId)}</span></label>
+      <small>${item.status === 'COMPLETED' ? '서비스 제공 완료' : item.status === 'SELECTED' ? '이번 주 운영' : item.status}</small>
+    </div>`).join('');
+  const candidateRows = candidates.map(item => {
+    const isCurrent = currentIds.has(item.applicationId);
+    const statusLabel = item.currentServiceStatus === 'COMPLETED' ? '완료' : item.currentServiceStatus === 'SELECTED' ? '확정' : '';
+    return `<div class="application-operation-row">
+      <label>${!isCurrent ? `<input type="checkbox" data-application-id="${esc(item.applicationId)}">` : ''}<span>${esc(item.name || item.applicationId)}</span></label>
+      <small>${statusLabel || (item.lastCompletedAt ? `마지막 완료 ${esc(formatApplicationDate(item.lastCompletedAt))}` : '운영 이력 없음')}</small>
+    </div>`;
+  }).join('');
+  list.innerHTML = `<div class="application-operation-group"><h4>이번 주 운영 대상</h4>${selectedRows || '<div class="application-empty">아직 확정된 대상이 없습니다.</div>'}</div>
+    <div class="application-operation-group"><h4>다음 운영 후보 (승인된 신청자)</h4>${candidateRows || '<div class="application-empty">선택 가능한 승인 신청자가 없습니다.</div>'}</div>`;
+}
+
+async function loadGuestApplicationOperations() {
+  const serviceWeek = getApplicationServiceWeekInput();
+  try {
+    const res = await fetchAPIReadWithRetry('getGuestApplicationOperations', { method: 'POST', body: { adminToken: getAdminToken(), serviceWeek } });
+    if (!res?.success) { clearAdminTokenIfDenied(res); return; }
+    renderGuestApplicationOperations(res);
+  } catch (error) {
+    const status = document.getElementById('application-operations-status');
+    if (status) status.textContent = '주간 운영 정보를 불러오지 못했습니다.';
+  }
+}
+
+async function saveGuestApplicationSchedulingSettings() {
+  const res = await fetchAPI('updateGuestApplicationSchedulingSettings', { method: 'POST', body: {
+    adminToken: getAdminToken(),
+    mode: document.getElementById('application-scheduling-mode')?.value || 'MANUAL',
+    paused: Boolean(document.getElementById('application-scheduling-paused')?.checked),
+    pauseWeek: getApplicationServiceWeekInput(),
+    pauseReason: document.getElementById('application-pause-reason')?.value || ''
+  }});
+  if (!res?.success) { clearAdminTokenIfDenied(res); alert(res?.message || '운영 설정 저장에 실패했습니다.'); return; }
+  alert(res.message || '주간 운영 설정을 저장했습니다.');
+  await loadGuestApplicationOperations();
+}
+
+async function assignSelectedGuestApplications() {
+  const applicationIds = [...document.querySelectorAll('[data-application-id]:checked')].map(input => input.dataset.applicationId);
+  if (!applicationIds.length) return alert('이번 주 운영 대상자를 선택해 주세요.');
+  const res = await fetchAPI('assignGuestApplicationsToWeek', { method: 'POST', body: { adminToken: getAdminToken(), applicationIds, serviceWeek: getApplicationServiceWeekInput(), requestId: 'admin-' + Date.now() } });
+  if (!res?.success) { clearAdminTokenIfDenied(res); return alert(res?.message || '운영 대상 확정에 실패했습니다.'); }
+  alert(res.message || '운영 대상을 확정했습니다.');
+  await loadGuestApplicationOperations();
+}
+
+async function completeSelectedGuestApplications() {
+  const operationIds = [...document.querySelectorAll('[data-operation-id]:checked')].map(input => input.dataset.operationId);
+  if (!operationIds.length) return alert('서비스 완료 처리할 대상을 선택해 주세요.');
+  const res = await fetchAPI('completeGuestApplicationOperations', { method: 'POST', body: { adminToken: getAdminToken(), operationIds, requestId: 'admin-' + Date.now() } });
+  if (!res?.success) { clearAdminTokenIfDenied(res); return alert(res?.message || '서비스 완료 처리에 실패했습니다.'); }
+  alert(res.message || '서비스 완료 처리했습니다.');
+  await loadGuestApplicationOperations();
 }
 
 function applicationDetailItem(label, value, full = false) {
@@ -774,7 +870,8 @@ async function saveGuestApplicationSettings() {
         serviceArea: readValue('application-setting-area'),
         usageGuide: readValue('application-setting-usage'),
         preferredDayOptions: readValue('application-setting-day-options'),
-        closedMessage: readValue('application-setting-closed-message')
+        closedMessage: readValue('application-setting-closed-message'),
+        emailNotificationEnabled: Boolean(document.getElementById('application-setting-email-notification')?.checked)
       }
     });
     if (!res?.success) {
@@ -2289,6 +2386,10 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('btn-save-application-settings')?.addEventListener('click', saveGuestApplicationSettings);
+  document.getElementById('application-service-week')?.addEventListener('change', loadGuestApplicationOperations);
+  document.getElementById('btn-save-application-scheduling')?.addEventListener('click', saveGuestApplicationSchedulingSettings);
+  document.getElementById('btn-assign-application-week')?.addEventListener('click', assignSelectedGuestApplications);
+  document.getElementById('btn-complete-application-week')?.addEventListener('click', completeSelectedGuestApplications);
   document.getElementById('btn-audit-applications')?.addEventListener('click', auditGuestApplicationRetention);
   document.getElementById('btn-anonymize-applications')?.addEventListener('click', anonymizeGuestApplications);
   document.getElementById('btn-save-application-memo')?.addEventListener('click', () => updateCurrentGuestApplication({}));
