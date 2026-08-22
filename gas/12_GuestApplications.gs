@@ -328,22 +328,6 @@ function getGuestApplicationWaitlistLimit(settings) {
   return Number.isInteger(limit) && limit >= 1 ? limit : GUEST_APPLICATION_DEFAULT_WAITLIST_LIMIT;
 }
 
-function getGuestApplicationFullMessage(capacity) {
-  return '1차 시범 이용 신청 ' + capacity + '명이 모두 접수되어 현재 모집을 마감했습니다. 추가 모집은 기관 담당자에게 문의해 주세요.';
-}
-
-function getGuestApplicationAdminFullMessage(capacity) {
-  return '현재 1차 시범 신청 정원 ' + capacity + '명이 모두 차 있어 승인할 수 없습니다. 먼저 다른 신청을 반려 또는 중지해 주세요.';
-}
-
-function getGuestApplicationWaitlistMessage(position) {
-  return '정원이 가득 차 대기자로 접수되었습니다. 대기 번호는 ' + position + '번입니다.';
-}
-
-function getGuestApplicationWaitlistFullMessage(limit) {
-  return '대기자가 ' + limit + '명을 초과하여 추가 접수를 받지 않습니다. 기관 담당자에게 문의해 주세요.';
-}
-
 function getGuestApplicationCapacityState(applications, capacityValue) {
   const capacity = getGuestApplicationCapacity(capacityValue);
   var activeCount = 0;
@@ -374,20 +358,21 @@ function buildGuestApplicationSettingsResponse(settings, capacityState) {
   const applicationFull = capacity.applicationFull === true;
   const waitlistLimit = getGuestApplicationWaitlistLimit(settings);
   const waitlistFull = capacity.waitlistCount >= waitlistLimit;
-  const applicationOpen = configuredOpen && !waitlistFull;
-  const waitlistActive = configuredOpen && applicationFull && !waitlistFull;
+  // 모집 인원은 안내용 수치입니다. 신청 접수와 승인 여부를 제한하지 않습니다.
+  const applicationOpen = configuredOpen;
+  const waitlistActive = false;
   const configuredClosedMessage = String(settings.guestApplicationClosedMessage || '');
   var applicationClosedReason = '';
   if (!configuredOpen) applicationClosedReason = 'MANUAL';
-  else if (waitlistFull) applicationClosedReason = 'WAITLIST_FULL';
-  else if (applicationFull) applicationClosedReason = 'FULL';
   return {
     success: true,
     applicationOpen,
     applicationOpenConfigured: configuredOpen,
-    applicationFull,
+    applicationFull: false,
+    capacityReached: applicationFull,
+    capacityMode: 'ADVISORY',
     waitlistActive,
-    waitlistFull,
+    waitlistFull: false,
     waitlistCount: capacity.waitlistCount,
     waitlistLimit,
     schedulingMode: String(settings.guestApplicationSchedulingMode || 'MANUAL').toUpperCase() === 'AUTO' ? 'AUTO' : 'MANUAL',
@@ -398,7 +383,7 @@ function buildGuestApplicationSettingsResponse(settings, capacityState) {
     applicationClosedReason,
     capacity: capacity.capacity,
     activeCount: capacity.activeCount,
-    remainingSlots: capacity.remainingSlots,
+    remainingSlots: null,
     cooldownWeeks: Number(settings.guestApplicationCooldownWeeks) || GUEST_APPLICATION_DEFAULT_COOLDOWN_WEEKS,
     target: String(settings.guestApplicationTarget || ''),
     operatingDays: String(settings.guestApplicationOperatingDays || ''),
@@ -407,7 +392,7 @@ function buildGuestApplicationSettingsResponse(settings, capacityState) {
     serviceArea: String(settings.guestApplicationArea || ''),
     usageGuide: String(settings.guestApplicationUsage || ''),
     preferredDayOptions: parseGuestApplicationDayOptions(settings.guestApplicationDayOptions),
-    closedMessage: applicationClosedReason === 'FULL' ? getGuestApplicationFullMessage(capacity.capacity) : (applicationClosedReason === 'WAITLIST_FULL' ? getGuestApplicationWaitlistFullMessage(waitlistLimit) : configuredClosedMessage),
+    closedMessage: configuredClosedMessage,
     configuredClosedMessage,
   };
 }
@@ -601,17 +586,6 @@ function submitGuestApplication(data) {
       };
     }
 
-    // WAITLIST 100명 초과 먼저 확인
-    const waitlistLimit = getGuestApplicationWaitlistLimit(storedSettings);
-    if (capacityState.waitlistCount >= waitlistLimit) {
-      return {
-        success: false,
-        code: 'WAITLIST_FULL',
-        message: getGuestApplicationWaitlistFullMessage(waitlistLimit),
-        waitlistLimit,
-      };
-    }
-
     for (let index = 0; index < table.rows.length; index++) {
       const row = table.rows[index];
       const anonymizedAt = row[table.map.anonymizedAt];
@@ -628,19 +602,10 @@ function submitGuestApplication(data) {
     const now = new Date();
     const applicationId = createGuestApplicationId(table.rows, table.map, now);
 
-    // 정원 확인: 미만이면 PENDING, 이상이면 WAITLIST
-    var targetStatus;
+    // 모집 안내 인원과 관계없이 신규 신청은 검토 대기로 접수합니다.
+    var targetStatus = GUEST_APPLICATION_STATUS.PENDING;
     var waitlistPosition = '';
-    var message;
-
-    if (capacityState.applicationFull) {
-      targetStatus = GUEST_APPLICATION_STATUS.WAITLIST;
-      waitlistPosition = capacityState.waitlistCount + 1;
-      message = getGuestApplicationWaitlistMessage(waitlistPosition);
-    } else {
-      targetStatus = GUEST_APPLICATION_STATUS.PENDING;
-      message = '이용 신청이 접수되었습니다. 관리자가 확인 후 연락드립니다.';
-    }
+    var message = '이용 신청이 접수되었습니다. 관리자가 확인 후 연락드립니다.';
 
     const application = {
       createdAt: now,
@@ -676,14 +641,10 @@ function submitGuestApplication(data) {
       applicationId,
       status: targetStatus,
       capacity: capacityState.capacity,
+      capacityMode: 'ADVISORY',
       message,
     };
-
-    if (targetStatus === GUEST_APPLICATION_STATUS.WAITLIST) {
-      result.waitlistPosition = waitlistPosition;
-    } else {
-      result.remainingSlots = Math.max(0, capacityState.remainingSlots - 1);
-    }
+    result.capacityReached = capacityState.applicationFull;
 
     return result;
   } finally {
@@ -737,10 +698,16 @@ function getGuestApplicationsForAdmin(data) {
     return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
   });
 
-  const visible = filter === 'ALL' ? applications : applications.filter(application => application.status === filter);
+  const visible = filter === 'ALL'
+    ? applications
+    : filter === 'CLOSED'
+      ? applications.filter(application => [GUEST_APPLICATION_STATUS.REJECTED, GUEST_APPLICATION_STATUS.INACTIVE].indexOf(application.status) >= 0)
+      : applications.filter(application => application.status === filter);
+  const counts = getGuestApplicationStatusCounts(applications, new Date());
+  counts.CLOSED = counts.REJECTED + counts.INACTIVE;
   return {
     success: true,
-    counts: getGuestApplicationStatusCounts(applications, new Date()),
+    counts,
     settings: buildGuestApplicationSettingsResponse(storedSettings, capacityState),
     applications: visible.map(application => ({
       applicationId: application.applicationId,
@@ -812,50 +779,6 @@ function updateGuestApplication(data) {
 
     const application = found.object;
     const previousStatus = application.status;
-
-    // WAITLIST → PENDING 승격: 정원 여유 확인
-    if (nextStatus === GUEST_APPLICATION_STATUS.PENDING && previousStatus === GUEST_APPLICATION_STATUS.WAITLIST) {
-      const storedSettings = readGuestApplicationSettings();
-      const capacityState = getGuestApplicationCapacityState(
-        getGuestApplicationObjects(table),
-        storedSettings.guestApplicationCapacity
-      );
-      if (capacityState.applicationFull) {
-        return {
-          success: false,
-          code: 'APPLICATION_FULL',
-          message: getGuestApplicationAdminFullMessage(capacityState.capacity),
-          capacity: capacityState.capacity,
-          activeCount: capacityState.activeCount,
-          remainingSlots: 0,
-        };
-      }
-    }
-
-    // 비정원 상태 → 정원 상태 승격: 정원 확인
-    if (
-      nextStatus
-      && !isGuestApplicationCapacityStatus(previousStatus)
-      && isGuestApplicationCapacityStatus(nextStatus)
-      && nextStatus !== GUEST_APPLICATION_STATUS.PENDING
-    ) {
-      // APPROVED로 직접 승격할 때
-      const storedSettings = readGuestApplicationSettings();
-      const capacityState = getGuestApplicationCapacityState(
-        getGuestApplicationObjects(table),
-        storedSettings.guestApplicationCapacity
-      );
-      if (capacityState.applicationFull) {
-        return {
-          success: false,
-          code: 'APPLICATION_FULL',
-          message: getGuestApplicationAdminFullMessage(capacityState.capacity),
-          capacity: capacityState.capacity,
-          activeCount: capacityState.activeCount,
-          remainingSlots: 0,
-        };
-      }
-    }
 
     const now = new Date();
     if (nextStatus) {
@@ -1048,6 +971,20 @@ function skipGuestApplicationWeek(data) {
 // ─── 주간 자동 순환 ───
 
 function rotateGuestApplicationWeekly() {
+  // P95: 기존 시간 트리거가 남아 있어도 신청 상태를 절대 자동 변경하지 않습니다.
+  var serviceWeek = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  safeAppendAdminLog(
+    'rotateGuestApplicationWeekly', 'guestApplication', serviceWeek,
+    '주간 자동 순환 생략', '', '수동 주간 운영 정책', ''
+  );
+  return {
+    success: true,
+    skipped: true,
+    serviceWeek: serviceWeek,
+    message: '수동 주간 운영 정책이므로 신청자 상태를 변경하지 않았습니다.'
+  };
+
+  /* Legacy automatic rotation is intentionally unreachable and retained for rollback reference. */
   var lock = LockService.getScriptLock();
   lock.waitLock(15000);
 

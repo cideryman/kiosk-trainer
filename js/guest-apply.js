@@ -8,18 +8,12 @@
   const queryParams = new URLSearchParams(window.location.search);
   const useLocalMock = queryParams.get('mock') === '1';
   const useLocalMockFull = queryParams.get('mockFull') === '1';
-  const useLocalMockWaitlist = queryParams.get('mockWaitlist') === '1';
   const useLocalMockClosed = queryParams.get('mockClosed') === '1';
   const useLocalMockError = queryParams.get('mockError') === '1';
   const localMockCapacityValue = Number(queryParams.get('mockCapacity'));
   const localMockCapacity = Number.isInteger(localMockCapacityValue) && localMockCapacityValue >= 1 && localMockCapacityValue <= 100
     ? localMockCapacityValue
     : 5;
-  const localMockWaitlistParam = queryParams.get('mockWaitlistCount');
-  const localMockWaitlistValue = localMockWaitlistParam === null ? NaN : Number(localMockWaitlistParam);
-  const localMockWaitlistCount = Number.isInteger(localMockWaitlistValue) && localMockWaitlistValue >= 0
-    ? localMockWaitlistValue
-    : 3;
   let applicationSettings = null;
 
   function createRequestId() {
@@ -115,7 +109,7 @@
         mode: 'open',
         stateText: '신청 접수 중',
         stateClass: 'open',
-        capacityText: `이번 주 이용 정원 ${capacity}명 · 정원 초과 시 대기 접수`,
+        capacityText: `주당 운영 안내 ${capacity}명 · 신청 후 관리자 확인`,
         openButtonText: '배달왔삼 이용 신청하기',
         submitButtonText: '이용 신청 접수하기',
         submitBusyText: '신청 접수 중...',
@@ -127,7 +121,7 @@
       mode: 'closed',
       stateText: '신청 접수 마감',
       stateClass: 'closed',
-      capacityText: `이번 주 이용 정원 ${capacity}명 · 신청 접수 마감`,
+      capacityText: `주당 운영 안내 ${capacity}명 · 신청 접수 마감`,
       openButtonText: '신청 마감 안내 보기',
       submitButtonText: '이용 신청 접수하기',
       submitBusyText: '신청 접수 중...',
@@ -172,22 +166,21 @@
 
   function getMockSettings() {
     const activeCount = useLocalMockFull ? localMockCapacity : Math.min(1, localMockCapacity);
-    const remainingSlots = Math.max(0, localMockCapacity - activeCount);
-    const waitlistActive = useLocalMockFull && !useLocalMockWaitlist && !useLocalMockClosed;
-    const waitlistCount = waitlistActive ? localMockWaitlistCount : 0;
     return {
       success: true,
-      applicationOpen: !useLocalMockClosed && (!useLocalMockFull || waitlistActive),
+      applicationOpen: !useLocalMockClosed,
       applicationOpenConfigured: !useLocalMockClosed,
-      applicationFull: useLocalMockFull,
-      waitlistActive,
-      waitlistFull: useLocalMockWaitlist,
-      waitlistCount,
+      applicationFull: false,
+      capacityReached: useLocalMockFull,
+      capacityMode: 'ADVISORY',
+      waitlistActive: false,
+      waitlistFull: false,
+      waitlistCount: 0,
       waitlistLimit: 100,
-      applicationClosedReason: useLocalMockWaitlist ? 'WAITLIST_FULL' : (useLocalMockClosed ? 'MANUAL' : (useLocalMockFull ? 'FULL' : '')),
+      applicationClosedReason: useLocalMockClosed ? 'MANUAL' : '',
       capacity: localMockCapacity,
       activeCount,
-      remainingSlots,
+      remainingSlots: null,
       cooldownWeeks: 2,
       target: '영주시장애인복지관 봉사자·후원자와 관리자가 이용 가능하다고 인정한 관계자',
       operatingDays: '매주 수요일',
@@ -196,13 +189,7 @@
       serviceArea: '복지관과 사전에 협의된 장소',
       usageGuide: '이용 신청과 관리자 확인을 완료한 뒤, 안내받은 배달왔삼 주문 페이지에서 직접 주문합니다.',
       preferredDayOptions: ['수요일'],
-      closedMessage: useLocalMockWaitlist
-        ? '대기자가 100명을 초과하여 추가 접수를 받지 않습니다. 기관 담당자에게 문의해 주세요.'
-        : (useLocalMockClosed
-          ? '현재 이용 신청을 받고 있지 않습니다.'
-          : (useLocalMockFull
-          ? `${localMockCapacity}명의 정원이 꽉 찼지만 대기자로 접수 가능합니다.`
-          : '현재 이용 신청을 받고 있지 않습니다.')),
+      closedMessage: useLocalMockClosed ? '현재 이용 신청을 받고 있지 않습니다.' : '현재 이용 신청을 받고 있지 않습니다.',
       configuredClosedMessage: '현재 이용 신청을 받고 있지 않습니다.'
     };
   }
@@ -294,9 +281,7 @@
 
     try {
       const res = useLocalMock
-        ? (applicationSettings?.waitlistActive
-          ? { success: true, applicationId: 'APP-PREVIEW-001', status: 'WAITLIST', waitlistPosition: localMockWaitlistCount + 1, message: `대기 접수되었습니다. 대기 번호 ${localMockWaitlistCount + 1}번.` }
-          : { success: true, applicationId: 'APP-PREVIEW-001', status: 'PENDING', message: '로컬 미리보기 신청입니다.' })
+        ? { success: true, applicationId: 'APP-PREVIEW-001', status: 'PENDING', message: '로컬 미리보기 신청입니다.' }
         : await fetchAPI('submitGuestApplication', { method: 'POST', body });
 
       if (!res?.success) {

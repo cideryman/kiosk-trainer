@@ -88,10 +88,10 @@ function getServiceWeekKey(value) {
 function getApplicationOperationSettings() {
   const settings = readGuestApplicationSettings();
   return {
-    mode: String(settings.guestApplicationSchedulingMode || 'MANUAL').toUpperCase() === 'AUTO' ? 'AUTO' : 'MANUAL',
-    paused: String(settings.guestApplicationPaused || 'N').toUpperCase() === 'Y',
-    pauseWeek: String(settings.guestApplicationPauseWeek || ''),
-    pauseReason: String(settings.guestApplicationPauseReason || ''),
+    mode: 'MANUAL',
+    paused: false,
+    pauseWeek: '',
+    pauseReason: '',
     capacity: getGuestApplicationCapacity(settings.guestApplicationCapacity),
   };
 }
@@ -134,7 +134,14 @@ function getGuestApplicationOperations(data) {
     });
   const current = operations.filter(item => item.serviceWeek === serviceWeek && item.status !== GUEST_APPLICATION_OPERATION_STATUS.CANCELLED);
   const latestCompleted = {};
+  const completedWeeks = {};
+  const completedKeys = new Set();
   operations.filter(item => item.status === GUEST_APPLICATION_OPERATION_STATUS.COMPLETED).forEach(item => {
+    const key = item.applicationId + '|' + item.serviceWeek;
+    if (completedKeys.has(key)) return;
+    completedKeys.add(key);
+    if (!completedWeeks[item.applicationId]) completedWeeks[item.applicationId] = [];
+    completedWeeks[item.applicationId].push(item.serviceWeek);
     if (!latestCompleted[item.applicationId] || String(item.completedAt) > String(latestCompleted[item.applicationId])) {
       latestCompleted[item.applicationId] = item.completedAt;
     }
@@ -165,6 +172,12 @@ function getGuestApplicationOperations(data) {
         currentServiceStatus: operation?.status || '',
         currentOperationId: operation?.operationId || '',
         lastCompletedAt: latestCompleted[item.applicationId] || '',
+        completedServiceCount: (completedWeeks[item.applicationId] || []).length,
+        scheduledWeeks: operations
+          .filter(operationItem => operationItem.applicationId === item.applicationId && operationItem.status !== GUEST_APPLICATION_OPERATION_STATUS.CANCELLED)
+          .map(operationItem => operationItem.serviceWeek)
+          .filter((week, index, weeks) => weeks.indexOf(week) === index)
+          .sort(),
       };
     });
   const candidates = applications
@@ -198,8 +211,6 @@ function assignGuestApplicationsToWeek(data) {
   const lock = LockService.getScriptLock();
   lock.waitLock(15000);
   try {
-    const scheduling = getApplicationOperationSettings();
-    if (isApplicationWeekPaused(scheduling, serviceWeek)) return { success: false, message: '이번 주 운영이 중단되어 대상자를 확정할 수 없습니다.' };
     const table = getGuestApplicationRows(ensureGuestApplicationSheet());
     const applications = getGuestApplicationObjects(table);
     const selected = ids.map(id => applications.find(item => item.applicationId === id)).filter(Boolean);
@@ -210,8 +221,6 @@ function assignGuestApplicationsToWeek(data) {
     const operationTable = getGuestApplicationOperationTable();
     const existing = operationTable.rows.map(row => guestApplicationOperationToObject(row, operationTable.map));
     const current = existing.filter(item => item.serviceWeek === serviceWeek);
-    const currentActive = current.filter(item => [GUEST_APPLICATION_OPERATION_STATUS.SELECTED, GUEST_APPLICATION_OPERATION_STATUS.COMPLETED].indexOf(item.status) >= 0);
-    if (currentActive.length + ids.length > scheduling.capacity) return { success: false, message: '이번 주 운영 정원을 초과했습니다.' };
     if (ids.some(id => current.some(item => item.applicationId === id && item.status !== GUEST_APPLICATION_OPERATION_STATUS.CANCELLED))) {
       return { success: false, message: '같은 신청자가 이번 주 운영에 이미 포함되어 있습니다.' };
     }
@@ -275,27 +284,9 @@ function completeGuestApplicationOperations(data) {
 }
 
 function updateGuestApplicationSchedulingSettings(data) {
-  const mode = String((data && data.mode) || 'MANUAL').trim().toUpperCase();
-  if (['MANUAL', 'AUTO'].indexOf(mode) === -1) return { success: false, message: '운영 방식이 올바르지 않습니다.' };
-  const paused = data && (data.paused === true || String(data.paused).toUpperCase() === 'Y') ? 'Y' : 'N';
-  const pauseWeek = paused ? (data.pauseWeek ? getServiceWeekKey(data.pauseWeek) : getServiceWeekKey()) : '';
-  const pauseReason = String((data && data.pauseReason) || '').trim().slice(0, 160);
-  if (paused && !pauseReason) return { success: false, message: '운영 중단 사유를 입력해 주세요.' };
-  const lock = LockService.getScriptLock();
-  lock.waitLock(15000);
-  try {
-    setGuestApplicationSettingsValues({
-      guestApplicationSchedulingMode: mode,
-      guestApplicationPaused: paused,
-      guestApplicationPauseWeek: pauseWeek,
-      guestApplicationPauseReason: pauseReason,
-    });
-    clearGuestApplicationSettingsCache();
-    safeAppendAdminLog('updateGuestApplicationSchedulingSettings', 'settings', pauseWeek || 'global', '주간 운영 설정', '', mode + '/' + paused, pauseReason);
-    return { success: true, settings: getApplicationOperationSettings(), message: '주간 운영 설정이 저장되었습니다.' };
-  } finally {
-    lock.releaseLock();
-  }
+  // 이전 화면·북마크 호환용입니다. 주간 운영은 이제 선택한 날짜와 대상 확정으로만 관리합니다.
+  safeAppendAdminLog('updateGuestApplicationSchedulingSettings', 'settings', 'legacy', '주간 자동 순환 설정 무시', '', 'P95 수동 운영', '');
+  return { success: true, settings: getApplicationOperationSettings(), message: '주간 운영은 선택한 날짜와 대상 확정으로 관리합니다.' };
 }
 
 function cancelGuestApplicationOperations(data) {

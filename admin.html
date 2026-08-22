@@ -265,9 +265,7 @@
           <button type="button" class="application-filter-btn" data-application-filter="PENDING">검토 중 <span class="application-filter-count" id="application-count-pending">0</span></button>
           <button type="button" class="application-filter-btn" data-application-filter="WAITLIST">대기 <span class="application-filter-count" id="application-count-waitlist">0</span></button>
           <button type="button" class="application-filter-btn" data-application-filter="APPROVED">승인 <span class="application-filter-count" id="application-count-approved">0</span></button>
-          <button type="button" class="application-filter-btn" data-application-filter="REJECTED">반려 <span class="application-filter-count" id="application-count-rejected">0</span></button>
-          <button type="button" class="application-filter-btn" data-application-filter="INACTIVE">중지 <span class="application-filter-count" id="application-count-inactive">0</span></button>
-          <button type="button" class="application-filter-btn" data-application-filter="TEST">테스트 <span class="application-filter-count" id="application-count-test">0</span></button>
+          <button type="button" class="application-filter-btn" data-application-filter="CLOSED">종료 <span class="application-filter-count" id="application-count-closed">0</span></button>
         </div>
 
         <section class="application-operations-panel" id="application-operations-panel" aria-labelledby="application-operations-title">
@@ -276,18 +274,10 @@
               <h3 id="application-operations-title">📅 주간 운영</h3>
               <p id="application-operations-status">운영 정보를 불러오는 중입니다.</p>
             </div>
-            <label class="application-week-field">운영 주차 <input type="date" id="application-service-week"></label>
-          </div>
-          <div class="application-operations-settings">
-            <label>운영 방식
-              <select id="application-scheduling-mode"><option value="MANUAL">수동 운영</option><option value="AUTO">자동 순환</option></select>
-            </label>
-            <label class="application-open-toggle"><input type="checkbox" id="application-scheduling-paused"> 이번 주 운영 중단</label>
-            <input type="text" id="application-pause-reason" maxlength="160" placeholder="중단 사유 (예: 내부 행사)">
-            <button class="btn btn-gray" id="btn-save-application-scheduling" type="button">이번 주 운영 설정 저장</button>
+            <label class="application-week-field">운영 주차 시작일 <input type="date" id="application-service-week"></label>
           </div>
           <div class="application-operation-actions">
-            <button class="btn btn-secondary" id="btn-assign-application-week" type="button" disabled>이번 주 운영 확정</button>
+            <button class="btn btn-secondary" id="btn-assign-application-week" type="button" disabled>선택한 주차 운영 확정</button>
             <button class="btn btn-gray" id="btn-complete-application-week" type="button" disabled>서비스 제공 완료</button>
             <button class="btn btn-gray" id="btn-cancel-application-week" type="button" disabled>확정 취소</button>
           </div>
@@ -303,11 +293,11 @@
                 <label class="application-open-toggle"><input type="checkbox" id="application-setting-open"> 이용 신청 받기</label>
               </div>
               <div class="application-field">
-                <label for="application-setting-capacity">모집 정원</label>
+                <label for="application-setting-capacity">주당 운영 안내 인원</label>
                 <input id="application-setting-capacity" type="number" min="1" max="100" step="1" inputmode="numeric" required aria-describedby="application-capacity-summary">
               </div>
               <div class="application-field full">
-                <label>1차 모집 현황</label>
+                <label>운영 안내</label>
                 <div class="application-capacity-summary" id="application-capacity-summary" role="status">확인 중</div>
               </div>
               <div class="application-field full">
@@ -353,29 +343,28 @@
         </details>
 
         <details class="application-retention-panel" style="margin-top: 18px;">
-          <summary>🧹 만료 개인정보 점검</summary>
+          <summary>🧹 오래된 신청 정보 정리</summary>
           <div class="application-retention-body">
-            <p style="margin: 14px 0 10px; font-size: 14px; font-weight: 700; color: var(--text-muted); line-height: 1.5;">반려·이용 중지 후 30일이 지난 신청만 익명화합니다. 먼저 점검한 뒤 확인 문구를 입력해야 실행됩니다.</p>
+            <p class="application-maintenance-intro">반려·이용 중지 후 30일이 지난 신청만 정리합니다. 먼저 확인한 뒤 정리 버튼을 누릅니다.</p>
             <div class="application-settings-actions">
-              <button class="btn btn-gray" id="btn-audit-applications" type="button" style="width: auto; min-height: 42px; margin: 0;">만료 점검</button>
-              <input id="application-anonymize-confirm" type="text" autocomplete="off" placeholder="신청정보정리" style="box-sizing: border-box; min-height: 42px; padding: 8px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); font: inherit; font-weight: 750;">
-              <button class="btn btn-gray" id="btn-anonymize-applications" type="button" style="width: auto; min-height: 42px; margin: 0; color: #B91C1C; border-color: #FCA5A5;">익명화 실행</button>
+              <button class="btn btn-gray" id="btn-audit-applications" type="button" style="width: auto; min-height: 42px; margin: 0;">오래된 정보 확인</button>
+              <button class="btn btn-gray" id="btn-anonymize-applications" type="button" style="width: auto; min-height: 42px; margin: 0; color: #B91C1C; border-color: #FCA5A5;">오래된 정보 정리</button>
             </div>
-            <div class="application-retention-result" id="application-retention-result">아직 만료 점검을 실행하지 않았습니다.</div>
+            <div class="application-retention-result" id="application-retention-result">아직 확인하지 않았습니다.</div>
             <hr class="application-maintenance-divider">
-            <p class="application-maintenance-help">테스트 표시가 된 신청만 정리할 수 있습니다. 운영 기록이 있는 테스트 신청은 삭제하지 않습니다.</p>
+            <p class="application-maintenance-help">테스트로 표시한 신청만 삭제합니다. 아래 버튼으로 테스트 신청을 먼저 확인할 수 있습니다.</p>
             <div class="application-settings-actions application-test-cleanup-actions">
-              <input id="application-test-confirm" type="text" autocomplete="off" placeholder="테스트신청정리">
-              <button class="btn btn-gray" id="btn-delete-test-applications" type="button">테스트 신청 정리</button>
+              <button class="btn btn-gray" id="btn-show-test-applications" type="button">테스트 신청 보기</button>
+              <button class="btn btn-gray" id="btn-delete-test-applications" type="button">테스트 신청 삭제</button>
             </div>
-            <div class="application-retention-result" id="application-test-result">정리할 테스트 신청을 선택하려면 목록에서 테스트 필터를 사용하세요.</div>
+            <div class="application-retention-result" id="application-test-result">테스트 신청을 확인하지 않았습니다.</div>
             <hr class="application-maintenance-divider">
-            <p class="application-maintenance-help">같은 신청자·같은 주차의 중복 운영 기록을 백업한 뒤 추가 기록만 취소 상태로 보존합니다.</p>
-            <div class="application-settings-actions application-test-cleanup-actions">
-              <input id="application-operation-repair-confirm" type="text" autocomplete="off" placeholder="운영기록중복정리">
-              <button class="btn btn-gray" id="btn-repair-application-operations" type="button">중복 운영 기록 정리</button>
-            </div>
-            <div class="application-retention-result" id="application-operation-repair-result">중복 정리는 필요할 때만 실행하세요.</div>
+            <details class="application-advanced-maintenance">
+              <summary>고급 관리</summary>
+              <p class="application-maintenance-help">같은 신청자·같은 주차의 중복 기록이 있을 때만 사용합니다. 실행 전에 자동 백업을 만듭니다.</p>
+              <button class="btn btn-gray" id="btn-repair-application-operations" type="button">중복 기록 점검</button>
+              <div class="application-retention-result" id="application-operation-repair-result">중복 기록을 점검하지 않았습니다.</div>
+            </details>
           </div>
         </details>
       </div>
@@ -409,6 +398,26 @@
         <button class="btn btn-gray" id="btn-application-skip" type="button" style="margin: 0; min-height: 44px; color: #7C3AED;">이번 주 건너뛰기</button>
         <button class="btn btn-gray" id="btn-application-test" type="button" style="margin: 0; min-height: 44px;">테스트 신청으로 표시</button>
         <button class="btn btn-primary" id="btn-save-application-memo" type="button" style="margin: 0; min-height: 44px;">메모 저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 신청자 운영 일정 추가 모달 -->
+  <div class="admin-modal" id="modal-guest-application-schedule">
+    <div class="admin-modal-content" style="max-width: 460px;">
+      <div class="admin-modal-header">
+        <h2 class="admin-modal-title">📅 운영 일정 추가</h2>
+        <button class="admin-modal-close" type="button" onclick="closeGuestApplicationScheduleModal()">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <p id="guest-application-schedule-name" class="application-schedule-name">신청자</p>
+        <label class="application-schedule-field" for="guest-application-schedule-date">운영 주차 시작일</label>
+        <input id="guest-application-schedule-date" type="date">
+        <p class="application-maintenance-help">선택한 주차에 이 신청자를 운영 대상으로 추가합니다.</p>
+      </div>
+      <div class="application-modal-actions">
+        <button class="btn btn-gray" type="button" onclick="closeGuestApplicationScheduleModal()">취소</button>
+        <button class="btn btn-secondary" id="btn-save-guest-application-schedule" type="button">일정 추가</button>
       </div>
     </div>
   </div>

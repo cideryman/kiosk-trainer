@@ -140,6 +140,7 @@ function getMockGuestApplicationCounts(applications) {
     if (Object.prototype.hasOwnProperty.call(counts, application.status)) counts[application.status]++;
     if (String(application.adminMemo || '').startsWith('[테스트]')) counts.TEST++;
   });
+  counts.CLOSED = counts.REJECTED + counts.INACTIVE;
   return counts;
 }
 
@@ -148,10 +149,6 @@ function getMockGuestApplicationCapacity(value) {
   return Number.isInteger(capacity) && capacity >= 1 && capacity <= MOCK_GUEST_APPLICATION_MAX_CAPACITY
     ? capacity
     : MOCK_GUEST_APPLICATION_DEFAULT_CAPACITY;
-}
-
-function getMockGuestApplicationFullMessage(capacity) {
-  return `1차 시범 이용 신청 ${capacity}명이 모두 접수되어 현재 모집을 마감했습니다. 추가 모집은 기관 담당자에게 문의해 주세요.`;
 }
 
 function getMockGuestApplicationCapacityState(
@@ -177,26 +174,32 @@ function getMockGuestApplicationCapacityState(
 function getMockGuestApplicationSettingsResponse() {
   const capacityState = getMockGuestApplicationCapacityState();
   const applicationOpenConfigured = MOCK_GUEST_APPLICATION_SETTINGS.applicationOpen === true;
-  const applicationClosedReason = !applicationOpenConfigured
-    ? 'MANUAL'
-    : (capacityState.applicationFull ? 'FULL' : '');
+  const applicationClosedReason = !applicationOpenConfigured ? 'MANUAL' : '';
   const configuredClosedMessage = MOCK_GUEST_APPLICATION_SETTINGS.closedMessage || '';
   return {
     ...JSON.parse(JSON.stringify(MOCK_GUEST_APPLICATION_SETTINGS)),
-    applicationOpen: applicationOpenConfigured && !capacityState.applicationFull,
+    applicationOpen: applicationOpenConfigured,
     applicationOpenConfigured,
     applicationClosedReason,
     ...capacityState,
-    closedMessage: applicationClosedReason === 'FULL'
-      ? getMockGuestApplicationFullMessage(capacityState.capacity)
-      : configuredClosedMessage,
+    applicationFull: false,
+    capacityReached: capacityState.applicationFull,
+    capacityMode: 'ADVISORY',
+    waitlistActive: false,
+    waitlistFull: false,
+    remainingSlots: null,
+    closedMessage: configuredClosedMessage,
     configuredClosedMessage
   };
 }
 
 function getMockGuestApplicationList(status) {
   const all = MOCK_GUEST_APPLICATIONS.slice();
-  const visible = !status || status === 'ALL' ? all : all.filter(application => application.status === status);
+  const visible = !status || status === 'ALL'
+    ? all
+    : status === 'CLOSED'
+      ? all.filter(application => ['REJECTED', 'INACTIVE'].includes(application.status))
+      : all.filter(application => application.status === status);
   return visible.map(application => ({
     applicationId: application.applicationId,
     createdAt: application.createdAt,
@@ -230,8 +233,14 @@ function getMockGuestApplicationOperations(serviceWeek) {
   const byApplication = {};
   rows.forEach(row => { byApplication[row.applicationId] = row; });
   const lastCompletedAt = {};
+  const completedServiceCount = {};
+  const completedKeys = new Set();
   MOCK_GUEST_APPLICATION_OPERATIONS.forEach(row => {
     if (row.status !== 'COMPLETED') return;
+    const completedKey = `${row.applicationId}|${row.serviceWeek}`;
+    if (completedKeys.has(completedKey)) return;
+    completedKeys.add(completedKey);
+    completedServiceCount[row.applicationId] = (completedServiceCount[row.applicationId] || 0) + 1;
     if (!lastCompletedAt[row.applicationId] || row.completedAt > lastCompletedAt[row.applicationId]) {
       lastCompletedAt[row.applicationId] = row.completedAt;
     }
@@ -255,10 +264,16 @@ function getMockGuestApplicationOperations(serviceWeek) {
       waitlistPosition: application.waitlistPosition || '',
       contactedAt: application.contactedAt || '',
       testMarked: String(application.adminMemo || '').startsWith('[테스트]'),
-      currentServiceStatus: byApplication[application.applicationId]?.status || '',
-      currentOperationId: byApplication[application.applicationId]?.operationId || '',
-      lastCompletedAt: lastCompletedAt[application.applicationId] || ''
-    }));
+       currentServiceStatus: byApplication[application.applicationId]?.status || '',
+       currentOperationId: byApplication[application.applicationId]?.operationId || '',
+       lastCompletedAt: lastCompletedAt[application.applicationId] || '',
+       completedServiceCount: completedServiceCount[application.applicationId] || 0,
+       scheduledWeeks: MOCK_GUEST_APPLICATION_OPERATIONS
+         .filter(row => row.applicationId === application.applicationId && row.status !== 'CANCELLED')
+         .map(row => row.serviceWeek)
+         .filter((week, index, weeks) => weeks.indexOf(week) === index)
+         .sort()
+     }));
   const configured = getMockGuestApplicationSettingsResponse();
   return {
     serviceWeek: week,
@@ -780,15 +795,6 @@ function getMockFallback(action, options) {
       res = { success: false, code: 'APPLICATION_CLOSED', message: settings.closedMessage };
     } else if (duplicatePhone && normalizedPhone) {
       res = { success: false, code: 'DUPLICATE_PHONE', message: '이미 접수된 신청이 있습니다.' };
-    } else if (settings.applicationFull) {
-      res = {
-        success: false,
-        code: 'APPLICATION_FULL',
-        message: getMockGuestApplicationFullMessage(settings.capacity),
-        capacity: settings.capacity,
-        activeCount: settings.activeCount,
-        remainingSlots: 0
-      };
     } else {
       const now = new Date().toISOString();
       const applicationId = 'APP-MOCK-' + String(Date.now()).slice(-6);
@@ -818,7 +824,8 @@ function getMockFallback(action, options) {
         applicationId,
         status: 'PENDING',
         capacity: settings.capacity,
-        remainingSlots: Math.max(0, settings.remainingSlots - 1),
+        capacityMode: 'ADVISORY',
+        capacityReached: settings.capacityReached === true,
         message: 'Mock 이용 신청이 접수되었습니다.'
       };
     }
@@ -842,29 +849,17 @@ function getMockFallback(action, options) {
     } else {
       const now = new Date().toISOString();
       const nextStatus = options.body?.status ? String(options.body.status).toUpperCase() : '';
-      const previousStatus = String(application.status || '').toUpperCase();
-      const previousUsesCapacity = ['PENDING', 'APPROVED'].includes(previousStatus);
-      const nextUsesCapacity = ['PENDING', 'APPROVED'].includes(nextStatus);
-      const capacityState = getMockGuestApplicationCapacityState();
-      if (nextStatus && !previousUsesCapacity && nextUsesCapacity && capacityState.applicationFull) {
-        res = {
-          success: false,
-          code: 'APPLICATION_FULL',
-          message: `현재 1차 시범 신청 정원 ${capacityState.capacity}명이 모두 차 있어 승인할 수 없습니다. 먼저 다른 신청을 반려 또는 중지해 주세요.`
-        };
-      } else {
-        if (nextStatus) {
-          application.status = nextStatus;
-          application.reviewedAt = now;
-          application.retentionUntil = ['REJECTED', 'INACTIVE'].includes(application.status)
-            ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-            : '';
-        }
-        if (options.body?.contacted !== undefined) application.contactedAt = options.body.contacted ? now : '';
-        if (options.body?.adminMemo !== undefined) application.adminMemo = options.body.adminMemo;
-        application.updatedAt = now;
-        res = { success: true, applicationId: application.applicationId, status: application.status, message: 'Mock 신청 정보가 저장되었습니다.' };
+      if (nextStatus) {
+        application.status = nextStatus;
+        application.reviewedAt = now;
+        application.retentionUntil = ['REJECTED', 'INACTIVE'].includes(application.status)
+          ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+          : '';
       }
+      if (options.body?.contacted !== undefined) application.contactedAt = options.body.contacted ? now : '';
+      if (options.body?.adminMemo !== undefined) application.adminMemo = options.body.adminMemo;
+      application.updatedAt = now;
+      res = { success: true, applicationId: application.applicationId, status: application.status, message: 'Mock 신청 정보가 저장되었습니다.' };
     }
   } else if (action === 'updateGuestApplicationSettings') {
     const hasCapacityInput = options.body?.capacity !== undefined && options.body?.capacity !== null && String(options.body.capacity).trim() !== '';
@@ -887,30 +882,16 @@ function getMockFallback(action, options) {
   } else if (action === 'getGuestApplicationOperations') {
     res = { success: true, ...getMockGuestApplicationOperations(options.body?.serviceWeek) };
   } else if (action === 'updateGuestApplicationSchedulingSettings') {
-    const mode = String(options.body?.mode || options.body?.schedulingMode || 'MANUAL').toUpperCase();
-    const paused = Boolean(options.body?.paused);
-    if (!['MANUAL', 'AUTO'].includes(mode)) {
-      res = { success: false, message: '운영 방식이 올바르지 않습니다.' };
-    } else if (paused && !String(options.body?.pauseReason || '').trim()) {
-      res = { success: false, message: '중단 사유를 입력해 주세요.' };
-    } else {
-      MOCK_GUEST_APPLICATION_SETTINGS.schedulingMode = mode;
-      MOCK_GUEST_APPLICATION_SETTINGS.paused = paused;
-      MOCK_GUEST_APPLICATION_SETTINGS.pauseWeek = paused ? getMockApplicationServiceWeek(options.body?.pauseWeek) : '';
-      MOCK_GUEST_APPLICATION_SETTINGS.pauseReason = paused ? String(options.body?.pauseReason || '').trim() : '';
-      res = { success: true, message: '주간 운영 설정을 저장했습니다.' };
-    }
+    res = {
+      success: true,
+      settings: { ...getMockGuestApplicationSettingsResponse(), mode: 'MANUAL', paused: false, pauseWeek: '', pauseReason: '' },
+      message: '주간 운영은 선택한 날짜와 대상 확정으로 관리합니다.'
+    };
   } else if (action === 'assignGuestApplicationsToWeek') {
     const week = getMockApplicationServiceWeek(options.body?.serviceWeek);
     const ids = Array.isArray(options.body?.applicationIds) ? options.body.applicationIds.map(String) : [];
-    const capacity = getMockGuestApplicationCapacityState().capacity;
-    const activeCount = MOCK_GUEST_APPLICATION_OPERATIONS.filter(row => row.serviceWeek === week && row.status === 'SELECTED').length;
-    if (MOCK_GUEST_APPLICATION_SETTINGS.paused && MOCK_GUEST_APPLICATION_SETTINGS.pauseWeek === week) {
-      res = { success: false, message: '이번 주 운영이 중단되어 배정할 수 없습니다.' };
-    } else if (!ids.length) {
+    if (!ids.length) {
       res = { success: false, message: '이번 주 운영 대상자를 선택해 주세요.' };
-    } else if (activeCount + ids.length > capacity) {
-      res = { success: false, message: '운영 정원을 초과할 수 없습니다.' };
     } else if (ids.some(id => MOCK_GUEST_APPLICATION_OPERATIONS.some(row => row.serviceWeek === week && row.applicationId === id && ['SELECTED', 'COMPLETED'].includes(row.status)))) {
       res = { success: false, message: '이미 이번 주 운영 기록이 있는 신청자가 포함되어 있습니다.' };
     } else {

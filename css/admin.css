@@ -166,7 +166,7 @@
 .application-operation-group { padding: 10px; border-radius: var(--radius-sm); background: white; border: 1px solid #CCFBF1; }
 .application-operation-group h4 { margin: 0 0 8px; color: #334155; font-size: 14px; }
 .application-operation-help { margin: -2px 0 8px; color: #64748B; font-size: 13px; line-height: 1.45; }
-.application-operation-row { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(140px, auto) auto; align-items: center; gap: 8px 14px; padding: 8px 0; border-top: 1px solid #E2E8F0; }
+.application-operation-row { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(220px, auto) auto auto; align-items: center; gap: 8px 10px; padding: 8px 0; border-top: 1px solid #E2E8F0; }
 .application-operation-row:first-of-type { border-top: 0; }
 .application-operation-select { display: flex; align-items: center; gap: 7px; min-width: 0; font-weight: 800; }
 .application-operation-select input { flex: 0 0 auto; }
@@ -175,9 +175,18 @@
 .application-operation-status { color: #0F766E; font-weight: 850; }
 .application-operation-detail { min-width: 58px; min-height: 38px; padding: 6px 10px; border: 0; border-radius: var(--radius-sm); background: #0F766E; color: white; font: inherit; font-size: 13px; font-weight: 850; cursor: pointer; }
 .application-operation-detail:hover { background: #115E59; }
+.application-operation-schedule { min-width: 70px; min-height: 38px; padding: 6px 9px; border: 2px solid #99F6E4; border-radius: var(--radius-sm); background: white; color: #0F766E; font: inherit; font-size: 12px; font-weight: 850; cursor: pointer; white-space: nowrap; }
+.application-operation-schedule:hover { background: #CCFBF1; }
 .application-operation-select input:disabled { opacity: .55; }
 .application-maintenance-divider { border: 0; border-top: 1px solid #E2E8F0; margin: 16px 0 12px; }
 .application-maintenance-help { margin: 0 0 10px; color: #64748B; font-size: 13px; line-height: 1.5; }
+.application-maintenance-intro { margin: 14px 0 10px; color: var(--text-muted); font-size: 14px; font-weight: 700; line-height: 1.5; }
+.application-advanced-maintenance { margin-top: 12px; padding: 10px 12px; border: 1px solid #CBD5E1; border-radius: var(--radius-sm); background: #F8FAFC; }
+.application-advanced-maintenance summary { cursor: pointer; color: #475569; font-weight: 850; }
+.application-advanced-maintenance .btn { width: auto; min-height: 40px; margin: 0 0 8px; }
+.application-schedule-name { margin: 0 0 16px; color: var(--text-main); font-size: 18px; font-weight: 850; }
+.application-schedule-field { display: block; margin-bottom: 6px; color: var(--text-muted); font-size: 13px; font-weight: 850; }
+#guest-application-schedule-date { width: 100%; min-height: 44px; box-sizing: border-box; padding: 8px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background: white; font: inherit; font-weight: 750; }
 .application-test-cleanup-actions input { flex: 1 1 220px; min-height: 42px; box-sizing: border-box; padding: 8px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); font: inherit; font-weight: 750; }
 .application-test-cleanup-actions .btn { width: auto; min-height: 42px; margin: 0; color: #B91C1C; border-color: #FCA5A5; }
 
@@ -1112,10 +1121,11 @@
   .application-operation-actions > button { flex: 1 1 calc(50% - 5px); }
   .application-test-cleanup-actions input,
   .application-test-cleanup-actions .btn { width: 100%; }
-  .application-operation-row { grid-template-columns: minmax(0, 1fr) auto; gap: 3px 8px; padding: 9px 0; }
+  .application-operation-row { grid-template-columns: minmax(0, 1fr) auto auto; gap: 3px 6px; padding: 9px 0; }
   .application-operation-select { grid-column: 1; min-width: 0; }
-  .application-operation-meta { grid-column: 1; min-width: 0; font-size: 12px; overflow: hidden; }
-  .application-operation-detail { grid-column: 2; grid-row: 1 / span 2; min-width: 52px; min-height: 40px; }
+  .application-operation-meta { grid-column: 1 / -1; min-width: 0; font-size: 12px; overflow: hidden; }
+  .application-operation-schedule { grid-column: 2; grid-row: 1; min-width: 62px; min-height: 38px; padding: 5px 6px; }
+  .application-operation-detail { grid-column: 3; grid-row: 1; min-width: 52px; min-height: 40px; }
   .application-operation-help { font-size: 12px; }
   .admin-tabs {
     display: flex;

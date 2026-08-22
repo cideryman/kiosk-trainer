@@ -227,6 +227,7 @@ let currentApplications = [];
 let currentApplicationFilter = 'ALL';
 let currentApplicationDetail = null;
 let currentApplicationOperations = null;
+let guestApplicationScheduleTarget = null;
 let guestApplicationsLoaded = false;
 let guestApplicationSettingsDirty = false;
 let isModalOpen = false;
@@ -465,9 +466,7 @@ function updateApplicationCounts(counts = {}) {
   setApplicationCount('application-count-pending', counts.PENDING);
   setApplicationCount('application-count-waitlist', counts.WAITLIST);
   setApplicationCount('application-count-approved', counts.APPROVED);
-  setApplicationCount('application-count-rejected', counts.REJECTED);
-  setApplicationCount('application-count-inactive', counts.INACTIVE);
-  setApplicationCount('application-count-test', counts.TEST);
+  setApplicationCount('application-count-closed', counts.CLOSED ?? ((Number(counts.REJECTED) || 0) + (Number(counts.INACTIVE) || 0)));
 
   const sidebarBadge = document.getElementById('sidebar-application-count');
   if (sidebarBadge) {
@@ -507,17 +506,9 @@ function renderGuestApplicationSettings(settings) {
   if (capacitySummary) {
     const capacity = Math.max(1, Number(settings.capacity) || 5);
     const activeCount = Math.max(0, Number(settings.activeCount) || 0);
-    const remainingSlots = Math.max(0, Number(settings.remainingSlots) || 0);
     const waitlistCount = Math.max(0, Number(settings.waitlistCount) || 0);
-    const waitlistFull = settings.waitlistFull === true;
-    const parts = [];
-    parts.push(`1차 ${capacity}명 · 접수 ${activeCount}명`);
-    if (waitlistCount > 0) parts.push(`대기 ${waitlistCount}명`);
-    if (!waitlistFull && !settings.applicationFull) parts.push(`남음 ${remainingSlots}명`);
-    if (waitlistFull) parts.push('대기 포화');
-    else if (settings.applicationFull) parts.push('정원 마감');
-    capacitySummary.textContent = parts.join(' · ');
-    capacitySummary.classList.toggle('full', settings.applicationFull === true || waitlistFull);
+    capacitySummary.textContent = `주당 ${capacity}명 운영 안내 · 현재 신청 ${activeCount}명 · 승인·신청 제한 없음${waitlistCount ? ` · 수동 대기 ${waitlistCount}명` : ''}`;
+    capacitySummary.classList.remove('full');
   }
   if (guestApplicationSettingsDirty) return;
   const setValue = (id, value) => {
@@ -596,19 +587,20 @@ function getApplicationServiceWeekInput() {
   return input.value;
 }
 
+function formatApplicationWeekLabel(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  const date = new Date(text + (text.length === 10 ? 'T00:00:00' : ''));
+  if (Number.isNaN(date.getTime())) return text;
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
 function renderGuestApplicationOperations(data) {
   currentApplicationOperations = data;
   const status = document.getElementById('application-operations-status');
   const list = document.getElementById('application-operation-list');
-  const mode = document.getElementById('application-scheduling-mode');
-  const paused = document.getElementById('application-scheduling-paused');
-  const reason = document.getElementById('application-pause-reason');
-  if (mode) mode.value = data?.settings?.mode || 'MANUAL';
-  if (paused) paused.checked = data?.settings?.paused === true && (!data.settings.pauseWeek || data.settings.pauseWeek === data.serviceWeek);
-  if (reason) reason.value = data?.settings?.pauseReason || '';
   if (status) {
-    const pauseText = data?.settings?.paused ? ` · 중단: ${data.settings.pauseReason || '사유 없음'}` : '';
-    status.textContent = `${data?.serviceWeek || '-'} · ${data?.settings?.mode === 'AUTO' ? '자동 순환' : '수동 운영'}${pauseText}`;
+    status.textContent = `${data?.serviceWeek || '-'} · 선택한 날짜에 운영할 신청자를 직접 정합니다.`;
   }
   if (!list) return;
   const operations = (Array.isArray(data?.operations) ? data.operations : [])
@@ -627,7 +619,9 @@ function renderGuestApplicationOperations(data) {
     ? sourceApplications.filter(item => item.testMarked)
     : currentApplicationFilter === 'ALL'
       ? sourceApplications
-      : sourceApplications.filter(item => item.status === currentApplicationFilter);
+      : currentApplicationFilter === 'CLOSED'
+        ? sourceApplications.filter(item => ['REJECTED', 'INACTIVE'].includes(item.status))
+        : sourceApplications.filter(item => item.status === currentApplicationFilter);
   const rows = visibleApplications.map(application => {
     const operation = operationsByApplication.get(application.applicationId);
     return {
@@ -646,23 +640,33 @@ function renderGuestApplicationOperations(data) {
     const isSelected = item.operationStatus === 'SELECTED';
     const isCompleted = item.operationStatus === 'COMPLETED';
     const applicationStatus = getApplicationStatusMeta(item.status);
+    const completedCount = Number(item.completedServiceCount) || 0;
+    const completedLabel = completedCount ? `서비스 완료 ${completedCount}회` : '서비스 이력 없음';
+    const scheduledWeeks = Array.isArray(item.scheduledWeeks) ? item.scheduledWeeks : [];
+    const scheduledLabel = scheduledWeeks.length
+      ? `운영 예정: ${scheduledWeeks.map(formatApplicationWeekLabel).join(' · ')}`
+      : '';
     const serviceLabel = isSelected
-      ? '이번 주 운영'
+      ? '선택한 주차 운영'
       : isCompleted
-        ? '서비스 완료'
+        ? `서비스 완료 · ${completedLabel}`
         : item.status === 'APPROVED'
-          ? (item.lastCompletedAt ? `마지막 완료 ${formatApplicationDate(item.lastCompletedAt)}` : '운영 이력 없음')
+          ? [scheduledLabel, completedLabel].filter(Boolean).join(' · ')
           : item.status === 'WAITLIST'
-            ? `대기 순번 #${Number(item.waitlistPosition) || '-'}`
+            ? `수동 대기${Number(item.waitlistPosition) ? ` · 순번 ${Number(item.waitlistPosition)}` : ''}`
             : item.status === 'PENDING' ? '검토 중' : applicationStatus.label;
     const checkbox = isSelected
       ? `<input type="checkbox" data-operation-id="${esc(item.operationId)}" aria-label="${esc(item.name)} 서비스 완료 선택">`
       : !isCompleted && item.status === 'APPROVED' && !item.operationStatus
         ? `<input type="checkbox" data-application-id="${esc(item.applicationId)}" aria-label="${esc(item.name)} 이번 주 운영 선택">`
         : `<input type="checkbox" disabled aria-label="${esc(item.name)} 선택 불가">`;
+    const scheduleButton = item.status === 'APPROVED'
+      ? `<button class="application-operation-schedule" type="button" onclick="${callAttr(`openGuestApplicationScheduleModal(${jsString(item.applicationId)}, ${jsString(item.name || '신청자')})`)}">일정 추가</button>`
+      : '';
     return `<div class="application-operation-row">
       <div class="application-operation-select">${checkbox}<span class="application-operation-name">${esc(item.name || '이름 없음')}</span><span class="application-status-badge ${applicationStatus.className}">${esc(applicationStatus.label)}</span>${item.testMarked ? '<span class="application-status-badge inactive">테스트</span>' : ''}</div>
       <div class="application-operation-meta"><span class="application-operation-status">${esc(serviceLabel)}</span>${item.contactedAt ? '<span>연락 완료</span>' : '<span>연락 전</span>'}</div>
+      ${scheduleButton}
       <button class="application-operation-detail" type="button" onclick="${callAttr(`openGuestApplicationDetail(${jsString(item.applicationId)})`)}">상세</button>
     </div>`;
   }).join('');
@@ -676,9 +680,7 @@ function updateApplicationOperationButtons() {
   const cancelButton = document.getElementById('btn-cancel-application-week');
   const selectedApplications = document.querySelectorAll('[data-application-id]:checked').length;
   const selectedOperations = document.querySelectorAll('[data-operation-id]:checked').length;
-  const paused = currentApplicationOperations?.settings?.paused === true
-    && (!currentApplicationOperations.settings.pauseWeek || currentApplicationOperations.settings.pauseWeek === currentApplicationOperations.serviceWeek);
-  if (assignButton) assignButton.disabled = paused || selectedApplications === 0;
+  if (assignButton) assignButton.disabled = selectedApplications === 0;
   if (completeButton) completeButton.disabled = selectedOperations === 0;
   if (cancelButton) cancelButton.disabled = selectedOperations === 0;
 }
@@ -695,19 +697,6 @@ async function loadGuestApplicationOperations() {
     const status = document.getElementById('application-operations-status');
     if (status) status.textContent = '주간 운영 정보를 불러오지 못했습니다.';
   }
-}
-
-async function saveGuestApplicationSchedulingSettings() {
-  const res = await fetchAPI('updateGuestApplicationSchedulingSettings', { method: 'POST', body: {
-    adminToken: getAdminToken(),
-    mode: document.getElementById('application-scheduling-mode')?.value || 'MANUAL',
-    paused: Boolean(document.getElementById('application-scheduling-paused')?.checked),
-    pauseWeek: getApplicationServiceWeekInput(),
-    pauseReason: document.getElementById('application-pause-reason')?.value || ''
-  }});
-  if (!res?.success) { clearAdminTokenIfDenied(res); alert(res?.message || '운영 설정 저장에 실패했습니다.'); return; }
-  alert(res.message || '주간 운영 설정을 저장했습니다.');
-  await loadGuestApplicationOperations();
 }
 
 async function assignSelectedGuestApplications() {
@@ -735,6 +724,48 @@ async function cancelSelectedGuestApplications() {
   const res = await fetchAPI('cancelGuestApplicationOperations', { method: 'POST', body: { adminToken: getAdminToken(), operationIds, requestId: 'admin-cancel-' + Date.now() } });
   if (!res?.success) { clearAdminTokenIfDenied(res); return alert(res?.message || '운영 확정 취소에 실패했습니다.'); }
   alert(res.message || '운영 확정을 취소했습니다.');
+  await loadGuestApplicationOperations();
+}
+
+function openGuestApplicationScheduleModal(applicationId, name) {
+  const modal = document.getElementById('modal-guest-application-schedule');
+  const nameEl = document.getElementById('guest-application-schedule-name');
+  const dateInput = document.getElementById('guest-application-schedule-date');
+  if (!modal || !dateInput) return;
+  guestApplicationScheduleTarget = String(applicationId || '');
+  if (nameEl) nameEl.textContent = `${name || '신청자'} 운영 일정`;
+  dateInput.value = getApplicationServiceWeekInput();
+  modal.style.display = 'flex';
+  isModalOpen = true;
+  dateInput.focus();
+}
+
+function closeGuestApplicationScheduleModal() {
+  const modal = document.getElementById('modal-guest-application-schedule');
+  if (modal) modal.style.display = 'none';
+  guestApplicationScheduleTarget = null;
+  isModalOpen = false;
+}
+
+async function saveGuestApplicationSchedule() {
+  const dateInput = document.getElementById('guest-application-schedule-date');
+  const applicationId = guestApplicationScheduleTarget;
+  if (!applicationId || !dateInput?.value) return alert('운영 주차를 선택해 주세요.');
+  const res = await fetchAPI('assignGuestApplicationsToWeek', {
+    method: 'POST',
+    body: {
+      adminToken: getAdminToken(),
+      applicationIds: [applicationId],
+      serviceWeek: dateInput.value,
+      requestId: 'admin-schedule-' + Date.now()
+    }
+  });
+  if (!res?.success) {
+    clearAdminTokenIfDenied(res);
+    return alert(res?.message || '운영 일정을 추가하지 못했습니다.');
+  }
+  alert(res.message || '운영 일정을 추가했습니다.');
+  closeGuestApplicationScheduleModal();
   await loadGuestApplicationOperations();
 }
 
@@ -929,17 +960,15 @@ async function markCurrentGuestApplicationTest() {
 }
 
 async function deleteTestGuestApplications() {
-  const confirmInput = document.getElementById('application-test-confirm');
   const result = document.getElementById('application-test-result');
-  const confirmText = confirmInput?.value.trim() || '';
-  if (confirmText !== '테스트신청정리') {
-    alert('확인 문구 테스트신청정리를 정확히 입력해 주세요.');
-    confirmInput?.focus();
+  const confirmText = '테스트신청정리';
+  if (currentApplicationFilter !== 'TEST') {
+    alert('먼저 테스트 신청 보기를 눌러 정리할 신청을 확인해 주세요.');
     return;
   }
   const ids = (currentApplications || []).filter(item => item.testMarked).map(item => item.applicationId);
   if (!ids.length) {
-    alert('현재 목록에 정리할 테스트 신청이 없습니다. 테스트 필터를 선택해 확인해 주세요.');
+    alert('현재 정리할 테스트 신청이 없습니다.');
     return;
   }
   if (!confirm(`테스트 표시된 ${ids.length}건을 정리할까요? 운영 기록이 있는 신청은 삭제되지 않습니다.`)) return;
@@ -952,21 +981,22 @@ async function deleteTestGuestApplications() {
     if (result) result.textContent = res?.message || '테스트 신청 정리에 실패했습니다.';
     return;
   }
-  if (confirmInput) confirmInput.value = '';
   if (result) result.textContent = res.message || '테스트 신청을 정리했습니다.';
   alert(res.message || '테스트 신청을 정리했습니다.');
   await loadGuestApplications(currentApplicationFilter);
 }
 
+async function showTestGuestApplications() {
+  const result = document.getElementById('application-test-result');
+  if (result) result.textContent = '테스트 신청을 확인하고 있습니다.';
+  await loadGuestApplications('TEST');
+  if (result) result.textContent = '목록에서 테스트 표시를 확인한 뒤 삭제할 수 있습니다.';
+  document.getElementById('application-operation-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 async function repairGuestApplicationOperationDuplicates() {
-  const confirmInput = document.getElementById('application-operation-repair-confirm');
   const result = document.getElementById('application-operation-repair-result');
-  const confirmText = confirmInput?.value.trim() || '';
-  if (confirmText !== '운영기록중복정리') {
-    alert('확인 문구 운영기록중복정리를 정확히 입력해 주세요.');
-    confirmInput?.focus();
-    return;
-  }
+  const confirmText = '운영기록중복정리';
   if (!confirm('운영기록을 백업한 뒤 중복 기록을 CANCELLED 상태로 정리할까요?')) return;
   const res = await fetchAPI('repairGuestApplicationOperationDuplicates', {
     method: 'POST',
@@ -977,7 +1007,6 @@ async function repairGuestApplicationOperationDuplicates() {
     if (result) result.textContent = res?.message || '중복 운영 기록 정리에 실패했습니다.';
     return;
   }
-  if (confirmInput) confirmInput.value = '';
   if (result) result.textContent = res.message || '중복 운영 기록을 정리했습니다.';
   alert(res.message || '중복 운영 기록을 정리했습니다.');
   await loadGuestApplications(currentApplicationFilter);
@@ -1003,13 +1032,7 @@ async function anonymizeGuestApplications() {
   if (isSubmitting) return;
   isSubmitting = true;
   try {
-    const confirmInput = document.getElementById('application-anonymize-confirm');
-    const confirmText = confirmInput?.value.trim() || '';
-    if (confirmText !== '신청정보정리') {
-      alert('확인 문구 신청정보정리를 정확히 입력해 주세요.');
-      confirmInput?.focus();
-      return;
-    }
+    const confirmText = '신청정보정리';
     if (!confirm('만료된 신청의 이름·연락처·장소·메모를 되돌릴 수 없게 익명화할까요?')) return;
     const res = await fetchAPI('anonymizeExpiredGuestApplications', {
       method: 'POST',
@@ -1020,7 +1043,6 @@ async function anonymizeGuestApplications() {
       alert(res?.message || '익명화에 실패했습니다.');
       return;
     }
-    if (confirmInput) confirmInput.value = '';
     alert(res.message);
     await auditGuestApplicationRetention();
     await loadGuestApplications();
@@ -2480,15 +2502,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-save-application-settings')?.addEventListener('click', saveGuestApplicationSettings);
   document.getElementById('application-service-week')?.addEventListener('change', loadGuestApplicationOperations);
-  document.getElementById('btn-save-application-scheduling')?.addEventListener('click', saveGuestApplicationSchedulingSettings);
   document.getElementById('btn-assign-application-week')?.addEventListener('click', assignSelectedGuestApplications);
   document.getElementById('btn-complete-application-week')?.addEventListener('click', completeSelectedGuestApplications);
   document.getElementById('btn-cancel-application-week')?.addEventListener('click', cancelSelectedGuestApplications);
   document.getElementById('application-operation-list')?.addEventListener('change', updateApplicationOperationButtons);
   document.getElementById('btn-audit-applications')?.addEventListener('click', auditGuestApplicationRetention);
   document.getElementById('btn-anonymize-applications')?.addEventListener('click', anonymizeGuestApplications);
+  document.getElementById('btn-show-test-applications')?.addEventListener('click', showTestGuestApplications);
   document.getElementById('btn-delete-test-applications')?.addEventListener('click', deleteTestGuestApplications);
   document.getElementById('btn-repair-application-operations')?.addEventListener('click', repairGuestApplicationOperationDuplicates);
+  document.getElementById('btn-save-guest-application-schedule')?.addEventListener('click', saveGuestApplicationSchedule);
   document.getElementById('btn-application-test')?.addEventListener('click', markCurrentGuestApplicationTest);
   document.getElementById('btn-save-application-memo')?.addEventListener('click', () => updateCurrentGuestApplication({}));
   document.getElementById('btn-application-contacted')?.addEventListener('click', () => {
