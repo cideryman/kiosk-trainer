@@ -728,6 +728,10 @@ function renderGuestApplicationOperations(data) {
           : item.status === 'WAITLIST'
             ? `수동 대기${Number(item.waitlistPosition) ? ` · 순번 ${Number(item.waitlistPosition)}` : ''}`
             : item.status === 'PENDING' ? '검토 중' : applicationStatus.label;
+    const futureScheduleControls = (Array.isArray(item.scheduledOperations) ? item.scheduledOperations : [])
+      .filter(operationItem => operationItem.status === 'SELECTED' && operationItem.serviceWeek !== item.serviceWeek)
+      .map(operationItem => `<button class="application-operation-schedule-cancel" type="button" data-operation-id="${esc(operationItem.operationId)}" onclick="${callAttr(`cancelGuestApplicationSchedule(${jsString(operationItem.operationId)}, ${jsString(operationItem.serviceWeek)})`)}">${esc(formatApplicationWeekLabel(operationItem.serviceWeek))} 일정 취소</button>`)
+      .join('');
     const checkbox = isSelected
       ? `<input type="checkbox" data-operation-id="${esc(item.operationId)}" data-application-status="${esc(item.status)}" aria-label="${esc(item.name)} 확정 일정 처리 선택">`
       : !isCompleted && item.status === 'APPROVED' && !item.operationStatus
@@ -738,13 +742,34 @@ function renderGuestApplicationOperations(data) {
       : '';
     return `<div class="application-operation-row">
       <div class="application-operation-select">${checkbox}<span class="application-operation-name">${esc(item.name || '이름 없음')}</span><span class="application-status-badge ${applicationStatus.className}">${esc(applicationStatus.label)}</span>${item.testMarked ? '<span class="application-status-badge inactive">테스트</span>' : ''}</div>
-      <div class="application-operation-meta"><span class="application-operation-status">${esc(serviceLabel)}</span>${item.contactedAt ? '<span>연락 완료</span>' : '<span>연락 전</span>'}</div>
+      <div class="application-operation-meta"><span class="application-operation-status">${esc(serviceLabel)}</span>${futureScheduleControls}<span>${item.contactedAt ? '연락 완료' : '연락 전'}</span></div>
       ${scheduleButton}
       <button class="application-operation-detail" type="button" onclick="${callAttr(`openGuestApplicationDetail(${jsString(item.applicationId)})`)}">상세</button>
     </div>`;
   }).join('');
   list.innerHTML = `<div class="application-operation-group"><h4>전체 신청자</h4><p class="application-operation-help">신규 운영은 신청자 체크, 확정 일정은 운영 처리 체크로 구분합니다. 연락처와 배달 장소는 상세에서 확인합니다.</p>${rowHtml || '<div class="application-empty">이 상태의 이용 신청이 없습니다.</div>'}</div>`;
   updateApplicationOperationButtons();
+}
+
+async function cancelGuestApplicationSchedule(operationId, serviceWeek) {
+  const button = [...document.querySelectorAll('.application-operation-schedule-cancel')]
+    .find(item => item.dataset.operationId === String(operationId));
+  const res = await runAdminMutation({
+    key: 'schedule-cancel-' + operationId,
+    fingerprint: JSON.stringify({ operationId, serviceWeek }),
+    action: 'cancelGuestApplicationOperations',
+    body: { adminToken: getAdminToken(), operationIds: [operationId] },
+    buttons: [button],
+    requestPrefix: 'admin-schedule-cancel'
+  });
+  if (res?.blocked) return;
+  if (res?.networkError) return alert(res.message || '서버 응답을 확인하지 못했습니다. 같은 버튼을 다시 눌러 재시도해 주세요.');
+  if (!res?.success) {
+    clearAdminTokenIfDenied(res);
+    return alert(res?.message || '운영 일정 취소에 실패했습니다.');
+  }
+  alert(res.message || `${formatApplicationWeekLabel(serviceWeek)} 운영 일정을 취소했습니다.`);
+  await loadGuestApplicationOperations();
 }
 
 function updateApplicationOperationButtons() {

@@ -177,6 +177,8 @@
 .application-operation-detail:hover { background: #115E59; }
 .application-operation-schedule { min-width: 70px; min-height: 38px; padding: 6px 9px; border: 2px solid #99F6E4; border-radius: var(--radius-sm); background: white; color: #0F766E; font: inherit; font-size: 12px; font-weight: 850; cursor: pointer; white-space: nowrap; }
 .application-operation-schedule:hover { background: #CCFBF1; }
+.application-operation-schedule-cancel { border: 1px solid #FDA4AF; border-radius: 999px; padding: 3px 7px; background: #FFF1F2; color: #BE123C; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.application-operation-schedule-cancel:hover { background: #FFE4E6; }
 .application-operation-select input:disabled { opacity: .55; }
 .application-maintenance-divider { border: 0; border-top: 1px solid #E2E8F0; margin: 16px 0 12px; }
 .application-maintenance-help { margin: 0 0 10px; color: #64748B; font-size: 13px; line-height: 1.5; }
@@ -1131,6 +1133,7 @@
   .application-operation-row { grid-template-columns: minmax(0, 1fr) auto auto; gap: 3px 6px; padding: 9px 0; }
   .application-operation-select { grid-column: 1; min-width: 0; }
   .application-operation-meta { grid-column: 1 / -1; min-width: 0; font-size: 12px; overflow: hidden; }
+  .application-operation-schedule-cancel { font-size: 10px; padding: 3px 5px; }
   .application-operation-schedule { grid-column: 2; grid-row: 1; min-width: 62px; min-height: 38px; padding: 5px 6px; }
   .application-operation-detail { grid-column: 3; grid-row: 1; min-width: 52px; min-height: 40px; }
   .application-operation-help { font-size: 12px; }

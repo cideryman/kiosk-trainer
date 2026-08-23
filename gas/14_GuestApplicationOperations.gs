@@ -194,6 +194,14 @@ function getGuestApplicationOperations(data) {
           .map(operationItem => operationItem.serviceWeek)
           .filter((week, index, weeks) => weeks.indexOf(week) === index)
           .sort(),
+        scheduledOperations: operations
+          .filter(operationItem => operationItem.applicationId === item.applicationId && operationItem.status !== GUEST_APPLICATION_OPERATION_STATUS.CANCELLED)
+          .map(operationItem => ({
+            operationId: operationItem.operationId,
+            serviceWeek: operationItem.serviceWeek,
+            status: operationItem.status
+          }))
+          .sort((a, b) => String(a.serviceWeek).localeCompare(String(b.serviceWeek))),
       };
     });
   const candidates = applications
