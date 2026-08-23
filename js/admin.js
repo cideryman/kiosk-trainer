@@ -955,7 +955,18 @@ function renderGuestApplicationDetail(application) {
     memo.value = application.adminMemo || '';
     memo.disabled = Boolean(application.anonymizedAt);
   }
-  document.querySelectorAll('[data-application-action], #btn-application-contacted, #btn-application-skip, #btn-save-application-memo').forEach(button => {
+  const allowedStatusActions = {
+    PENDING: ['APPROVED', 'REJECTED'],
+    WAITLIST: ['APPROVED', 'REJECTED', 'INACTIVE'],
+    APPROVED: ['REJECTED', 'INACTIVE'],
+    REJECTED: ['APPROVED'],
+    INACTIVE: ['APPROVED']
+  }[String(application.status || '').toUpperCase()] || [];
+  document.querySelectorAll('[data-application-action]').forEach(button => {
+    button.hidden = !allowedStatusActions.includes(button.dataset.applicationAction);
+    button.disabled = Boolean(application.anonymizedAt);
+  });
+  document.querySelectorAll('#btn-application-contacted, #btn-save-application-memo').forEach(button => {
     button.disabled = Boolean(application.anonymizedAt);
   });
   const testButton = document.getElementById('btn-application-test');
@@ -966,10 +977,6 @@ function renderGuestApplicationDetail(application) {
   }
   const contactedButton = document.getElementById('btn-application-contacted');
   if (contactedButton) contactedButton.textContent = application.contactedAt ? '연락 표시 취소' : '연락 완료';
-  const skipButton = document.getElementById('btn-application-skip');
-  if (skipButton) {
-    skipButton.style.display = (application.status === 'APPROVED' || application.status === 'WAITLIST') ? '' : 'none';
-  }
 }
 
 async function openGuestApplicationDetail(applicationId, options = {}) {
@@ -2667,28 +2674,6 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-save-application-memo')?.addEventListener('click', () => updateCurrentGuestApplication({}));
   document.getElementById('btn-application-contacted')?.addEventListener('click', () => {
     updateCurrentGuestApplication({ contacted: !Boolean(currentApplicationDetail?.contactedAt) });
-  });
-  document.getElementById('btn-application-skip')?.addEventListener('click', async () => {
-    if (!currentApplicationDetail) return;
-    const applicationId = currentApplicationDetail.applicationId;
-    const modalButtons = document.querySelectorAll('.application-modal-actions button');
-    const res = await runAdminMutation({
-      key: 'application-' + applicationId,
-      fingerprint: JSON.stringify({ applicationId, action: 'skip' }),
-      action: 'skipGuestApplicationWeek',
-      body: { adminToken: getAdminToken(), applicationId },
-      buttons: modalButtons,
-      requestPrefix: 'admin-skip'
-    });
-    if (res?.blocked) return;
-    if (res?.networkError) return alert(res.message || '서버 응답을 확인하지 못했습니다. 같은 버튼을 다시 눌러 재시도해 주세요.');
-    if (!res?.success) {
-      clearAdminTokenIfDenied(res);
-      return alert(res?.message || '건너뛰기 설정에 실패했습니다.');
-    }
-    alert(res.message || '건너뛰기가 설정되었습니다.');
-    closeGuestApplicationModal();
-    await loadGuestApplications();
   });
   document.querySelectorAll('[data-application-action]').forEach(button => {
     button.addEventListener('click', () => {
