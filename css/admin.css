@@ -182,6 +182,13 @@
 .application-maintenance-help { margin: 0 0 10px; color: #64748B; font-size: 13px; line-height: 1.5; }
 .application-maintenance-intro { margin: 14px 0 10px; color: var(--text-muted); font-size: 14px; font-weight: 700; line-height: 1.5; }
 .application-advanced-maintenance { margin-top: 12px; padding: 10px 12px; border: 1px solid #CBD5E1; border-radius: var(--radius-sm); background: #F8FAFC; }
+
+/* 중간 폭에서는 상태 문구가 버튼을 밀어내지 않도록 줄바꿈을 허용한다. */
+@media (min-width: 769px) and (max-width: 1180px) {
+  .application-operation-row { grid-template-columns: minmax(180px, 1fr) minmax(0, 1fr) auto auto; }
+  .application-operation-meta { min-width: 0; white-space: normal; overflow: hidden; line-height: 1.35; }
+  .application-operation-status { overflow-wrap: anywhere; }
+}
 .application-advanced-maintenance summary { cursor: pointer; color: #475569; font-weight: 850; }
 .application-advanced-maintenance .btn { width: auto; min-height: 40px; margin: 0 0 8px; }
 .application-schedule-name { margin: 0 0 16px; color: var(--text-main); font-size: 18px; font-weight: 850; }

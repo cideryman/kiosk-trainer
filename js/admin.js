@@ -712,14 +712,16 @@ function renderGuestApplicationOperations(data) {
     const completedCount = Number(item.completedServiceCount) || 0;
     const completedLabel = completedCount ? `서비스 완료 ${completedCount}회` : '서비스 이력 없음';
     const scheduledWeeks = Array.isArray(item.scheduledWeeks) ? item.scheduledWeeks : [];
-    const scheduledLabel = scheduledWeeks.length
-      ? `운영 예정: ${scheduledWeeks.map(formatApplicationWeekLabel).join(' · ')}`
-      : '';
+    const scheduledLabel = scheduledWeeks.length === 1
+      ? `운영 예정: ${formatApplicationFullWeekLabel(scheduledWeeks[0])}`
+      : scheduledWeeks.length > 1
+        ? `운영 예정: ${scheduledWeeks.map(formatApplicationWeekLabel).join(' · ')}`
+        : '';
     const operationDate = item.serviceWeek ? formatApplicationFullWeekLabel(item.serviceWeek) : '';
     const serviceLabel = isSelected
-      ? `운영 예정: ${operationDate || '날짜 확인 필요'}`
+      ? (scheduledLabel || `운영 예정: ${operationDate || '날짜 확인 필요'}`)
       : isCompleted
-        ? `서비스 완료: ${operationDate || '날짜 확인 필요'} · ${completedLabel}`
+        ? `서비스 완료: ${operationDate || '날짜 확인 필요'} · ${completedLabel}${scheduledWeeks.length > 1 ? ` · ${scheduledLabel}` : ''}`
         : item.status === 'APPROVED'
           ? [scheduledLabel, completedLabel].filter(Boolean).join(' · ')
           : item.status === 'WAITLIST'
