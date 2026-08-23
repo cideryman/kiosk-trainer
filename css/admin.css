@@ -111,6 +111,51 @@
   margin-bottom: 14px;
 }
 
+.application-subtabs {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 0 2px;
+  border-bottom: 2px solid #CCFBF1;
+}
+
+.application-subtab {
+  flex: 0 1 auto;
+  min-width: 108px;
+  min-height: 42px;
+  margin: 0;
+  padding: 8px 16px;
+  border: 2px solid transparent;
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  background: transparent;
+  color: #64748B;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.application-subtab:hover {
+  background: #F0FDFA;
+  color: #0F766E;
+}
+
+.application-subtab.is-active {
+  border-color: #99F6E4;
+  border-bottom-color: white;
+  background: white;
+  color: #0F766E;
+  transform: translateY(2px);
+}
+
+.application-subtab-panel[hidden] {
+  display: none !important;
+}
+
 .application-filter-btn {
   min-height: 38px;
   padding: 6px 11px;
@@ -161,8 +206,31 @@
 .application-operations-settings > label { display: inline-flex; align-items: center; gap: 7px; font-weight: 850; color: #334155; }
 .application-operations-settings > input { flex: 1 1 180px; }
 .application-operation-actions { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
-.application-operation-actions .btn { width: auto; min-height: 42px; margin: 0; flex: 0 1 auto; padding: 7px 14px; white-space: nowrap; }
-.application-week-confirm { min-height: 40px !important; padding: 6px 16px !important; }
+.application-operation-actions .btn,
+.application-week-confirm.btn {
+  width: auto !important;
+  min-width: 64px;
+  min-height: 40px;
+  margin: 0;
+  flex: 0 1 auto;
+  padding: 7px 13px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.15;
+  white-space: nowrap;
+  box-shadow: none;
+  animation: none;
+}
+.application-week-confirm.btn { min-width: 58px; }
+.application-action-approve { background: #0F766E; color: white; }
+.application-action-reject { background: #FFF1F2; color: #BE123C; border: 1px solid #FDA4AF; }
+.application-action-inactivate { background: #475569; color: white; }
+.application-action-contact { background: #2563EB; color: white; }
+.application-action-complete { background: #16A34A; color: white; }
+.application-action-cancel { background: #FFF7ED; color: #C2410C; border: 1px solid #FDBA74; }
+.application-operation-actions .btn:disabled,
+.application-week-confirm.btn:disabled { opacity: .52; filter: grayscale(.15); }
 .application-operation-list { display: grid; gap: 8px; margin-top: 14px; }
 .application-operation-group { padding: 10px; border-radius: var(--radius-sm); background: white; border: 1px solid #CCFBF1; }
 .application-operation-group > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; color: #334155; font-size: 15px; font-weight: 900; }
@@ -180,6 +248,8 @@
 .application-operation-detail:hover { background: #115E59; }
 .application-operation-schedule { min-width: 70px; min-height: 38px; padding: 6px 9px; border: 2px solid #99F6E4; border-radius: var(--radius-sm); background: white; color: #0F766E; font: inherit; font-size: 12px; font-weight: 850; cursor: pointer; white-space: nowrap; }
 .application-operation-schedule:hover { background: #CCFBF1; }
+.application-operation-inline-schedule { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+.application-operation-date { width: 132px; min-height: 36px; box-sizing: border-box; padding: 5px 6px; border: 2px solid #99F6E4; border-radius: 9px; background: white; color: #334155; font: inherit; font-size: 12px; font-weight: 750; }
 .application-operation-schedule-cancel { border: 1px solid #FDA4AF; border-radius: 999px; padding: 3px 7px; background: #FFF1F2; color: #BE123C; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; white-space: nowrap; }
 .application-operation-schedule-cancel:hover { background: #FFE4E6; }
 .application-operation-select input:disabled { opacity: .55; }
@@ -196,9 +266,6 @@
 }
 .application-advanced-maintenance summary { cursor: pointer; color: #475569; font-weight: 850; }
 .application-advanced-maintenance .btn { width: auto; min-height: 40px; margin: 0 0 8px; }
-.application-schedule-name { margin: 0 0 16px; color: var(--text-main); font-size: 18px; font-weight: 850; }
-.application-schedule-field { display: block; margin-bottom: 6px; color: var(--text-muted); font-size: 13px; font-weight: 850; }
-#guest-application-schedule-date { width: 100%; min-height: 44px; box-sizing: border-box; padding: 8px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background: white; font: inherit; font-weight: 750; }
 .application-test-cleanup-actions input { flex: 1 1 220px; min-height: 42px; box-sizing: border-box; padding: 8px 10px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); font: inherit; font-weight: 750; }
 .application-test-cleanup-actions .btn { width: auto; min-height: 42px; margin: 0; color: #B91C1C; border-color: #FCA5A5; }
 
@@ -1123,6 +1190,20 @@
 
 /* 모바일 화면에서 테이블 조작 버튼 축소 */
 @media (max-width: 768px) {
+  .application-subtabs {
+    gap: 4px;
+    margin-bottom: 10px;
+    padding: 0;
+  }
+
+  .application-subtab {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 40px;
+    padding: 8px 5px;
+    font-size: 13px;
+  }
+
   .application-operations-panel { padding: 12px; }
   .application-operations-header { align-items: flex-start; }
   .application-week-field { flex: 1 1 220px; min-width: 0; justify-content: space-between; }
@@ -1138,6 +1219,8 @@
   .application-operation-meta { grid-column: 1 / -1; min-width: 0; font-size: 12px; overflow: hidden; }
   .application-operation-schedule-cancel { font-size: 10px; padding: 3px 5px; }
   .application-operation-schedule { grid-column: 2; grid-row: 1; min-width: 62px; min-height: 38px; padding: 5px 6px; }
+  .application-operation-inline-schedule { grid-column: 2; grid-row: 1; }
+  .application-operation-date { width: 122px; min-height: 36px; }
   .application-operation-detail { grid-column: 3; grid-row: 1; min-width: 52px; min-height: 40px; }
   .application-operation-help { font-size: 12px; }
   .application-operation-group { padding: 9px; }

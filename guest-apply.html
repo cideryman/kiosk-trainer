@@ -188,10 +188,6 @@
                 <option value="OTHER">기타</option>
               </select>
             </div>
-            <div class="form-field full" id="relation-detail-field" hidden>
-              <label for="applicant-relation-detail">관계 설명 <span class="required">필수</span></label>
-              <input id="applicant-relation-detail" name="relationDetail" type="text" maxlength="80" placeholder="예: 행사 참여자">
-            </div>
             <div class="form-field full">
               <label for="applicant-phone">연락처 <span class="required">필수</span></label>
               <input id="applicant-phone" name="phone" type="tel" maxlength="20" inputmode="tel" autocomplete="off" placeholder="010-0000-0000" required>
@@ -205,18 +201,10 @@
               <label for="applicant-place">배달받을 장소 <span class="required">필수</span></label>
               <input id="applicant-place" name="deliveryPlace" type="text" maxlength="80" autocomplete="off" placeholder="예: 원당로 OO반점" required>
             </div>
-            <div class="form-field">
-              <label for="applicant-delivery-detail">상세 위치 또는 전달 방법</label>
-              <input id="applicant-delivery-detail" name="deliveryDetail" type="text" maxlength="160" placeholder="예: 도착하면 사무실 담당자에게 알려주세요">
-            </div>
             <fieldset class="form-field full" style="border: 0; padding: 0; margin: 0;">
               <legend class="form-label">이용 희망 요일 <span class="required">필수</span></legend>
               <div class="day-options" id="preferred-day-options"></div>
             </fieldset>
-            <div class="form-field full">
-              <label for="applicant-message">전달할 내용</label>
-              <textarea id="applicant-message" name="message" maxlength="300" placeholder="관리자가 미리 알아야 할 내용을 적어주세요."></textarea>
-            </div>
           </section>
 
           <div class="honeypot" aria-hidden="true">
@@ -231,7 +219,7 @@
                 <input id="applicant-consent" name="consent" type="checkbox" required>
                 <span class="consent-copy">
                   <strong>개인정보 수집·이용에 동의합니다. <span class="required">필수</span></strong>
-                  이름, 관계, 연락처, 배달 장소와 신청 내용을 신청 확인·운영 안내·원활한 전달 목적으로 수집합니다. 승인된 신청은 이용 중 보관하며, 반려 또는 이용 중지 후 30일이 지나면 개인정보를 익명화합니다. 연락처와 장소는 주문 화면·주방·전광판·빌지에 표시하지 않습니다.
+                  이름, 관계, 연락처, 배달 장소와 희망 요일을 신청 확인·운영 안내·원활한 전달 목적으로 수집합니다. 승인된 신청은 이용 중 보관하며, 반려 또는 이용 중지 후 30일이 지나면 개인정보를 익명화합니다. 연락처와 장소는 주문 화면·주방·전광판·빌지에 표시하지 않습니다.
                 </span>
               </label>
             </div>

@@ -238,15 +238,6 @@
     button.addEventListener('click', openApplicationForm);
   });
 
-  document.getElementById('applicant-relation').addEventListener('change', event => {
-    const detailField = document.getElementById('relation-detail-field');
-    const detailInput = document.getElementById('applicant-relation-detail');
-    const showDetail = event.target.value === 'OTHER';
-    detailField.hidden = !showDetail;
-    detailInput.required = showDetail;
-    if (!showDetail) detailInput.value = '';
-  });
-
   form.addEventListener('submit', async event => {
     event.preventDefault();
     setFormMessage('');
@@ -269,12 +260,9 @@
       requestId: getRequestId(),
       name: document.getElementById('applicant-name').value.trim(),
       relationType: document.getElementById('applicant-relation').value,
-      relationDetail: document.getElementById('applicant-relation-detail').value.trim(),
       phone: document.getElementById('applicant-phone').value.trim(),
       deliveryPlace: document.getElementById('applicant-place').value.trim(),
-      deliveryDetail: document.getElementById('applicant-delivery-detail').value.trim(),
       preferredDays: selectedDays,
-      message: document.getElementById('applicant-message').value.trim(),
       consent: document.getElementById('applicant-consent').checked,
       website: document.getElementById('applicant-website').value
     };

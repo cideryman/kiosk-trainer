@@ -493,9 +493,6 @@ function validateGuestApplication(data) {
   if (['VOLUNTEER', 'SPONSOR', 'OTHER'].indexOf(relationType) === -1) {
     return { success: false, message: '복지관과의 관계를 선택해 주세요.' };
   }
-  if (relationType === 'OTHER' && !relationDetail) {
-    return { success: false, message: '복지관과의 관계를 간단히 적어 주세요.' };
-  }
   if (!/^0\d{8,10}$/.test(phone)) {
     return { success: false, message: '연락처를 숫자로 정확히 입력해 주세요.' };
   }
@@ -509,12 +506,12 @@ function validateGuestApplication(data) {
       requestId,
       name,
       relationType,
-      relationDetail,
+      relationDetail: '',
       phone,
       deliveryPlace,
-      deliveryDetail,
+      deliveryDetail: '',
       preferredDays,
-      message,
+      message: '',
     },
   };
 }
@@ -889,7 +886,7 @@ function updateGuestApplications(data) {
   const ids = Array.isArray(data && data.applicationIds)
     ? [...new Set(data.applicationIds.map(String).map(value => value.trim()).filter(Boolean))]
     : [];
-  const action = String((data && data.action) || '').trim().toUpperCase();
+  const action = String((data && data.bulkAction) || '').trim().toUpperCase();
   const requestId = String((data && data.requestId) || '').trim();
   const cachedResult = getCachedGuestApplicationMutationResult('bulk-update-' + action, requestId);
   if (cachedResult) return cachedResult;
