@@ -187,6 +187,8 @@ function doPost(e) {
       return jsonResponse(getGuestApplicationDetail(data));
     } else if (action === 'updateGuestApplication') {
       return jsonResponse(updateGuestApplication(data));
+    } else if (action === 'updateGuestApplications') {
+      return jsonResponse(updateGuestApplications(data));
     } else if (action === 'skipGuestApplicationWeek') {
       return jsonResponse(skipGuestApplicationWeek(data));
     } else if (action === 'updateGuestApplicationSettings') {

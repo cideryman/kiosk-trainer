@@ -601,9 +601,6 @@ async function loadGuestApplications(status = currentApplicationFilter) {
   }
   const diagnosticFlow = API_DIAGNOSTICS.startFlow('admin:applications');
   currentApplicationFilter = status || 'ALL';
-  document.querySelectorAll('[data-application-filter]').forEach(button => {
-    button.classList.toggle('active', button.dataset.applicationFilter === currentApplicationFilter);
-  });
   if (list) list.innerHTML = '<div class="application-loading">신청 목록을 불러오고 있습니다.</div>';
 
   try {
@@ -611,7 +608,7 @@ async function loadGuestApplications(status = currentApplicationFilter) {
       method: 'POST',
       body: {
         adminToken: getAdminToken(),
-        status: currentApplicationFilter === 'TEST' ? 'ALL' : currentApplicationFilter
+        status: 'ALL'
       }
     });
     if (!res?.success) {
@@ -620,10 +617,8 @@ async function loadGuestApplications(status = currentApplicationFilter) {
       return;
     }
     const allApplications = Array.isArray(res.applications) ? res.applications : [];
-    const counts = { ...(res.counts || {}), TEST: Number(res.counts?.TEST) || allApplications.filter(application => application.testMarked).length };
-    currentApplications = currentApplicationFilter === 'TEST'
-      ? allApplications.filter(application => application.testMarked)
-      : allApplications;
+    const counts = res.counts || {};
+    currentApplications = allApplications;
     updateApplicationCounts(counts);
     renderGuestApplicationSettings(res.settings);
     await loadGuestApplicationOperations();
@@ -683,13 +678,7 @@ function renderGuestApplicationOperations(data) {
   const sourceApplications = Array.isArray(data?.applications) && data.applications.length
     ? data.applications
     : (Array.isArray(currentApplications) ? currentApplications : []);
-  const visibleApplications = currentApplicationFilter === 'TEST'
-    ? sourceApplications.filter(item => item.testMarked)
-    : currentApplicationFilter === 'ALL'
-      ? sourceApplications
-      : currentApplicationFilter === 'CLOSED'
-        ? sourceApplications.filter(item => ['REJECTED', 'INACTIVE'].includes(item.status))
-        : sourceApplications.filter(item => item.status === currentApplicationFilter);
+  const visibleApplications = sourceApplications;
   const rows = visibleApplications.map(application => {
     const operation = operationsByApplication.get(application.applicationId);
     return {
@@ -733,10 +722,8 @@ function renderGuestApplicationOperations(data) {
       .map(operationItem => `<button class="application-operation-schedule-cancel" type="button" data-operation-id="${esc(operationItem.operationId)}" onclick="${callAttr(`cancelGuestApplicationSchedule(${jsString(operationItem.operationId)}, ${jsString(operationItem.serviceWeek)})`)}">${esc(formatApplicationWeekLabel(operationItem.serviceWeek))} 일정 취소</button>`)
       .join('');
     const checkbox = isSelected
-      ? `<input type="checkbox" data-operation-id="${esc(item.operationId)}" data-application-status="${esc(item.status)}" aria-label="${esc(item.name)} 확정 일정 처리 선택">`
-      : !isCompleted && item.status === 'APPROVED' && !item.operationStatus
-        ? `<input type="checkbox" data-application-id="${esc(item.applicationId)}" aria-label="${esc(item.name)} 이번 주 운영 선택">`
-        : `<input type="checkbox" disabled aria-label="${esc(item.name)} 선택 불가">`;
+      ? `<input type="checkbox" data-selection-kind="operation" data-operation-id="${esc(item.operationId)}" data-application-id="${esc(item.applicationId)}" data-application-status="${esc(item.status)}" aria-label="${esc(item.name)} 확정 일정 처리 선택">`
+      : `<input type="checkbox" data-selection-kind="application" data-application-id="${esc(item.applicationId)}" data-application-status="${esc(item.status)}" aria-label="${esc(item.name)} 신청 처리 선택">`;
     const scheduleButton = item.status === 'APPROVED'
       ? `<button class="application-operation-schedule" type="button" onclick="${callAttr(`openGuestApplicationScheduleModal(${jsString(item.applicationId)}, ${jsString(item.name || '신청자')})`)}">일정 추가</button>`
       : '';
@@ -747,7 +734,59 @@ function renderGuestApplicationOperations(data) {
       <button class="application-operation-detail" type="button" onclick="${callAttr(`openGuestApplicationDetail(${jsString(item.applicationId)})`)}">상세</button>
     </div>`;
   }).join('');
-  list.innerHTML = `<div class="application-operation-group"><h4>전체 신청자</h4><p class="application-operation-help">신규 운영은 신청자 체크, 확정 일정은 운영 처리 체크로 구분합니다. 연락처와 배달 장소는 상세에서 확인합니다.</p>${rowHtml || '<div class="application-empty">이 상태의 이용 신청이 없습니다.</div>'}</div>`;
+  const groupDefinitions = [
+    { key: 'PENDING', label: '검토 중', open: true },
+    { key: 'WAITLIST', label: '대기', open: true },
+    { key: 'APPROVED', label: '승인', open: true },
+    { key: 'CLOSED', label: '종료', open: false }
+  ];
+  const groups = groupDefinitions.map(group => {
+    const groupRows = rows.filter(item => group.key === 'CLOSED'
+      ? ['REJECTED', 'INACTIVE'].includes(item.status)
+      : item.status === group.key);
+    const groupHtml = groupRows.map(item => {
+      const operation = operationsByApplication.get(item.applicationId);
+      const isSelected = operation?.status === 'SELECTED';
+      const isCompleted = operation?.status === 'COMPLETED';
+      const applicationStatus = getApplicationStatusMeta(item.status);
+      const completedCount = Number(item.completedServiceCount) || 0;
+      const completedLabel = completedCount ? `서비스 완료 ${completedCount}회` : '서비스 이력 없음';
+      const scheduledWeeks = Array.isArray(item.scheduledWeeks) ? item.scheduledWeeks : [];
+      const scheduledLabel = scheduledWeeks.length === 1
+        ? `운영 예정: ${formatApplicationFullWeekLabel(scheduledWeeks[0])}`
+        : scheduledWeeks.length > 1
+          ? `운영 예정: ${scheduledWeeks.map(formatApplicationWeekLabel).join(' · ')}`
+          : '';
+      const operationDate = item.serviceWeek ? formatApplicationFullWeekLabel(item.serviceWeek) : '';
+      const serviceLabel = isSelected
+        ? `${scheduledLabel || `운영 예정: ${operationDate || '날짜 확인 필요'}`}`
+        : isCompleted
+          ? `서비스 완료: ${operationDate || '날짜 확인 필요'} · ${completedLabel}${scheduledWeeks.length > 1 ? ` · ${scheduledLabel}` : ''}`
+          : item.status === 'APPROVED'
+            ? [scheduledLabel, completedLabel].filter(Boolean).join(' · ')
+            : item.status === 'WAITLIST'
+              ? `수동 대기${Number(item.waitlistPosition) ? ` · 순번 ${Number(item.waitlistPosition)}` : ''}`
+              : item.status === 'PENDING' ? '검토 중' : applicationStatus.label;
+      const futureScheduleControls = (Array.isArray(item.scheduledOperations) ? item.scheduledOperations : [])
+        .filter(operationItem => operationItem.status === 'SELECTED' && operationItem.serviceWeek !== item.serviceWeek)
+        .map(operationItem => `<button class="application-operation-schedule-cancel" type="button" data-operation-id="${esc(operationItem.operationId)}" onclick="${callAttr(`cancelGuestApplicationSchedule(${jsString(operationItem.operationId)}, ${jsString(operationItem.serviceWeek)})`)}">${esc(formatApplicationWeekLabel(operationItem.serviceWeek))} 일정 취소</button>`)
+        .join('');
+      const checkbox = isSelected
+        ? `<input type="checkbox" data-selection-kind="operation" data-operation-id="${esc(item.operationId)}" data-application-id="${esc(item.applicationId)}" data-application-status="${esc(item.status)}" aria-label="${esc(item.name)} 확정 일정 처리 선택">`
+        : `<input type="checkbox" data-selection-kind="application" data-application-id="${esc(item.applicationId)}" data-application-status="${esc(item.status)}" data-schedule-blocked="${isCompleted ? 'true' : 'false'}" aria-label="${esc(item.name)} 신청 처리 선택">`;
+      const scheduleButton = item.status === 'APPROVED'
+        ? `<button class="application-operation-schedule" type="button" onclick="${callAttr(`openGuestApplicationScheduleModal(${jsString(item.applicationId)}, ${jsString(item.name || '신청자')})`)}">일정 추가</button>`
+        : '';
+      return `<div class="application-operation-row">
+        <div class="application-operation-select">${checkbox}<span class="application-operation-name">${esc(item.name || '이름 없음')}</span><span class="application-status-badge ${applicationStatus.className}">${esc(applicationStatus.label)}</span></div>
+        <div class="application-operation-meta"><span class="application-operation-status">${esc(serviceLabel)}</span>${futureScheduleControls}<span>${item.contactedAt ? '연락 완료' : '연락 전'}</span></div>
+        ${scheduleButton}
+        <button class="application-operation-detail" type="button" onclick="${callAttr(`openGuestApplicationDetail(${jsString(item.applicationId)})`)}">상세</button>
+      </div>`;
+    }).join('');
+    return `<details class="application-operation-group" ${group.open ? 'open' : ''}><summary><span>${group.label}</span><span class="application-group-count">${groupRows.length}명</span></summary>${groupHtml || '<div class="application-empty">해당 신청자가 없습니다.</div>'}</details>`;
+  }).join('');
+  list.innerHTML = `<p class="application-operation-help">체크 후 상단 작업을 선택하세요. 연락처와 배달 장소는 상세에서 확인합니다.</p>${groups}`;
   updateApplicationOperationButtons();
 }
 
@@ -774,22 +813,60 @@ async function cancelGuestApplicationSchedule(operationId, serviceWeek) {
 
 function updateApplicationOperationButtons() {
   const assignButton = document.getElementById('btn-assign-application-week');
+  const approveButton = document.getElementById('btn-approve-applications');
+  const rejectButton = document.getElementById('btn-reject-applications');
+  const inactivateButton = document.getElementById('btn-inactivate-applications');
+  const contactButton = document.getElementById('btn-contact-applications');
   const completeButton = document.getElementById('btn-complete-application-week');
   const cancelButton = document.getElementById('btn-cancel-application-week');
-  const selectedApplications = document.querySelectorAll('[data-application-id]:checked').length;
-  const selectedOperationInputs = [...document.querySelectorAll('[data-operation-id]:checked')];
+  const selectedApplicationInputs = [...document.querySelectorAll('[data-selection-kind="application"]:checked')];
+  const selectedOperationInputs = [...document.querySelectorAll('[data-selection-kind="operation"]:checked')];
+  const selectedApplications = selectedApplicationInputs.length;
   const selectedOperations = selectedOperationInputs.length;
+  const applicationStatuses = selectedApplicationInputs.map(input => input.dataset.applicationStatus);
   const completableOperations = selectedOperationInputs.filter(input => !['REJECTED', 'INACTIVE'].includes(input.dataset.applicationStatus)).length;
   const weeklyPending = adminMutationStates.get('weekly-operation')?.pending === true;
+  const allApplicationsAllowed = statuses => selectedApplications > 0 && selectedOperations === 0
+    && applicationStatuses.every(value => statuses.includes(value));
+  const statusButtons = [assignButton, approveButton, rejectButton, inactivateButton, contactButton, completeButton, cancelButton];
   if (weeklyPending) {
-    [assignButton, completeButton, cancelButton].forEach(button => {
+    statusButtons.forEach(button => {
       if (button) button.disabled = true;
     });
     return;
   }
-  if (assignButton) assignButton.disabled = selectedApplications === 0 || selectedOperations > 0;
-  if (completeButton) completeButton.disabled = completableOperations === 0 || selectedApplications > 0;
+  if (assignButton) assignButton.disabled = !allApplicationsAllowed(['APPROVED'])
+    || selectedApplicationInputs.some(input => input.dataset.scheduleBlocked === 'true');
+  if (approveButton) approveButton.disabled = !allApplicationsAllowed(['PENDING', 'WAITLIST', 'REJECTED', 'INACTIVE']);
+  if (rejectButton) rejectButton.disabled = !allApplicationsAllowed(['PENDING', 'WAITLIST', 'APPROVED']);
+  if (inactivateButton) inactivateButton.disabled = !allApplicationsAllowed(['APPROVED', 'WAITLIST']);
+  if (contactButton) contactButton.disabled = selectedApplications === 0 || selectedOperations > 0;
+  if (completeButton) completeButton.disabled = selectedOperations === 0 || selectedApplications > 0 || completableOperations !== selectedOperations;
   if (cancelButton) cancelButton.disabled = selectedOperations === 0 || selectedApplications > 0;
+}
+
+async function updateSelectedGuestApplications(action, label) {
+  const inputs = [...document.querySelectorAll('[data-selection-kind="application"]:checked')];
+  const applicationIds = [...new Set(inputs.map(input => input.dataset.applicationId).filter(Boolean))];
+  if (!applicationIds.length) return alert('신청자를 선택해 주세요.');
+  if (!confirm(`선택한 ${applicationIds.length}명의 신청자를 ${label} 처리할까요?`)) return;
+  const buttons = document.querySelectorAll('#btn-assign-application-week, #btn-approve-applications, #btn-reject-applications, #btn-inactivate-applications, #btn-contact-applications, #btn-complete-application-week, #btn-cancel-application-week');
+  const res = await runAdminMutation({
+    key: 'application-bulk-' + action,
+    fingerprint: JSON.stringify({ action, applicationIds }),
+    action: 'updateGuestApplications',
+    body: { adminToken: getAdminToken(), applicationIds, action },
+    buttons,
+    requestPrefix: 'admin-application-bulk'
+  });
+  if (res?.blocked) return;
+  if (res?.networkError) return alert(res.message || '서버 응답을 확인하지 못했습니다. 같은 작업을 다시 눌러 재시도해 주세요.');
+  if (!res?.success) {
+    clearAdminTokenIfDenied(res);
+    return alert(res?.message || `${label} 처리에 실패했습니다.`);
+  }
+  alert(res.message || `${label} 처리했습니다.`);
+  await loadGuestApplications();
 }
 
 async function loadGuestApplicationOperations() {
@@ -955,28 +1032,6 @@ function renderGuestApplicationDetail(application) {
     memo.value = application.adminMemo || '';
     memo.disabled = Boolean(application.anonymizedAt);
   }
-  const allowedStatusActions = {
-    PENDING: ['APPROVED', 'REJECTED'],
-    WAITLIST: ['APPROVED', 'REJECTED', 'INACTIVE'],
-    APPROVED: ['REJECTED', 'INACTIVE'],
-    REJECTED: ['APPROVED'],
-    INACTIVE: ['APPROVED']
-  }[String(application.status || '').toUpperCase()] || [];
-  document.querySelectorAll('[data-application-action]').forEach(button => {
-    button.hidden = !allowedStatusActions.includes(button.dataset.applicationAction);
-    button.disabled = Boolean(application.anonymizedAt);
-  });
-  document.querySelectorAll('#btn-application-contacted, #btn-save-application-memo').forEach(button => {
-    button.disabled = Boolean(application.anonymizedAt);
-  });
-  const testButton = document.getElementById('btn-application-test');
-  if (testButton) {
-    const marked = String(application.adminMemo || '').startsWith('[테스트]');
-    testButton.disabled = Boolean(application.anonymizedAt) || marked;
-    testButton.textContent = marked ? '테스트 표시됨' : '테스트 신청으로 표시';
-  }
-  const contactedButton = document.getElementById('btn-application-contacted');
-  if (contactedButton) contactedButton.textContent = application.contactedAt ? '연락 표시 취소' : '연락 완료';
 }
 
 async function openGuestApplicationDetail(applicationId, options = {}) {
@@ -1086,7 +1141,7 @@ async function markCurrentGuestApplicationTest() {
     fingerprint: applicationId,
     action: 'markGuestApplicationTestData',
     body: { adminToken: getAdminToken(), applicationId },
-    buttons: [document.getElementById('btn-application-test')],
+    buttons: [],
     requestPrefix: 'admin-test'
   });
   if (res?.blocked) return;
@@ -1118,7 +1173,7 @@ async function deleteTestGuestApplications() {
     fingerprint: JSON.stringify(ids),
     action: 'deleteTestGuestApplications',
     body: { adminToken: getAdminToken(), applicationIds: ids, confirmText },
-    buttons: [document.getElementById('btn-delete-test-applications')],
+    buttons: [],
     requestPrefix: 'admin-delete-test'
   });
   if (res?.blocked) return;
@@ -2649,10 +2704,6 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  document.querySelectorAll('[data-application-filter]').forEach(button => {
-    button.addEventListener('click', () => loadGuestApplications(button.dataset.applicationFilter));
-  });
-
   document.querySelectorAll('#application-settings-panel input, #application-settings-panel textarea').forEach(input => {
     input.addEventListener('input', () => { guestApplicationSettingsDirty = true; });
     input.addEventListener('change', () => { guestApplicationSettingsDirty = true; });
@@ -2661,27 +2712,18 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-save-application-settings')?.addEventListener('click', saveGuestApplicationSettings);
   document.getElementById('application-service-week')?.addEventListener('change', loadGuestApplicationOperations);
   document.getElementById('btn-assign-application-week')?.addEventListener('click', assignSelectedGuestApplications);
+  document.getElementById('btn-approve-applications')?.addEventListener('click', () => updateSelectedGuestApplications('APPROVE', '승인'));
+  document.getElementById('btn-reject-applications')?.addEventListener('click', () => updateSelectedGuestApplications('REJECT', '반려'));
+  document.getElementById('btn-inactivate-applications')?.addEventListener('click', () => updateSelectedGuestApplications('INACTIVATE', '이용 중지'));
+  document.getElementById('btn-contact-applications')?.addEventListener('click', () => updateSelectedGuestApplications('MARK_CONTACTED', '연락 완료'));
   document.getElementById('btn-complete-application-week')?.addEventListener('click', completeSelectedGuestApplications);
   document.getElementById('btn-cancel-application-week')?.addEventListener('click', cancelSelectedGuestApplications);
   document.getElementById('application-operation-list')?.addEventListener('change', updateApplicationOperationButtons);
   document.getElementById('btn-audit-applications')?.addEventListener('click', auditGuestApplicationRetention);
   document.getElementById('btn-anonymize-applications')?.addEventListener('click', anonymizeGuestApplications);
-  document.getElementById('btn-show-test-applications')?.addEventListener('click', showTestGuestApplications);
-  document.getElementById('btn-delete-test-applications')?.addEventListener('click', deleteTestGuestApplications);
   document.getElementById('btn-repair-application-operations')?.addEventListener('click', repairGuestApplicationOperationDuplicates);
   document.getElementById('btn-save-guest-application-schedule')?.addEventListener('click', saveGuestApplicationSchedule);
-  document.getElementById('btn-application-test')?.addEventListener('click', markCurrentGuestApplicationTest);
   document.getElementById('btn-save-application-memo')?.addEventListener('click', () => updateCurrentGuestApplication({}));
-  document.getElementById('btn-application-contacted')?.addEventListener('click', () => {
-    updateCurrentGuestApplication({ contacted: !Boolean(currentApplicationDetail?.contactedAt) });
-  });
-  document.querySelectorAll('[data-application-action]').forEach(button => {
-    button.addEventListener('click', () => {
-      const status = button.dataset.applicationAction;
-      if ((status === 'REJECTED' || status === 'INACTIVE') && !confirm('이 상태로 변경하면 30일 뒤 개인정보 정리 대상이 됩니다. 계속할까요?')) return;
-      updateCurrentGuestApplication({ status });
-    });
-  });
 
   document.getElementById('modal-guest-application')?.addEventListener('click', event => {
     if (event.target.id === 'modal-guest-application') closeGuestApplicationModal();

@@ -260,14 +260,6 @@
           <button class="btn-small-action" type="button" onclick="loadGuestApplications()" style="min-height: 40px; background: #0F766E;">새로고침</button>
         </div>
 
-        <div class="application-filter-row" id="application-filter-row" aria-label="신청 상태 필터">
-          <button type="button" class="application-filter-btn active" data-application-filter="ALL">전체 <span class="application-filter-count" id="application-count-all">0</span></button>
-          <button type="button" class="application-filter-btn" data-application-filter="PENDING">검토 중 <span class="application-filter-count" id="application-count-pending">0</span></button>
-          <button type="button" class="application-filter-btn" data-application-filter="WAITLIST">대기 <span class="application-filter-count" id="application-count-waitlist">0</span></button>
-          <button type="button" class="application-filter-btn" data-application-filter="APPROVED">승인 <span class="application-filter-count" id="application-count-approved">0</span></button>
-          <button type="button" class="application-filter-btn" data-application-filter="CLOSED">종료 <span class="application-filter-count" id="application-count-closed">0</span></button>
-        </div>
-
         <section class="application-operations-panel" id="application-operations-panel" aria-labelledby="application-operations-title">
           <div class="application-operations-header">
             <div>
@@ -275,9 +267,13 @@
               <p id="application-operations-status">운영 정보를 불러오는 중입니다.</p>
             </div>
             <label class="application-week-field">운영 주차 시작일 <input type="date" id="application-service-week"></label>
+            <button class="btn btn-secondary application-week-confirm" id="btn-assign-application-week" type="button" disabled title="선택한 날짜로 운영 확정">확정</button>
           </div>
           <div class="application-operation-actions">
-            <button class="btn btn-secondary" id="btn-assign-application-week" type="button" disabled>선택한 주차 운영 확정</button>
+            <button class="btn btn-gray" id="btn-approve-applications" type="button" disabled>승인</button>
+            <button class="btn btn-gray" id="btn-reject-applications" type="button" disabled>반려</button>
+            <button class="btn btn-gray" id="btn-inactivate-applications" type="button" disabled>이용 중지</button>
+            <button class="btn btn-gray" id="btn-contact-applications" type="button" disabled>연락 완료</button>
             <button class="btn btn-gray" id="btn-complete-application-week" type="button" disabled>서비스 제공 완료</button>
             <button class="btn btn-gray" id="btn-cancel-application-week" type="button" disabled>확정 취소</button>
           </div>
@@ -352,13 +348,6 @@
             </div>
             <div class="application-retention-result" id="application-retention-result">아직 확인하지 않았습니다.</div>
             <hr class="application-maintenance-divider">
-            <p class="application-maintenance-help">테스트로 표시한 신청만 삭제합니다. 아래 버튼으로 테스트 신청을 먼저 확인할 수 있습니다.</p>
-            <div class="application-settings-actions application-test-cleanup-actions">
-              <button class="btn btn-gray" id="btn-show-test-applications" type="button">테스트 신청 보기</button>
-              <button class="btn btn-gray" id="btn-delete-test-applications" type="button">테스트 신청 삭제</button>
-            </div>
-            <div class="application-retention-result" id="application-test-result">테스트 신청을 확인하지 않았습니다.</div>
-            <hr class="application-maintenance-divider">
             <details class="application-advanced-maintenance">
               <summary>고급 관리</summary>
               <p class="application-maintenance-help">같은 신청자·같은 주차의 중복 기록이 있을 때만 사용합니다. 실행 전에 자동 백업을 만듭니다.</p>
@@ -391,17 +380,8 @@
         </div>
       </div>
       <div class="application-modal-actions">
-        <button class="btn btn-secondary" type="button" data-application-action="APPROVED" style="margin: 0; min-height: 44px;">승인</button>
-        <button class="btn btn-gray" type="button" data-application-action="REJECTED" style="margin: 0; min-height: 44px; color: #B91C1C;">반려</button>
-        <button class="btn btn-gray" type="button" data-application-action="INACTIVE" style="margin: 0; min-height: 44px;">이용 중지</button>
-        <button class="btn btn-gray" id="btn-application-contacted" type="button" style="margin: 0; min-height: 44px;">연락 완료</button>
         <button class="btn btn-primary" id="btn-save-application-memo" type="button" style="margin: 0; min-height: 44px;">메모 저장</button>
       </div>
-      <details class="application-advanced-maintenance application-detail-advanced">
-        <summary>고급 관리</summary>
-        <p class="application-maintenance-help">테스트 신청을 만들 때만 사용합니다. 실제 신청에는 누르지 마세요.</p>
-        <button class="btn btn-gray" id="btn-application-test" type="button" style="margin: 0; min-height: 42px;">테스트 신청으로 표시</button>
-      </details>
     </div>
   </div>
 

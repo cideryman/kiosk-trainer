@@ -27,7 +27,7 @@ const GUEST_ORDER_COMPLETION_GRACE_MINUTES = 5;
 // 관리자 화면에서 조정할 수 있는 운영 수량 상한
 const ADMIN_MAX_USER_CREDIT = 15;
 const ADMIN_MAX_SNACK_STOCK = 30;
-const API_CONTRACT_VERSION = '2026-08-22.3';
+const API_CONTRACT_VERSION = '2026-08-23.1';
 
 // 관리자 토큰이 필요한 조회·변경 API 목록입니다.
 const ADMIN_ACTIONS = [
@@ -60,6 +60,7 @@ const ADMIN_ACTIONS = [
   'getGuestApplicationsForAdmin',
   'getGuestApplicationDetail',
   'updateGuestApplication',
+  'updateGuestApplications',
   'skipGuestApplicationWeek',
   'updateGuestApplicationSettings',
   'auditExpiredGuestApplications',

@@ -883,6 +883,77 @@ function updateGuestApplication(data) {
   }
 }
 
+// 신청관리 목록에서 여러 신청자를 한 번에 처리합니다.
+// 모든 대상과 상태를 먼저 검증한 뒤 전체 행을 한 번에 저장해 부분 처리를 막습니다.
+function updateGuestApplications(data) {
+  const ids = Array.isArray(data && data.applicationIds)
+    ? [...new Set(data.applicationIds.map(String).map(value => value.trim()).filter(Boolean))]
+    : [];
+  const action = String((data && data.action) || '').trim().toUpperCase();
+  const requestId = String((data && data.requestId) || '').trim();
+  const cachedResult = getCachedGuestApplicationMutationResult('bulk-update-' + action, requestId);
+  if (cachedResult) return cachedResult;
+  const actionStatus = {
+    APPROVE: GUEST_APPLICATION_STATUS.APPROVED,
+    REJECT: GUEST_APPLICATION_STATUS.REJECTED,
+    INACTIVATE: GUEST_APPLICATION_STATUS.INACTIVE,
+  }[action] || '';
+  const allowedStatuses = {
+    APPROVE: [GUEST_APPLICATION_STATUS.PENDING, GUEST_APPLICATION_STATUS.WAITLIST, GUEST_APPLICATION_STATUS.REJECTED, GUEST_APPLICATION_STATUS.INACTIVE],
+    REJECT: [GUEST_APPLICATION_STATUS.PENDING, GUEST_APPLICATION_STATUS.WAITLIST, GUEST_APPLICATION_STATUS.APPROVED],
+    INACTIVATE: [GUEST_APPLICATION_STATUS.APPROVED, GUEST_APPLICATION_STATUS.WAITLIST],
+    MARK_CONTACTED: Object.keys(GUEST_APPLICATION_STATUS).map(key => GUEST_APPLICATION_STATUS[key]),
+  }[action] || [];
+  if (!ids.length) return { success: false, message: '처리할 신청자를 선택해 주세요.' };
+  if (!allowedStatuses.length) return { success: false, message: '올바르지 않은 일괄 처리입니다.' };
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const sheet = ensureGuestApplicationSheet();
+    const table = getGuestApplicationRows(sheet);
+    const foundItems = ids.map(id => findGuestApplicationById(table, id));
+    if (foundItems.some(item => !item)) return { success: false, message: '선택한 신청자 중 일부를 찾을 수 없습니다.' };
+    if (foundItems.some(item => item.object.anonymizedAt)) return { success: false, message: '익명화된 신청자는 변경할 수 없습니다.' };
+    if (foundItems.some(item => allowedStatuses.indexOf(item.object.status) === -1)) {
+      return { success: false, message: '선택한 신청자의 현재 상태에서는 이 작업을 할 수 없습니다.' };
+    }
+
+    const now = new Date();
+    foundItems.forEach(found => {
+      const application = found.object;
+      const previousStatus = application.status;
+      if (actionStatus) {
+        application.status = actionStatus;
+        application.reviewedAt = now;
+        const isRetention = actionStatus === GUEST_APPLICATION_STATUS.REJECTED || actionStatus === GUEST_APPLICATION_STATUS.INACTIVE;
+        application.retentionUntil = isRetention ? addGuestApplicationRetentionDate(now) : '';
+        if (actionStatus !== GUEST_APPLICATION_STATUS.WAITLIST) {
+          application.waitlistPosition = '';
+          application.skipUntil = '';
+          application.cooldownUntil = '';
+        }
+        application.updatedAt = now;
+        safeAppendAdminLog('updateGuestApplications', 'guestApplication', application.applicationId, '이용 신청 일괄 처리', previousStatus, application.status, 'action=' + action);
+      } else if (action === 'MARK_CONTACTED') {
+        application.contactedAt = now;
+        application.updatedAt = now;
+        safeAppendAdminLog('updateGuestApplications', 'guestApplication', application.applicationId, '신청자 연락 완료', '', guestApplicationDateToIso(now), '');
+      }
+      table.rows[found.rowIndex] = guestApplicationObjectToRow(application, table.headers);
+    });
+    reindexWaitlistPositions(table);
+    const values = table.rows.map(row => row.slice(0, table.headers.length));
+    if (values.length) sheet.getRange(2, 1, values.length, table.headers.length).setValues(values);
+    clearGuestApplicationSettingsCache();
+    const result = { success: true, count: ids.length, action, message: ids.length + '명의 신청자를 처리했습니다.' };
+    cacheGuestApplicationMutationResult('bulk-update-' + action, requestId, result);
+    return result;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 // ─── skipUntil / 건너뛰기 ───
 
 function skipGuestApplicationWeek(data) {
