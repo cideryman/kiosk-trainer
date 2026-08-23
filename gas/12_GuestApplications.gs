@@ -762,6 +762,9 @@ function addGuestApplicationRetentionDate(now) {
 
 function updateGuestApplication(data) {
   const applicationId = String((data && data.applicationId) || '').trim();
+  const requestId = String((data && data.requestId) || '').trim();
+  const cachedResult = getCachedGuestApplicationMutationResult('update', requestId);
+  if (cachedResult) return cachedResult;
   const nextStatus = data && data.status ? String(data.status).trim().toUpperCase() : '';
   if (!applicationId) return { success: false, message: '신청번호가 필요합니다.' };
   if (nextStatus && !GUEST_APPLICATION_STATUS[nextStatus]) {
@@ -866,13 +869,15 @@ function updateGuestApplication(data) {
       application.status,
       ''
     );
-    return {
+    const result = {
       success: true,
       applicationId,
       status: application.status,
       retentionUntil: guestApplicationDateToIso(application.retentionUntil),
       message: '신청 정보가 저장되었습니다.',
     };
+    cacheGuestApplicationMutationResult('update', requestId, result);
+    return result;
   } finally {
     lock.releaseLock();
   }
@@ -882,6 +887,9 @@ function updateGuestApplication(data) {
 
 function skipGuestApplicationWeek(data) {
   var applicationId = String((data && data.applicationId) || '').trim();
+  var requestId = String((data && data.requestId) || '').trim();
+  var cachedResult = getCachedGuestApplicationMutationResult('skip', requestId);
+  if (cachedResult) return cachedResult;
   if (!applicationId) return { success: false, message: '신청번호가 필요합니다.' };
 
   var lock = LockService.getScriptLock();
@@ -956,13 +964,15 @@ function skipGuestApplicationWeek(data) {
       GUEST_APPLICATION_STATUS.WAITLIST,
       ''
     );
-    return {
+    var result = {
       success: true,
       applicationId: applicationId,
       status: GUEST_APPLICATION_STATUS.WAITLIST,
       skipUntil: guestApplicationDateToIso(nextMonday),
       message: '건너뛰기가 설정되었습니다.',
     };
+    cacheGuestApplicationMutationResult('skip', requestId, result);
+    return result;
   } finally {
     lock.releaseLock();
   }
@@ -1157,6 +1167,9 @@ function setGuestApplicationSettingsValues(valuesByKey) {
 }
 
 function updateGuestApplicationSettings(data) {
+  const requestId = String((data && data.requestId) || '').trim();
+  const cachedResult = getCachedGuestApplicationMutationResult('settings', requestId);
+  if (cachedResult) return cachedResult;
   const dayOptions = parseGuestApplicationDayOptions(data.preferredDayOptions);
   if (dayOptions.length === 0) return { success: false, message: '희망 요일 선택지를 하나 이상 입력해 주세요.' };
   const hasCapacityInput = data.capacity !== undefined && data.capacity !== null && String(data.capacity).trim() !== '';
@@ -1220,7 +1233,9 @@ function updateGuestApplicationSettings(data) {
     values.guestApplicationOpen === 'Y' ? '운영 중' : '마감',
     ''
   );
-  return { success: true, message: '이용 신청 설정이 저장되었습니다.' };
+  const result = { success: true, message: '이용 신청 설정이 저장되었습니다.' };
+  cacheGuestApplicationMutationResult('settings', requestId, result);
+  return result;
 }
 
 // ─── 만료 개인정보 익명화 ───
@@ -1255,6 +1270,9 @@ function anonymizeExpiredGuestApplications(data) {
   if (String((data && data.confirmText) || '').trim() !== '신청정보정리') {
     return { success: false, message: '확인 문구 신청정보정리를 정확히 입력해 주세요.' };
   }
+  const requestId = String((data && data.requestId) || '').trim();
+  const cachedResult = getCachedGuestApplicationMutationResult('anonymize', requestId);
+  if (cachedResult) return cachedResult;
 
   const lock = LockService.getScriptLock();
   lock.waitLock(15000);
@@ -1312,11 +1330,13 @@ function anonymizeExpiredGuestApplications(data) {
       expired.length + '건',
       ''
     );
-    return {
+    const result = {
       success: true,
       count: expired.length,
       message: expired.length + '건의 만료 개인정보를 익명화했습니다.',
     };
+    cacheGuestApplicationMutationResult('anonymize', requestId, result);
+    return result;
   } finally {
     lock.releaseLock();
   }

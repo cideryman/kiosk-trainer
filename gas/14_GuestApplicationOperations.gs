@@ -120,6 +120,22 @@ function cacheGuestApplicationOperationResult(action, requestId, result) {
   try { CacheService.getScriptCache().put(key, JSON.stringify(result), 21600); } catch (error) { /* cache failure does not fail the operation */ }
 }
 
+// 신청 관리의 일반 변경 요청도 응답 유실 재시도 시 같은 결과를 돌려준다.
+function getCachedGuestApplicationMutationResult(action, requestId) {
+  const key = getGuestApplicationOperationRequestCacheKey('mutation:' + action, requestId);
+  if (!key) return null;
+  try {
+    const value = CacheService.getScriptCache().get(key);
+    return value ? JSON.parse(value) : null;
+  } catch (error) { return null; }
+}
+
+function cacheGuestApplicationMutationResult(action, requestId, result) {
+  const key = getGuestApplicationOperationRequestCacheKey('mutation:' + action, requestId);
+  if (!key) return;
+  try { CacheService.getScriptCache().put(key, JSON.stringify(result), 21600); } catch (error) { /* 캐시 실패는 업무 실패로 처리하지 않는다. */ }
+}
+
 function getGuestApplicationOperations(data) {
   const serviceWeek = getServiceWeekKey(data && data.serviceWeek);
   const table = getGuestApplicationOperationTable();
@@ -329,6 +345,9 @@ function repairGuestApplicationOperationDuplicates(data) {
   if (String((data && data.confirmText) || '').trim() !== '운영기록중복정리') {
     return { success: false, message: '확인 문구 운영기록중복정리를 정확히 입력해 주세요.' };
   }
+  const requestId = String((data && data.requestId) || '').trim();
+  const cachedResult = getCachedGuestApplicationMutationResult('repair', requestId);
+  if (cachedResult) return cachedResult;
   const lock = LockService.getScriptLock();
   lock.waitLock(15000);
   try {
@@ -371,7 +390,9 @@ function repairGuestApplicationOperationDuplicates(data) {
       table.sheet.getRange(2, 1, values.length, table.headers.length).setValues(values);
     }
     safeAppendAdminLog('repairGuestApplicationOperationDuplicates', 'guestApplicationOperation', table.sheet.getName(), '주간 운영 중복 정리', '', cancelled + '건 CANCELLED', backupName);
-    return { success: true, cancelled, backupName, message: cancelled + '건의 중복 운영 기록을 정리했습니다. 백업: ' + backupName };
+    const result = { success: true, cancelled, backupName, message: cancelled + '건의 중복 운영 기록을 정리했습니다. 백업: ' + backupName };
+    cacheGuestApplicationMutationResult('repair', requestId, result);
+    return result;
   } finally {
     lock.releaseLock();
   }
@@ -379,6 +400,9 @@ function repairGuestApplicationOperationDuplicates(data) {
 
 function markGuestApplicationTestData(data) {
   const applicationId = String((data && data.applicationId) || '').trim();
+  const requestId = String((data && data.requestId) || '').trim();
+  const cachedResult = getCachedGuestApplicationMutationResult('mark-test', requestId);
+  if (cachedResult) return cachedResult;
   if (!applicationId) return { success: false, message: '신청번호가 필요합니다.' };
   const lock = LockService.getScriptLock();
   lock.waitLock(15000);
@@ -390,13 +414,18 @@ function markGuestApplicationTestData(data) {
     found.object.adminMemo = '[테스트] ' + String(found.object.adminMemo || '').replace(/^\[테스트\]\s*/, '').slice(0, 490);
     found.object.updatedAt = new Date();
     sheet.getRange(found.rowIndex + 2, 1, 1, table.headers.length).setValues([guestApplicationObjectToRow(found.object, table.headers)]);
-    return { success: true, message: '테스트 신청으로 표시했습니다.' };
+    const result = { success: true, message: '테스트 신청으로 표시했습니다.' };
+    cacheGuestApplicationMutationResult('mark-test', requestId, result);
+    return result;
   } finally { lock.releaseLock(); }
 }
 
 function deleteTestGuestApplications(data) {
   if (String((data && data.confirmText) || '').trim() !== '테스트신청정리') return { success: false, message: '확인 문구 테스트신청정리를 정확히 입력해 주세요.' };
   const ids = Array.isArray(data && data.applicationIds) ? data.applicationIds.map(String).map(value => value.trim()).filter(Boolean) : [];
+  const requestId = String((data && data.requestId) || '').trim();
+  const cachedResult = getCachedGuestApplicationMutationResult('delete-test', requestId);
+  if (cachedResult) return cachedResult;
   if (!ids.length) return { success: false, message: '정리할 테스트 신청을 선택해 주세요.' };
   const lock = LockService.getScriptLock();
   lock.waitLock(15000);
@@ -412,6 +441,8 @@ function deleteTestGuestApplications(data) {
     });
     deletable.sort((a, b) => b - a).forEach(rowNumber => sheet.deleteRow(rowNumber));
     safeAppendAdminLog('deleteTestGuestApplications', 'guestApplication', ids.join(','), '테스트 신청 정리', '', deletable.length + '건', '');
-    return { success: true, deleted: deletable.length, message: deletable.length + '건의 테스트 신청을 정리했습니다.' };
+    const result = { success: true, deleted: deletable.length, message: deletable.length + '건의 테스트 신청을 정리했습니다.' };
+    cacheGuestApplicationMutationResult('delete-test', requestId, result);
+    return result;
   } finally { lock.releaseLock(); }
 }

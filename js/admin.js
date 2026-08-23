@@ -233,10 +233,70 @@ let guestApplicationSettingsDirty = false;
 let isModalOpen = false;
 let isSubmitting = false;
 let activeGaugeEdit = null;
+const adminMutationStates = new Map();
 const ADMIN_UI_MAX_USER_CREDIT = 15;
 const ADMIN_UI_MAX_SNACK_STOCK = 30;
 const ADMIN_TOKEN_STORAGE_KEY = AdminAuth.storageKey;
 const isApplicationsView = new URLSearchParams(window.location.search).get('view') === 'applications';
+
+function createAdminMutationRequestId(prefix = 'admin') {
+  const uuid = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `${prefix}-${uuid}`;
+}
+
+function adminMutationButtons(buttons) {
+  return [...(buttons || [])].filter(Boolean);
+}
+
+async function runAdminMutation({ key, fingerprint, action, body, buttons, requestPrefix = 'admin' }) {
+  let state = adminMutationStates.get(key);
+  if (state?.pending) return { success: false, blocked: true, message: '이미 처리 중입니다.' };
+  if (!state || state.fingerprint !== fingerprint) {
+    state = { fingerprint, requestId: createAdminMutationRequestId(requestPrefix), pending: false };
+    adminMutationStates.set(key, state);
+  }
+
+  const targets = adminMutationButtons(buttons);
+  const previous = targets.map(button => ({
+    button,
+    disabled: button.disabled,
+    text: button.textContent,
+    ariaBusy: button.getAttribute('aria-busy')
+  }));
+  state.pending = true;
+  targets.forEach(button => {
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    button.textContent = '처리 중...';
+  });
+  try {
+    const res = await fetchAPI(action, {
+      method: 'POST',
+      body: { ...body, requestId: state.requestId }
+    });
+    if (res?.networkError) {
+      // 응답 유실일 수 있으므로 같은 입력으로 다시 시도할 때 같은 요청 ID를 유지한다.
+      state.retryable = true;
+      return res;
+    }
+    adminMutationStates.delete(key);
+    return res;
+  } catch (error) {
+    state.retryable = true;
+    return { success: false, networkError: true, message: '서버 응답을 확인하지 못했습니다.' };
+  } finally {
+    state.pending = false;
+    previous.forEach(item => {
+      item.button.disabled = item.disabled;
+      if (item.ariaBusy === null) item.button.removeAttribute('aria-busy');
+      else item.button.setAttribute('aria-busy', item.ariaBusy);
+      item.button.textContent = item.text;
+    });
+    if (key === 'weekly-operation') updateApplicationOperationButtons();
+  }
+}
 
 function esc(value) {
   return AppState.escapeHtml(value);
@@ -595,6 +655,14 @@ function formatApplicationWeekLabel(value) {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
+function formatApplicationFullWeekLabel(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  const date = new Date(text + (text.length === 10 ? 'T00:00:00' : ''));
+  if (Number.isNaN(date.getTime())) return text;
+  return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
+}
+
 function renderGuestApplicationOperations(data) {
   currentApplicationOperations = data;
   const status = document.getElementById('application-operations-status');
@@ -628,6 +696,7 @@ function renderGuestApplicationOperations(data) {
       ...application,
       operationStatus: operation?.status || application.currentServiceStatus || '',
       operationId: operation?.operationId || application.currentOperationId || '',
+      serviceWeek: operation?.serviceWeek || application.currentServiceWeek || '',
       lastCompletedAt: application.lastCompletedAt || data?.lastCompletedAt?.[application.applicationId] || ''
     };
   });
@@ -646,10 +715,11 @@ function renderGuestApplicationOperations(data) {
     const scheduledLabel = scheduledWeeks.length
       ? `운영 예정: ${scheduledWeeks.map(formatApplicationWeekLabel).join(' · ')}`
       : '';
+    const operationDate = item.serviceWeek ? formatApplicationFullWeekLabel(item.serviceWeek) : '';
     const serviceLabel = isSelected
-      ? '선택한 주차 운영'
+      ? `운영 예정: ${operationDate || '날짜 확인 필요'}`
       : isCompleted
-        ? `서비스 완료 · ${completedLabel}`
+        ? `서비스 완료: ${operationDate || '날짜 확인 필요'} · ${completedLabel}`
         : item.status === 'APPROVED'
           ? [scheduledLabel, completedLabel].filter(Boolean).join(' · ')
           : item.status === 'WAITLIST'
@@ -680,6 +750,13 @@ function updateApplicationOperationButtons() {
   const cancelButton = document.getElementById('btn-cancel-application-week');
   const selectedApplications = document.querySelectorAll('[data-application-id]:checked').length;
   const selectedOperations = document.querySelectorAll('[data-operation-id]:checked').length;
+  const weeklyPending = adminMutationStates.get('weekly-operation')?.pending === true;
+  if (weeklyPending) {
+    [assignButton, completeButton, cancelButton].forEach(button => {
+      if (button) button.disabled = true;
+    });
+    return;
+  }
   if (assignButton) assignButton.disabled = selectedApplications === 0;
   if (completeButton) completeButton.disabled = selectedOperations === 0;
   if (cancelButton) cancelButton.disabled = selectedOperations === 0;
@@ -702,7 +779,18 @@ async function loadGuestApplicationOperations() {
 async function assignSelectedGuestApplications() {
   const applicationIds = [...document.querySelectorAll('[data-application-id]:checked')].map(input => input.dataset.applicationId);
   if (!applicationIds.length) return alert('이번 주 운영 대상자를 선택해 주세요.');
-  const res = await fetchAPI('assignGuestApplicationsToWeek', { method: 'POST', body: { adminToken: getAdminToken(), applicationIds, serviceWeek: getApplicationServiceWeekInput(), requestId: 'admin-' + Date.now() } });
+  const serviceWeek = getApplicationServiceWeekInput();
+  const buttons = document.querySelectorAll('#btn-assign-application-week, #btn-complete-application-week, #btn-cancel-application-week');
+  const res = await runAdminMutation({
+    key: 'weekly-operation',
+    fingerprint: JSON.stringify({ action: 'assign', applicationIds, serviceWeek }),
+    action: 'assignGuestApplicationsToWeek',
+    body: { adminToken: getAdminToken(), applicationIds, serviceWeek },
+    buttons,
+    requestPrefix: 'admin-assign'
+  });
+  if (res?.blocked) return;
+  if (res?.networkError) return alert(res.message || '서버 응답을 확인하지 못했습니다. 같은 버튼을 다시 눌러 재시도해 주세요.');
   if (!res?.success) { clearAdminTokenIfDenied(res); return alert(res?.message || '운영 대상 확정에 실패했습니다.'); }
   alert(res.message || '운영 대상을 확정했습니다.');
   await loadGuestApplicationOperations();
@@ -711,7 +799,16 @@ async function assignSelectedGuestApplications() {
 async function completeSelectedGuestApplications() {
   const operationIds = [...document.querySelectorAll('[data-operation-id]:checked')].map(input => input.dataset.operationId);
   if (!operationIds.length) return alert('서비스 완료 처리할 대상을 선택해 주세요.');
-  const res = await fetchAPI('completeGuestApplicationOperations', { method: 'POST', body: { adminToken: getAdminToken(), operationIds, requestId: 'admin-' + Date.now() } });
+  const res = await runAdminMutation({
+    key: 'weekly-operation',
+    fingerprint: JSON.stringify({ action: 'complete', operationIds }),
+    action: 'completeGuestApplicationOperations',
+    body: { adminToken: getAdminToken(), operationIds },
+    buttons: document.querySelectorAll('#btn-assign-application-week, #btn-complete-application-week, #btn-cancel-application-week'),
+    requestPrefix: 'admin-complete'
+  });
+  if (res?.blocked) return;
+  if (res?.networkError) return alert(res.message || '서버 응답을 확인하지 못했습니다. 같은 버튼을 다시 눌러 재시도해 주세요.');
   if (!res?.success) { clearAdminTokenIfDenied(res); return alert(res?.message || '서비스 완료 처리에 실패했습니다.'); }
   alert(res.message || '서비스 완료 처리했습니다.');
   await loadGuestApplicationOperations();
@@ -721,7 +818,16 @@ async function cancelSelectedGuestApplications() {
   const operationIds = [...document.querySelectorAll('[data-operation-id]:checked')].map(input => input.dataset.operationId);
   if (!operationIds.length) return alert('확정 취소할 대상을 선택해 주세요.');
   if (!confirm('선택한 대상의 이번 주 운영 확정을 취소할까요? 신청 상태는 변경되지 않습니다.')) return;
-  const res = await fetchAPI('cancelGuestApplicationOperations', { method: 'POST', body: { adminToken: getAdminToken(), operationIds, requestId: 'admin-cancel-' + Date.now() } });
+  const res = await runAdminMutation({
+    key: 'weekly-operation',
+    fingerprint: JSON.stringify({ action: 'cancel', operationIds }),
+    action: 'cancelGuestApplicationOperations',
+    body: { adminToken: getAdminToken(), operationIds },
+    buttons: document.querySelectorAll('#btn-assign-application-week, #btn-complete-application-week, #btn-cancel-application-week'),
+    requestPrefix: 'admin-cancel'
+  });
+  if (res?.blocked) return;
+  if (res?.networkError) return alert(res.message || '서버 응답을 확인하지 못했습니다. 같은 버튼을 다시 눌러 재시도해 주세요.');
   if (!res?.success) { clearAdminTokenIfDenied(res); return alert(res?.message || '운영 확정 취소에 실패했습니다.'); }
   alert(res.message || '운영 확정을 취소했습니다.');
   await loadGuestApplicationOperations();
@@ -751,15 +857,17 @@ async function saveGuestApplicationSchedule() {
   const dateInput = document.getElementById('guest-application-schedule-date');
   const applicationId = guestApplicationScheduleTarget;
   if (!applicationId || !dateInput?.value) return alert('운영 주차를 선택해 주세요.');
-  const res = await fetchAPI('assignGuestApplicationsToWeek', {
-    method: 'POST',
-    body: {
-      adminToken: getAdminToken(),
-      applicationIds: [applicationId],
-      serviceWeek: dateInput.value,
-      requestId: 'admin-schedule-' + Date.now()
-    }
+  const serviceWeek = dateInput.value;
+  const res = await runAdminMutation({
+    key: 'weekly-operation',
+    fingerprint: JSON.stringify({ applicationId, serviceWeek }),
+    action: 'assignGuestApplicationsToWeek',
+    body: { adminToken: getAdminToken(), applicationIds: [applicationId], serviceWeek },
+    buttons: document.querySelectorAll('#btn-assign-application-week, #btn-complete-application-week, #btn-cancel-application-week, #btn-save-guest-application-schedule'),
+    requestPrefix: 'admin-schedule'
   });
+  if (res?.blocked) return;
+  if (res?.networkError) return alert(res.message || '서버 응답을 확인하지 못했습니다. 같은 버튼을 다시 눌러 재시도해 주세요.');
   if (!res?.success) {
     clearAdminTokenIfDenied(res);
     return alert(res?.message || '운영 일정을 추가하지 못했습니다.');
@@ -869,50 +977,33 @@ function closeGuestApplicationModal() {
 
 async function updateCurrentGuestApplication(patch) {
   if (!currentApplicationDetail) return;
-  if (isSubmitting) return;
-  isSubmitting = true;
   const applicationId = currentApplicationDetail.applicationId;
   const memo = document.getElementById('application-detail-memo')?.value.trim() || '';
   const modalButtons = document.querySelectorAll('.application-modal-actions button');
-  modalButtons.forEach(b => { b.disabled = true; });
-
-  try {
-    const res = await fetchAPI('updateGuestApplication', {
-      method: 'POST',
-      body: {
-        adminToken: getAdminToken(),
-        applicationId,
-        adminMemo: memo,
-        ...patch
-      }
-    });
-    if (!res?.success) {
-      clearAdminTokenIfDenied(res);
-      alert(res?.message || '신청 정보 저장에 실패했습니다.');
-      return;
-    }
-    closeGuestApplicationModal();
-    await loadGuestApplications();
-    } catch (error) {
-      alert('신청 정보 저장 중 오류가 발생했습니다.');
-  } finally {
-    modalButtons.forEach(b => { b.disabled = false; });
-    isSubmitting = false;
+  const res = await runAdminMutation({
+    key: 'application-' + applicationId,
+    fingerprint: JSON.stringify({ applicationId, memo, patch }),
+    action: 'updateGuestApplication',
+    body: { adminToken: getAdminToken(), applicationId, adminMemo: memo, ...patch },
+    buttons: modalButtons,
+    requestPrefix: 'admin-application'
+  });
+  if (res?.blocked) return;
+  if (res?.networkError) return alert(res.message || '서버 응답을 확인하지 못했습니다. 같은 작업을 다시 눌러 재시도해 주세요.');
+  if (!res?.success) {
+    clearAdminTokenIfDenied(res);
+    return alert(res?.message || '신청 정보 저장에 실패했습니다.');
   }
+  closeGuestApplicationModal();
+  await loadGuestApplications();
 }
 
 async function saveGuestApplicationSettings() {
-  if (isSubmitting) return;
-  isSubmitting = true;
-  const button = document.getElementById('btn-save-application-settings');
-  if (button) button.disabled = true;
   try {
     const capacityInput = document.getElementById('application-setting-capacity');
     if (!capacityInput?.reportValidity()) return;
     const readValue = id => document.getElementById(id)?.value.trim() || '';
-    const res = await fetchAPI('updateGuestApplicationSettings', {
-      method: 'POST',
-      body: {
+    const body = {
         adminToken: getAdminToken(),
         applicationOpen: Boolean(document.getElementById('application-setting-open')?.checked),
         capacity: readValue('application-setting-capacity'),
@@ -925,8 +1016,17 @@ async function saveGuestApplicationSettings() {
         preferredDayOptions: readValue('application-setting-day-options'),
         closedMessage: readValue('application-setting-closed-message'),
         emailNotificationEnabled: Boolean(document.getElementById('application-setting-email-notification')?.checked)
-      }
+      };
+    const res = await runAdminMutation({
+      key: 'application-settings',
+      fingerprint: JSON.stringify(body),
+      action: 'updateGuestApplicationSettings',
+      body,
+      buttons: [document.getElementById('btn-save-application-settings')],
+      requestPrefix: 'admin-settings'
     });
+    if (res?.blocked) return;
+    if (res?.networkError) return alert(res.message || '서버 응답을 확인하지 못했습니다. 같은 버튼을 다시 눌러 재시도해 주세요.');
     if (!res?.success) {
       clearAdminTokenIfDenied(res);
       alert(res?.message || '신청 설정 저장에 실패했습니다.');
@@ -937,19 +1037,23 @@ async function saveGuestApplicationSettings() {
     await loadGuestApplications();
   } catch (error) {
     alert('신청 설정 저장 중 오류가 발생했습니다.');
-  } finally {
-    if (button) button.disabled = false;
-    isSubmitting = false;
   }
 }
 
 async function markCurrentGuestApplicationTest() {
   if (!currentApplicationDetail || currentApplicationDetail.anonymizedAt) return;
   if (!confirm('이 신청을 테스트 신청으로 표시할까요?')) return;
-  const res = await fetchAPI('markGuestApplicationTestData', {
-    method: 'POST',
-    body: { adminToken: getAdminToken(), applicationId: currentApplicationDetail.applicationId }
+  const applicationId = currentApplicationDetail.applicationId;
+  const res = await runAdminMutation({
+    key: 'application-test-' + applicationId,
+    fingerprint: applicationId,
+    action: 'markGuestApplicationTestData',
+    body: { adminToken: getAdminToken(), applicationId },
+    buttons: [document.getElementById('btn-application-test')],
+    requestPrefix: 'admin-test'
   });
+  if (res?.blocked) return;
+  if (res?.networkError) return alert(res.message || '서버 응답을 확인하지 못했습니다. 같은 버튼을 다시 눌러 재시도해 주세요.');
   if (!res?.success) {
     clearAdminTokenIfDenied(res);
     return alert(res?.message || '테스트 표시를 저장하지 못했습니다.');
@@ -972,10 +1076,19 @@ async function deleteTestGuestApplications() {
     return;
   }
   if (!confirm(`테스트 표시된 ${ids.length}건을 정리할까요? 운영 기록이 있는 신청은 삭제되지 않습니다.`)) return;
-  const res = await fetchAPI('deleteTestGuestApplications', {
-    method: 'POST',
-    body: { adminToken: getAdminToken(), applicationIds: ids, confirmText }
+  const res = await runAdminMutation({
+    key: 'delete-test-applications',
+    fingerprint: JSON.stringify(ids),
+    action: 'deleteTestGuestApplications',
+    body: { adminToken: getAdminToken(), applicationIds: ids, confirmText },
+    buttons: [document.getElementById('btn-delete-test-applications')],
+    requestPrefix: 'admin-delete-test'
   });
+  if (res?.blocked) return;
+  if (res?.networkError) {
+    if (result) result.textContent = res.message || '서버 응답을 확인하지 못했습니다. 같은 버튼을 다시 눌러 재시도해 주세요.';
+    return;
+  }
   if (!res?.success) {
     clearAdminTokenIfDenied(res);
     if (result) result.textContent = res?.message || '테스트 신청 정리에 실패했습니다.';
@@ -998,10 +1111,19 @@ async function repairGuestApplicationOperationDuplicates() {
   const result = document.getElementById('application-operation-repair-result');
   const confirmText = '운영기록중복정리';
   if (!confirm('운영기록을 백업한 뒤 중복 기록을 CANCELLED 상태로 정리할까요?')) return;
-  const res = await fetchAPI('repairGuestApplicationOperationDuplicates', {
-    method: 'POST',
-    body: { adminToken: getAdminToken(), confirmText }
+  const res = await runAdminMutation({
+    key: 'repair-application-operations',
+    fingerprint: confirmText,
+    action: 'repairGuestApplicationOperationDuplicates',
+    body: { adminToken: getAdminToken(), confirmText },
+    buttons: [document.getElementById('btn-repair-application-operations')],
+    requestPrefix: 'admin-repair'
   });
+  if (res?.blocked) return;
+  if (res?.networkError) {
+    if (result) result.textContent = res.message || '서버 응답을 확인하지 못했습니다. 같은 버튼을 다시 눌러 재시도해 주세요.';
+    return;
+  }
   if (!res?.success) {
     clearAdminTokenIfDenied(res);
     if (result) result.textContent = res?.message || '중복 운영 기록 정리에 실패했습니다.';
@@ -1029,26 +1151,25 @@ async function auditGuestApplicationRetention() {
 }
 
 async function anonymizeGuestApplications() {
-  if (isSubmitting) return;
-  isSubmitting = true;
-  try {
-    const confirmText = '신청정보정리';
-    if (!confirm('만료된 신청의 이름·연락처·장소·메모를 되돌릴 수 없게 익명화할까요?')) return;
-    const res = await fetchAPI('anonymizeExpiredGuestApplications', {
-      method: 'POST',
-      body: { adminToken: getAdminToken(), confirmText }
-    });
-    if (!res?.success) {
-      clearAdminTokenIfDenied(res);
-      alert(res?.message || '익명화에 실패했습니다.');
-      return;
-    }
-    alert(res.message);
-    await auditGuestApplicationRetention();
-    await loadGuestApplications();
-  } finally {
-    isSubmitting = false;
+  const confirmText = '신청정보정리';
+  if (!confirm('만료된 신청의 이름·연락처·장소·메모를 되돌릴 수 없게 익명화할까요?')) return;
+  const res = await runAdminMutation({
+    key: 'anonymize-applications',
+    fingerprint: confirmText,
+    action: 'anonymizeExpiredGuestApplications',
+    body: { adminToken: getAdminToken(), confirmText },
+    buttons: [document.getElementById('btn-anonymize-applications')],
+    requestPrefix: 'admin-anonymize'
+  });
+  if (res?.blocked) return;
+  if (res?.networkError) return alert(res.message || '서버 응답을 확인하지 못했습니다. 같은 버튼을 다시 눌러 재시도해 주세요.');
+  if (!res?.success) {
+    clearAdminTokenIfDenied(res);
+    return alert(res?.message || '익명화에 실패했습니다.');
   }
+  alert(res.message);
+  await auditGuestApplicationRetention();
+  await loadGuestApplications();
 }
 
 // 탭 전환 기능
@@ -2521,28 +2642,23 @@ window.addEventListener('DOMContentLoaded', () => {
     if (!currentApplicationDetail) return;
     const applicationId = currentApplicationDetail.applicationId;
     const modalButtons = document.querySelectorAll('.application-modal-actions button');
-    modalButtons.forEach(b => { b.disabled = true; });
-    try {
-      const res = await fetchAPI('skipGuestApplicationWeek', {
-        method: 'POST',
-        body: {
-          adminToken: getAdminToken(),
-          applicationId
-        }
-      });
-      if (!res?.success) {
-        clearAdminTokenIfDenied(res);
-        alert(res?.message || '건너뛰기 설정에 실패했습니다.');
-        return;
-      }
-      alert(res.message || '건너뛰기가 설정되었습니다.');
-      closeGuestApplicationModal();
-      await loadGuestApplications();
-    } catch (error) {
-      alert('건너뛰기 중 오류가 발생했습니다.');
-    } finally {
-      modalButtons.forEach(b => { b.disabled = false; });
+    const res = await runAdminMutation({
+      key: 'application-' + applicationId,
+      fingerprint: JSON.stringify({ applicationId, action: 'skip' }),
+      action: 'skipGuestApplicationWeek',
+      body: { adminToken: getAdminToken(), applicationId },
+      buttons: modalButtons,
+      requestPrefix: 'admin-skip'
+    });
+    if (res?.blocked) return;
+    if (res?.networkError) return alert(res.message || '서버 응답을 확인하지 못했습니다. 같은 버튼을 다시 눌러 재시도해 주세요.');
+    if (!res?.success) {
+      clearAdminTokenIfDenied(res);
+      return alert(res?.message || '건너뛰기 설정에 실패했습니다.');
     }
+    alert(res.message || '건너뛰기가 설정되었습니다.');
+    closeGuestApplicationModal();
+    await loadGuestApplications();
   });
   document.querySelectorAll('[data-application-action]').forEach(button => {
     button.addEventListener('click', () => {
