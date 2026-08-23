@@ -274,6 +274,9 @@ function completeGuestApplicationOperations(data) {
   lock.waitLock(15000);
   try {
     const table = getGuestApplicationOperationTable();
+    const applicationObjects = getGuestApplicationObjects(getGuestApplicationRows(ensureGuestApplicationSheet()));
+    const applicationById = {};
+    applicationObjects.forEach(item => { applicationById[item.applicationId] = item; });
     const idSet = new Set(ids);
     const now = new Date();
     let completed = 0;
@@ -282,6 +285,8 @@ function completeGuestApplicationOperations(data) {
       if (!idSet.has(operationId)) return;
       const status = String(row[table.map.status] || '').trim();
       if (status !== GUEST_APPLICATION_OPERATION_STATUS.SELECTED) return;
+      const applicationStatus = applicationById[String(row[table.map.applicationId] || '').trim()]?.status;
+      if (applicationStatus !== GUEST_APPLICATION_STATUS.APPROVED) return;
       row[table.map.status] = GUEST_APPLICATION_OPERATION_STATUS.COMPLETED;
       row[table.map.completedAt] = now;
       row[table.map.updatedAt] = now;
