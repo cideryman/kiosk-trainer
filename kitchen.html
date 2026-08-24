@@ -166,6 +166,38 @@
                 <div>⏳ 남은 시간: <span id="guest-ops-remaining">-</span></div>
               </div>
             </div>
+            <div class="guest-weekly-schedule" id="guest-weekly-schedule">
+              <div class="guest-weekly-schedule-heading">
+                <div>
+                  <strong>📅 매주 수요일 자동 운영</strong>
+                  <small>한국시간 기준으로 자동 개방·마감합니다.</small>
+                </div>
+                <label class="guest-weekly-schedule-toggle">
+                  <input type="checkbox" id="input-guest-weekly-schedule-enabled">
+                  <span>자동 운영</span>
+                </label>
+              </div>
+              <div class="guest-weekly-schedule-times">
+                <label>
+                  <span>시작</span>
+                  <input type="time" id="input-guest-weekly-schedule-start" class="admin-inline-input" value="13:00" step="300">
+                </label>
+                <span class="guest-weekly-schedule-separator" aria-hidden="true">~</span>
+                <label>
+                  <span>종료</span>
+                  <input type="time" id="input-guest-weekly-schedule-end" class="admin-inline-input" value="15:00" step="300">
+                </label>
+              </div>
+              <div class="guest-weekly-schedule-summary" aria-live="polite">
+                <div>현재 운영: <strong id="guest-ops-source">마감</strong></div>
+                <div>다음 자동 운영: <strong id="guest-ops-next-open">-</strong></div>
+              </div>
+              <div class="guest-weekly-schedule-warning" id="guest-weekly-schedule-warning" hidden></div>
+              <div class="guest-weekly-schedule-actions">
+                <button type="button" class="btn-small-action" id="btn-save-guest-weekly-schedule">정기 일정 저장</button>
+                <button type="button" class="btn-danger-action" id="btn-toggle-guest-weekly-skip" data-schedule-action="skipWeeklyScheduleOccurrence">이번 회차 운영 안 함</button>
+              </div>
+            </div>
             <div class="guest-open-presets">
               <button class="btn-small-action" id="btn-guest-open20">⏱ 20분 운영</button>
               <button class="btn-small-action" id="btn-guest-open30">⏱ 30분 운영</button>

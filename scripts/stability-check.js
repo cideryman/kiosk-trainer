@@ -482,6 +482,15 @@ async function runGuestAndReviewScenario(fixtures) {
   await resetStock(snack.snackId, 30);
   let orderNo = '';
   try {
+    const scheduleDisabled = await adminWrite('updateGuestSettings', {
+      settingsAction: 'updateWeeklySchedule',
+      guestWeeklyScheduleEnabled: false,
+      guestWeeklyScheduleStartTime: previousSettings.guestWeeklyScheduleStartTime || '13:00',
+      guestWeeklyScheduleEndTime: previousSettings.guestWeeklyScheduleEndTime || '15:00',
+      adminMemo: 'stability guest schedule pause'
+    }, 'setup');
+    if (!scheduleDisabled.data?.success) throw new Error('Cannot pause guest weekly schedule in staging.');
+
     const opened = await adminWrite('updateGuestSettings', {
       settingsAction: 'openCustom',
       minutes: 15,
@@ -548,16 +557,24 @@ async function runGuestAndReviewScenario(fixtures) {
     addCheck('Published reply cache is refreshed', publishedReview?.replyText === replyText);
   } finally {
     if (orderNo) await cancelOrders([orderNo]);
+    await adminWrite('updateGuestSettings', { settingsAction: 'closeNow', adminMemo: 'stability manual close' }, 'cleanup');
+    await adminWrite('updateGuestSettings', {
+      settingsAction: 'updateWeeklySchedule',
+      guestWeeklyScheduleEnabled: previousSettings.guestWeeklyScheduleEnabled === true,
+      guestWeeklyScheduleStartTime: previousSettings.guestWeeklyScheduleStartTime || '13:00',
+      guestWeeklyScheduleEndTime: previousSettings.guestWeeklyScheduleEndTime || '15:00',
+      adminMemo: 'stability schedule restore'
+    }, 'cleanup');
     const wasOpen = previousSettings.guestOpen === 'Y';
     if (wasOpen) {
       const remainingMinutes = Math.max(1, Math.ceil((new Date(previousSettings.guestCloseAt).getTime() - Date.now()) / 60000));
-      await adminWrite('updateGuestSettings', {
-        settingsAction: 'openCustom',
-        minutes: Number.isFinite(remainingMinutes) ? remainingMinutes : 10,
-        adminMemo: 'stability restore'
-      }, 'cleanup');
-    } else {
-      await adminWrite('updateGuestSettings', { settingsAction: 'closeNow', adminMemo: 'stability restore' }, 'cleanup');
+      if (!previousSettings.guestWeeklyScheduleSkipped) {
+        await adminWrite('updateGuestSettings', {
+          settingsAction: 'openCustom',
+          minutes: Number.isFinite(remainingMinutes) ? remainingMinutes : 10,
+          adminMemo: 'stability manual restore'
+        }, 'cleanup');
+      }
     }
   }
 }

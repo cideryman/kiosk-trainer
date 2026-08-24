@@ -40,7 +40,7 @@
 
 - `getUsers`: 클라이언트 2분 캐시
 - `getSnacks`: GAS Script Cache 15초, 주문·취소·관리자 간식 변경 시 무효화
-- `getGuestSettings`: GAS Script Cache 30초, 설정 변경 시 무효화
+- `getGuestSettings`: 원본 설정은 GAS Script Cache를 사용하고, 현재 개방 여부와 다음 상태 변경 시각은 요청마다 다시 계산하며 설정 변경 시 무효화
 - `getGuestApplicationSettings`: GAS Script Cache 30초, 신청 안내 설정 변경 시 무효화
 - 주문 읽기: GAS Script Cache 2초, 주문 변경 시 무효화
 - 전광판: 이전 요청 완료 후 10초 뒤 다음 요청
@@ -67,10 +67,13 @@
 | `40_Orders.gs` | 주문 생성·조회·취소·제공·보관 |
 | `50_Media.gs` | 이미지 URL 변환과 업로드 |
 | `60_Settings.gs` | 게스트 운영 설정과 설정 캐시 |
+| `61_GuestSchedule.gs` | Asia/Seoul 기준 수요일 정기 운영·수동 운영·중단 회차 순수 판정 |
 | `70_Reviews.gs` | 후기 등록·조회·답글·공개 상태 |
 | `90_Diagnostics.gs` | 시스템 운영 진단 |
 
 앞의 숫자는 GAS 실행 순서를 강제하지 않습니다. 편집기와 저장소에서 역할별로 정렬하기 위한 분류 번호입니다. `00~01`은 전역 설정과 라우터, `10~12`는 인증·운영 기반, `20~21`은 기본 데이터, `30~31`은 주문 기반, `40`은 주문 핵심, `50~70`은 부가 기능, `90`은 진단입니다. 번호 간격은 `32_Cache.gs`, `41_OrderStats.gs`처럼 관련 영역에 파일을 추가할 여지를 둡니다.
+
+P99 정기 운영은 시간 트리거를 만들지 않습니다. `getGuestSettings`와 `placeOrder`가 같은 순수 판정 함수에 현재 시각을 주입하며, 주문 저장 직전의 서버 판정이 최종 권한입니다. 행사 모드는 정기 운영만 억제하고 기존 수동 운영은 유지합니다.
 
 ## 배포와 비밀값
 

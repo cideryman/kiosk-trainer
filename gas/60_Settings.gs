@@ -9,6 +9,10 @@ function getDefaultGuestSettings() {
   return {
     guestOpen: 'N',
     guestCloseAt: '',
+    guestWeeklyScheduleEnabled: 'FALSE',
+    guestWeeklyScheduleStartTime: '13:00',
+    guestWeeklyScheduleEndTime: '15:00',
+    guestWeeklyScheduleSkipDate: '',
     guestBaseCredit: 10,
     kakaoGuestBonusCredit: 2,
     guestDeliveryFee: 3,
@@ -126,35 +130,39 @@ function parseSettingBoolean(val, defaultValue = true) {
 
 function buildGuestSettingsResponse(settings) {
   const now = new Date();
-  let isGuestOpenNow = false;
-  let remainingSeconds = 0;
-  let message = '';
-
-  if (settings.guestOpen === 'Y') {
-    if (settings.guestCloseAt) {
-      const closeAt = new Date(settings.guestCloseAt);
-      const diff = Math.floor((closeAt.getTime() - now.getTime()) / 1000);
-      if (diff > 0) {
-        isGuestOpenNow = true;
-        remainingSeconds = diff;
-        message = '게스트 주문이 운영 중입니다.';
-      } else {
-        isGuestOpenNow = false;
-        message = '게스트 주문 운영 시간이 종료되었습니다.';
-      }
-    } else {
-      isGuestOpenNow = true;
-      message = '게스트 주문이 운영 중입니다 (종료시각 미설정).';
-    }
-  } else {
-    isGuestOpenNow = false;
-    message = '게스트 주문이 마감되었습니다.';
+  const operatingState = resolveGuestOperatingState(settings, now);
+  let message = '게스트 주문이 마감되었습니다.';
+  if (operatingState.isGuestOpenNow) {
+    message = operatingState.guestOpenSource === 'weekly'
+      ? '수요일 정기 주문이 운영 중입니다.'
+      : '게스트 주문이 수동 운영 중입니다.';
+  } else if (operatingState.scheduleSuppressedByEvent) {
+    message = '행사 모드에서는 수요일 정기 주문이 자동으로 열리지 않습니다.';
+  } else if (operatingState.targetOccurrenceSkipped) {
+    message = '이번 수요일은 주문 운영을 쉬어갑니다. 다음 수요일 ' + operatingState.weeklyStartTime + '에 다시 열립니다.';
+  } else if (operatingState.weeklyEnabled && operatingState.nextScheduledOpenAt) {
+    message = `매주 수요일 ${operatingState.startTime}~${operatingState.endTime}에 주문할 수 있습니다.`;
+  } else if (String(settings.guestOpen || 'N').toUpperCase() === 'Y' && settings.guestCloseAt) {
+    message = '게스트 주문 운영 시간이 종료되었습니다.';
   }
 
   return {
     success: true,
     guestOpen: settings.guestOpen,
     guestCloseAt: settings.guestCloseAt,
+    guestWeeklyScheduleEnabled: operatingState.weeklyEnabled,
+    guestWeeklyScheduleDay: GUEST_WEEKLY_SCHEDULE_WEEKDAY,
+    guestWeeklyScheduleStartTime: operatingState.startTime,
+    guestWeeklyScheduleEndTime: operatingState.endTime,
+    guestWeeklyScheduleSkipDate: operatingState.skipDate,
+    guestWeeklyScheduleTargetDate: operatingState.targetScheduleDate,
+    guestWeeklyScheduleSkipped: operatingState.targetOccurrenceSkipped,
+    guestWeeklyScheduleSuppressedByEvent: operatingState.scheduleSuppressedByEvent,
+    guestOpenSource: operatingState.guestOpenSource,
+    effectiveGuestCloseAt: operatingState.effectiveCloseAt ? operatingState.effectiveCloseAt.toISOString() : '',
+    guestCompletionGraceCloseAt: operatingState.completionGraceCloseAt ? operatingState.completionGraceCloseAt.toISOString() : '',
+    nextGuestOpenAt: operatingState.nextScheduledOpenAt ? operatingState.nextScheduledOpenAt.toISOString() : '',
+    nextGuestStateChangeAt: operatingState.nextStateChangeAt ? operatingState.nextStateChangeAt.toISOString() : '',
     guestBaseCredit: Number(settings.guestBaseCredit || 10),
     kakaoGuestBonusCredit: Number(settings.kakaoGuestBonusCredit || 2),
     guestDeliveryFee: Number(settings.guestDeliveryFee || 3),
@@ -172,18 +180,18 @@ function buildGuestSettingsResponse(settings) {
     guestEventName: settings.guestEventName || '장애인식 개선 캠페인',
     guestEventEmblemBase64: settings.guestEventEmblemBase64 || '',
     guestOrderGraceMinutes: GUEST_ORDER_COMPLETION_GRACE_MINUTES,
-    isGuestOpenNow,
-    remainingSeconds,
+    isGuestOpenNow: operatingState.isGuestOpenNow,
+    remainingSeconds: operatingState.remainingSeconds,
     message
   };
 }
 
 function canCompleteStartedGuestOrder(settings, orderStartedAt, nowValue) {
-  if (!settings || settings.guestOpen !== 'Y') return false;
+  if (!settings) return false;
   if (settings.isGuestOpenNow) return true;
-  if (!settings.guestCloseAt || !orderStartedAt) return false;
+  if (!settings.guestCompletionGraceCloseAt || !orderStartedAt) return false;
 
-  const closeAt = new Date(settings.guestCloseAt);
+  const closeAt = new Date(settings.guestCompletionGraceCloseAt);
   const startedAt = new Date(orderStartedAt);
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue || new Date());
   if (
@@ -197,7 +205,19 @@ function canCompleteStartedGuestOrder(settings, orderStartedAt, nowValue) {
   const graceEndsAt = new Date(
     closeAt.getTime() + GUEST_ORDER_COMPLETION_GRACE_MINUTES * 60 * 1000
   );
-  return startedAt.getTime() <= closeAt.getTime() && now.getTime() <= graceEndsAt.getTime();
+  return startedAt.getTime() < closeAt.getTime() && now.getTime() <= graceEndsAt.getTime();
+}
+
+function readGuestSettingsFromSheet(sheet) {
+  const settings = getDefaultGuestSettings();
+  if (sheet && sheet.getLastRow() > 1) {
+    const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
+    values.forEach(row => {
+      const key = String(row[0] || '').trim();
+      if (key) settings[key] = row[1];
+    });
+  }
+  return settings;
 }
 
 function getGuestSettings() {
@@ -208,14 +228,7 @@ function getGuestSettings() {
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET.SETTINGS);
-  const settings = getDefaultGuestSettings();
-  if (sheet && sheet.getLastRow() > 1) {
-    const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
-    values.forEach(row => {
-      const key = String(row[0] || '').trim();
-      if (key) settings[key] = row[1];
-    });
-  }
+  const settings = readGuestSettingsFromSheet(sheet);
 
   setGuestSettingsCache(settings);
   return buildGuestSettingsResponse(settings);
@@ -240,10 +253,16 @@ function updateGuestSettings(data) {
 
   const action = data.settingsAction;
   const now = new Date();
+  const currentSettings = readGuestSettingsFromSheet(sheet);
+  const currentOperatingState = resolveGuestOperatingState(currentSettings, now);
   let guestOpen = 'N';
   let guestCloseAt = '';
   let logBefore = 'N';
   let logAfter = 'N';
+
+  if (['open20', 'open30', 'open60', 'openCustom'].includes(action) && currentOperatingState.targetOccurrenceSkipped) {
+    return { success: false, message: '이번 회차 운영 중단을 먼저 해제해 주세요.' };
+  }
 
   if (action === 'open20') {
     guestOpen = 'Y';
@@ -266,6 +285,59 @@ function updateGuestSettings(data) {
     guestOpen = 'N';
     logBefore = 'Y';
     logAfter = 'N (즉시 마감)';
+    const closeUpdates = { guestOpen, guestCloseAt: '' };
+    if (currentOperatingState.weeklyActive) {
+      closeUpdates.guestWeeklyScheduleSkipDate = getGuestScheduleDateKey(now);
+      logAfter += ' · 이번 수요일 자동 운영 종료';
+    }
+    writeSettingValuesBatch(sheet, closeUpdates);
+    safeAppendAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', logBefore, logAfter, data.adminMemo);
+    clearGuestSettingsCache();
+    return { success: true, message: currentOperatingState.weeklyActive ? '이번 수요일 운영을 마감했습니다. 다음 수요일에 자동 재개합니다.' : '게스트 주문을 즉시 마감했습니다.' };
+  } else if (action === 'updateWeeklySchedule') {
+    const enabled = parseSettingBoolean(data.guestWeeklyScheduleEnabled, false);
+    const startTime = String(data.guestWeeklyScheduleStartTime || '').trim();
+    const endTime = String(data.guestWeeklyScheduleEndTime || '').trim();
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime)) {
+      return { success: false, message: '정기 운영 시간을 HH:MM 형식으로 입력해 주세요.' };
+    }
+    if (getGuestScheduleTimeMinutes(startTime) >= getGuestScheduleTimeMinutes(endTime)) {
+      return { success: false, message: '정기 운영 종료 시각은 시작 시각보다 늦어야 합니다.' };
+    }
+    const updates = {
+      guestWeeklyScheduleEnabled: enabled ? 'TRUE' : 'FALSE',
+      guestWeeklyScheduleStartTime: startTime,
+      guestWeeklyScheduleEndTime: endTime
+    };
+    writeSettingValuesBatch(sheet, updates);
+    safeAppendAdminLog('updateGuestSettings', 'settings', 'guestWeeklySchedule', '수요일 정기 운영', '', `${enabled ? 'ON' : 'OFF'} ${startTime}~${endTime}`, data.adminMemo);
+    clearGuestSettingsCache();
+    return {
+      success: true,
+      message: enabled ? `매주 수요일 ${startTime}~${endTime} 자동 운영을 저장했습니다.` : '수요일 정기 자동 운영을 껐습니다.',
+      guestWeeklyScheduleEnabled: enabled,
+      guestWeeklyScheduleStartTime: startTime,
+      guestWeeklyScheduleEndTime: endTime
+    };
+  } else if (action === 'skipWeeklyScheduleOccurrence') {
+    if (!currentOperatingState.weeklyEnabled) {
+      return { success: false, message: '수요일 정기 자동 운영을 먼저 켜 주세요.' };
+    }
+    const skipDate = currentOperatingState.targetScheduleDate;
+    writeSettingValuesBatch(sheet, {
+      guestWeeklyScheduleSkipDate: skipDate,
+      guestOpen: 'N',
+      guestCloseAt: ''
+    });
+    safeAppendAdminLog('updateGuestSettings', 'settings', 'guestWeeklyScheduleSkipDate', '정기 운영 회차 중단', '', skipDate, data.adminMemo);
+    clearGuestSettingsCache();
+    return { success: true, message: `${skipDate} 수요일 운영을 쉬도록 설정했습니다.`, guestWeeklyScheduleSkipDate: skipDate };
+  } else if (action === 'resumeWeeklyScheduleOccurrence') {
+    const resumedDate = String(currentSettings.guestWeeklyScheduleSkipDate || '').trim();
+    writeSettingValuesBatch(sheet, { guestWeeklyScheduleSkipDate: '' });
+    safeAppendAdminLog('updateGuestSettings', 'settings', 'guestWeeklyScheduleSkipDate', '정기 운영 회차 재개', resumedDate, '', data.adminMemo);
+    clearGuestSettingsCache();
+    return { success: true, message: '수요일 정기 운영 중단을 해제했습니다.', guestWeeklyScheduleSkipDate: '' };
   } else if (action === 'updateValues') {
     const guestBaseCredit = data.guestBaseCredit;
     const guestDeliveryFee = data.guestDeliveryFee;

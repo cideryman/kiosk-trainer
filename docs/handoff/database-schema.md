@@ -149,6 +149,20 @@ P93 배포 후 `setupGuestApplicationOperationsSheet()` 실행으로 생성된 �
 
 `guestAllowRandomDisplayName`은 `TRUE` 또는 `FALSE`로 저장하며, 기존 키가 없는 운영 시트에서는 `TRUE`로 자동 추가합니다. `TRUE`일 때만 게스트 주문 화면의 랜덤 주문표시명 버튼을 표시합니다.
 
+### P99 배달왔삼 수요일 정기 운영 키
+
+| 키 | 기본값 | 의미 |
+| --- | --- | --- |
+| `guestWeeklyScheduleEnabled` | `FALSE` | 매주 수요일 자동 운영 사용 여부 |
+| `guestWeeklyScheduleStartTime` | `13:00` | Asia/Seoul 기준 자동 개방 시각 |
+| `guestWeeklyScheduleEndTime` | `15:00` | Asia/Seoul 기준 자동 마감 시각 |
+| `guestWeeklyScheduleSkipDate` | 빈 값 | 운영하지 않을 수요일의 `YYYY-MM-DD` |
+
+- 기존 `guestOpen`과 `guestCloseAt`은 수동 운영 상태로 계속 사용합니다. 새 시트나 열은 만들지 않습니다.
+- 시작·종료는 `HH:MM` 형식이며 시작 시각이 종료 시각보다 빠른 같은 날 일정만 저장합니다.
+- 현재 운영 출처, 실효 마감, 완료 유예 마감, 다음 자동 개방, 다음 상태 변경, 이번 회차 중단 여부는 저장하지 않고 서버가 조회 시점마다 계산합니다.
+- `guestWeeklyScheduleSkipDate`는 해당 날짜의 회차에만 적용되므로 지난 날짜가 남아 있어도 다음 수요일에는 자동 운영이 다시 적용됩니다.
+
 `운영설정`은 키가 추가되는 세로형 구조이므로 신규 키 반영 후 기존 A1:B15 사용 범위보다 행 수가 늘어납니다.
 
 ## 코드와 실제 헤더 차이

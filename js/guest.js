@@ -83,6 +83,7 @@ window.addEventListener('DOMContentLoaded', () => {
       let kakaoGuestBonusCredit = 2;
       let guestDeliveryFee = GUEST_DELIVERY_FEE;
       let remainingCountdown = null;
+      let guestSettingsBoundaryTimer = null;
       let isGuestOpen = false;
       let welcomeTitle = '배달왔삼에 오신 것을 환영합니다 😊';
       let welcomeSubtitle = '오늘의 간식을 주문해보세요!';
@@ -559,12 +560,32 @@ window.addEventListener('DOMContentLoaded', () => {
         if (teamSec) teamSec.style.display = 'none';
       }
 
+      function scheduleGuestSettingsBoundaryRefresh(settingsRes) {
+        if (guestSettingsBoundaryTimer) {
+          clearTimeout(guestSettingsBoundaryTimer);
+          guestSettingsBoundaryTimer = null;
+        }
+        const boundaryAt = new Date(settingsRes?.nextGuestStateChangeAt || '');
+        const serverNow = new Date(settingsRes?.serverTime || new Date());
+        if (isNaN(boundaryAt.getTime()) || isNaN(serverNow.getTime())) return;
+        const delayMs = Math.max(1000, Math.min(2147480000, boundaryAt.getTime() - serverNow.getTime() + 1000));
+        guestSettingsBoundaryTimer = setTimeout(() => {
+          guestSettingsBoundaryTimer = null;
+          loadSettings();
+        }, delayMs);
+      }
+
 
       // 운영 상태 확인
       async function loadSettings() {
         try {
           const settingsRes = await fetchAPIReadWithRetry('getGuestSettings', { timeoutMs: 30000 });
           if (settingsRes && settingsRes.success) {
+            if (remainingCountdown) {
+              clearInterval(remainingCountdown);
+              remainingCountdown = null;
+            }
+            if (remainingTimeBox) remainingTimeBox.style.display = 'none';
             isGuestOpen = settingsRes.isGuestOpenNow;
             guestBaseCredit = settingsRes.guestBaseCredit ?? GUEST_DEFAULT_CREDIT;
             kakaoGuestBonusCredit = settingsRes.kakaoGuestBonusCredit ?? 2;
@@ -615,21 +636,19 @@ window.addEventListener('DOMContentLoaded', () => {
                 remainingTimeBox.style.display = 'block';
                 let remaining = settingsRes.remainingSeconds;
                 updateTimerDisplay(remaining);
-                if (remainingCountdown) clearInterval(remainingCountdown);
                 remainingCountdown = setInterval(() => {
                   remaining--;
                   if (remaining <= 0) {
                     clearInterval(remainingCountdown);
-                    // 시간 만료 - 마감 상태로 전환
-                    isGuestOpen = false;
-                    remainingTimeBox.style.display = 'none';
-                    applyGuestClosedUi('게스트 주문 운영 시간이 종료되었습니다.', true);
+                    remainingCountdown = null;
+                    loadSettings();
                     return;
                   }
                   updateTimerDisplay(remaining);
                 }, 1000);
               }
             }
+            scheduleGuestSettingsBoundaryRefresh(settingsRes);
           } else {
             console.warn('게스트 운영 설정 API 응답 실패:', settingsRes);
             if (isGuestPreviewMode) {
