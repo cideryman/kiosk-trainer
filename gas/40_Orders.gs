@@ -413,7 +413,7 @@ function placeOrder(data) {
 
     clearOrderReadCache();
 
-    if (isOrderEmailNotificationEnabled(guestSettings)) {
+    if (shouldEnqueueOrderNotification(isGuest, guestSettings)) {
       enqueueOrderNotification({
         orderNo: orderNo,
         nickname: nickname,
@@ -521,6 +521,11 @@ function isOrderEmailNotificationEnabled(knownGuestSettings) {
     Logger.log('주문 알림 설정 조회 실패, 기본값 ON 적용: ' + (error && error.stack ? error.stack : error));
     return true;
   }
+}
+
+function shouldEnqueueOrderNotification(isGuest, knownGuestSettings) {
+  if (isGuest !== true) return false;
+  return isOrderEmailNotificationEnabled(knownGuestSettings);
 }
 
 /**

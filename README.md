@@ -154,6 +154,8 @@ Apps Script에서는 파일 순서가 실행 모듈을 나누는 것이 아니�
 ```powershell
 node scripts/check-handoff.js
 node scripts/check-guide-assets.js
+node scripts/test-guest-schedule.js
+node scripts/test-order-email-routing.js
 ```
 
 주문·후기 화면의 구조나 버튼 문구를 변경한 경우에는 가이드 이미지도 함께 확인합니다. 가이드 이미지 검사에서는 참조 파일 누락과 빈 대체 텍스트를 점검합니다.

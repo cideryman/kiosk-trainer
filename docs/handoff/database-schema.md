@@ -149,6 +149,8 @@ P93 배포 후 `setupGuestApplicationOperationsSheet()` 실행으로 생성된 �
 
 `guestAllowRandomDisplayName`은 `TRUE` 또는 `FALSE`로 저장하며, 기존 키가 없는 운영 시트에서는 `TRUE`로 자동 추가합니다. `TRUE`일 때만 게스트 주문 화면의 랜덤 주문표시명 버튼을 표시합니다.
 
+`adminOrderEmailNotificationEnabled`는 `TRUE` 또는 `FALSE`로 저장하며 기본값은 `TRUE`입니다. P100부터 이 값은 배달왔삼 포장·배달 주문의 이메일 큐 등록에만 적용하고 일반 키오스크 주문에는 적용하지 않습니다. 기존 키 이름과 `이메일알림큐` 구조는 변경하지 않습니다.
+
 ### P99 배달왔삼 수요일 정기 운영 키
 
 | 키 | 기본값 | 의미 |

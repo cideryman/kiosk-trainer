@@ -171,7 +171,7 @@ function diagnoseSystem(data) {
     { key: 'KAKAO_REST_API_KEY', required: true, description: '카카오 로그인 API 키' },
     { key: 'KAKAO_GUEST_KEY_SALT', required: true, description: '게스트 식별키 암호화 솔트' },
     { key: 'KAKAO_CLIENT_SECRET', required: false, description: '카카오 로그인 보안 비밀키 (선택)' },
-    { key: 'ADMIN_EMAIL', required: false, description: '새 주문 이메일 알림 수신 주소' }
+    { key: 'ADMIN_EMAIL', required: false, description: '배달왔삼 주문·이용 신청 이메일 수신 주소' }
   ];
 
   keysToCheck.forEach(item => {
