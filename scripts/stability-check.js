@@ -5,7 +5,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const EXPECTED_API_VERSION = '2026-08-24.2';
+const EXPECTED_API_VERSION = '2026-08-25.1';
 const API_URL = String(process.env.KIOSK_API_URL || '').trim();
 const ADMIN_TOKEN = String(process.env.KIOSK_ADMIN_TOKEN || '').trim();
 const MODE = String(process.env.KIOSK_STABILITY_MODE || 'read').trim().toLowerCase();
@@ -55,6 +55,12 @@ function clampNumber(value, fallback, min, max) {
 
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function formatKstTime(dateValue) {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false, hourCycle: 'h23'
+  }).format(dateValue);
 }
 
 function sanitizeText(value) {
@@ -482,9 +488,18 @@ async function runGuestAndReviewScenario(fixtures) {
   await resetStock(snack.snackId, 30);
   let orderNo = '';
   try {
+    for (const schedule of (previousSettings.guestAdditionalSchedules || [])) {
+      const removed = await adminWrite('updateGuestSettings', {
+        settingsAction: 'deleteAdditionalSchedule',
+        scheduleId: schedule.scheduleId,
+        adminMemo: 'stability additional schedule pause'
+      }, 'setup');
+      if (!removed.data?.success) throw new Error('Cannot pause guest additional schedule in staging.');
+    }
     const scheduleDisabled = await adminWrite('updateGuestSettings', {
       settingsAction: 'updateWeeklySchedule',
       guestWeeklyScheduleEnabled: false,
+      guestWeeklyScheduleDay: previousSettings.guestWeeklyScheduleDay || 3,
       guestWeeklyScheduleStartTime: previousSettings.guestWeeklyScheduleStartTime || '13:00',
       guestWeeklyScheduleEndTime: previousSettings.guestWeeklyScheduleEndTime || '15:00',
       adminMemo: 'stability guest schedule pause'
@@ -492,8 +507,8 @@ async function runGuestAndReviewScenario(fixtures) {
     if (!scheduleDisabled.data?.success) throw new Error('Cannot pause guest weekly schedule in staging.');
 
     const opened = await adminWrite('updateGuestSettings', {
-      settingsAction: 'openCustom',
-      minutes: 15,
+      settingsAction: 'openUntil',
+      guestManualEndTime: formatKstTime(new Date(Date.now() + 15 * 60 * 1000)),
       adminMemo: 'stability guest test'
     }, 'setup');
     if (!opened.data?.success) throw new Error('Cannot open guest mode in staging.');
@@ -561,17 +576,31 @@ async function runGuestAndReviewScenario(fixtures) {
     await adminWrite('updateGuestSettings', {
       settingsAction: 'updateWeeklySchedule',
       guestWeeklyScheduleEnabled: previousSettings.guestWeeklyScheduleEnabled === true,
+      guestWeeklyScheduleDay: previousSettings.guestWeeklyScheduleDay || 3,
       guestWeeklyScheduleStartTime: previousSettings.guestWeeklyScheduleStartTime || '13:00',
       guestWeeklyScheduleEndTime: previousSettings.guestWeeklyScheduleEndTime || '15:00',
       adminMemo: 'stability schedule restore'
     }, 'cleanup');
+    if (!previousSettings.guestWeeklyScheduleSkipped) {
+      await adminWrite('updateGuestSettings', { settingsAction: 'resumeWeeklyScheduleOccurrence', adminMemo: 'stability schedule resume restore' }, 'cleanup');
+    }
+    for (const schedule of (previousSettings.guestAdditionalSchedules || [])) {
+      await adminWrite('updateGuestSettings', {
+        settingsAction: 'upsertAdditionalSchedule',
+        date: schedule.date,
+        startTime: schedule.startTime,
+        endTime: schedule.endTime,
+        adminMemo: 'stability additional schedule restore'
+      }, 'cleanup');
+    }
     const wasOpen = previousSettings.guestOpen === 'Y';
     if (wasOpen) {
-      const remainingMinutes = Math.max(1, Math.ceil((new Date(previousSettings.guestCloseAt).getTime() - Date.now()) / 60000));
       if (!previousSettings.guestWeeklyScheduleSkipped) {
+        const previousCloseAt = new Date(previousSettings.guestCloseAt);
+        const fallbackCloseAt = new Date(Date.now() + 10 * 60 * 1000);
         await adminWrite('updateGuestSettings', {
-          settingsAction: 'openCustom',
-          minutes: Number.isFinite(remainingMinutes) ? remainingMinutes : 10,
+          settingsAction: 'openUntil',
+          guestManualEndTime: formatKstTime(!isNaN(previousCloseAt.getTime()) && previousCloseAt > new Date() ? previousCloseAt : fallbackCloseAt),
           adminMemo: 'stability manual restore'
         }, 'cleanup');
       }

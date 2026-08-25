@@ -2064,8 +2064,84 @@ let refreshTimer = null;
       }).format(date);
     }
 
+    function getGuestKstDateTimeParts(dateValue = new Date()) {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false, hourCycle: 'h23'
+      }).formatToParts(dateValue);
+      const value = type => parts.find(part => part.type === type)?.value || '';
+      const hour = value('hour') === '24' ? '00' : value('hour');
+      return {
+        date: `${value('year')}-${value('month')}-${value('day')}`,
+        time: `${hour}:${value('minute')}`
+      };
+    }
+
+    function getDefaultGuestManualEndTime() {
+      const future = new Date(Date.now() + 60 * 60 * 1000);
+      const parts = getGuestKstDateTimeParts(future);
+      if (parts.date !== getGuestKstDateTimeParts().date) return '23:59';
+      const [hour, minute] = parts.time.split(':').map(Number);
+      const roundedMinutes = Math.min(23 * 60 + 59, hour * 60 + Math.ceil(minute / 5) * 5);
+      return `${String(Math.floor(roundedMinutes / 60)).padStart(2, '0')}:${String(roundedMinutes % 60).padStart(2, '0')}`;
+    }
+
+    function renderGuestAdditionalSchedules(schedules) {
+      const container = document.getElementById('guest-additional-schedule-list');
+      if (!container) return;
+      const items = Array.isArray(schedules) ? schedules : [];
+      container.replaceChildren();
+      if (items.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'guest-additional-schedule-empty';
+        empty.textContent = '등록된 추가 운영이 없습니다.';
+        container.appendChild(empty);
+        return;
+      }
+
+      items.forEach(schedule => {
+        const row = document.createElement('div');
+        row.className = `guest-additional-schedule-row${schedule.isActive ? ' is-active' : ''}`;
+        row.dataset.scheduleId = schedule.scheduleId;
+
+        const fields = [
+          { label: schedule.isActive ? '날짜 · 운영 중' : '날짜', type: 'date', value: schedule.date, name: 'date' },
+          { label: '시작', type: 'time', value: schedule.startTime, name: 'startTime' },
+          { label: '종료', type: 'time', value: schedule.endTime, name: 'endTime' }
+        ];
+        fields.forEach(field => {
+          const label = document.createElement('label');
+          const caption = document.createElement('span');
+          const input = document.createElement('input');
+          caption.textContent = field.label;
+          input.type = field.type;
+          input.value = field.value;
+          input.className = 'admin-inline-input';
+          input.dataset.additionalField = field.name;
+          if (field.type === 'date') input.min = getGuestKstDateTimeParts().date;
+          if (field.type === 'time') input.step = '300';
+          label.append(caption, input);
+          row.appendChild(label);
+        });
+
+        const saveButton = document.createElement('button');
+        saveButton.type = 'button';
+        saveButton.className = 'btn-small-action';
+        saveButton.textContent = '변경 저장';
+        saveButton.addEventListener('click', () => saveGuestAdditionalSchedule(row, schedule.scheduleId, saveButton));
+
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'btn-danger-action';
+        deleteButton.textContent = schedule.isActive ? '운영 취소' : '일정 취소';
+        deleteButton.addEventListener('click', () => deleteGuestAdditionalSchedule(schedule, deleteButton));
+        row.append(saveButton, deleteButton);
+        container.appendChild(row);
+      });
+    }
+
     function setGuestManualOpenDisabled(disabled) {
-      ['btn-guest-open20', 'btn-guest-open30', 'btn-guest-open60', 'btn-guest-open-custom', 'input-custom-minutes'].forEach(id => {
+      ['btn-guest-open-until', 'input-guest-manual-end'].forEach(id => {
         const element = document.getElementById(id);
         if (element) element.disabled = disabled;
       });
@@ -2094,6 +2170,7 @@ let refreshTimer = null;
       const feeEl = document.getElementById('input-guest-fee');
       const deliveryPlaceEl = document.getElementById('input-guest-delivery-place');
       const weeklyEnabledEl = document.getElementById('input-guest-weekly-schedule-enabled');
+      const weeklyDayEl = document.getElementById('input-guest-weekly-schedule-day');
       const weeklyStartEl = document.getElementById('input-guest-weekly-schedule-start');
       const weeklyEndEl = document.getElementById('input-guest-weekly-schedule-end');
 
@@ -2107,8 +2184,18 @@ let refreshTimer = null;
         if (feeEl) feeEl.value = data.guestDeliveryFee ?? 3;
         if (deliveryPlaceEl) deliveryPlaceEl.value = data.guestDefaultDeliveryPlace ?? '사무실 원탁';
         if (weeklyEnabledEl) weeklyEnabledEl.checked = data.guestWeeklyScheduleEnabled === true;
+        if (weeklyDayEl) weeklyDayEl.value = String(data.guestWeeklyScheduleDay || 3);
         if (weeklyStartEl) weeklyStartEl.value = data.guestWeeklyScheduleStartTime || '13:00';
         if (weeklyEndEl) weeklyEndEl.value = data.guestWeeklyScheduleEndTime || '15:00';
+        const additionalDateEl = document.getElementById('input-guest-additional-date');
+        const manualEndEl = document.getElementById('input-guest-manual-end');
+        const todayKey = getGuestKstDateTimeParts().date;
+        if (additionalDateEl) {
+          additionalDateEl.min = todayKey;
+          if (!additionalDateEl.value || additionalDateEl.value < todayKey) additionalDateEl.value = todayKey;
+        }
+        if (manualEndEl && !manualEndEl.value) manualEndEl.value = getDefaultGuestManualEndTime();
+        renderGuestAdditionalSchedules(data.guestAdditionalSchedules);
         setGuestRandomDisplayName(data.guestAllowRandomDisplayName !== false);
         setAdminOrderEmailNotification(data.adminOrderEmailNotificationEnabled !== false);
         
@@ -2146,13 +2233,23 @@ let refreshTimer = null;
       const nextOpenEl = document.getElementById('guest-ops-next-open');
       const warningEl = document.getElementById('guest-weekly-schedule-warning');
       const skipButton = document.getElementById('btn-toggle-guest-weekly-skip');
-      const sourceLabels = { weekly: '수요일 자동 운영', manual: '수동 운영', closed: '마감' };
+      const sourceLabels = {
+        weekly: `${data.guestWeeklyScheduleDayName || '정기'} 자동 운영`,
+        additional: '날짜 지정 추가 운영',
+        manual: '긴급 수동 운영',
+        closed: '마감'
+      };
       if (sourceEl) sourceEl.textContent = sourceLabels[data.guestOpenSource] || '마감';
-      if (nextOpenEl) nextOpenEl.textContent = data.nextGuestOpenAt ? formatGuestScheduleDateTime(data.nextGuestOpenAt) : '-';
+      if (nextOpenEl) {
+        const next = data.nextGuestSchedule;
+        nextOpenEl.textContent = next
+          ? `${formatGuestScheduleDate(next.date)} ${next.startTime}~${next.endTime}`
+          : '-';
+      }
 
       if (warningEl) {
         if (data.guestWeeklyScheduleSuppressedByEvent) {
-          warningEl.textContent = '행사 모드여서 수요일 정기 주문이 자동으로 열리지 않습니다. 행사는 수동으로 운영해 주세요.';
+          warningEl.textContent = '행사 모드여서 예약 운영이 자동으로 열리지 않습니다. 행사는 긴급 운영으로 열어 주세요.';
           warningEl.hidden = false;
         } else if (data.guestWeeklyScheduleSkipped) {
           warningEl.textContent = `${formatGuestScheduleDate(data.guestWeeklyScheduleTargetDate)} 운영을 쉬도록 설정했습니다.`;
@@ -2173,7 +2270,9 @@ let refreshTimer = null;
           : `${formatGuestScheduleDate(data.guestWeeklyScheduleTargetDate)} 운영 안 함`;
         skipButton.classList.toggle('is-resume', isSkipped);
       }
-      setGuestManualOpenDisabled(data.guestWeeklyScheduleSkipped === true);
+      const skippedToday = data.guestWeeklyScheduleEnabled === true
+        && data.guestWeeklyScheduleSkipDate === getGuestKstDateTimeParts().date;
+      setGuestManualOpenDisabled(skippedToday);
 
       if (data.isGuestOpenNow) {
         badge.textContent = '🟢 운영중';
@@ -2321,17 +2420,15 @@ let refreshTimer = null;
         `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
     }
 
-    async function handleGuestOpsAction(settingsAction, minutes) {
+    async function handleGuestOpsAction(settingsAction, values = {}) {
       try {
         const adminToken = getAdminToken();
         const body = {
           settingsAction,
           adminToken,
-          adminMemo: getAdminMemo()
+          adminMemo: getAdminMemo(),
+          ...values
         };
-        if (settingsAction === 'openCustom') {
-          body.minutes = minutes;
-        }
         const res = await fetchAPI('updateGuestSettings', {
           method: 'POST',
           body: body,
@@ -2350,8 +2447,85 @@ let refreshTimer = null;
       await loadGuestOpsPanel();
     }
 
+    async function saveGuestAdditionalSchedule(row, scheduleId = '', buttonOverride = null) {
+      const source = row || document.getElementById('guest-additional-schedule');
+      const date = String(source?.querySelector(scheduleId ? '[data-additional-field="date"]' : '#input-guest-additional-date')?.value || '').trim();
+      const startTime = String(source?.querySelector(scheduleId ? '[data-additional-field="startTime"]' : '#input-guest-additional-start')?.value || '').trim();
+      const endTime = String(source?.querySelector(scheduleId ? '[data-additional-field="endTime"]' : '#input-guest-additional-end')?.value || '').trim();
+      if (!date || !startTime || !endTime || startTime >= endTime) {
+        alert('날짜를 선택하고 종료 시각을 시작 시각보다 늦게 설정해 주세요.');
+        return;
+      }
+      const button = buttonOverride || document.getElementById('btn-add-guest-additional-schedule');
+      if (button?.disabled) return;
+      if (button) {
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+      }
+      try {
+        const res = await fetchAPI('updateGuestSettings', {
+          method: 'POST',
+          body: {
+            settingsAction: 'upsertAdditionalSchedule',
+            scheduleId,
+            date,
+            startTime,
+            endTime,
+            adminToken: getAdminToken(),
+            adminMemo: getAdminMemo()
+          },
+          timeoutMs: ADMIN_WRITE_TIMEOUT_MS
+        });
+        if (!res?.success) {
+          clearAdminTokenIfDenied(res);
+          throw new Error(res?.message || '추가 운영 일정 저장에 실패했습니다.');
+        }
+        alert(res.message || '추가 운영 일정을 저장했습니다.');
+      } catch (error) {
+        alert(error.message || '추가 운영 일정 저장 중 오류가 발생했습니다.');
+      } finally {
+        if (button) {
+          button.disabled = false;
+          button.removeAttribute('aria-busy');
+        }
+        await loadGuestOpsPanel();
+      }
+    }
+
+    async function deleteGuestAdditionalSchedule(schedule, button) {
+      if (!schedule?.scheduleId || button?.disabled) return;
+      const actionLabel = schedule.isActive ? '현재 추가 운영을 즉시 취소' : '추가 운영 일정을 취소';
+      if (!confirm(`${formatGuestScheduleDate(schedule.date)} ${schedule.startTime}~${schedule.endTime} ${actionLabel}할까요?`)) return;
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      try {
+        const res = await fetchAPI('updateGuestSettings', {
+          method: 'POST',
+          body: {
+            settingsAction: 'deleteAdditionalSchedule',
+            scheduleId: schedule.scheduleId,
+            adminToken: getAdminToken(),
+            adminMemo: getAdminMemo()
+          },
+          timeoutMs: ADMIN_WRITE_TIMEOUT_MS
+        });
+        if (!res?.success) {
+          clearAdminTokenIfDenied(res);
+          throw new Error(res?.message || '추가 운영 일정 취소에 실패했습니다.');
+        }
+        alert(res.message || '추가 운영 일정을 취소했습니다.');
+      } catch (error) {
+        alert(error.message || '추가 운영 일정 취소 중 오류가 발생했습니다.');
+      } finally {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+        await loadGuestOpsPanel();
+      }
+    }
+
     async function saveGuestWeeklySchedule() {
       const enabledEl = document.getElementById('input-guest-weekly-schedule-enabled');
+      const dayEl = document.getElementById('input-guest-weekly-schedule-day');
       const startEl = document.getElementById('input-guest-weekly-schedule-start');
       const endEl = document.getElementById('input-guest-weekly-schedule-end');
       const button = document.getElementById('btn-save-guest-weekly-schedule');
@@ -2368,6 +2542,7 @@ let refreshTimer = null;
           body: {
             settingsAction: 'updateWeeklySchedule',
             guestWeeklyScheduleEnabled: enabledEl?.checked === true,
+            guestWeeklyScheduleDay: Number(dayEl?.value || 3),
             guestWeeklyScheduleStartTime: startTime,
             guestWeeklyScheduleEndTime: endTime,
             adminToken: getAdminToken(),
@@ -2395,8 +2570,8 @@ let refreshTimer = null;
       const isResume = action === 'resumeWeeklyScheduleOccurrence';
       const targetLabel = formatGuestScheduleDate(latestGuestOpsSettings?.guestWeeklyScheduleTargetDate);
       const prompt = isResume
-        ? `${targetLabel} 수요일 자동 운영을 다시 진행할까요?`
-        : `${targetLabel} 수요일 운영을 쉬도록 설정할까요? 운영 중이면 즉시 마감됩니다.`;
+        ? `${targetLabel} 정기 자동 운영을 다시 진행할까요?`
+        : `${targetLabel} 정기 운영을 쉬도록 설정할까요? 같은 날의 추가 운영은 유지됩니다.`;
       if (!confirm(prompt)) return;
       button.disabled = true;
       try {
@@ -2764,46 +2939,34 @@ let refreshTimer = null;
         btnToggleGuestWeeklySkip.addEventListener('click', toggleGuestWeeklyScheduleOccurrence);
       }
 
-      const btnGuestOpen20 = document.getElementById('btn-guest-open20');
-      if (btnGuestOpen20) {
-        btnGuestOpen20.addEventListener('click', () => {
-          handleGuestOpsAction('open20');
-        });
-      }
-      
-      const btnGuestOpen30 = document.getElementById('btn-guest-open30');
-      if (btnGuestOpen30) {
-        btnGuestOpen30.addEventListener('click', () => {
-          handleGuestOpsAction('open30');
-        });
+      const btnAddGuestAdditionalSchedule = document.getElementById('btn-add-guest-additional-schedule');
+      if (btnAddGuestAdditionalSchedule) {
+        btnAddGuestAdditionalSchedule.addEventListener('click', () => saveGuestAdditionalSchedule());
       }
 
-      const btnGuestOpen60 = document.getElementById('btn-guest-open60');
-      if (btnGuestOpen60) {
-        btnGuestOpen60.addEventListener('click', () => {
-          handleGuestOpsAction('open60');
-        });
-      }
-
-      const btnGuestOpenCustom = document.getElementById('btn-guest-open-custom');
-      if (btnGuestOpenCustom) {
-        btnGuestOpenCustom.addEventListener('click', () => {
-          const inputEl = document.getElementById('input-custom-minutes');
-          const minutes = inputEl ? Number(inputEl.value) : 10;
-          if (isNaN(minutes) || minutes <= 0) {
-            alert('올바른 시간을 분 단위로 입력해 주세요.');
+      const btnGuestOpenUntil = document.getElementById('btn-guest-open-until');
+      if (btnGuestOpenUntil) {
+        btnGuestOpenUntil.addEventListener('click', () => {
+          const endTime = String(document.getElementById('input-guest-manual-end')?.value || '').trim();
+          if (!endTime) {
+            alert('긴급 운영 종료 시각을 선택해 주세요.');
             return;
           }
-          handleGuestOpsAction('openCustom', minutes);
+          if (confirm(`지금부터 오늘 ${endTime}까지 주문을 받을까요?`)) {
+            handleGuestOpsAction('openUntil', { guestManualEndTime: endTime });
+          }
         });
       }
       
       const btnGuestClose = document.getElementById('btn-guest-close');
       if (btnGuestClose) {
         btnGuestClose.addEventListener('click', () => {
-          const closeMessage = latestGuestOpsSettings?.guestOpenSource === 'weekly'
-            ? '게스트 주문을 즉시 마감할까요? 오늘은 다시 자동으로 열리지 않고 다음 수요일에 재개합니다.'
-            : '게스트 주문을 즉시 마감하시겠습니까?';
+          const source = latestGuestOpsSettings?.guestOpenSource;
+          const closeMessage = source === 'weekly'
+            ? '게스트 주문을 즉시 마감할까요? 현재 정기 회차는 중단되고 다음 회차에 자동 재개합니다.'
+            : source === 'additional'
+              ? '게스트 주문을 즉시 마감할까요? 현재 추가 운영 일정도 취소됩니다.'
+              : '게스트 주문을 즉시 마감하시겠습니까?';
           if (confirm(closeMessage)) {
             handleGuestOpsAction('closeNow');
           }

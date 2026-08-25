@@ -3448,21 +3448,120 @@ body.admin-shell-page {
   border: 1px solid #B9DCD6;
 }
 
-.guest-open-presets #btn-guest-open20,
-.guest-open-presets #btn-guest-open30,
-.guest-open-presets #btn-guest-open60 {
-  background-color: #E6F4F1;
-  color: #176A63;
-  border: 1px solid #B9DCD6;
+.guest-additional-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 14px 0;
+  padding: 14px;
+  border: 1.5px solid #F0CF9A;
+  border-radius: var(--radius-sm);
+  background: #FFF9EF;
 }
 
-.guest-custom-open {
-  justify-content: flex-end;
-  padding-top: 12px;
+.guest-additional-schedule-heading,
+.guest-emergency-open > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.guest-additional-schedule-heading strong,
+.guest-emergency-open strong {
+  color: #5D4322;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.guest-additional-schedule-heading small,
+.guest-emergency-open small {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.guest-additional-schedule-form,
+.guest-additional-schedule-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.2fr) repeat(2, minmax(120px, 0.8fr)) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.guest-additional-schedule-form label,
+.guest-additional-schedule-row label,
+.guest-emergency-open label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: #6B563A;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.guest-additional-schedule-form .admin-inline-input,
+.guest-additional-schedule-row .admin-inline-input,
+.guest-emergency-open .admin-inline-input {
+  width: 100%;
+  min-height: 40px;
+  box-sizing: border-box;
+}
+
+.guest-additional-schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.guest-additional-schedule-empty {
+  padding: 10px;
+  border-radius: 7px;
+  background: #FFFDF8;
+  color: #7B6A54;
+  font-size: 13px;
+  font-weight: 750;
+  text-align: center;
+}
+
+.guest-additional-schedule-row {
+  grid-template-columns: minmax(150px, 1.2fr) repeat(2, minmax(110px, 0.8fr)) auto auto;
+  padding: 10px;
+  border: 1px solid #EBD7B8;
+  border-radius: 8px;
+  background: #FFFFFF;
+}
+
+.guest-additional-schedule-row.is-active {
+  border-color: #4FB7A8;
+  box-shadow: 0 0 0 2px rgba(79, 183, 168, 0.12);
+}
+
+.guest-additional-schedule-row button,
+.guest-additional-schedule-form button,
+.guest-emergency-open button {
+  min-height: 40px;
+  white-space: nowrap;
+}
+
+.guest-emergency-open {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 14px;
   border-top: 1px dashed #D5E4E1;
 }
 
-.guest-custom-open .btn-small-action {
+.guest-emergency-open > div {
+  flex: 1 1 230px;
+}
+
+.guest-emergency-open label {
+  flex: 0 1 150px;
+}
+
+.guest-emergency-open .btn-small-action,
+.guest-additional-schedule .btn-small-action {
   background-color: #2FBDB3;
   color: #FFFFFF;
   border: 0;
@@ -3779,8 +3878,27 @@ body.admin-shell-page {
     width: 100%;
   }
 
-  .guest-custom-open {
-    justify-content: flex-start;
+  .guest-additional-schedule-form,
+  .guest-additional-schedule-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .guest-additional-schedule-form button,
+  .guest-additional-schedule-row button,
+  .guest-emergency-open button {
+    width: 100%;
+  }
+
+  .guest-emergency-open {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .guest-emergency-open > div,
+  .guest-emergency-open label {
+    flex-basis: auto;
+    width: 100%;
   }
 
   .guest-team-meta {

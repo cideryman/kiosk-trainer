@@ -169,7 +169,7 @@
             <div class="guest-weekly-schedule" id="guest-weekly-schedule">
               <div class="guest-weekly-schedule-heading">
                 <div>
-                  <strong>📅 매주 수요일 자동 운영</strong>
+                  <strong>📅 정기 자동 운영</strong>
                   <small>한국시간 기준으로 자동 개방·마감합니다.</small>
                 </div>
                 <label class="guest-weekly-schedule-toggle">
@@ -178,6 +178,16 @@
                 </label>
               </div>
               <div class="guest-weekly-schedule-times">
+                <label>
+                  <span>요일</span>
+                  <select id="input-guest-weekly-schedule-day" class="admin-inline-input" aria-label="정기 운영 요일">
+                    <option value="1">월요일</option>
+                    <option value="2">화요일</option>
+                    <option value="3" selected>수요일</option>
+                    <option value="4">목요일</option>
+                    <option value="5">금요일</option>
+                  </select>
+                </label>
                 <label>
                   <span>시작</span>
                   <input type="time" id="input-guest-weekly-schedule-start" class="admin-inline-input" value="13:00" step="300">
@@ -190,7 +200,7 @@
               </div>
               <div class="guest-weekly-schedule-summary" aria-live="polite">
                 <div>현재 운영: <strong id="guest-ops-source">마감</strong></div>
-                <div>다음 자동 운영: <strong id="guest-ops-next-open">-</strong></div>
+                <div>다음 확정 운영: <strong id="guest-ops-next-open">-</strong></div>
               </div>
               <div class="guest-weekly-schedule-warning" id="guest-weekly-schedule-warning" hidden></div>
               <div class="guest-weekly-schedule-actions">
@@ -198,17 +208,39 @@
                 <button type="button" class="btn-danger-action" id="btn-toggle-guest-weekly-skip" data-schedule-action="skipWeeklyScheduleOccurrence">이번 회차 운영 안 함</button>
               </div>
             </div>
-            <div class="guest-open-presets">
-              <button class="btn-small-action" id="btn-guest-open20">⏱ 20분 운영</button>
-              <button class="btn-small-action" id="btn-guest-open30">⏱ 30분 운영</button>
-              <button class="btn-small-action" id="btn-guest-open60">⏱ 1시간 운영</button>
-              <button class="btn-danger-action" id="btn-guest-close">🛑 지금 마감</button>
+            <div class="guest-additional-schedule" id="guest-additional-schedule">
+              <div class="guest-additional-schedule-heading">
+                <strong>➕ 날짜 지정 추가 운영</strong>
+                <small>신청이 있는 날처럼 필요한 날짜만 따로 등록합니다.</small>
+              </div>
+              <div class="guest-additional-schedule-form">
+                <label>
+                  <span>날짜</span>
+                  <input type="date" id="input-guest-additional-date" class="admin-inline-input">
+                </label>
+                <label>
+                  <span>시작</span>
+                  <input type="time" id="input-guest-additional-start" class="admin-inline-input" value="09:00" step="300">
+                </label>
+                <label>
+                  <span>종료</span>
+                  <input type="time" id="input-guest-additional-end" class="admin-inline-input" value="12:00" step="300">
+                </label>
+                <button type="button" class="btn-small-action" id="btn-add-guest-additional-schedule">추가 운영 등록</button>
+              </div>
+              <div id="guest-additional-schedule-list" class="guest-additional-schedule-list" aria-live="polite"></div>
             </div>
-            <div class="guest-custom-open">
-              <span>직접 설정</span>
-              <input type="number" id="input-custom-minutes" class="admin-inline-input" value="10" min="1" aria-label="직접 운영 시간">
-              <span>분</span>
-              <button class="btn-small-action" id="btn-guest-open-custom">운영 시작</button>
+            <div class="guest-emergency-open">
+              <div>
+                <strong>🚨 긴급 운영</strong>
+                <small>오늘 종료 시각을 정해 지금 바로 시작합니다.</small>
+              </div>
+              <label>
+                <span>종료</span>
+                <input type="time" id="input-guest-manual-end" class="admin-inline-input" step="300" aria-label="긴급 운영 종료 시각">
+              </label>
+              <button class="btn-small-action" id="btn-guest-open-until">지금부터 운영</button>
+              <button class="btn-danger-action" id="btn-guest-close">🛑 지금 마감</button>
             </div>
           </section>
           <div class="guest-ops-settings-panel" id="guest-ops-settings">

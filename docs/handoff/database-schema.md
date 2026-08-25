@@ -151,19 +151,27 @@ P93 배포 후 `setupGuestApplicationOperationsSheet()` 실행으로 생성된 �
 
 `adminOrderEmailNotificationEnabled`는 `TRUE` 또는 `FALSE`로 저장하며 기본값은 `TRUE`입니다. P100부터 이 값은 배달왔삼 포장·배달 주문의 이메일 큐 등록에만 적용하고 일반 키오스크 주문에는 적용하지 않습니다. 기존 키 이름과 `이메일알림큐` 구조는 변경하지 않습니다.
 
-### P99 배달왔삼 수요일 정기 운영 키
+### P99 운영 배포 기준과 P102 일정 코드 계약
 
 | 키 | 기본값 | 의미 |
 | --- | --- | --- |
-| `guestWeeklyScheduleEnabled` | `FALSE` | 매주 수요일 자동 운영 사용 여부 |
+| `guestWeeklyScheduleEnabled` | `FALSE` | 주 1회 정기 자동 운영 사용 여부 |
 | `guestWeeklyScheduleStartTime` | `13:00` | Asia/Seoul 기준 자동 개방 시각 |
 | `guestWeeklyScheduleEndTime` | `15:00` | Asia/Seoul 기준 자동 마감 시각 |
-| `guestWeeklyScheduleSkipDate` | 빈 값 | 운영하지 않을 수요일의 `YYYY-MM-DD` |
+| `guestWeeklyScheduleSkipDate` | 빈 값 | 운영하지 않을 정기 회차의 `YYYY-MM-DD` |
 
-- 기존 `guestOpen`과 `guestCloseAt`은 수동 운영 상태로 계속 사용합니다. 새 시트나 열은 만들지 않습니다.
+P102 운영 GAS에는 다음 세로형 키 계약이 배포되었습니다. 기존 시트에 키가 아직 없으면 조회 시 기본값으로 보정되며, 정기 또는 추가 일정을 저장할 때 실제 키가 기록됩니다.
+
+| 키 | 기본값 | 의미 |
+| --- | --- | --- |
+| `guestWeeklyScheduleDay` | `3` | 정기 운영 요일. 월~금의 JavaScript 요일 번호 `1~5` |
+| `guestAdditionalSchedulesJson` | `[]` | 날짜당 1개인 추가 운영 `{scheduleId,date,startTime,endTime}` JSON 배열 |
+
+- 기존 `guestOpen`과 `guestCloseAt`은 종료 시각 기반 긴급 운영 상태로 계속 사용합니다. 새 시트나 열은 만들지 않습니다.
 - 시작·종료는 `HH:MM` 형식이며 시작 시각이 종료 시각보다 빠른 같은 날 일정만 저장합니다.
-- 현재 운영 출처, 실효 마감, 완료 유예 마감, 다음 자동 개방, 다음 상태 변경, 이번 회차 중단 여부는 저장하지 않고 서버가 조회 시점마다 계산합니다.
-- `guestWeeklyScheduleSkipDate`는 해당 날짜의 회차에만 적용되므로 지난 날짜가 남아 있어도 다음 수요일에는 자동 운영이 다시 적용됩니다.
+- 추가 일정은 오늘 이후 날짜만 등록하고 같은 날짜 중복을 거부합니다. 지난 일정은 판정에서 제외하고 다음 일정 변경 시 정리합니다.
+- 현재 운영 출처, 실효 마감, 완료 유예 마감, 다음 확정 운영, 다음 상태 변경, 이번 회차 중단 여부는 저장하지 않고 서버가 조회 시점마다 계산합니다.
+- `guestWeeklyScheduleSkipDate`는 해당 정기 회차와 그 날짜의 긴급 운영만 막습니다. 명시적으로 등록한 추가 일정은 유지되며 다음 정기 회차에는 자동 복귀합니다.
 
 `운영설정`은 키가 추가되는 세로형 구조이므로 신규 키 반영 후 기존 A1:B15 사용 범위보다 행 수가 늘어납니다.
 

@@ -17,9 +17,11 @@ vm.runInContext(settingsSource, context, { filename: '60_Settings.gs' });
 const resolve = context.resolveGuestOperatingState;
 const base = {
   guestWeeklyScheduleEnabled: 'TRUE',
+  guestWeeklyScheduleDay: 3,
   guestWeeklyScheduleStartTime: '13:00',
   guestWeeklyScheduleEndTime: '15:00',
   guestWeeklyScheduleSkipDate: '',
+  guestAdditionalSchedulesJson: '[]',
   guestMenuMode: 'normal',
   guestOpen: 'N',
   guestCloseAt: ''
@@ -79,4 +81,137 @@ assert.equal(at('2026-08-25T14:00:00+09:00', { guestOpen: 'Y', guestCloseAt: '' 
 assert.equal(at('2026-08-26T14:00:00+09:00', { guestWeeklyScheduleEnabled: 'FALSE' }).isGuestOpenNow, false, '자동 일정 OFF');
 assert.equal(at('2026-08-26T15:00:00+09:00').targetScheduleDate, '2026-09-02', '마감 이후 중단 대상은 다음 수요일');
 
-console.log('Guest weekly schedule tests passed: 20 checks');
+const thursdaySchedule = at('2026-08-27T10:00:00+09:00', {
+  guestWeeklyScheduleDay: 4,
+  guestWeeklyScheduleStartTime: '09:00',
+  guestWeeklyScheduleEndTime: '12:00'
+});
+assert.equal(thursdaySchedule.weekdayName, '목요일', '정기 요일을 목요일로 변경');
+assert.equal(thursdaySchedule.isGuestOpenNow, true, '목요일 가변 정기 일정 자동 개방');
+
+const additionalJson = JSON.stringify([
+  { scheduleId: 'extra-thu', date: '2026-08-27', startTime: '09:00', endTime: '12:00' },
+  { scheduleId: 'extra-fri', date: '2026-08-28', startTime: '10:00', endTime: '11:00' }
+]);
+const additionalActive = at('2026-08-27T10:00:00+09:00', {
+  guestWeeklyScheduleEnabled: 'FALSE',
+  guestAdditionalSchedulesJson: additionalJson
+});
+assert.equal(additionalActive.guestOpenSource, 'additional', '날짜 지정 추가 운영 자동 개방');
+assert.deepEqual(additionalActive.activeAdditionalScheduleIds, ['extra-thu'], '활성 추가 일정 ID 반환');
+
+const nearestAdditional = at('2026-08-26T08:00:00+09:00', {
+  guestAdditionalSchedulesJson: JSON.stringify([
+    { scheduleId: 'extra-near', date: '2026-08-26', startTime: '09:00', endTime: '11:00' }
+  ])
+});
+assert.equal(nearestAdditional.nextGuestSchedule.scheduleId, 'extra-near', '정기 일정보다 가까운 추가 운영 우선 안내');
+
+const overlapAdditional = at('2026-08-26T14:00:00+09:00', {
+  guestAdditionalSchedulesJson: JSON.stringify([
+    { scheduleId: 'extra-long', date: '2026-08-26', startTime: '14:00', endTime: '16:00' }
+  ])
+});
+assert.equal(overlapAdditional.guestOpenSource, 'additional', '더 늦게 끝나는 추가 운영을 실효 출처로 선택');
+assert.equal(overlapAdditional.effectiveCloseAt.toISOString(), '2026-08-26T07:00:00.000Z', '정기·추가 중 가장 늦은 마감 적용');
+
+const overlapBoundary = at('2026-08-26T13:30:00+09:00', {
+  guestAdditionalSchedulesJson: JSON.stringify([
+    { scheduleId: 'extra-later', date: '2026-08-26', startTime: '14:00', endTime: '16:00' }
+  ])
+});
+assert.equal(overlapBoundary.nextStateChangeAt.toISOString(), '2026-08-26T05:00:00.000Z', '운영 중 겹치는 일정 시작 경계에서 재조회');
+
+const skippedWithAdditional = at('2026-08-26T14:00:00+09:00', {
+  guestWeeklyScheduleSkipDate: '2026-08-26',
+  guestOpen: 'Y',
+  guestCloseAt: '2026-08-26T16:00:00+09:00',
+  guestAdditionalSchedulesJson: JSON.stringify([
+    { scheduleId: 'extra-kept', date: '2026-08-26', startTime: '13:00', endTime: '15:30' }
+  ])
+});
+assert.equal(skippedWithAdditional.manualActive, false, '중단일에는 긴급 수동 운영 차단');
+assert.equal(skippedWithAdditional.guestOpenSource, 'additional', '정기 회차 중단과 별도 추가 운영은 분리');
+
+const eventSuppression = at('2026-08-27T10:00:00+09:00', {
+  guestWeeklyScheduleEnabled: 'FALSE',
+  guestMenuMode: 'event',
+  guestAdditionalSchedulesJson: additionalJson
+});
+assert.equal(eventSuppression.isGuestOpenNow, false, '행사 모드에서 추가 일정 자동 개방 억제');
+assert.equal(eventSuppression.nextGuestSchedule, null, '행사 모드에서 다음 자동 운영 미노출');
+
+const normalizedDuplicate = context.normalizeGuestAdditionalSchedules(JSON.stringify([
+  { scheduleId: 'first', date: '2026-08-27', startTime: '09:00', endTime: '12:00' },
+  { scheduleId: 'duplicate', date: '2026-08-27', startTime: '13:00', endTime: '14:00' }
+]));
+assert.equal(normalizedDuplicate.length, 1, '날짜당 추가 일정 하나만 정규화');
+
+const fakeRows = [['key', 'value']];
+const fakeSheet = {
+  getLastRow: () => fakeRows.length,
+  appendRow: row => fakeRows.push(row.slice()),
+  getRange(row, column, rowCount, columnCount) {
+    return {
+      getValues: () => Array.from({ length: rowCount }, (_, rowIndex) => (
+        Array.from({ length: columnCount }, (_, columnIndex) => fakeRows[row - 1 + rowIndex]?.[column - 1 + columnIndex] ?? '')
+      )),
+      setValues(values) {
+        values.forEach((valueRow, rowIndex) => {
+          const targetIndex = row - 1 + rowIndex;
+          if (!fakeRows[targetIndex]) fakeRows[targetIndex] = [];
+          valueRow.forEach((value, columnIndex) => { fakeRows[targetIndex][column - 1 + columnIndex] = value; });
+        });
+      }
+    };
+  }
+};
+context.SHEET = { SETTINGS: '운영설정' };
+context.SpreadsheetApp = { getActiveSpreadsheet: () => ({ getSheetByName: () => fakeSheet, insertSheet: () => fakeSheet }) };
+context.LockService = { getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }) };
+context.CacheService = { getScriptCache: () => ({ remove: () => {}, get: () => null, put: () => {} }) };
+context.Logger = { log: () => {} };
+context.Utilities = {
+  getUuid: () => 'test-schedule-id',
+  formatDate: date => date.toISOString().slice(11, 16)
+};
+context.safeAppendAdminLog = () => {};
+
+const createdSchedule = context.updateGuestSettings({
+  settingsAction: 'upsertAdditionalSchedule',
+  date: '2099-01-02',
+  startTime: '09:00',
+  endTime: '12:00'
+});
+assert.equal(createdSchedule.success, true, '추가 일정 생성');
+assert.equal(createdSchedule.schedule.scheduleId, 'test-schedule-id', '추가 일정 서버 ID 발급');
+const duplicateSchedule = context.updateGuestSettings({
+  settingsAction: 'upsertAdditionalSchedule',
+  date: '2099-01-02',
+  startTime: '13:00',
+  endTime: '14:00'
+});
+assert.equal(duplicateSchedule.success, false, '같은 날짜 추가 일정 중복 거부');
+const editedSchedule = context.updateGuestSettings({
+  settingsAction: 'upsertAdditionalSchedule',
+  scheduleId: 'test-schedule-id',
+  date: '2099-01-03',
+  startTime: '10:00',
+  endTime: '13:00'
+});
+assert.equal(editedSchedule.success, true, '추가 일정 행 수정');
+const deletedSchedule = context.updateGuestSettings({ settingsAction: 'deleteAdditionalSchedule', scheduleId: 'test-schedule-id' });
+assert.equal(deletedSchedule.success, true, '추가 일정 취소');
+
+const kitchenHtml = fs.readFileSync(path.resolve(__dirname, '../kitchen.html'), 'utf8');
+const kitchenJs = fs.readFileSync(path.resolve(__dirname, '../js/kitchen.js'), 'utf8');
+['input-guest-weekly-schedule-day', 'input-guest-additional-date', 'guest-additional-schedule-list', 'input-guest-manual-end', 'btn-guest-open-until'].forEach(id => {
+  assert.equal(kitchenHtml.includes(`id="${id}"`), true, `주방 새 일정 컨트롤 존재: ${id}`);
+});
+['btn-guest-open20', 'btn-guest-open30', 'btn-guest-open60', 'btn-guest-open-custom', 'input-custom-minutes'].forEach(id => {
+  assert.equal(kitchenHtml.includes(`id="${id}"`), false, `주방 분 단위 운영 컨트롤 제거: ${id}`);
+});
+assert.equal(kitchenJs.includes("settingsAction: 'upsertAdditionalSchedule'"), true, '추가 일정 저장 API 연결');
+assert.equal(kitchenJs.includes("settingsAction: 'deleteAdditionalSchedule'"), true, '추가 일정 취소 API 연결');
+
+console.log('Guest schedule tests passed: recurring, additional, manual, grace, suppression');

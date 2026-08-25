@@ -1,6 +1,6 @@
 // Google Apps Script API 설정
 const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ9_UPux8bq0xROvNK9E1NCBam0Qe/exec";
-const API_CONTRACT_VERSION = '2026-08-24.2';
+const API_CONTRACT_VERSION = '2026-08-25.1';
 
 function resolveApiUrl() {
   try {
@@ -75,60 +75,124 @@ function buildMockGuestScheduleInstant(dateKey, timeValue) {
   ) - MOCK_GUEST_WEEKLY_SCHEDULE_OFFSET_MINUTES * 60 * 1000);
 }
 
+function getMockGuestScheduleDateWeekday(dateKey) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateKey || ''));
+  return match ? new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))).getUTCDay() : -1;
+}
+
+function normalizeMockGuestScheduleWeekday(value) {
+  const weekday = Number(value);
+  return [1, 2, 3, 4, 5].includes(weekday) ? weekday : MOCK_GUEST_WEEKLY_SCHEDULE_WEEKDAY;
+}
+
+function normalizeMockGuestAdditionalSchedules(rawValue) {
+  let parsed = rawValue;
+  if (typeof rawValue === 'string') {
+    try { parsed = JSON.parse(rawValue || '[]'); } catch (_) { parsed = []; }
+  }
+  if (!Array.isArray(parsed)) return [];
+  const seenDates = new Set();
+  return parsed.map(item => {
+    const date = String(item?.date || '').trim();
+    const startTime = String(item?.startTime || '').trim();
+    const endTime = String(item?.endTime || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime) || startTime >= endTime || seenDates.has(date)) return null;
+    seenDates.add(date);
+    return { scheduleId: String(item.scheduleId || `additional-${date}`), date, startTime, endTime };
+  }).filter(Boolean).sort((a, b) => `${a.date}T${a.startTime}`.localeCompare(`${b.date}T${b.startTime}`));
+}
+
+function getNextMockGuestWeeklyDate(nowValue, weekday, boundaryTime, useEndBoundary = false) {
+  const parts = getMockGuestScheduleParts(nowValue);
+  const todayKey = formatMockGuestScheduleDateKey(parts.year, parts.month, parts.day);
+  const boundaryMinutes = Number(boundaryTime.slice(0, 2)) * 60 + Number(boundaryTime.slice(3));
+  let days = (weekday - parts.weekday + 7) % 7;
+  if (days === 0 && parts.minutes >= boundaryMinutes) days = 7;
+  return addMockGuestScheduleDays(todayKey, days);
+}
+
 function resolveMockGuestOperatingState(settingsValue, nowValue) {
   const settings = settingsValue || {};
   const parts = getMockGuestScheduleParts(nowValue);
   const now = parts.now;
+  const nowMillis = now.getTime();
   const todayKey = formatMockGuestScheduleDateKey(parts.year, parts.month, parts.day);
   const startTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(String(settings.guestWeeklyScheduleStartTime || '')) ? settings.guestWeeklyScheduleStartTime : '13:00';
   const endTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(String(settings.guestWeeklyScheduleEndTime || '')) ? settings.guestWeeklyScheduleEndTime : '15:00';
-  const startMinutes = Number(startTime.slice(0, 2)) * 60 + Number(startTime.slice(3));
-  const endMinutes = Number(endTime.slice(0, 2)) * 60 + Number(endTime.slice(3));
+  const weekday = normalizeMockGuestScheduleWeekday(settings.guestWeeklyScheduleDay);
   const weeklyEnabled = settings.guestWeeklyScheduleEnabled === true || String(settings.guestWeeklyScheduleEnabled).toUpperCase() === 'TRUE';
   const skipDate = /^\d{4}-\d{2}-\d{2}$/.test(String(settings.guestWeeklyScheduleSkipDate || '')) ? settings.guestWeeklyScheduleSkipDate : '';
+  const additionalSchedules = normalizeMockGuestAdditionalSchedules(settings.guestAdditionalSchedules || settings.guestAdditionalSchedulesJson);
   const menuMode = String(settings.guestMenuMode || 'normal').toLowerCase();
-  let targetDays = (MOCK_GUEST_WEEKLY_SCHEDULE_WEEKDAY - parts.weekday + 7) % 7;
-  if (targetDays === 0 && parts.minutes >= endMinutes) targetDays = 7;
-  const targetScheduleDate = addMockGuestScheduleDays(todayKey, targetDays);
+  const targetScheduleDate = getNextMockGuestWeeklyDate(now, weekday, endTime, true);
   const targetOccurrenceSkipped = weeklyEnabled && skipDate === targetScheduleDate;
   const todayOccurrenceSkipped = weeklyEnabled && skipDate === todayKey;
-  const scheduleSuppressedByEvent = weeklyEnabled && menuMode !== 'normal';
+  const scheduleSuppressedByEvent = menuMode !== 'normal' && (weeklyEnabled || additionalSchedules.some(item => item.date >= todayKey));
   const todayStartAt = buildMockGuestScheduleInstant(todayKey, startTime);
   const todayEndAt = buildMockGuestScheduleInstant(todayKey, endTime);
   const weeklyOccurrenceToday = weeklyEnabled && !scheduleSuppressedByEvent
-    && parts.weekday === MOCK_GUEST_WEEKLY_SCHEDULE_WEEKDAY && !todayOccurrenceSkipped;
-  const weeklyActive = weeklyOccurrenceToday && parts.minutes >= startMinutes && parts.minutes < endMinutes;
+    && parts.weekday === weekday && !todayOccurrenceSkipped;
+  const weeklyActive = weeklyOccurrenceToday && nowMillis >= todayStartAt.getTime() && nowMillis < todayEndAt.getTime();
+  const additionalOccurrences = additionalSchedules.filter(item => item.date >= todayKey).map(item => ({
+    ...item,
+    source: 'additional',
+    startAt: buildMockGuestScheduleInstant(item.date, item.startTime),
+    endAt: buildMockGuestScheduleInstant(item.date, item.endTime)
+  }));
+  const activeAdditional = scheduleSuppressedByEvent ? [] : additionalOccurrences.filter(item => item.date === todayKey && nowMillis >= item.startAt.getTime() && nowMillis < item.endAt.getTime());
   const manualCloseAt = settings.guestCloseAt ? new Date(settings.guestCloseAt) : null;
   const manualRequested = String(settings.guestOpen || 'N').toUpperCase() === 'Y';
   const validManualCloseAt = manualCloseAt && !isNaN(manualCloseAt.getTime()) ? manualCloseAt : null;
-  const manualActive = Boolean(manualRequested && (!validManualCloseAt || now < validManualCloseAt) && !todayOccurrenceSkipped);
-  const activeCloseTimes = [];
-  if (weeklyActive) activeCloseTimes.push(todayEndAt);
-  if (manualActive && validManualCloseAt) activeCloseTimes.push(validManualCloseAt);
-  const finiteEffectiveCloseAt = activeCloseTimes.sort((a, b) => b - a)[0] || null;
-  const effectiveCloseAt = manualActive && !validManualCloseAt ? null : finiteEffectiveCloseAt;
-  const isGuestOpenNow = weeklyActive || manualActive;
-  const guestOpenSource = isGuestOpenNow
-    ? (manualActive && (!weeklyActive || !validManualCloseAt || validManualCloseAt > todayEndAt) ? 'manual' : 'weekly')
-    : 'closed';
+  const manualActive = Boolean(manualRequested && (!validManualCloseAt || nowMillis < validManualCloseAt.getTime()) && !todayOccurrenceSkipped);
+  const candidates = [];
+  if (weeklyActive) candidates.push({ source: 'weekly', endAt: todayEndAt });
+  activeAdditional.forEach(item => candidates.push({ source: 'additional', endAt: item.endAt }));
+  if (manualActive) candidates.push({ source: 'manual', endAt: validManualCloseAt });
+  const unlimitedManual = manualActive && !validManualCloseAt;
+  const priority = { weekly: 1, additional: 2, manual: 3 };
+  const effective = unlimitedManual ? { source: 'manual', endAt: null } : candidates.filter(item => item.endAt).sort((a, b) => (b.endAt - a.endAt) || priority[b.source] - priority[a.source])[0];
+  const effectiveCloseAt = effective?.endAt || null;
+  const isGuestOpenNow = weeklyActive || activeAdditional.length > 0 || manualActive;
+  const guestOpenSource = isGuestOpenNow ? (effective?.source || 'manual') : 'closed';
   const completionTimes = [];
   if (weeklyOccurrenceToday && now >= todayEndAt) completionTimes.push(todayEndAt);
+  if (!scheduleSuppressedByEvent) additionalOccurrences.forEach(item => {
+    if (item.date === todayKey && nowMillis >= item.endAt.getTime()) completionTimes.push(item.endAt);
+  });
   if (manualRequested && validManualCloseAt && now >= validManualCloseAt && !todayOccurrenceSkipped) completionTimes.push(validManualCloseAt);
   const completionGraceCloseAt = completionTimes.sort((a, b) => b - a)[0] || null;
-  let nextScheduledDate = '';
-  let nextScheduledOpenAt = null;
+  const upcoming = [];
   if (weeklyEnabled && !scheduleSuppressedByEvent) {
-    let nextDays = (MOCK_GUEST_WEEKLY_SCHEDULE_WEEKDAY - parts.weekday + 7) % 7;
-    if (nextDays === 0 && parts.minutes >= startMinutes) nextDays = 7;
-    nextScheduledDate = addMockGuestScheduleDays(todayKey, nextDays);
-    if (skipDate === nextScheduledDate) nextScheduledDate = addMockGuestScheduleDays(nextScheduledDate, 7);
-    nextScheduledOpenAt = buildMockGuestScheduleInstant(nextScheduledDate, startTime);
+    let date = getNextMockGuestWeeklyDate(now, weekday, startTime);
+    if (skipDate === date) date = addMockGuestScheduleDays(date, 7);
+    upcoming.push({ source: 'weekly', scheduleId: '', date, weekday, startTime, endTime, startAt: buildMockGuestScheduleInstant(date, startTime), endAt: buildMockGuestScheduleInstant(date, endTime) });
   }
+  if (!scheduleSuppressedByEvent) additionalOccurrences.forEach(item => { if (item.startAt > now) upcoming.push({ ...item, weekday: getMockGuestScheduleDateWeekday(item.date) }); });
+  upcoming.sort((a, b) => a.startAt - b.startAt);
+  const nextGuestSchedule = upcoming[0] || null;
+  const boundaries = [];
+  if (weeklyOccurrenceToday && todayStartAt > now) boundaries.push(todayStartAt);
+  if (weeklyOccurrenceToday && todayEndAt > now) boundaries.push(todayEndAt);
+  if (!weeklyOccurrenceToday && weeklyEnabled && !scheduleSuppressedByEvent) {
+    const nextWeekly = upcoming.find(item => item.source === 'weekly');
+    if (nextWeekly) boundaries.push(nextWeekly.startAt);
+  }
+  if (!scheduleSuppressedByEvent) additionalOccurrences.forEach(item => {
+    if (item.startAt > now) boundaries.push(item.startAt);
+    if (item.date === todayKey && item.startAt <= now && item.endAt > now) boundaries.push(item.endAt);
+  });
+  if (manualActive && validManualCloseAt) boundaries.push(validManualCloseAt);
+  const nextStateChangeAt = boundaries.sort((a, b) => a - b)[0] || null;
   return {
-    weeklyEnabled, startTime, endTime, skipDate, targetScheduleDate, targetOccurrenceSkipped,
-    scheduleSuppressedByEvent, weeklyActive, isGuestOpenNow, guestOpenSource,
-    effectiveCloseAt, completionGraceCloseAt, nextScheduledOpenAt,
-    nextStateChangeAt: effectiveCloseAt || nextScheduledOpenAt,
+    weeklyEnabled, weekday, weekdayName: ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'][weekday],
+    startTime, endTime, skipDate, targetScheduleDate, targetOccurrenceSkipped, todayOccurrenceSkipped,
+    scheduleSuppressedByEvent, weeklyActive, additionalActive: activeAdditional.length > 0,
+    activeAdditionalScheduleIds: activeAdditional.map(item => item.scheduleId), isGuestOpenNow, guestOpenSource,
+    effectiveCloseAt, completionGraceCloseAt,
+    additionalSchedules: additionalOccurrences.map(item => ({ scheduleId: item.scheduleId, date: item.date, startTime: item.startTime, endTime: item.endTime, isActive: activeAdditional.some(active => active.scheduleId === item.scheduleId) })),
+    nextScheduledOpenAt: nextGuestSchedule?.startAt || null,
+    nextGuestSchedule: nextGuestSchedule ? { source: nextGuestSchedule.source, scheduleId: nextGuestSchedule.scheduleId, date: nextGuestSchedule.date, weekday: nextGuestSchedule.weekday, startTime: nextGuestSchedule.startTime, endTime: nextGuestSchedule.endTime, startAt: nextGuestSchedule.startAt.toISOString(), endAt: nextGuestSchedule.endAt.toISOString() } : null,
+    nextStateChangeAt,
     remainingSeconds: effectiveCloseAt ? Math.max(0, Math.floor((effectiveCloseAt - now) / 1000)) : 0
   };
 }
@@ -1065,13 +1129,14 @@ function getMockFallback(action, options) {
     const operatingState = resolveMockGuestOperatingState(settings);
     let message = '게스트 주문이 마감되었습니다.';
     if (operatingState.isGuestOpenNow) {
-      message = operatingState.guestOpenSource === 'weekly' ? '수요일 정기 주문이 운영 중입니다.' : '게스트 주문이 수동 운영 중입니다.';
+      message = operatingState.effectiveCloseAt
+        ? `오늘 ${new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false }).format(operatingState.effectiveCloseAt)}까지 주문할 수 있습니다.`
+        : '배달왔삼 주문이 운영 중입니다.';
     } else if (operatingState.scheduleSuppressedByEvent) {
-      message = '행사 모드에서는 수요일 정기 주문이 자동으로 열리지 않습니다.';
-    } else if (operatingState.targetOccurrenceSkipped) {
-      message = `이번 수요일은 주문 운영을 쉬어갑니다. 다음 수요일 ${operatingState.weeklyStartTime}에 다시 열립니다.`;
-    } else if (operatingState.weeklyEnabled) {
-      message = `매주 수요일 ${operatingState.startTime}~${operatingState.endTime}에 주문할 수 있습니다.`;
+      message = '행사 모드에서는 예약 운영이 자동으로 열리지 않습니다.';
+    } else if (operatingState.nextGuestSchedule) {
+      const next = operatingState.nextGuestSchedule;
+      message = `다음 운영은 ${next.date} ${next.startTime}~${next.endTime}입니다.`;
     }
 
       res = {
@@ -1079,17 +1144,21 @@ function getMockFallback(action, options) {
         guestOpen: settings.guestOpen,
         guestCloseAt: settings.guestCloseAt,
         guestWeeklyScheduleEnabled: operatingState.weeklyEnabled,
-        guestWeeklyScheduleDay: MOCK_GUEST_WEEKLY_SCHEDULE_WEEKDAY,
+        guestWeeklyScheduleDay: operatingState.weekday,
+        guestWeeklyScheduleDayName: operatingState.weekdayName,
         guestWeeklyScheduleStartTime: operatingState.startTime,
         guestWeeklyScheduleEndTime: operatingState.endTime,
         guestWeeklyScheduleSkipDate: operatingState.skipDate,
         guestWeeklyScheduleTargetDate: operatingState.targetScheduleDate,
         guestWeeklyScheduleSkipped: operatingState.targetOccurrenceSkipped,
         guestWeeklyScheduleSuppressedByEvent: operatingState.scheduleSuppressedByEvent,
+        guestAdditionalSchedules: operatingState.additionalSchedules,
+        activeGuestAdditionalScheduleIds: operatingState.activeAdditionalScheduleIds,
         guestOpenSource: operatingState.guestOpenSource,
         effectiveGuestCloseAt: operatingState.effectiveCloseAt ? operatingState.effectiveCloseAt.toISOString() : '',
         guestCompletionGraceCloseAt: operatingState.completionGraceCloseAt ? operatingState.completionGraceCloseAt.toISOString() : '',
         nextGuestOpenAt: operatingState.nextScheduledOpenAt ? operatingState.nextScheduledOpenAt.toISOString() : '',
+        nextGuestSchedule: operatingState.nextGuestSchedule,
         nextGuestStateChangeAt: operatingState.nextStateChangeAt ? operatingState.nextStateChangeAt.toISOString() : '',
         guestBaseCredit: settings.guestBaseCredit,
         kakaoGuestBonusCredit: settings.kakaoGuestBonusCredit ?? 2,
@@ -1129,12 +1198,23 @@ function getMockFallback(action, options) {
     const now = new Date();
     const currentState = resolveMockGuestOperatingState(settings, now);
 
-    if (['open20', 'open30', 'open60', 'openCustom'].includes(settingsAction) && currentState.targetOccurrenceSkipped) {
+    if (['open20', 'open30', 'open60', 'openCustom', 'openUntil'].includes(settingsAction) && currentState.todayOccurrenceSkipped) {
       res = { success: false, message: '이번 회차 운영 중단을 먼저 해제해 주세요.' };
       return Object.assign({}, res, { apiContractVersion: API_CONTRACT_VERSION, serverTime: new Date().toISOString() });
     }
 
-    if (settingsAction === 'open20') {
+    if (settingsAction === 'openUntil') {
+      const endTime = String(options.body?.guestManualEndTime || '').trim();
+      const today = getMockGuestScheduleParts(now);
+      const closeAt = buildMockGuestScheduleInstant(formatMockGuestScheduleDateKey(today.year, today.month, today.day), endTime);
+      if (!closeAt || closeAt <= now) {
+        res = { success: false, message: '오늘 현재 시각보다 늦은 종료 시각을 선택해 주세요.' };
+        return Object.assign({}, res, { apiContractVersion: API_CONTRACT_VERSION, serverTime: new Date().toISOString() });
+      }
+      settings.guestOpen = 'Y';
+      settings.guestCloseAt = closeAt.toISOString();
+      appendMockAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', 'N', `Y (오늘 ${endTime}까지)`, options.body?.adminMemo);
+    } else if (settingsAction === 'open20') {
       settings.guestOpen = 'Y';
       settings.guestCloseAt = new Date(now.getTime() + 20 * 60 * 1000).toISOString();
       appendMockAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', 'N', 'Y (20분)', options.body?.adminMemo);
@@ -1158,31 +1238,75 @@ function getMockFallback(action, options) {
         const today = getMockGuestScheduleParts(now);
         settings.guestWeeklyScheduleSkipDate = formatMockGuestScheduleDateKey(today.year, today.month, today.day);
       }
-      appendMockAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', 'Y', currentState.weeklyActive ? 'N (이번 수요일 자동 운영 종료)' : 'N (즉시 마감)', options.body?.adminMemo);
+      if (currentState.activeAdditionalScheduleIds.length > 0) {
+        settings.guestAdditionalSchedules = normalizeMockGuestAdditionalSchedules(settings.guestAdditionalSchedules)
+          .filter(item => !currentState.activeAdditionalScheduleIds.includes(item.scheduleId));
+      }
+      appendMockAdminLog('updateGuestSettings', 'settings', 'guestOpen', '게스트 운영', 'Y', currentState.weeklyActive || currentState.additionalActive ? 'N (현재 일정 운영 종료)' : 'N (즉시 마감)', options.body?.adminMemo);
     } else if (settingsAction === 'updateWeeklySchedule') {
+      const weekday = Number(options.body?.guestWeeklyScheduleDay);
       const startTime = String(options.body?.guestWeeklyScheduleStartTime || '').trim();
       const endTime = String(options.body?.guestWeeklyScheduleEndTime || '').trim();
-      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime) || startTime >= endTime) {
+      if (![1, 2, 3, 4, 5].includes(weekday) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime) || startTime >= endTime) {
         res = { success: false, message: '정기 운영 시간을 올바르게 입력해 주세요.' };
         return Object.assign({}, res, { apiContractVersion: API_CONTRACT_VERSION, serverTime: new Date().toISOString() });
       }
+      if (normalizeMockGuestScheduleWeekday(settings.guestWeeklyScheduleDay) !== weekday) settings.guestWeeklyScheduleSkipDate = '';
       settings.guestWeeklyScheduleEnabled = options.body?.guestWeeklyScheduleEnabled === true;
+      settings.guestWeeklyScheduleDay = weekday;
       settings.guestWeeklyScheduleStartTime = startTime;
       settings.guestWeeklyScheduleEndTime = endTime;
-      appendMockAdminLog('updateGuestSettings', 'settings', 'guestWeeklySchedule', '수요일 정기 운영', '', `${settings.guestWeeklyScheduleEnabled ? 'ON' : 'OFF'} ${startTime}~${endTime}`, options.body?.adminMemo);
+      appendMockAdminLog('updateGuestSettings', 'settings', 'guestWeeklySchedule', '정기 운영', '', `${settings.guestWeeklyScheduleEnabled ? 'ON' : 'OFF'} ${weekday} ${startTime}~${endTime}`, options.body?.adminMemo);
     } else if (settingsAction === 'skipWeeklyScheduleOccurrence') {
       if (!currentState.weeklyEnabled) {
-        res = { success: false, message: '수요일 정기 자동 운영을 먼저 켜 주세요.' };
+        res = { success: false, message: '정기 자동 운영을 먼저 켜 주세요.' };
         return Object.assign({}, res, { apiContractVersion: API_CONTRACT_VERSION, serverTime: new Date().toISOString() });
       }
       settings.guestWeeklyScheduleSkipDate = currentState.targetScheduleDate;
-      settings.guestOpen = 'N';
-      settings.guestCloseAt = '';
+      const today = getMockGuestScheduleParts(now);
+      if (currentState.targetScheduleDate === formatMockGuestScheduleDateKey(today.year, today.month, today.day)) {
+        settings.guestOpen = 'N';
+        settings.guestCloseAt = '';
+      }
       appendMockAdminLog('updateGuestSettings', 'settings', 'guestWeeklyScheduleSkipDate', '정기 운영 회차 중단', '', currentState.targetScheduleDate, options.body?.adminMemo);
     } else if (settingsAction === 'resumeWeeklyScheduleOccurrence') {
       const previousSkipDate = settings.guestWeeklyScheduleSkipDate || '';
       settings.guestWeeklyScheduleSkipDate = '';
       appendMockAdminLog('updateGuestSettings', 'settings', 'guestWeeklyScheduleSkipDate', '정기 운영 회차 재개', previousSkipDate, '', options.body?.adminMemo);
+    } else if (settingsAction === 'upsertAdditionalSchedule') {
+      const date = String(options.body?.date || '').trim();
+      const startTime = String(options.body?.startTime || '').trim();
+      const endTime = String(options.body?.endTime || '').trim();
+      const requestedId = String(options.body?.scheduleId || '').trim();
+      const today = getMockGuestScheduleParts(now);
+      const todayKey = formatMockGuestScheduleDateKey(today.year, today.month, today.day);
+      const endAt = buildMockGuestScheduleInstant(date, endTime);
+      const schedules = normalizeMockGuestAdditionalSchedules(settings.guestAdditionalSchedules).filter(item => item.date >= todayKey);
+      const existingIndex = requestedId ? schedules.findIndex(item => item.scheduleId === requestedId) : -1;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < todayKey || !/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime) || startTime >= endTime || !endAt || endAt <= now) {
+        res = { success: false, message: '추가 운영 날짜와 시간을 올바르게 입력해 주세요.' };
+        return Object.assign({}, res, { apiContractVersion: API_CONTRACT_VERSION, serverTime: new Date().toISOString() });
+      }
+      if ((requestedId && existingIndex < 0) || schedules.some(item => item.date === date && item.scheduleId !== requestedId)) {
+        res = { success: false, message: requestedId && existingIndex < 0 ? '수정할 추가 운영 일정을 찾을 수 없습니다.' : '같은 날짜에는 추가 운영을 하나만 등록할 수 있습니다.' };
+        return Object.assign({}, res, { apiContractVersion: API_CONTRACT_VERSION, serverTime: new Date().toISOString() });
+      }
+      const scheduleId = requestedId || (globalThis.crypto?.randomUUID?.() || `mock-${Date.now()}`);
+      const schedule = { scheduleId, date, startTime, endTime };
+      if (existingIndex >= 0) schedules[existingIndex] = schedule;
+      else schedules.push(schedule);
+      schedules.sort((a, b) => `${a.date}T${a.startTime}`.localeCompare(`${b.date}T${b.startTime}`));
+      settings.guestAdditionalSchedules = schedules;
+      appendMockAdminLog('updateGuestSettings', 'settings', 'guestAdditionalSchedules', requestedId ? '추가 운영 수정' : '추가 운영 등록', '', `${date} ${startTime}~${endTime}`, options.body?.adminMemo);
+    } else if (settingsAction === 'deleteAdditionalSchedule') {
+      const scheduleId = String(options.body?.scheduleId || '').trim();
+      const schedules = normalizeMockGuestAdditionalSchedules(settings.guestAdditionalSchedules);
+      if (!schedules.some(item => item.scheduleId === scheduleId)) {
+        res = { success: false, message: '취소할 추가 운영 일정을 찾을 수 없습니다.' };
+        return Object.assign({}, res, { apiContractVersion: API_CONTRACT_VERSION, serverTime: new Date().toISOString() });
+      }
+      settings.guestAdditionalSchedules = schedules.filter(item => item.scheduleId !== scheduleId);
+      appendMockAdminLog('updateGuestSettings', 'settings', 'guestAdditionalSchedules', '추가 운영 취소', scheduleId, '', options.body?.adminMemo);
     } else if (settingsAction === 'updateMenuMode') {
       settings.guestMenuMode = String(options.body?.guestMenuMode || 'normal').toLowerCase();
       if (options.body?.guestEventName !== undefined) {
@@ -2233,9 +2357,11 @@ function getMockGuestSettings() {
     guestOpen: 'N',
     guestCloseAt: '',
     guestWeeklyScheduleEnabled: false,
+    guestWeeklyScheduleDay: 3,
     guestWeeklyScheduleStartTime: '13:00',
     guestWeeklyScheduleEndTime: '15:00',
     guestWeeklyScheduleSkipDate: '',
+    guestAdditionalSchedules: [],
     guestBaseCredit: GUEST_DEFAULT_CREDIT,
     kakaoGuestBonusCredit: 2,
     guestDeliveryFee: GUEST_DELIVERY_FEE,
