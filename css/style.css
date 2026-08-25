@@ -2136,6 +2136,35 @@ input:checked + .tts-slider:before {
   line-height: 1;
 }
 
+@media (max-width: 360px) {
+  .grid-container {
+    gap: 10px;
+  }
+
+  .user-card {
+    min-width: 0;
+    padding-right: 6px;
+    padding-left: 6px;
+  }
+
+  .user-card-credit {
+    max-width: 100%;
+    padding-right: 6px;
+    padding-left: 6px;
+    gap: 2px;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+
+  .user-card-credit .coin-icon {
+    font-size: 18px;
+  }
+
+  .user-card-credit .coin-number {
+    font-size: 20px;
+  }
+}
+
 /* 메뉴 헤더 크레딧 배지: 내 동전 🪙 13 */
 .credit-badge {
   font-size: 18px;

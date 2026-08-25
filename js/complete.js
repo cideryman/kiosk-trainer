@@ -697,7 +697,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // 주문 취소 처리 로직
   async function handleUserCancel() {
-    if (!confirm('정말로 주문을 취소하시겠습니까?\n주문을 취소하면 사용한 온기는 돌려드리고, 간식 재고는 복구됩니다.')) return;
+    const cancelMessage = isGuestMode
+      ? '정말로 주문을 취소하시겠습니까?\n주문을 취소하면 사용한 온기는 돌려드리고, 간식 재고는 복구됩니다.'
+      : '정말로 주문을 취소하시겠습니까?\n주문을 취소하면 간식 재고가 복구됩니다.';
+    if (!confirm(cancelMessage)) return;
     
     const orderIdentifier = isGuestMode ? summaryData.orderToken : summaryData.orderNo;
     

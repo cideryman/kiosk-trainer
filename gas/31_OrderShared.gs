@@ -8,6 +8,17 @@ const ORDER_IDEMPOTENCY_COL = 23; // W열
 const ORDER_COMMIT_STATUS_HEADER = 'commitStatus';
 const ORDER_COMMIT_STATUS_COL = 24; // X열
 
+function getOrderCreditState(isGuest, availableCredit, totalCredit) {
+  const beforeCredit = Math.max(0, Number(availableCredit) || 0);
+  const orderTotal = Math.max(0, Number(totalCredit) || 0);
+  return {
+    canOrder: beforeCredit >= orderTotal,
+    beforeCredit,
+    afterCredit: Math.max(0, beforeCredit - orderTotal),
+    persistsBalance: isGuest === true,
+  };
+}
+
 function isCommittedOrderRow(row, headers) {
   const statusIdx = headers.indexOf(ORDER_COMMIT_STATUS_HEADER);
   if (statusIdx === -1) return true;
@@ -83,9 +94,9 @@ function getExistingIdempotentOrderResult(orderSheet, userSheet, headers, idempo
       const userValues = userSheet.getDataRange().getValues();
       const userRow = userValues.find((row, index) => index > 0 && String(row[0]) === String(userId));
       if (userRow) {
-        const afterCredit = Number(userRow[2] || 0);
-        result.afterCredit = afterCredit;
-        result.beforeCredit = afterCredit + totalCredit;
+        const creditState = getOrderCreditState(false, userRow[2], totalCredit);
+        result.afterCredit = creditState.afterCredit;
+        result.beforeCredit = creditState.beforeCredit;
       }
     }
   } catch (error) {

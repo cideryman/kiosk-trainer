@@ -235,6 +235,7 @@ let isSubmitting = false;
 let activeGaugeEdit = null;
 const adminMutationStates = new Map();
 const ADMIN_UI_MAX_USER_CREDIT = 15;
+const ADMIN_UI_MIN_USER_ORDER_LIMIT = 1;
 const ADMIN_UI_MAX_SNACK_STOCK = 30;
 const ADMIN_TOKEN_STORAGE_KEY = AdminAuth.storageKey;
 const isApplicationsView = new URLSearchParams(window.location.search).get('view') === 'applications';
@@ -326,6 +327,10 @@ function getGaugeEditorMax(type, value) {
   return type === 'user' ? ADMIN_UI_MAX_USER_CREDIT : ADMIN_UI_MAX_SNACK_STOCK;
 }
 
+function getGaugeEditorMin(type) {
+  return type === 'user' ? ADMIN_UI_MIN_USER_ORDER_LIMIT : 0;
+}
+
 function getGaugeVisual(type, value) {
   const numericValue = Math.max(0, Number(value) || 0);
   const percent = Math.min(numericValue / 10, 1) * 100;
@@ -360,11 +365,12 @@ function renderGaugeControl(type, id, value, label) {
   const rowKey = attr(`${type}:${stringId}`);
 
   if (isEditing) {
+    const min = getGaugeEditorMin(type);
     const max = getGaugeEditorMax(type, displayValue);
-    const editorValue = Math.min(max, Math.max(0, Number(displayValue) || 0));
+    const editorValue = Math.min(max, Math.max(min, Number(displayValue) || min));
     return `
       <div class="admin-gauge-editor" data-gauge-edit-row="${rowKey}">
-        <input type="range" id="${attr(rangeId)}" class="admin-gauge-range ${type}" min="0" max="${max}" step="1" value="${editorValue}" aria-label="${attr(label)} 조정" oninput="${callAttr(`previewGaugeValue(${jsString(type)}, ${jsString(stringId)}, this.value, this)`)}">
+        <input type="range" id="${attr(rangeId)}" class="admin-gauge-range ${type}" min="${min}" max="${max}" step="1" value="${editorValue}" aria-label="${attr(label)} 조정" oninput="${callAttr(`previewGaugeValue(${jsString(type)}, ${jsString(stringId)}, this.value, this)`)}">
         <output id="${attr(outputId)}" class="admin-gauge-output" for="${attr(rangeId)}">${esc(gaugeValueLabel(type, editorValue))}</output>
       </div>
     `;
@@ -381,7 +387,7 @@ function renderGaugeControl(type, id, value, label) {
 }
 
 function previewGaugeValue(type, id, value, input) {
-  const numericValue = Math.max(0, Number(value) || 0);
+  const numericValue = Math.max(getGaugeEditorMin(type), Number(value) || getGaugeEditorMin(type));
   const output = document.getElementById(gaugeOutputId(type, id));
   if (activeGaugeEdit && activeGaugeEdit.type === type && activeGaugeEdit.id === String(id)) {
     activeGaugeEdit.draftValue = numericValue;
@@ -429,8 +435,9 @@ async function confirmGaugeEdit(type, id) {
   if (isSubmitting) return;
   isSubmitting = true;
   const input = document.getElementById(gaugeRangeId(type, id));
+  const min = getGaugeEditorMin(type);
   const limit = type === 'user' ? ADMIN_UI_MAX_USER_CREDIT : ADMIN_UI_MAX_SNACK_STOCK;
-  const value = Math.min(limit, Math.max(0, Number(input?.value || 0)));
+  const value = Math.min(limit, Math.max(min, Number(input?.value || min)));
   const editState = activeGaugeEdit;
   activeGaugeEdit = null;
   try {
@@ -1474,7 +1481,7 @@ function renderSnacksStock(snacks) {
   });
 }
 
-// --- 이용자 크레딧 관리 구현 ---
+// --- 이용자별 1회 주문 한도 관리 구현 ---
 function renderUsersManagement(users) {
   const tbody = document.getElementById('user-management-body');
   if (!tbody) return;
@@ -1544,11 +1551,11 @@ function appendUserGroupRows(tbody, title, users) {
           <strong>${safeNickname} 님</strong>
         </div>
       </td>
-      <td class="user-credit-cell" aria-label="보유 온기 ${credit}개" style="font-weight: 800; font-size: 18px; color: var(--primary-color);">${renderGaugeControl('user', userId, credit, `${nickname} 보유 온기`)}</td>
+      <td class="user-credit-cell" aria-label="1회 주문 한도 ${credit}개" style="font-weight: 800; font-size: 18px; color: var(--primary-color);">${renderGaugeControl('user', userId, credit, `${nickname} 1회 주문 한도`)}</td>
       <td class="user-manage-cell" style="text-align: center;">
         ${activeGaugeEdit?.type === 'user' && activeGaugeEdit.id === userId
           ? `<div class="admin-flex-nowrap gauge-action-group"><button type="button" class="btn-small-action gauge-confirm-btn" onclick="${callAttr(`confirmGaugeEdit('user', ${userIdArg})`)}">확인</button><button type="button" class="gauge-cancel-btn" onclick="${callAttr(`cancelGaugeEdit('user', ${userIdArg})`)}">취소</button></div>`
-          : `<button class="btn-small-action admin-row-action gauge-edit-trigger" style="background-color: var(--secondary-color);" title="${safeNickname} 온기 수정" onclick="${callAttr(`beginGaugeEdit('user', ${userIdArg})`)}">수정</button>`}
+          : `<button class="btn-small-action admin-row-action gauge-edit-trigger" style="background-color: var(--secondary-color);" title="${safeNickname} 주문 한도 수정" onclick="${callAttr(`beginGaugeEdit('user', ${userIdArg})`)}">수정</button>`}
       </td>
     `;
     tbody.appendChild(tr);
@@ -1572,7 +1579,7 @@ function setSnackRowLoading(snackId, isLoading) {
 }
 
 async function updateUserCreditAction(userId, credit) {
-  credit = Math.min(ADMIN_UI_MAX_USER_CREDIT, Math.max(0, Number(credit) || 0));
+  credit = Math.min(ADMIN_UI_MAX_USER_CREDIT, Math.max(ADMIN_UI_MIN_USER_ORDER_LIMIT, Number(credit) || ADMIN_UI_MIN_USER_ORDER_LIMIT));
   setUserRowLoading(userId, true);
   try {
     const res = await fetchAPI('updateUserCredit', {
@@ -1586,12 +1593,12 @@ async function updateUserCreditAction(userId, credit) {
       return true;
     } else {
       clearAdminTokenIfDenied(res);
-      alert("온기 반영에 실패했습니다: " + (res?.message || "오류"));
+      alert("주문 한도 반영에 실패했습니다: " + (res?.message || "오류"));
       return false;
     }
   } catch (error) {
-    console.error("온기 업데이트 에러:", error);
-    alert("온기 반영 중 통신 에러가 발생했습니다.");
+    console.error("주문 한도 업데이트 에러:", error);
+    alert("주문 한도 반영 중 통신 에러가 발생했습니다.");
     return false;
   } finally {
     setUserRowLoading(userId, false);
@@ -1611,7 +1618,7 @@ async function addNewUserAction() {
   const imageInput = document.getElementById('new-user-image');
 
   const nickname = nicknameInput.value.trim();
-  const credit = Math.min(ADMIN_UI_MAX_USER_CREDIT, Math.max(0, Number(creditInput.value || 0)));
+  const credit = Math.min(ADMIN_UI_MAX_USER_CREDIT, Math.max(ADMIN_UI_MIN_USER_ORDER_LIMIT, Number(creditInput.value || DEFAULT_USER_ORDER_LIMIT)));
   const imageUrl = imageInput.value.trim();
 
   if (!nickname) {
@@ -2180,7 +2187,7 @@ function closeEditUserModal() {
 async function updateUserAction() {
   const userId = document.getElementById('edit-user-id').value;
   const nickname = document.getElementById('edit-user-nickname').value.trim();
-  const credit = Math.min(ADMIN_UI_MAX_USER_CREDIT, Math.max(0, Number(document.getElementById('edit-user-credit').value || 0)));
+  const credit = Math.min(ADMIN_UI_MAX_USER_CREDIT, Math.max(ADMIN_UI_MIN_USER_ORDER_LIMIT, Number(document.getElementById('edit-user-credit').value || DEFAULT_USER_ORDER_LIMIT)));
   const imageUrl = document.getElementById('edit-user-image').value.trim();
   const activeRadio = document.querySelector('input[name="edit-user-active"]:checked');
   const useYn = activeRadio ? activeRadio.value : 'Y';

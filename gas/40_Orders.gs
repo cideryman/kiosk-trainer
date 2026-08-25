@@ -240,10 +240,11 @@ function placeOrder(data) {
       currentCredit = creditStatus.remainingCredit;
     }
 
-    if (currentCredit < totalCredit) {
+    const creditState = getOrderCreditState(isGuest, currentCredit, totalCredit);
+    if (!creditState.canOrder) {
       return {
         success: false,
-        message: '온기가 부족합니다.',
+        message: isGuest ? '온기가 부족합니다.' : '1회 주문 한도를 넘었습니다.',
         currentCredit,
         totalPoint: totalCredit,
       };
@@ -374,13 +375,9 @@ function placeOrder(data) {
     clearSnackReadCache();
     clearOrderReadCache();
 
-    // 유저 크레딧 차감 반영
-    let newCredit = currentCredit - totalCredit;
-    if (!isGuest) {
-      userSheet.getRange(userRowIndex + 1, 3).setValue(newCredit);
-      transaction.creditApplied = true;
-      clearUserReadCache();
-    } else {
+    // 일반 키오스크는 이용자별 값을 1회 주문 한도로 사용하므로 영구 차감하지 않는다.
+    let newCredit = creditState.afterCredit;
+    if (isGuest) {
       const walletUpdate = resolveGuestCreditWallet({
         guestDeviceId: data.guestDeviceId || '',
         authProvider,
@@ -441,22 +438,16 @@ function placeOrder(data) {
   } catch (error) {
     if (transaction && !transaction.committed) {
       try {
-        if (transaction.creditApplied) {
-          if (transaction.isGuest) {
-            resolveGuestCreditWallet({
-              guestDeviceId: transaction.guestDeviceId,
-              authProvider: transaction.authProvider,
-              guestKey: transaction.guestKey
-            }, {
-              settings: transaction.guestSettings,
-              refundCredit: transaction.totalCredit,
-              create: true
-            });
-          } else {
-            transaction.userSheet
-              .getRange(transaction.userRowIndex + 1, 3)
-              .setValue(transaction.currentCredit);
-          }
+        if (transaction.creditApplied && transaction.isGuest) {
+          resolveGuestCreditWallet({
+            guestDeviceId: transaction.guestDeviceId,
+            authProvider: transaction.authProvider,
+            guestKey: transaction.guestKey
+          }, {
+            settings: transaction.guestSettings,
+            refundCredit: transaction.totalCredit,
+            create: true
+          });
         }
       } catch (creditRollbackError) {
         Logger.log('주문 온기 롤백 실패: ' + (creditRollbackError && creditRollbackError.stack ? creditRollbackError.stack : creditRollbackError));
@@ -1157,16 +1148,7 @@ function cancelOrder(data) {
           };
         }
 
-        // 1-1. 유저 크레딧 환불
-        const userRowIndex = userValues.findIndex((row, idx) => idx > 0 && String(row[0]) === userId);
-        if (userRowIndex !== -1) {
-          const currentCredit = Number(userValues[userRowIndex][2] || 0);
-          const newCredit = currentCredit + point;
-          userSheet.getRange(userRowIndex + 1, 3).setValue(newCredit);
-          userValues[userRowIndex][2] = newCredit; // 누적 환불 처리를 위해 로컬 배열 값 갱신
-        }
-
-        // 1-2. 간식 재고 복구
+        // 1-1. 일반 키오스크 한도는 차감되지 않으므로 재고만 복구한다.
         const snackRowIndex = snackValues.findIndex((row, idx) => idx > 0 && String(row[0]) === snackId);
         if (snackRowIndex !== -1) {
           const currentStock = Number(snackValues[snackRowIndex][5] || 0);
@@ -1175,7 +1157,7 @@ function cancelOrder(data) {
           snackValues[snackRowIndex][5] = newStock; // 로컬 배열 값 갱신
         }
 
-        // 1-3. 주문 제공상태를 'C'로 변경, 10번째 열(Column J)에 취소 시간 기록, 동적 컬럼에 취소 사유 기록
+        // 1-2. 주문 제공상태를 'C'로 변경, 10번째 열(Column J)에 취소 시간 기록, 동적 컬럼에 취소 사유 기록
         orderSheet.getRange(i + 1, 9).setValue('C');
         orderSheet.getRange(i + 1, 10).setValue(new Date());
 
@@ -1187,10 +1169,10 @@ function cancelOrder(data) {
         }
 
         updatedCount++;
-        refundLogs.push(`${snackName} ${quantity}개 (${point} 온기)`);
+        refundLogs.push(`${snackName} ${quantity}개`);
 
         if (updatedCount === 1) {
-          safeAppendAdminLog('cancelOrder', 'order', orderId, nickname, servedYn, 'C', data.adminMemo || '주문 취소 및 환불');
+          safeAppendAdminLog('cancelOrder', 'order', orderId, nickname, servedYn, 'C', data.adminMemo || (userId === 'guest' ? '주문 취소·온기 환불·재고 복구' : '주문 취소·재고 복구'));
         }
       }
     }
@@ -1212,7 +1194,9 @@ function cancelOrder(data) {
       clearUserReadCache();
       return {
         success: true,
-        message: `주문번호 ${orderId}의 주문이 취소되었습니다. 환불 내역: ${refundLogs.join(', ')} (총 ${updatedCount}건)`
+        message: guestCreditRefund
+          ? `주문번호 ${orderId}의 주문이 취소되었습니다. 온기 환불 및 재고 복구: ${refundLogs.join(', ')} (총 ${updatedCount}건)`
+          : `주문번호 ${orderId}의 주문이 취소되었습니다. 재고 복구: ${refundLogs.join(', ')} (총 ${updatedCount}건)`
       };
     } else {
       return {
@@ -1310,16 +1294,7 @@ function userCancelOrder(data) {
           };
         }
 
-        // 유저 크레딧 환불
-        const userRowIndex = userValues.findIndex((row, idx) => idx > 0 && String(row[0]) === userId);
-        if (userRowIndex !== -1) {
-          const currentCredit = Number(userValues[userRowIndex][2] || 0);
-          const newCredit = currentCredit + point;
-          userSheet.getRange(userRowIndex + 1, 3).setValue(newCredit);
-          userValues[userRowIndex][2] = newCredit;
-        }
-
-        // 간식 재고 복구
+        // 일반 키오스크 한도는 차감되지 않으므로 재고만 복구한다.
         const snackRowIndex = snackValues.findIndex((row, idx) => idx > 0 && String(row[0]) === snackId);
         if (snackRowIndex !== -1) {
           const currentStock = Number(snackValues[snackRowIndex][5] || 0);
@@ -1335,7 +1310,7 @@ function userCancelOrder(data) {
         orderSheet.getRange(i + 1, 18).setValue(''); // Detail은 빈 값
 
         updatedCount++;
-        refundLogs.push(`${snackName} ${quantity}개 (${point} 온기)`);
+        refundLogs.push(`${snackName} ${quantity}개`);
       }
     }
 
@@ -1363,7 +1338,9 @@ function userCancelOrder(data) {
       clearUserReadCache();
       return {
         success: true,
-        message: `주문이 취소되었습니다. 환불 내역: ${refundLogs.join(', ')} (총 ${updatedCount}건)`
+        message: guestCreditRefund
+          ? `주문이 취소되었습니다. 온기 환불 및 재고 복구: ${refundLogs.join(', ')} (총 ${updatedCount}건)`
+          : `주문이 취소되었습니다. 재고 복구: ${refundLogs.join(', ')} (총 ${updatedCount}건)`
       };
     } else {
       return {

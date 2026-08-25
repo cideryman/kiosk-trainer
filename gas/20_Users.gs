@@ -4,6 +4,13 @@
 const USERS_READ_CACHE_KEY = 'users.readValues.v1';
 const USERS_READ_CACHE_TTL_SECONDS = 300;
 
+function isValidUserOrderLimit(value) {
+  return isFinite(value)
+    && Math.floor(value) === value
+    && value >= ADMIN_MIN_USER_ORDER_LIMIT
+    && value <= ADMIN_MAX_USER_CREDIT;
+}
+
 function getUserValuesForRead(sheet) {
   try {
     const cached = CacheService.getScriptCache().get(USERS_READ_CACHE_KEY);
@@ -71,7 +78,7 @@ function getUsers(includeInactive) {
 }
 
 /**
- * 10. 이용자 크레딧 조정 API
+ * 10. 이용자별 1회 주문 한도 조정 API
  */
 function updateUserCredit(data) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.USERS);
@@ -79,8 +86,8 @@ function updateUserCredit(data) {
   var userId = data.userId;
   var newCredit = Number(data.credit);
 
-  if (!isFinite(newCredit) || newCredit < 0 || newCredit > ADMIN_MAX_USER_CREDIT) {
-    return { success: false, message: '이용자 온기는 0~' + ADMIN_MAX_USER_CREDIT + ' 범위로 입력해 주세요.' };
+  if (!isValidUserOrderLimit(newCredit)) {
+    return { success: false, message: '1회 주문 한도는 ' + ADMIN_MIN_USER_ORDER_LIMIT + '~' + ADMIN_MAX_USER_CREDIT + ' 범위로 입력해 주세요.' };
   }
 
   for (var i = 1; i < rows.length; i++) {
@@ -89,7 +96,7 @@ function updateUserCredit(data) {
       sheet.getRange(i + 1, 3).setValue(newCredit);
       clearUserReadCache();
       safeAppendAdminLog('updateUserCredit', 'user', userId, rows[i][1], beforeCredit, newCredit, data.adminMemo);
-      return { success: true, message: '온기를 업데이트했습니다.' };
+      return { success: true, message: '1회 주문 한도를 업데이트했습니다.' };
     }
   }
   return { success: false, message: '이용자를 찾을 수 없습니다.' };
@@ -106,9 +113,10 @@ function addUser(data) {
   if (!nickname) {
     return { success: false, message: '이용자 별명이 필요합니다.' };
   }
-  var initialCredit = Number(data.credit || 0);
-  if (!isFinite(initialCredit) || initialCredit < 0 || initialCredit > ADMIN_MAX_USER_CREDIT) {
-    return { success: false, message: '이용자 온기는 0~' + ADMIN_MAX_USER_CREDIT + ' 범위로 입력해 주세요.' };
+  var hasInitialCredit = data.credit !== undefined && data.credit !== null && String(data.credit).trim() !== '';
+  var initialCredit = hasInitialCredit ? Number(data.credit) : DEFAULT_USER_ORDER_LIMIT;
+  if (!isValidUserOrderLimit(initialCredit)) {
+    return { success: false, message: '1회 주문 한도는 ' + ADMIN_MIN_USER_ORDER_LIMIT + '~' + ADMIN_MAX_USER_CREDIT + ' 범위로 입력해 주세요.' };
   }
 
   var maxNumber = 0;
@@ -180,8 +188,8 @@ function updateUser(data) {
   if (!nickname) {
     return { success: false, message: '이용자 별명이 필요합니다.' };
   }
-  if (!isFinite(credit) || credit < 0 || credit > ADMIN_MAX_USER_CREDIT) {
-    return { success: false, message: '이용자 온기는 0~' + ADMIN_MAX_USER_CREDIT + ' 범위로 입력해 주세요.' };
+  if (!isValidUserOrderLimit(credit)) {
+    return { success: false, message: '1회 주문 한도는 ' + ADMIN_MIN_USER_ORDER_LIMIT + '~' + ADMIN_MAX_USER_CREDIT + ' 범위로 입력해 주세요.' };
   }
 
   for (var i = 1; i < rows.length; i++) {

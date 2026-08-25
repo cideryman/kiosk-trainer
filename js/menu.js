@@ -174,6 +174,10 @@ function checkUserSession() {
     }
 
     renderCreditUI();
+  } else if (creditBadge) {
+    creditBadge.classList.remove('guest-mode');
+    creditBadge.innerHTML = `1회 주문 한도 <span class="coin-icon">❤️</span><span class="coin-number" id="user-credit">${user.credit ?? 0}</span>`;
+    renderCreditUI();
   }
   renderGuestPreviewNotice();
 }

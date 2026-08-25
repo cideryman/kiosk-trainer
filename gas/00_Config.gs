@@ -26,8 +26,10 @@ const GUEST_ORDER_COMPLETION_GRACE_MINUTES = 5;
 
 // 관리자 화면에서 조정할 수 있는 운영 수량 상한
 const ADMIN_MAX_USER_CREDIT = 15;
+const ADMIN_MIN_USER_ORDER_LIMIT = 1;
+const DEFAULT_USER_ORDER_LIMIT = 10;
 const ADMIN_MAX_SNACK_STOCK = 30;
-const API_CONTRACT_VERSION = '2026-08-25.1';
+const API_CONTRACT_VERSION = '2026-08-25.2';
 
 // 관리자 토큰이 필요한 조회·변경 API 목록입니다.
 const ADMIN_ACTIONS = [

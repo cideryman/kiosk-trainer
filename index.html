@@ -166,12 +166,13 @@
           `;
         }
 
-        // 내부에 아바타, 이름, 온기 표기 (❤️ 아이콘 + 숫자 형태)
+        // 일반 키오스크에서는 이용자별 1회 주문 한도를 표시한다.
         const safeCreditNum = AppState.escapeHtml(String(user.credit ?? 0));
         card.innerHTML = `
           ${avatarHTML}
           <div class="user-card-name">${safeNickname}</div>
-          <div class="user-card-credit" aria-label="보유 온기 ${safeCreditNum}개">
+          <div class="user-card-credit" aria-label="1회 주문 한도 ${safeCreditNum}개">
+            <span>1회 한도</span>
             <span class="coin-icon">❤️</span>
             <span class="coin-number">${safeCreditNum}</span>
           </div>

@@ -1,6 +1,6 @@
 // Google Apps Script API 설정
 const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ9_UPux8bq0xROvNK9E1NCBam0Qe/exec";
-const API_CONTRACT_VERSION = '2026-08-25.1';
+const API_CONTRACT_VERSION = '2026-08-25.2';
 
 function resolveApiUrl() {
   try {
@@ -28,6 +28,8 @@ const GUEST_ORDER_COMPLETION_GRACE_MINUTES = 5;
 const MOCK_GUEST_WEEKLY_SCHEDULE_WEEKDAY = 3;
 const MOCK_GUEST_WEEKLY_SCHEDULE_OFFSET_MINUTES = 9 * 60;
 const ADMIN_MAX_USER_CREDIT = 15;
+const ADMIN_MIN_USER_ORDER_LIMIT = 1;
+const DEFAULT_USER_ORDER_LIMIT = 10;
 const ADMIN_MAX_SNACK_STOCK = 30;
 const MOCK_GUEST_APPLICATION_DEFAULT_CAPACITY = 5;
 const MOCK_GUEST_APPLICATION_MAX_CAPACITY = 100;
@@ -1470,12 +1472,21 @@ function getMockFallback(action, options) {
       const firstRow = idempotentRows[0];
       const replayTotal = Number(firstRow.totalCredit || idempotentRows.reduce((sum, row) => sum + Number(row.point || 0), 0));
       const selectedUser = JSON.parse(localStorage.getItem('selectedUser') || 'null');
+      const storedUser = !isGuest
+        ? MOCK_DATA.getUsers.users.find(user => String(user.userId) === String(userId))
+        : null;
+      const replayBeforeCredit = isGuest
+        ? (selectedUser ? Number(selectedUser.credit || 0) + replayTotal : undefined)
+        : Number(storedUser?.credit || selectedUser?.credit || 0);
       return {
         ...JSON.parse(JSON.stringify(MOCK_DATA.placeOrder)),
         orderNo: firstRow.orderNo || '',
         orderToken: firstRow.orderToken || '',
         totalPoint: replayTotal,
-        afterCredit: selectedUser ? Number(selectedUser.credit || 0) : undefined,
+        beforeCredit: replayBeforeCredit,
+        afterCredit: replayBeforeCredit === undefined
+          ? undefined
+          : Math.max(0, replayBeforeCredit - replayTotal),
         idempotencyKey,
         idempotentReplay: true
       };
@@ -1582,6 +1593,17 @@ function getMockFallback(action, options) {
       if (!guestCreditUpdate.success) {
         return guestCreditUpdate;
       }
+    } else {
+      const storedUser = MOCK_DATA.getUsers.users.find(user => String(user.userId) === String(userId));
+      const orderLimit = Number(storedUser?.credit || 0);
+      if (orderLimit < totalCost) {
+        return {
+          success: false,
+          message: '1회 주문 한도를 넘었습니다.',
+          currentCredit: orderLimit,
+          totalPoint: totalCost,
+        };
+      }
     }
 
     const newOrders = normalizedItems.map(item => {
@@ -1622,22 +1644,11 @@ function getMockFallback(action, options) {
       localStorage.setItem('mockGuestProfiles', JSON.stringify(profiles));
     }
 
-    // 주문에 따른 사용자 크레딧 차감 시뮬레이션
+    // 배달왔삼 온기만 영구 차감한다. 일반 키오스크 값은 1회 주문 한도다.
     const selectedUser = JSON.parse(localStorage.getItem('selectedUser'));
-    if (selectedUser) {
-      selectedUser.credit = isGuest && guestCreditUpdate
-        ? guestCreditUpdate.remainingCredit
-        : Math.max(0, selectedUser.credit - totalCost);
+    if (selectedUser && isGuest && guestCreditUpdate) {
+      selectedUser.credit = guestCreditUpdate.remainingCredit;
       localStorage.setItem('selectedUser', JSON.stringify(selectedUser));
-
-      if (!isGuest) {
-        // 실제 유저인 경우 Mock DB(메모리) 상에서도 차감 반영
-        const users = MOCK_DATA.getUsers.users;
-        const u = users.find(u => u.userId === userId);
-        if (u) {
-          u.credit = Math.max(0, u.credit - totalCost);
-        }
-      }
     }
 
     res = JSON.parse(JSON.stringify(MOCK_DATA.placeOrder));
@@ -1649,6 +1660,11 @@ function getMockFallback(action, options) {
       res.beforeCredit = guestCreditUpdate.remainingCredit + totalCost;
       res.afterCredit = guestCreditUpdate.remainingCredit;
       res.bonusCredit = guestCreditUpdate.bonusCredit || 0;
+    } else {
+      const storedUser = MOCK_DATA.getUsers.users.find(user => String(user.userId) === String(userId));
+      const orderLimit = Number(storedUser?.credit || 0);
+      res.beforeCredit = orderLimit;
+      res.afterCredit = Math.max(0, orderLimit - totalCost);
     }
   } else if (action === 'updateOrderServed') {
     const orderId = options.body?.orderId;
@@ -1684,8 +1700,8 @@ function getMockFallback(action, options) {
   } else if (action === 'updateUserCredit') {
     const userId = options.body?.userId;
     const credit = Number(options.body?.credit || 0);
-    if (!Number.isFinite(credit) || credit < 0 || credit > ADMIN_MAX_USER_CREDIT) {
-      res = { success: false, message: `이용자 온기는 0~${ADMIN_MAX_USER_CREDIT} 범위로 입력해 주세요.` };
+    if (!Number.isInteger(credit) || credit < ADMIN_MIN_USER_ORDER_LIMIT || credit > ADMIN_MAX_USER_CREDIT) {
+      res = { success: false, message: `1회 주문 한도는 ${ADMIN_MIN_USER_ORDER_LIMIT}~${ADMIN_MAX_USER_CREDIT} 범위로 입력해 주세요.` };
     } else {
     const users = MOCK_DATA.getUsers.users;
     const user = users.find(u => String(u.userId) === String(userId));
@@ -1700,16 +1716,19 @@ function getMockFallback(action, options) {
     }
     res = {
       success: true,
-      message: "온기를 업데이트했습니다."
+      message: "1회 주문 한도를 업데이트했습니다."
     };
     }
   } else if (action === 'addUser') {
     const nickname = options.body?.nickname || "새 이용자";
-    const credit = Number(options.body?.credit || 0);
+    const rawCredit = options.body?.credit;
+    const credit = rawCredit === undefined || rawCredit === null || String(rawCredit).trim() === ''
+      ? DEFAULT_USER_ORDER_LIMIT
+      : Number(rawCredit);
     const imageUrl = options.body?.imageUrl || "";
     const useYn = options.body?.useYn || "Y";
-    if (!Number.isFinite(credit) || credit < 0 || credit > ADMIN_MAX_USER_CREDIT) {
-      res = { success: false, message: `이용자 온기는 0~${ADMIN_MAX_USER_CREDIT} 범위로 입력해 주세요.` };
+    if (!Number.isInteger(credit) || credit < ADMIN_MIN_USER_ORDER_LIMIT || credit > ADMIN_MAX_USER_CREDIT) {
+      res = { success: false, message: `1회 주문 한도는 ${ADMIN_MIN_USER_ORDER_LIMIT}~${ADMIN_MAX_USER_CREDIT} 범위로 입력해 주세요.` };
     } else {
     const users = MOCK_DATA.getUsers.users;
     const maxId = users.reduce((max, u) => {
@@ -1859,8 +1878,8 @@ function getMockFallback(action, options) {
     const useYn = options.body?.useYn || 'Y';
     const users = MOCK_DATA.getUsers.users;
     const user = users.find(u => String(u.userId) === String(userId));
-    if (!Number.isFinite(credit) || credit < 0 || credit > ADMIN_MAX_USER_CREDIT) {
-      res = { success: false, message: `이용자 온기는 0~${ADMIN_MAX_USER_CREDIT} 범위로 입력해 주세요.` };
+    if (!Number.isInteger(credit) || credit < ADMIN_MIN_USER_ORDER_LIMIT || credit > ADMIN_MAX_USER_CREDIT) {
+      res = { success: false, message: `1회 주문 한도는 ${ADMIN_MIN_USER_ORDER_LIMIT}~${ADMIN_MAX_USER_CREDIT} 범위로 입력해 주세요.` };
     } else if (user) {
       appendMockAdminLog('updateUser', 'user', userId, nickname,
         JSON.stringify({ nickname: user.nickname, credit: user.credit, imageUrl: user.imageUrl, useYn: user.useYn }),
@@ -1895,19 +1914,7 @@ function getMockFallback(action, options) {
         };
       }
 
-      // 1. User refund
-      const users = MOCK_DATA.getUsers.users;
-      const user = users.find(u => u.nickname === item.nickname);
-      if (user) {
-        user.credit = (user.credit || 0) + (item.point || 0);
-      }
-      
-      // Update selectedUser if currently active in session
-      const selectedUser = JSON.parse(localStorage.getItem('selectedUser'));
-      if (selectedUser && selectedUser.nickname === item.nickname) {
-        selectedUser.credit = (selectedUser.credit || 0) + (item.point || 0);
-        localStorage.setItem('selectedUser', JSON.stringify(selectedUser));
-      }
+      // 일반 키오스크 한도는 차감되지 않는다. 게스트 환불은 지갑에서 한 번 처리한다.
 
       // 2. Snack stock restore
       const snacks = MOCK_DATA.getSnacks.snacks;

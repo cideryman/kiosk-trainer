@@ -182,6 +182,7 @@ function shouldClearOrderIdempotencyKeyOnFailure(message) {
     '크레딧',
     '포인트',
     '잔액',
+    '한도',
     '마감',
     '운영 시간이 종료',
     '찾을 수 없습니다',
@@ -213,6 +214,15 @@ function renderGuestPreviewNotice() {
 
 function applyOrderFlowPresentation(isGuest) {
   document.body.dataset.orderFlow = isGuest ? 'guest' : 'kiosk';
+
+  const availableCreditLabel = document.getElementById('available-credit-label');
+  const remainingCreditLabel = document.getElementById('remaining-credit-label');
+  if (availableCreditLabel) {
+    availableCreditLabel.textContent = isGuest ? '보유 온기' : '1회 주문 한도';
+  }
+  if (remainingCreditLabel) {
+    remainingCreditLabel.textContent = isGuest ? '주문 후 잔액' : '이번 주문에서 남음';
+  }
 
   const guestWarmthCard = document.getElementById('guest-warmth-card');
   if (guestWarmthCard) {
@@ -289,8 +299,10 @@ function updateBill() {
   if (remainPoints < 0) {
     remainDisplayEl.className = 'bill-coin-display deficit';
     submitBtn.disabled = true;
-    submitBtn.textContent = '온기 부족 🥺';
-    errorBox.textContent = '⚠️ 보유한 온기보다 주문 금액이 많아 주문할 수 없습니다.';
+    submitBtn.textContent = isGuest ? '온기 부족 🥺' : '주문 한도 초과';
+    errorBox.textContent = isGuest
+      ? '⚠️ 보유한 온기보다 주문 금액이 많아 주문할 수 없습니다.'
+      : '⚠️ 1회 주문 한도보다 선택한 상품 금액이 많아요.';
     errorBox.style.display = 'block';
   } else {
     remainDisplayEl.className = 'bill-coin-display';
@@ -553,11 +565,6 @@ function initData() {
   document.getElementById('my-credit-num').textContent = user.credit ?? 0;
 
   if (isGuest) {
-    const firstRowSpan = document.querySelector('.bill-row span');
-    if (firstRowSpan) {
-      firstRowSpan.textContent = '보유 온기';
-    }
-
     // 게스트일 경우 수령방식 박스 노출 및 바인딩
     const deliverySelectBox = document.getElementById('delivery-select-box');
     if (deliverySelectBox) {
@@ -757,8 +764,10 @@ async function submitOrder() {
         });
         responseRemainPoints = Math.max(0, user.credit - totalPoints);
       }
-      user.credit = responseRemainPoints;
-      AppState.setSelectedUser(user);
+      if (isGuest) {
+        user.credit = responseRemainPoints;
+        AppState.setSelectedUser(user);
+      }
       if (isGuest && !(user.authProvider === 'kakao' && user.guestKey)) {
         AppState.setLocalGuestDisplayName(user.nickname);
       }
@@ -823,8 +832,10 @@ async function submitOrder() {
     const errStr = String(error.message || '');
 
     if (errStr.includes('재고'))               displayMessage = '간식의 남은 수량이 부족해서 주문할 수 없어요!';
+    else if (errStr.includes('한도'))
+      displayMessage = '1회 주문 한도를 넘어서 주문할 수 없어요!';
     else if (errStr.includes('크레딧') || errStr.includes('포인트') || errStr.includes('잔액') || errStr.includes('온기'))
-      displayMessage = '보낼 온기가 부족해서 주문할 수 없어요!';
+      displayMessage = isGuest ? '보낼 온기가 부족해서 주문할 수 없어요!' : '1회 주문 한도를 넘어서 주문할 수 없어요!';
     else if (errStr)                            displayMessage = errStr;
 
     if (shouldClearOrderIdempotencyKeyOnFailure(displayMessage)) {
