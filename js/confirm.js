@@ -211,6 +211,15 @@ function renderGuestPreviewNotice() {
   mainContent.insertBefore(notice, mainContent.firstElementChild);
 }
 
+function applyOrderFlowPresentation(isGuest) {
+  document.body.dataset.orderFlow = isGuest ? 'guest' : 'kiosk';
+
+  const guestWarmthCard = document.getElementById('guest-warmth-card');
+  if (guestWarmthCard) {
+    guestWarmthCard.hidden = !isGuest;
+  }
+}
+
 async function refreshGuestCreditStatus() {
   if (!user || user.userId !== 'guest') return null;
   if (isGuestPreviewMode()) return null;
@@ -288,7 +297,9 @@ function updateBill() {
     submitBtn.disabled = cart.length === 0;
     submitBtn.textContent = cart.length === 0
       ? '담은 간식 없음'
-      : (isGuestPreviewMode() ? '미리보기 종료' : '온기 한 조각 담아 주문하기 ❤️');
+      : (isGuestPreviewMode()
+          ? '미리보기 종료'
+          : (isGuest ? '온기 한 조각 담아 주문하기 ❤️' : '주문 완료하기'));
     errorBox.style.display = 'none';
   }
 }
@@ -521,6 +532,7 @@ function initData() {
   }
 
   const isGuest = (user.userId === 'guest');
+  applyOrderFlowPresentation(isGuest);
   if (isGuestPreviewMode()) {
     user.previewMode = true;
     AppState.setSelectedUser(user);

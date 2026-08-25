@@ -92,6 +92,8 @@ async function refreshCompleteGuestSettings() {
 
 // 일반 키오스크 모드 UI 구성
 function setupNormalMode() {
+  document.body.dataset.orderFlow = 'kiosk';
+  document.getElementById('page-main-title').textContent = '🎉 주문이 잘 접수되었어요!';
   document.getElementById('normal-complete-view').style.display = 'flex';
   document.getElementById('guest-tracking-view').style.display = 'none';
 
@@ -124,6 +126,7 @@ function setupNormalMode() {
 
 // 게스트 모드 실시간 주문 추적 UI 구성
 function setupGuestMode() {
+  document.body.dataset.orderFlow = 'guest';
   // 제목 변경
   document.getElementById('page-main-title').textContent = '☕ 실시간 간식 조리 현황';
   
