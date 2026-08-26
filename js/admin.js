@@ -1205,7 +1205,7 @@ async function auditGuestApplicationRetention() {
 
 async function anonymizeGuestApplications() {
   const confirmText = '신청정보정리';
-  if (!confirm('만료된 신청의 이름·연락처·장소·메모를 되돌릴 수 없게 익명화할까요?')) return;
+  if (!confirm('만료된 신청의 이름·연락처·장소·메모를 익명화할까요?\n작업 중 임시 백업을 만들고 결과를 검증하며, 성공하면 개인정보가 든 임시 백업을 즉시 삭제합니다.')) return;
   const res = await runAdminMutation({
     key: 'anonymize-applications',
     fingerprint: confirmText,

@@ -89,9 +89,12 @@ function reindexWaitlistPositions(table) {
   for (var i = 0; i < table.rows.length; i++) {
     var row = table.rows[i];
     var status = String(row[table.map.status] || '').trim();
-    if (status === GUEST_APPLICATION_STATUS.WAITLIST) {
+    var anonymized = table.map.anonymizedAt !== undefined && Boolean(row[table.map.anonymizedAt]);
+    if (status === GUEST_APPLICATION_STATUS.WAITLIST && !anonymized) {
       position++;
       row[table.map.waitlistPosition] = position;
+    } else if (table.map.waitlistPosition !== undefined) {
+      row[table.map.waitlistPosition] = '';
     }
   }
 }
@@ -773,6 +776,7 @@ function updateGuestApplication(data) {
   try {
     const sheet = ensureGuestApplicationSheet();
     const table = getGuestApplicationRows(sheet);
+    const beforeRows = cloneSheetRows_(table.rows);
     const found = findGuestApplicationById(table, applicationId);
     if (!found) return { success: false, message: '신청 정보를 찾을 수 없습니다.' };
     if (found.object.anonymizedAt) return { success: false, message: '이미 익명화된 신청은 변경할 수 없습니다.' };
@@ -815,46 +819,17 @@ function updateGuestApplication(data) {
     var headers = table.headers;
     var map = table.map;
     // 메모리 상의 row에 변경 사항 반영
+    var serializedApplication = guestApplicationObjectToRow(application, headers);
     GUEST_APPLICATION_HEADERS.forEach(function(header) {
       var idx = map[header];
       if (idx === undefined) return;
-      var val = application[header];
-      if (val instanceof Date) {
-        row[idx] = val;
-      } else if (val === '' || val === undefined || val === null) {
-        row[idx] = '';
-      } else {
-        row[idx] = val;
-      }
+      row[idx] = serializedApplication[idx];
     });
 
     // 대기 순번 재계산 (공통 함수)
     reindexWaitlistPositions(table);
 
-    // 변경된 행 배치 업데이트 (변경이 일어난 모든 행)
-    var changedRows = [];
-    var firstChangedIndex = -1;
-    for (var i = 0; i < table.rows.length; i++) {
-      var r = table.rows[i];
-      // status 또는 waitlistPosition이 변경된 행 찾기
-      if (String(r[map.updatedAt] || '') === String(now) || (found.rowIndex === i)) {
-        changedRows.push(r);
-        if (firstChangedIndex === -1) firstChangedIndex = i;
-      }
-    }
-
-    if (changedRows.length > 0 && firstChangedIndex >= 0) {
-      var batchedValues = changedRows.map(function(r) {
-        return guestApplicationObjectToRow(guestApplicationRowToObject(r, map), headers);
-      });
-      sheet.getRange(firstChangedIndex + 2, 1, batchedValues.length, headers.length)
-        .setValues(batchedValues);
-    } else {
-      // 단일 행만 변경된 경우
-      const rowNumber = found.rowIndex + 2;
-      sheet.getRange(rowNumber, 1, 1, table.headers.length)
-        .setValues([guestApplicationObjectToRow(application, table.headers)]);
-    }
+    writeChangedSheetRows_(sheet, beforeRows, table.rows, 2, headers.length);
 
     clearGuestApplicationSettingsCache();
     safeAppendAdminLog(
@@ -965,6 +940,7 @@ function skipGuestApplicationWeek(data) {
   try {
     var sheet = ensureGuestApplicationSheet();
     var table = getGuestApplicationRows(sheet);
+    var beforeRows = cloneSheetRows_(table.rows);
     var found = findGuestApplicationById(table, applicationId);
     if (!found) return { success: false, message: '신청 정보를 찾을 수 없습니다.' };
     if (found.object.anonymizedAt) return { success: false, message: '이미 익명화된 신청은 변경할 수 없습니다.' };
@@ -1006,21 +982,7 @@ function skipGuestApplicationWeek(data) {
     // 대기 순번 재계산
     reindexWaitlistPositions(table);
 
-    // 모든 변경 행 수집 후 배치 업데이트
-    var changedRows = [];
-    for (var j = 0; j < table.rows.length; j++) {
-      if (String(table.rows[j][map.updatedAt] || '') === String(now)) {
-        changedRows.push(table.rows[j]);
-      }
-    }
-    var firstIndex = table.rows.indexOf(changedRows[0]);
-    if (changedRows.length > 0 && firstIndex >= 0) {
-      var batchedValues = changedRows.map(function(r) {
-        return guestApplicationObjectToRow(guestApplicationRowToObject(r, map), table.headers);
-      });
-      sheet.getRange(firstIndex + 2, 1, batchedValues.length, table.headers.length)
-        .setValues(batchedValues);
-    }
+    writeChangedSheetRows_(sheet, beforeRows, table.rows, 2, table.headers.length);
 
     clearGuestApplicationSettingsCache();
     safeAppendAdminLog(
@@ -1069,6 +1031,7 @@ function rotateGuestApplicationWeekly() {
   try {
     var sheet = ensureGuestApplicationSheet();
     var table = getGuestApplicationRows(sheet);
+    var beforeRows = cloneSheetRows_(table.rows);
     var settings = readGuestApplicationSettings();
     var applications = getGuestApplicationObjects(table);
     var now = new Date();
@@ -1147,23 +1110,8 @@ function rotateGuestApplicationWeekly() {
     // 4. 대기 순번 재계산
     reindexWaitlistPositions(table);
 
-    // 5. 시트 업데이트 (배치 — setValues 1회)
-    var changedRows = [];
-    var firstIndex = -1;
-    for (var u = 0; u < table.rows.length; u++) {
-      if (String(table.rows[u][map.updatedAt] || '') === String(now)) {
-        changedRows.push(table.rows[u]);
-        if (firstIndex === -1) firstIndex = u;
-      }
-    }
-
-    if (changedRows.length > 0 && firstIndex >= 0) {
-      var batchedValues = changedRows.map(function(r) {
-        return guestApplicationObjectToRow(guestApplicationRowToObject(r, map), table.headers);
-      });
-      sheet.getRange(firstIndex + 2, 1, batchedValues.length, table.headers.length)
-        .setValues(batchedValues);
-    }
+    // 5. 실제로 변경된 행 구간만 정확한 물리 행에 저장한다.
+    writeChangedSheetRows_(sheet, beforeRows, table.rows, 2, table.headers.length);
 
     clearGuestApplicationSettingsCache();
 
@@ -1344,18 +1292,35 @@ function anonymizeExpiredGuestApplications(data) {
 
   const lock = LockService.getScriptLock();
   lock.waitLock(15000);
+  var spreadsheet = null;
+  var sheet = null;
+  var backup = null;
   try {
-    const sheet = ensureGuestApplicationSheet();
+    spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    sheet = ensureGuestApplicationSheet();
     const table = getGuestApplicationRows(sheet);
     const now = new Date();
     const expired = collectExpiredGuestApplications(table, now);
+    if (expired.length === 0) {
+      const emptyResult = {
+        success: true,
+        count: 0,
+        verified: true,
+        rolledBack: false,
+        recoveryRequired: false,
+        cleanupRequired: false,
+        backupSheetName: '',
+        message: '익명화할 만료 신청 정보가 없습니다.',
+      };
+      cacheGuestApplicationMutationResult('anonymize', requestId, emptyResult);
+      return emptyResult;
+    }
+
+    const beforeRows = cloneSheetRows_(table.rows);
     const clearFields = [
       'requestId', 'name', 'relationType', 'relationDetail', 'phone',
       'deliveryPlace', 'deliveryDetail', 'preferredDays', 'message', 'adminMemo'
     ];
-
-    var changedRows = [];
-    var firstIndex = -1;
 
     expired.forEach(item => {
       clearFields.forEach(field => { item.object[field] = ''; });
@@ -1367,27 +1332,25 @@ function anonymizeExpiredGuestApplications(data) {
 
       var row = table.rows[item.rowIndex];
       var map = table.map;
+      var serialized = guestApplicationObjectToRow(item.object, table.headers);
       GUEST_APPLICATION_HEADERS.forEach(function(header) {
         var idx = map[header];
         if (idx === undefined) return;
-        var val = item.object[header];
-        row[idx] = val instanceof Date ? val : (val || '');
+        row[idx] = serialized[idx];
       });
-
-      changedRows.push(item);
-      if (firstIndex === -1 || item.rowIndex < firstIndex) firstIndex = item.rowIndex;
     });
 
-    if (changedRows.length > 0 && firstIndex >= 0) {
-      var batchedValues = changedRows.map(function(item) {
-        return guestApplicationObjectToRow(item.object, table.headers);
-      });
-      sheet.getRange(firstIndex + 2, 1, batchedValues.length, table.headers.length)
-        .setValues(batchedValues);
+    reindexWaitlistPositions(table);
+
+    backup = createUniqueSheetBackup_(spreadsheet, sheet, SHEET.GUEST_APPLICATIONS + '_임시백업');
+    writeChangedSheetRows_(sheet, beforeRows, table.rows, 2, table.headers.length);
+
+    var expectedValues = [table.headers].concat(table.rows);
+    if (!verifyExactSheetValues_(sheet, expectedValues)) {
+      throw new Error('익명화 저장 후 데이터 검증에 실패했습니다.');
     }
 
-    // 대기 순번 재계산
-    reindexWaitlistPositions(table);
+    var cleanupRequired = !deleteSheetQuietly_(spreadsheet, backup.sheet);
 
     safeAppendAdminLog(
       'anonymizeExpiredGuestApplications',
@@ -1401,10 +1364,57 @@ function anonymizeExpiredGuestApplications(data) {
     const result = {
       success: true,
       count: expired.length,
-      message: expired.length + '건의 만료 개인정보를 익명화했습니다.',
+      verified: true,
+      rolledBack: false,
+      recoveryRequired: false,
+      cleanupRequired: cleanupRequired,
+      backupSheetName: cleanupRequired ? backup.name : '',
+      message: cleanupRequired
+        ? expired.length + '건을 익명화했지만 임시 백업 삭제에 실패했습니다. 개인정보 보호를 위해 ' + backup.name + ' 시트를 직접 삭제해 주세요.'
+        : expired.length + '건의 만료 개인정보를 익명화하고 결과를 검증했습니다.',
     };
     cacheGuestApplicationMutationResult('anonymize', requestId, result);
     return result;
+  } catch (error) {
+    var rolledBack = false;
+    var recoveryRequired = false;
+    var cleanupRequired = false;
+    var backupSheetName = backup ? backup.name : '';
+
+    if (backup && sheet) {
+      try {
+        restoreSheetFromBackup_(sheet, backup.sheet);
+        rolledBack = true;
+        cleanupRequired = !deleteSheetQuietly_(spreadsheet, backup.sheet);
+        if (!cleanupRequired) backupSheetName = '';
+      } catch (restoreError) {
+        recoveryRequired = true;
+      }
+    }
+
+    safeAppendAdminLog(
+      'anonymizeExpiredGuestApplications',
+      'guestApplication',
+      'expired',
+      '만료 신청정보 정리 실패',
+      '',
+      rolledBack ? '자동 복구 완료' : '자동 복구 필요',
+      ''
+    );
+    return {
+      success: false,
+      count: 0,
+      verified: false,
+      rolledBack: rolledBack,
+      recoveryRequired: recoveryRequired,
+      cleanupRequired: cleanupRequired,
+      backupSheetName: backupSheetName,
+      message: recoveryRequired
+        ? '익명화 중 오류가 발생했고 자동 복구에도 실패했습니다. ' + backupSheetName + ' 시트를 보존하고 관리자에게 알려 주세요.'
+        : (rolledBack
+          ? '익명화 중 오류가 발생해 원래 데이터로 자동 복구했습니다.' + (cleanupRequired ? ' 남은 임시 백업 ' + backupSheetName + ' 시트를 삭제해 주세요.' : '')
+          : '익명화를 시작하지 못했습니다: ' + error.message),
+    };
   } finally {
     lock.releaseLock();
   }

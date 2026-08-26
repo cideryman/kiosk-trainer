@@ -718,7 +718,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
       if (res && res.success) {
         AppState.vibrate([100, 50, 100]);
-        alert('주문이 정상적으로 취소되었습니다.');
+        alert(res.message || '주문이 정상적으로 취소되었습니다.');
         
         // 로컬 스토리지 guestOrders 업데이트 (게스트 모드일 경우)
         if (isGuestMode) {

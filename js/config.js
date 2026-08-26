@@ -1,6 +1,17 @@
 // Google Apps Script API 설정
 const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ9_UPux8bq0xROvNK9E1NCBam0Qe/exec";
-const API_CONTRACT_VERSION = '2026-08-25.2';
+const API_CONTRACT_VERSION = '2026-08-26.2';
+
+function createMockOrderToken() {
+  try {
+    if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
+      return `O-${globalThis.crypto.randomUUID().replace(/-/g, '')}`;
+    }
+  } catch (_) {}
+  let token = '';
+  for (let i = 0; i < 32; i++) token += Math.floor(Math.random() * 16).toString(16);
+  return `O-${token}`;
+}
 
 function resolveApiUrl() {
   try {
@@ -1124,7 +1135,16 @@ function getMockFallback(action, options) {
     res = { success: true, count: 0, applications: [], message: '익명화할 만료 신청 정보가 없습니다.' };
   } else if (action === 'anonymizeExpiredGuestApplications') {
     res = options.body?.confirmText === '신청정보정리'
-      ? { success: true, count: 0, message: '0건의 만료 개인정보를 익명화했습니다.' }
+      ? {
+          success: true,
+          count: 0,
+          verified: true,
+          rolledBack: false,
+          recoveryRequired: false,
+          cleanupRequired: false,
+          backupSheetName: '',
+          message: '익명화할 만료 신청 정보가 없습니다.'
+        }
       : { success: false, message: '확인 문구 신청정보정리를 정확히 입력해 주세요.' };
   } else if (action === 'getGuestSettings') {
     const settings = getMockGuestSettings();
@@ -1555,11 +1575,7 @@ function getMockFallback(action, options) {
     });
     const seq = maxSeq + 1;
     const generatedOrderNo = `ORD-${todayStr}-${String(seq).padStart(3, '0')}`;
-    let orderToken = '';
-    if (isGuest) {
-      const randVal = Math.floor(1000 + Math.random() * 9000);
-      orderToken = `G-${generatedOrderNo}-${randVal}`;
-    }
+    const orderToken = createMockOrderToken();
 
     const deliveryType = options.body?.deliveryType || 'pickup';
     const deliveryPlace = (deliveryType === 'delivery') ? String(options.body?.deliveryPlace || '').trim() : '';
@@ -1614,6 +1630,7 @@ function getMockFallback(action, options) {
         orderToken: orderToken,
         userId: userId,
         nickname: nickname,
+        snackId: item.snackId,
         snackName: snack.name,
         quantity: item.quantity,
         point: snack.point * item.quantity,
@@ -1667,36 +1684,32 @@ function getMockFallback(action, options) {
       res.afterCredit = Math.max(0, orderLimit - totalCost);
     }
   } else if (action === 'updateOrderServed') {
-    const orderId = options.body?.orderId;
-    const servedYn = options.body?.servedYn || 'N';
-    
-    // 1) mockOrders에서 업데이트
+    const orderId = String(options.body?.orderId || '').trim();
+    const servedYn = String(options.body?.servedYn || 'N').trim().toUpperCase();
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
-    let updated = false;
-    const updatedLocalOrders = localOrders.map(o => {
-      if (o.orderNo === orderId) {
-        updated = true;
-        appendMockAdminLog('updateOrderServed', 'order', orderId, o.nickname, o.servedYn || 'N', servedYn, options.body?.adminMemo);
-        return { ...o, servedYn: servedYn };
-      }
-      return o;
-    });
-    if (updated) {
-      localStorage.setItem('mockOrders', JSON.stringify(updatedLocalOrders));
+    const matched = [...localOrders, ...MOCK_DATA.getOrdersToday.orders]
+      .filter(order => String(order.orderNo || '') === orderId);
+    if (!orderId || !['N', 'P', 'R', 'Y'].includes(servedYn)) {
+      res = { success: false, verified: false, message: '주문번호 또는 제공 상태 값이 올바르지 않습니다.' };
+    } else if (matched.length === 0) {
+      res = { success: false, verified: false, message: '해당 주문 기록을 찾을 수 없습니다.' };
+    } else if (matched.some(order => String(order.servedYn || 'N').toUpperCase() === 'C')) {
+      res = { success: false, verified: false, message: '취소된 품목이 포함된 주문은 제공 상태를 변경할 수 없습니다.' };
+    } else {
+      const beforeStatuses = matched.map(order => order.servedYn || 'N');
+      matched.forEach(order => { order.servedYn = servedYn; });
+      localStorage.setItem('mockOrders', JSON.stringify(localOrders));
+      appendMockAdminLog('updateOrderServed', 'order', orderId, matched[0].nickname, beforeStatuses.join(','), servedYn, options.body?.adminMemo);
+      res = {
+        success: true,
+        verified: true,
+        rolledBack: false,
+        recoveryRequired: false,
+        cleanupRequired: false,
+        backupSheetNames: [],
+        message: `주문번호 ${orderId}의 모든 품목을 '${servedYn}' 상태로 업데이트했습니다. (총 ${matched.length}건)`
+      };
     }
-    
-    // 2) MOCK_DATA.getOrdersToday.orders에서도 임시로 업데이트
-    const mockOrder = MOCK_DATA.getOrdersToday.orders.find(o => o.orderNo === orderId);
-    if (mockOrder) {
-      appendMockAdminLog('updateOrderServed', 'order', orderId, mockOrder.nickname, mockOrder.servedYn || 'N', servedYn, options.body?.adminMemo);
-      mockOrder.servedYn = servedYn;
-      updated = true;
-    }
-    
-    res = {
-      success: true,
-      message: `주문번호 ${orderId}의 제공 상태를 '${servedYn}'으로 업데이트했습니다.`
-    };
   } else if (action === 'updateUserCredit') {
     const userId = options.body?.userId;
     const credit = Number(options.body?.credit || 0);
@@ -1897,78 +1910,145 @@ function getMockFallback(action, options) {
       message: "이용자 정보를 수정했습니다."
     };
   } else if (action === 'cancelOrder' || action === 'userCancelOrder') {
-    const orderId = options.body?.orderId;
-    let updated = false;
-    let refundLogs = [];
-    let guestCreditRefund = null;
-
-    // Helper function to process refund and stock restore
-    const processItemRefund = (item) => {
-      if (item.userId === 'guest' && !guestCreditRefund) {
-        guestCreditRefund = {
-          orderTime: item.timestamp,
-          guestDeviceId: item.guestDeviceId || '',
-          authProvider: item.authProvider || '',
-          guestKey: item.guestKey || '',
-          refundCredit: Number(item.totalCredit || item.point || 0)
-        };
-      }
-
-      // 일반 키오스크 한도는 차감되지 않는다. 게스트 환불은 지갑에서 한 번 처리한다.
-
-      // 2. Snack stock restore
-      const snacks = MOCK_DATA.getSnacks.snacks;
-      const snack = snacks.find(s => s.name === item.snackName);
-      if (snack) {
-        snack.stock = (snack.stock || 0) + (item.quantity || 0);
-      }
-
-      refundLogs.push(`${item.snackName} ${item.quantity}개`);
+    const baseResult = {
+      success: false,
+      verified: false,
+      alreadyCancelled: false,
+      refundApplied: false,
+      restoredItemCount: 0,
+      rolledBack: false,
+      recoveryRequired: false,
+      cleanupRequired: false,
+      backupSheetNames: []
     };
+    const orderId = String(options.body?.orderId || '').trim();
+    const requestToken = String(options.body?.orderToken || '').trim();
+    const isUserCancellation = action === 'userCancelOrder';
+    const localOrdersBeforeRaw = localStorage.getItem('mockOrders');
+    const walletBeforeRaw = localStorage.getItem('mockGuestCreditWallets');
+    const localOrders = JSON.parse(localOrdersBeforeRaw || '[]');
+    const fixedOrders = MOCK_DATA.getOrdersToday.orders;
+    const allOrders = [...localOrders, ...fixedOrders];
+    const seed = isUserCancellation
+      ? allOrders.filter(o => String(o.orderNo || '') === orderId || String(o.orderToken || '') === orderId)
+      : allOrders.filter(o => String(o.orderNo || '') === orderId);
 
-    // 1) Update local mockOrders in localStorage
-    const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
-    const updatedLocalOrders = localOrders.map(o => {
-      if ((o.orderNo === orderId || o.orderToken === orderId) && o.servedYn !== 'C') {
-        updated = true;
-        processItemRefund(o);
-        appendMockAdminLog(action, 'order', orderId, o.nickname, o.servedYn || 'N', 'C', options.body?.adminMemo);
-        return { ...o, servedYn: 'C', cancelTimestamp: new Date().toISOString() };
-      }
-      return o;
-    });
-    if (updated) {
-      localStorage.setItem('mockOrders', JSON.stringify(updatedLocalOrders));
-    }
-
-    // 2) Update MOCK_DATA.getOrdersToday in memory
-    MOCK_DATA.getOrdersToday.orders.forEach(o => {
-      if ((o.orderNo === orderId || o.orderToken === orderId) && o.servedYn !== 'C') {
-        updated = true;
-        processItemRefund(o);
-        appendMockAdminLog(action, 'order', orderId, o.nickname, o.servedYn || 'N', 'C', options.body?.adminMemo);
-        o.servedYn = 'C';
-        o.cancelTimestamp = new Date().toISOString();
-      }
-    });
-
-    if (updated) {
-      if (guestCreditRefund && guestCreditRefund.refundCredit > 0) {
-        resolveMockGuestCreditWallet(guestCreditRefund, {
-          periodKey: getMockGuestCreditPeriodKey(guestCreditRefund.orderTime || new Date()),
-          refundCredit: guestCreditRefund.refundCredit,
-          create: true
-        });
-      }
-      res = {
-        success: true,
-        message: `주문번호 ${orderId}의 주문이 취소되었습니다. 환불 내역: ${refundLogs.join(', ')}`
-      };
+    if (!orderId || seed.length === 0) {
+      res = { ...baseResult, message: '해당 주문 기록을 찾을 수 없습니다.' };
     } else {
-      res = {
-        success: false,
-        message: `주문번호 ${orderId}에 해당하는 대기 중이거나 완료된 주문 기록을 찾을 수 없습니다.`
+      const canonicalOrderNo = String(seed[0].orderNo || '');
+      const matched = allOrders.filter(o => String(o.orderNo || '') === canonicalOrderNo);
+      const sameValue = (field, normalizer = value => String(value ?? '').trim()) => {
+        const first = normalizer(matched[0]?.[field]);
+        return matched.every(item => normalizer(item[field]) === first) ? first : null;
       };
+      const userId = sameValue('userId');
+      const storedToken = sameValue('orderToken');
+      const totalCredit = sameValue('totalCredit', value => {
+        if (value === '' || value == null) return NaN;
+        return Number(value);
+      });
+      const statuses = matched.map(o => String(o.servedYn || 'N').trim().toUpperCase());
+      const cancelledCount = statuses.filter(status => status === 'C').length;
+
+      if (!canonicalOrderNo || userId === null || storedToken === null || totalCredit === null || !Number.isFinite(totalCredit) || totalCredit < 0) {
+        res = { ...baseResult, message: '동일 주문의 이용자·토큰·총 온기 구조가 올바르지 않습니다.' };
+      } else if (isUserCancellation && (!storedToken || !requestToken || storedToken !== requestToken)) {
+        res = {
+          ...baseResult,
+          message: storedToken
+            ? '주문 확인 정보(토큰)가 일치하지 않거나 누락되었습니다.'
+            : '이 주문은 이용자 취소용 토큰이 없어 관리자만 취소할 수 있습니다.'
+        };
+      } else if (cancelledCount === matched.length) {
+        res = {
+          ...baseResult,
+          success: true,
+          verified: true,
+          alreadyCancelled: true,
+          message: '이미 취소된 주문입니다. 재고와 온기는 다시 변경하지 않았습니다.'
+        };
+      } else if (cancelledCount > 0) {
+        res = { ...baseResult, message: '동일 주문 안에 취소 상태가 섞여 있어 작업을 중단했습니다.' };
+      } else if (isUserCancellation && statuses.some(status => status !== 'N')) {
+        res = { ...baseResult, message: '일부 품목의 준비가 이미 시작되어 주문 전체를 취소할 수 없습니다. 관리자에게 문의해주세요.' };
+      } else {
+        const snacksSnapshot = JSON.parse(JSON.stringify(MOCK_DATA.getSnacks.snacks));
+        const fixedOrdersSnapshot = JSON.parse(JSON.stringify(fixedOrders));
+        const snackRestores = new Map();
+        let restoredItemCount = 0;
+        let validationError = '';
+        matched.forEach(item => {
+          const quantity = Number(item.quantity);
+          const snack = MOCK_DATA.getSnacks.snacks.find(candidate =>
+            (item.snackId != null && String(candidate.snackId) === String(item.snackId))
+              || (!item.snackId && candidate.name === item.snackName)
+          );
+          if (!Number.isInteger(quantity) || quantity <= 0 || !snack || !Number.isFinite(Number(snack.stock)) || Number(snack.stock) < 0) {
+            validationError = '주문 간식·수량·재고 구조가 올바르지 않습니다.';
+            return;
+          }
+          snackRestores.set(snack, (snackRestores.get(snack) || 0) + quantity);
+          restoredItemCount += quantity;
+        });
+
+        if (validationError) {
+          res = { ...baseResult, message: validationError };
+        } else {
+          try {
+            snackRestores.forEach((quantity, snack) => { snack.stock = Number(snack.stock) + quantity; });
+            saveMockSnacks(MOCK_DATA.getSnacks.snacks);
+            let refundApplied = false;
+            if (userId === 'guest' && totalCredit > 0) {
+              const first = matched[0];
+              const refund = resolveMockGuestCreditWallet({
+                orderTime: first.timestamp,
+                guestDeviceId: first.guestDeviceId || '',
+                authProvider: first.authProvider || '',
+                guestKey: first.guestKey || ''
+              }, {
+                periodKey: getMockGuestCreditPeriodKey(first.timestamp || new Date()),
+                refundCredit: totalCredit,
+                create: true
+              });
+              if (!refund?.success) throw new Error(refund?.message || '게스트 온기 환불에 실패했습니다.');
+              refundApplied = true;
+            }
+            const cancelTimestamp = new Date().toISOString();
+            matched.forEach(item => {
+              item.servedYn = 'C';
+              item.cancelTimestamp = cancelTimestamp;
+              item.cancelReason = isUserCancellation ? '이용자 직접 취소' : String(options.body?.cancelReason || '관리자 취소');
+              item.cancelReasonDetail = isUserCancellation ? '' : String(options.body?.cancelReasonDetail || '');
+            });
+            localStorage.setItem('mockOrders', JSON.stringify(localOrders));
+            appendMockAdminLog(action, 'order', canonicalOrderNo, matched[0].nickname, statuses.join(','), 'C', options.body?.adminMemo);
+            res = {
+              ...baseResult,
+              success: true,
+              verified: true,
+              refundApplied,
+              restoredItemCount,
+              message: refundApplied
+                ? `주문이 취소되었습니다. 온기 ${totalCredit}개 환불과 재고 ${restoredItemCount}개 복구를 확인했습니다.`
+                : `주문이 취소되었습니다. 재고 ${restoredItemCount}개 복구를 확인했습니다.`
+            };
+          } catch (error) {
+            MOCK_DATA.getSnacks.snacks = snacksSnapshot;
+            MOCK_DATA.getOrdersToday.orders = fixedOrdersSnapshot;
+            saveMockSnacks(snacksSnapshot);
+            if (localOrdersBeforeRaw == null) localStorage.removeItem('mockOrders');
+            else localStorage.setItem('mockOrders', localOrdersBeforeRaw);
+            if (walletBeforeRaw == null) localStorage.removeItem('mockGuestCreditWallets');
+            else localStorage.setItem('mockGuestCreditWallets', walletBeforeRaw);
+            res = {
+              ...baseResult,
+              rolledBack: true,
+              message: '주문 취소 처리에 실패해 주문·재고·온기를 모두 원래 상태로 복구했습니다.'
+            };
+          }
+        }
+      }
     }
   } else if (action === 'uploadImage') {
     const type = options.body?.type || 'unknown';
@@ -2167,7 +2247,9 @@ function getMockFallback(action, options) {
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
     const mockArchived = includeArchived ? JSON.parse(localStorage.getItem('mockArchivedOrders') || '[]') : [];
     const allMockOrders = [...localOrders, ...mockArchived, ...MOCK_DATA.getOrdersToday.orders];
-    const matchedOrders = allMockOrders.filter(o => o.orderToken && tokens.includes(o.orderToken));
+    const matchedOrders = allMockOrders.filter(o =>
+      String(o.userId || '') === 'guest' && o.orderToken && tokens.includes(o.orderToken)
+    );
     res = {
       success: true,
       orders: matchedOrders.map(o => ({
@@ -2209,6 +2291,48 @@ function getMockFallback(action, options) {
     });
     saveMockSnacks(snacks);
     res = { success: true, message: '표시 순서를 저장했습니다.' };
+  } else if (action === 'auditArchiveOldOrders') {
+    const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
+    const archivedOrders = JSON.parse(localStorage.getItem('mockArchivedOrders') || '[]');
+    const orderKeys = localOrders.map(order => `${order.orderNo || ''}|${order.snackId || ''}`);
+    const archiveKeys = archivedOrders.map(order => `${order.orderNo || ''}|${order.snackId || ''}`);
+    const duplicateKeys = keys => [...new Set(keys.filter(key => key !== '|'))]
+      .filter(key => keys.filter(candidate => candidate === key).length > 1);
+    const orderRowsWithoutKey = orderKeys.filter(key => key.startsWith('|') || key.endsWith('|')).length;
+    const archiveRowsWithoutKey = archiveKeys.filter(key => key.startsWith('|') || key.endsWith('|')).length;
+    const duplicateOrderKeyValues = duplicateKeys(orderKeys);
+    const duplicateArchiveKeyValues = duplicateKeys(archiveKeys);
+    const duplicateOrderKeys = duplicateOrderKeyValues.length;
+    const duplicateArchiveKeys = duplicateArchiveKeyValues.length;
+    const safeToRun = orderRowsWithoutKey === 0 && archiveRowsWithoutKey === 0
+      && duplicateOrderKeys === 0 && duplicateArchiveKeys === 0;
+    res = {
+      success: true,
+      dryRun: true,
+      message: safeToRun ? '보관 전 점검이 완료되었습니다.' : '보관 전 점검에서 안전 문제를 발견했습니다.',
+      summary: {
+        safeToRun,
+        requiredHeadersPresent: true,
+        missingRequiredHeaders: [],
+        orderRows: localOrders.length,
+        archiveRows: archivedOrders.length,
+        orderColumns: 24,
+        archiveColumns: 23,
+        headersEqual: false,
+        headersCompatible: true,
+        missingInArchive: ['commitStatus'],
+        extraInArchive: [],
+        overlapKeys: [...new Set(orderKeys.filter(key => key !== '|' && archiveKeys.includes(key)))].length,
+        duplicateOrderKeys,
+        duplicateArchiveKeys,
+        archiveOnlyKeys: [...new Set(archiveKeys.filter(key => key !== '|' && !orderKeys.includes(key)))].length,
+        orderOnlyKeys: [...new Set(orderKeys.filter(key => key !== '|' && !archiveKeys.includes(key)))].length,
+        orderRowsWithoutKey,
+        archiveRowsWithoutKey,
+        sampleDuplicateOrderKeys: duplicateOrderKeyValues.slice(0, 10),
+        sampleDuplicateKeys: duplicateArchiveKeyValues.slice(0, 10)
+      }
+    };
   } else if (action === 'archiveOldOrders') {
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
     const todayStr = new Date().toISOString().slice(2, 10).replace(/-/g, '');
@@ -2235,7 +2359,21 @@ function getMockFallback(action, options) {
       localStorage.setItem('mockOrders', JSON.stringify(currentOrders));
     }
 
-    res = { success: true, message: `${archivedOrders.length}건의 지난 주문을 성공적으로 보관 처리했습니다.` };
+    res = {
+      success: true,
+      movedCount: archivedOrders.length,
+      archiveCount: JSON.parse(localStorage.getItem('mockArchivedOrders') || '[]').length,
+      verified: true,
+      rolledBack: false,
+      recoveryRequired: false,
+      cleanupRequired: false,
+      orderBackupSheetName: archivedOrders.length ? '주문내역_자동백업_목업' : '',
+      archiveBackupSheetName: archivedOrders.length ? '주문보관_자동백업_목업' : '',
+      archiveCreated: false,
+      message: archivedOrders.length
+        ? `${archivedOrders.length}건의 지난 주문을 보관하고 검증했습니다.`
+        : '보관할 지난 주문이 없습니다.'
+    };
   } else if (action === 'autoFillEmptySnackIds') {
     const snacks = getMockSnacks();
     let hasInvalid = false;

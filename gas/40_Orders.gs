@@ -1,6 +1,10 @@
 /**
  * 7. 주문 접수 및 크레딧/재고 자동 계산 처리
  */
+function createOrderSecurityToken_() {
+  return 'O-' + Utilities.getUuid().replace(/-/g, '');
+}
+
 function placeOrder(data) {
   const userId = data.userId;
   const items = data.items;
@@ -277,11 +281,7 @@ function placeOrder(data) {
     const orderNo = 'ORD-' + todayStr + '-' + String(seq).padStart(3, '0');
     const now = new Date();
 
-    let orderToken = '';
-    if (isGuest) {
-      const randVal = Math.floor(1000 + Math.random() * 9000);
-      orderToken = 'G-' + orderNo + '-' + randVal;
-    }
+    const orderToken = createOrderSecurityToken_();
 
     const orderRows = orderItems.map(item => {
       // 주문내역 마지막 열에 제공 여부 기본값 'N' 명시적 입력
@@ -848,7 +848,7 @@ function getGuestOrderByToken(data) {
     .filter(row => {
       if (!isCommittedOrderRow(row, headers)) return false;
       const rowToken = String(row[tIdx] || '');
-      return rowToken && tokens.includes(rowToken);
+      return String(row[2] || '') === 'guest' && rowToken && tokens.includes(rowToken);
     })
     .map(row => mapRow(row, headers));
 
@@ -865,7 +865,7 @@ function getGuestOrderByToken(data) {
         .filter(row => {
           if (!isCommittedOrderRow(row, archiveHeaders)) return false;
           const rowToken = String(row[useATokenIdx] || '');
-          return rowToken && tokens.includes(rowToken);
+          return String(row[2] || '') === 'guest' && rowToken && tokens.includes(rowToken);
         })
         .map(row => mapRow(row, archiveHeaders));
 
@@ -1005,351 +1005,411 @@ function getGuestOrdersByGuestKey(data) {
 /**
  * 9. 제공 상태 (servedYn) 변경 API (대기목록 <-> 완료목록 토글)
  */
+function getOrderMutationResult_(overrides) {
+  return Object.assign({
+    success: false,
+    verified: false,
+    alreadyCancelled: false,
+    refundApplied: false,
+    restoredItemCount: 0,
+    rolledBack: false,
+    recoveryRequired: false,
+    cleanupRequired: false,
+    backupSheetNames: [],
+  }, overrides || {});
+}
+
+function cleanupOrderMutationBackups_(spreadsheet, backups) {
+  const failedNames = [];
+  (backups || []).forEach(entry => {
+    if (!deleteSheetQuietly_(spreadsheet, entry.backup)) failedNames.push(entry.name);
+  });
+  return failedNames;
+}
+
+function rollbackOrderMutation_(spreadsheet, backups) {
+  const errors = [];
+  (backups || []).slice().reverse().forEach(entry => {
+    try {
+      restoreSheetFromBackup_(entry.target, entry.backup);
+    } catch (error) {
+      errors.push(entry.name + ': ' + error.message);
+    }
+  });
+  if (errors.length > 0) {
+    return {
+      rolledBack: false,
+      recoveryRequired: true,
+      cleanupRequired: true,
+      backupSheetNames: (backups || []).map(entry => entry.name),
+      errors,
+    };
+  }
+  const failedCleanup = cleanupOrderMutationBackups_(spreadsheet, backups);
+  return {
+    rolledBack: true,
+    recoveryRequired: false,
+    cleanupRequired: failedCleanup.length > 0,
+    backupSheetNames: failedCleanup,
+    errors: [],
+  };
+}
+
+function throwStagingOrderMutationFailure_(data, stage) {
+  if (typeof APP_ENV !== 'undefined' && String(APP_ENV).toLowerCase() === 'staging'
+      && data && String(data.__testFailStage || '') === String(stage)) {
+    throw new Error('테스트용 주문 변경 실패: ' + stage);
+  }
+}
+
+function getRequiredOrderIndexes_(headers) {
+  const names = [
+    '주문시간', '주문번호', '이용자ID', '별명', '간식ID', '간식명', '수량',
+    '차감포인트', '제공여부', 'cancelTimestamp', 'orderToken', 'totalCredit',
+    'cancelReason', 'cancelReasonDetail'
+  ];
+  const missing = names.filter(name => headers.indexOf(name) === -1);
+  if (missing.length > 0) {
+    throw new Error('주문내역 필수 헤더가 없습니다: ' + missing.join(', '));
+  }
+  const result = {};
+  names.forEach(name => { result[name] = headers.indexOf(name); });
+  result.guestDeviceId = headers.indexOf('guestDeviceId');
+  result.authProvider = headers.indexOf('authProvider');
+  result.guestKey = headers.indexOf('guestKey');
+  return result;
+}
+
+function validateSameOrderField_(rows, index, label, normalize) {
+  const convert = normalize || (value => String(value == null ? '' : value).trim());
+  const first = convert(rows[0].row[index]);
+  for (let i = 1; i < rows.length; i++) {
+    if (convert(rows[i].row[index]) !== first) {
+      throw new Error('동일 주문의 ' + label + ' 값이 서로 달라 작업을 중단했습니다.');
+    }
+  }
+  return first;
+}
+
 function updateOrderServed(data) {
-  const orderId = data.orderId;
-  const servedYn = data.servedYn || 'Y';
-
-  if (!orderId) {
-    return {
-      success: false,
-      message: '주문번호(orderId)가 누락되었습니다.'
-    };
+  const orderId = String(data && data.orderId || '').trim();
+  const servedYn = String(data && data.servedYn || 'Y').trim().toUpperCase();
+  if (!orderId) return getOrderMutationResult_({ message: '주문번호(orderId)가 누락되었습니다.' });
+  if (['N', 'P', 'R', 'Y'].indexOf(servedYn) === -1) {
+    return getOrderMutationResult_({ message: '제공 상태 값이 올바르지 않습니다.' });
   }
 
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(10000)) {
-    return {
-      success: false,
-      message: '다른 작업을 처리 중입니다. 잠시 후 다시 시도해 주세요.',
-    };
+    return getOrderMutationResult_({ message: '다른 작업을 처리 중입니다. 잠시 후 다시 시도해 주세요.' });
   }
 
+  let ss = null;
+  let backups = [];
+  let mutationStarted = false;
   try {
-    const ss = SpreadsheetApp.getActive();
+    ss = SpreadsheetApp.getActive();
     const orderSheet = ss.getSheetByName(SHEET.ORDERS);
-
-    if (!orderSheet) {
-      return {
-        success: false,
-        message: '주문내역 시트를 찾을 수 없습니다.'
-      };
+    if (!orderSheet) throw new Error('주문내역 시트를 찾을 수 없습니다.');
+    const before = orderSheet.getDataRange().getValues();
+    if (before.length <= 1) throw new Error('해당 주문 기록을 찾을 수 없습니다.');
+    const headers = before[0] || [];
+    const idx = getRequiredOrderIndexes_(headers);
+    const matched = [];
+    for (let i = 1; i < before.length; i++) {
+      if (String(before[i][idx['주문번호']] || '').trim() === orderId) matched.push({ index: i, row: before[i] });
     }
-
-    const lastRow = orderSheet.getLastRow();
-    if (lastRow <= 1) {
-      return {
-        success: false,
-        message: `주문번호 ${orderId}에 해당하는 기록을 찾을 수 없습니다.`
-      };
+    if (matched.length === 0) throw new Error('해당 주문 기록을 찾을 수 없습니다.');
+    validateSameOrderField_(matched, idx['이용자ID'], '이용자');
+    validateSameOrderField_(matched, idx.orderToken, '토큰');
+    const totalCredit = validateSameOrderField_(matched, idx.totalCredit, '총 온기', value => {
+      if (value === '' || value == null) return NaN;
+      return Number(value);
+    });
+    if (!Number.isFinite(totalCredit) || totalCredit < 0) throw new Error('주문의 총 온기 값이 올바르지 않습니다.');
+    if (matched.some(item => isCancelledOrderStatus(item.row[idx['제공여부']]))) {
+      throw new Error('취소된 품목이 포함된 주문은 제공 상태를 변경할 수 없습니다.');
     }
-
-    const values = orderSheet.getRange(2, 2, lastRow - 1, 8).getValues(); // B:I
-    let updatedCount = 0;
-
-    for (let i = 0; i < values.length; i++) {
-      const rowOrderId = String(values[i][0]);
-      if (rowOrderId === String(orderId)) {
-        const beforeServedYn = values[i][7] || 'N';
-        orderSheet.getRange(i + 2, 9).setValue(servedYn); // I열 (9번째) 제공여부 수정
-        updatedCount++;
-        if (updatedCount === 1) {
-          safeAppendAdminLog('updateOrderServed', 'order', orderId, values[i][2], beforeServedYn, servedYn, data.adminMemo);
-        }
-      }
-    }
-
-    if (updatedCount > 0) {
-      clearOrderReadCache();
-      return {
+    const beforeStatuses = matched.map(item => String(item.row[idx['제공여부']] || 'N').trim().toUpperCase());
+    if (beforeStatuses.every(status => status === servedYn)) {
+      return getOrderMutationResult_({
         success: true,
-        message: `주문번호 ${orderId}의 제공 상태를 '${servedYn}'으로 업데이트했습니다. (총 ${updatedCount}건)`
-      };
-    } else {
-      return {
-        success: false,
-        message: `주문번호 ${orderId}에 해당하는 기록을 찾을 수 없습니다.`
-      };
+        verified: true,
+        message: `주문번호 ${orderId}의 모든 품목이 이미 '${servedYn}' 상태입니다.`,
+      });
     }
+
+    const backup = createUniqueSheetBackup_(ss, orderSheet, SHEET.ORDERS + '_상태임시백업');
+    backups.push({ target: orderSheet, backup: backup.sheet, name: backup.name });
+    const after = cloneSheetRows_(before);
+    matched.forEach(item => { after[item.index][idx['제공여부']] = servedYn; });
+    mutationStarted = true;
+    writeChangedSheetRows_(orderSheet, before.slice(1), after.slice(1), 2, headers.length);
+    throwStagingOrderMutationFailure_(data, 'served-write');
+    if (!verifyExactSheetValues_(orderSheet, after)) throw new Error('제공 상태 저장 결과 검증에 실패했습니다.');
+    throwStagingOrderMutationFailure_(data, 'served-verification');
+    const failedCleanup = cleanupOrderMutationBackups_(ss, backups);
+    clearOrderReadCache();
+    safeAppendAdminLog('updateOrderServed', 'order', orderId, matched[0].row[idx['별명']], beforeStatuses.join(','), servedYn, data.adminMemo);
+    return getOrderMutationResult_({
+      success: true,
+      verified: true,
+      cleanupRequired: failedCleanup.length > 0,
+      backupSheetNames: failedCleanup,
+      message: failedCleanup.length > 0
+        ? `제공 상태는 저장·검증됐지만 임시 백업 삭제에 실패했습니다: ${failedCleanup.join(', ')}`
+        : `주문번호 ${orderId}의 모든 품목을 '${servedYn}' 상태로 업데이트했습니다. (총 ${matched.length}건)`,
+    });
+  } catch (error) {
+    if (!ss || backups.length === 0) return getOrderMutationResult_({ message: error.message });
+    if (!mutationStarted) {
+      const failedCleanup = cleanupOrderMutationBackups_(ss, backups);
+      return getOrderMutationResult_({
+        message: error.message,
+        cleanupRequired: failedCleanup.length > 0,
+        backupSheetNames: failedCleanup,
+      });
+    }
+    const rollback = rollbackOrderMutation_(ss, backups);
+    clearOrderReadCache();
+    return getOrderMutationResult_(Object.assign({}, rollback, {
+      message: rollback.recoveryRequired
+        ? `제공 상태 변경 실패(${error.message}) 후 자동 복원도 완료되지 않았습니다. 백업 시트로 수동 복원이 필요합니다: ${rollback.backupSheetNames.join(', ')}`
+        : (rollback.cleanupRequired
+          ? `제공 상태 변경 실패(${error.message})는 원상복구됐지만 임시 백업 삭제가 필요합니다: ${rollback.backupSheetNames.join(', ')}`
+          : `제공 상태 변경에 실패해 모든 품목을 원래 상태로 복구했습니다: ${error.message}`),
+    }));
   } finally {
     lock.releaseLock();
   }
 }
 
-/**
- * 9.5. 주문 취소 및 환불/재고 복구 API
- */
 function cancelOrder(data) {
-  ensureOrderHeaders();
-  const orderId = data.orderId;
-
-  if (!orderId) {
-    return {
-      success: false,
-      message: '주문번호(orderId)가 누락되었습니다.'
-    };
-  }
-
-  const lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) {
-    return {
-      success: false,
-      message: '다른 작업을 처리 중입니다. 잠시 후 다시 시도해 주세요.',
-    };
-  }
-
-  try {
-    const ss = SpreadsheetApp.getActive();
-    const orderSheet = ss.getSheetByName(SHEET.ORDERS);
-    const userSheet = ss.getSheetByName(SHEET.USERS);
-    const snackSheet = ss.getSheetByName(SHEET.SNACKS);
-
-    if (!orderSheet || !userSheet || !snackSheet) {
-      return {
-        success: false,
-        message: '필요한 시트(주문/이용자/간식)를 찾을 수 없습니다.'
-      };
-    }
-
-    const orderRange = orderSheet.getDataRange();
-    const orderValues = orderRange.getValues();
-    const headers = orderValues[0] || [];
-    const userValues = userSheet.getDataRange().getValues();
-    const snackValues = snackSheet.getDataRange().getValues();
-
-    // 시트의 최대 열 수가 부족할 경우 18개(A~R)로 보장
-    if (orderSheet.getMaxColumns() < 18) {
-      orderSheet.insertColumnsAfter(orderSheet.getMaxColumns(), 18 - orderSheet.getMaxColumns());
-    }
-
-    let updatedCount = 0;
-    let refundLogs = [];
-    let guestCreditRefund = null;
-
-    // 1. 주문번호에 해당하는 모든 행을 찾아서 환불 및 재고 복구 진행
-    for (let i = 1; i < orderValues.length; i++) {
-      const rowOrderId = String(orderValues[i][1]);
-      const servedYn = orderValues[i][8] || 'N';
-
-      if (rowOrderId === String(orderId) && !isCancelledOrderStatus(servedYn)) {
-        const userId = String(orderValues[i][2]);
-        const nickname = orderValues[i][3];
-        const snackId = String(orderValues[i][4]);
-        const snackName = orderValues[i][5];
-        const quantity = Number(orderValues[i][6] || 0);
-        const point = Number(orderValues[i][7] || 0);
-
-        if (userId === 'guest' && !guestCreditRefund) {
-          guestCreditRefund = {
-            orderTime: orderValues[i][0],
-            guestDeviceId: headers.indexOf('guestDeviceId') !== -1 ? orderValues[i][headers.indexOf('guestDeviceId')] || '' : '',
-            authProvider: headers.indexOf('authProvider') !== -1 ? orderValues[i][headers.indexOf('authProvider')] || '' : '',
-            guestKey: headers.indexOf('guestKey') !== -1 ? orderValues[i][headers.indexOf('guestKey')] || '' : '',
-            refundCredit: Number(orderValues[i][13] || point || 0),
-          };
-        }
-
-        // 1-1. 일반 키오스크 한도는 차감되지 않으므로 재고만 복구한다.
-        const snackRowIndex = snackValues.findIndex((row, idx) => idx > 0 && String(row[0]) === snackId);
-        if (snackRowIndex !== -1) {
-          const currentStock = Number(snackValues[snackRowIndex][5] || 0);
-          const newStock = currentStock + quantity;
-          snackSheet.getRange(snackRowIndex + 1, 6).setValue(newStock);
-          snackValues[snackRowIndex][5] = newStock; // 로컬 배열 값 갱신
-        }
-
-        // 1-2. 주문 제공상태를 'C'로 변경, 10번째 열(Column J)에 취소 시간 기록, 동적 컬럼에 취소 사유 기록
-        orderSheet.getRange(i + 1, 9).setValue('C');
-        orderSheet.getRange(i + 1, 10).setValue(new Date());
-
-        if (data.cancelReason) {
-          orderSheet.getRange(i + 1, 17).setValue(data.cancelReason); // Q열 (17)
-        }
-        if (data.cancelReasonDetail) {
-          orderSheet.getRange(i + 1, 18).setValue(data.cancelReasonDetail); // R열 (18)
-        }
-
-        updatedCount++;
-        refundLogs.push(`${snackName} ${quantity}개`);
-
-        if (updatedCount === 1) {
-          safeAppendAdminLog('cancelOrder', 'order', orderId, nickname, servedYn, 'C', data.adminMemo || (userId === 'guest' ? '주문 취소·온기 환불·재고 복구' : '주문 취소·재고 복구'));
-        }
-      }
-    }
-
-    if (updatedCount > 0) {
-      if (guestCreditRefund && guestCreditRefund.refundCredit > 0) {
-        try {
-          resolveGuestCreditWallet(guestCreditRefund, {
-            periodKey: getGuestCreditPeriodKey(guestCreditRefund.orderTime || new Date()),
-            refundCredit: guestCreditRefund.refundCredit,
-            create: true,
-          });
-        } catch (walletError) {
-          Logger.log('Guest credit refund failed: ' + (walletError && walletError.stack ? walletError.stack : walletError));
-        }
-      }
-      clearSnackReadCache();
-      clearOrderReadCache();
-      clearUserReadCache();
-      return {
-        success: true,
-        message: guestCreditRefund
-          ? `주문번호 ${orderId}의 주문이 취소되었습니다. 온기 환불 및 재고 복구: ${refundLogs.join(', ')} (총 ${updatedCount}건)`
-          : `주문번호 ${orderId}의 주문이 취소되었습니다. 재고 복구: ${refundLogs.join(', ')} (총 ${updatedCount}건)`
-      };
-    } else {
-      return {
-        success: false,
-        message: `주문번호 ${orderId}에 해당하는 대기 중이거나 완료된 주문 기록을 찾을 수 없습니다.`
-      };
-    }
-  } catch (error) {
-    return {
-      success: false,
-      message: error.message
-    };
-  } finally {
-    lock.releaseLock();
-  }
+  return cancelOrderTransaction_(data || {}, false);
 }
 
-/**
- * 9.6. 이용자 직접 주문 취소 API
- */
 function userCancelOrder(data) {
-  ensureOrderHeaders();
-  const orderId = data.orderId;
-  const requestToken = data.orderToken;
+  return cancelOrderTransaction_(data || {}, true);
+}
 
-  if (!orderId) {
-    return { success: false, message: '주문 식별자가 누락되었습니다.' };
-  }
+function cancelOrderTransaction_(data, isUserCancellation) {
+  const orderId = String(data.orderId || '').trim();
+  const requestToken = String(data.orderToken || '').trim();
+  if (!orderId) return getOrderMutationResult_({ message: '주문 식별자가 누락되었습니다.' });
 
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(10000)) {
-    return { success: false, message: '다른 작업을 처리 중입니다. 잠시 후 다시 시도해 주세요.' };
+    return getOrderMutationResult_({ message: '다른 작업을 처리 중입니다. 잠시 후 다시 시도해 주세요.' });
   }
 
+  let ss = null;
+  let backups = [];
+  let mutationStarted = false;
   try {
-    const ss = SpreadsheetApp.getActive();
+    ss = SpreadsheetApp.getActive();
     const orderSheet = ss.getSheetByName(SHEET.ORDERS);
-    const userSheet = ss.getSheetByName(SHEET.USERS);
     const snackSheet = ss.getSheetByName(SHEET.SNACKS);
+    if (!orderSheet || !snackSheet) throw new Error('필요한 시트(주문/간식)를 찾을 수 없습니다.');
 
-    if (!orderSheet || !userSheet || !snackSheet) {
-      return { success: false, message: '필요한 시트를 찾을 수 없습니다.' };
-    }
+    const orderBefore = orderSheet.getDataRange().getValues();
+    const snackBefore = snackSheet.getDataRange().getValues();
+    if (orderBefore.length <= 1) throw new Error('해당 주문 기록을 찾을 수 없습니다.');
+    if (snackBefore.length <= 1) throw new Error('간식목록 데이터가 없습니다.');
+    const headers = orderBefore[0] || [];
+    const idx = getRequiredOrderIndexes_(headers);
 
-    const orderRange = orderSheet.getDataRange();
-    const orderValues = orderRange.getValues();
-    const headers = orderValues[0] || [];
-    const userValues = userSheet.getDataRange().getValues();
-    const snackValues = snackSheet.getDataRange().getValues();
-
-    if (orderSheet.getMaxColumns() < 18) {
-      orderSheet.insertColumnsAfter(orderSheet.getMaxColumns(), 18 - orderSheet.getMaxColumns());
-    }
-
-    let updatedCount = 0;
-    let refundLogs = [];
-    let isAlreadyStarted = false;
-    let guestCreditRefund = null;
-
-    for (let i = 1; i < orderValues.length; i++) {
-      const rowOrderId = String(orderValues[i][1]); // B열: orderNo
-      const rowOrderToken = String(orderValues[i][10] || ''); // K열: orderToken
-      const servedYn = orderValues[i][8] || 'N';
-
-      // orderId가 orderNo(회원) 또는 orderToken(게스트)와 일치하는 경우
-      if (rowOrderId === String(orderId) || rowOrderToken === String(orderId)) {
-
-        // 게스트 주문이고 시트에 토큰이 있는 경우, 요청 토큰 검증 필수
-        if (rowOrderToken) {
-          if (!requestToken || rowOrderToken !== String(requestToken)) {
-            return { success: false, message: '주문 확인 정보(토큰)가 일치하지 않거나 누락되었습니다.' };
-          }
-        }
-
-        if (isCancelledOrderStatus(servedYn)) continue; // 이미 취소된 항목 무시
-
-        if (servedYn !== 'N') {
-          isAlreadyStarted = true;
-          continue;
-        }
-
-        const userId = String(orderValues[i][2]);
-        const snackId = String(orderValues[i][4]);
-        const snackName = orderValues[i][5];
-        const quantity = Number(orderValues[i][6] || 0);
-        const point = Number(orderValues[i][7] || 0);
-
-        if (userId === 'guest' && !guestCreditRefund) {
-          guestCreditRefund = {
-            orderTime: orderValues[i][0],
-            guestDeviceId: headers.indexOf('guestDeviceId') !== -1 ? orderValues[i][headers.indexOf('guestDeviceId')] || '' : '',
-            authProvider: headers.indexOf('authProvider') !== -1 ? orderValues[i][headers.indexOf('authProvider')] || '' : '',
-            guestKey: headers.indexOf('guestKey') !== -1 ? orderValues[i][headers.indexOf('guestKey')] || '' : '',
-            refundCredit: Number(orderValues[i][13] || point || 0),
-          };
-        }
-
-        // 일반 키오스크 한도는 차감되지 않으므로 재고만 복구한다.
-        const snackRowIndex = snackValues.findIndex((row, idx) => idx > 0 && String(row[0]) === snackId);
-        if (snackRowIndex !== -1) {
-          const currentStock = Number(snackValues[snackRowIndex][5] || 0);
-          const newStock = currentStock + quantity;
-          snackSheet.getRange(snackRowIndex + 1, 6).setValue(newStock);
-          snackValues[snackRowIndex][5] = newStock;
-        }
-
-        // 주문 상태 'C' 및 취소 사유 기록
-        orderSheet.getRange(i + 1, 9).setValue('C');
-        orderSheet.getRange(i + 1, 10).setValue(new Date());
-        orderSheet.getRange(i + 1, 17).setValue('이용자 직접 취소');
-        orderSheet.getRange(i + 1, 18).setValue(''); // Detail은 빈 값
-
-        updatedCount++;
-        refundLogs.push(`${snackName} ${quantity}개`);
-      }
-    }
-
-    if (isAlreadyStarted && updatedCount === 0) {
-      return {
-        success: false,
-        message: '이미 준비가 시작되어 취소할 수 없습니다. 관리자에게 문의해주세요.'
-      };
-    }
-
-    if (updatedCount > 0) {
-      if (guestCreditRefund && guestCreditRefund.refundCredit > 0) {
-        try {
-          resolveGuestCreditWallet(guestCreditRefund, {
-            periodKey: getGuestCreditPeriodKey(guestCreditRefund.orderTime || new Date()),
-            refundCredit: guestCreditRefund.refundCredit,
-            create: true,
-          });
-        } catch (walletError) {
-          Logger.log('Guest credit refund failed: ' + (walletError && walletError.stack ? walletError.stack : walletError));
-        }
-      }
-      clearSnackReadCache();
-      clearOrderReadCache();
-      clearUserReadCache();
-      return {
-        success: true,
-        message: guestCreditRefund
-          ? `주문이 취소되었습니다. 온기 환불 및 재고 복구: ${refundLogs.join(', ')} (총 ${updatedCount}건)`
-          : `주문이 취소되었습니다. 재고 복구: ${refundLogs.join(', ')} (총 ${updatedCount}건)`
-      };
+    let seed = [];
+    if (isUserCancellation) {
+      seed = orderBefore.slice(1).filter(row =>
+        String(row[idx['주문번호']] || '').trim() === orderId
+          || String(row[idx.orderToken] || '').trim() === orderId
+      );
     } else {
-      return {
-        success: false,
-        message: '해당 주문 기록을 찾을 수 없습니다.'
-      };
+      seed = orderBefore.slice(1).filter(row => String(row[idx['주문번호']] || '').trim() === orderId);
     }
+    if (seed.length === 0) throw new Error('해당 주문 기록을 찾을 수 없습니다.');
+    const canonicalOrderNo = String(seed[0][idx['주문번호']] || '').trim();
+    const matched = [];
+    for (let i = 1; i < orderBefore.length; i++) {
+      if (String(orderBefore[i][idx['주문번호']] || '').trim() === canonicalOrderNo) {
+        matched.push({ index: i, row: orderBefore[i] });
+      }
+    }
+    if (!canonicalOrderNo || matched.length === 0) throw new Error('주문번호 구조가 올바르지 않습니다.');
+
+    const userId = validateSameOrderField_(matched, idx['이용자ID'], '이용자');
+    const storedToken = validateSameOrderField_(matched, idx.orderToken, '토큰');
+    const totalCredit = validateSameOrderField_(matched, idx.totalCredit, '총 온기', value => {
+      if (value === '' || value == null) return NaN;
+      return Number(value);
+    });
+    if (!Number.isFinite(totalCredit) || totalCredit < 0) throw new Error('주문의 총 온기 값이 올바르지 않습니다.');
+    if (isUserCancellation && (!storedToken || !requestToken || storedToken !== requestToken)) {
+      throw new Error(storedToken
+        ? '주문 확인 정보(토큰)가 일치하지 않거나 누락되었습니다.'
+        : '이 주문은 이용자 취소용 토큰이 없어 관리자만 취소할 수 있습니다.');
+    }
+
+    const statuses = matched.map(item => String(item.row[idx['제공여부']] || 'N').trim().toUpperCase());
+    const cancelledCount = statuses.filter(isCancelledOrderStatus).length;
+    if (cancelledCount === matched.length) {
+      return getOrderMutationResult_({
+        success: true,
+        verified: true,
+        alreadyCancelled: true,
+        message: '이미 취소된 주문입니다. 재고와 온기는 다시 변경하지 않았습니다.',
+      });
+    }
+    if (cancelledCount > 0) throw new Error('동일 주문 안에 취소 상태가 섞여 있어 작업을 중단했습니다.');
+    if (isUserCancellation && statuses.some(status => status !== 'N')) {
+      throw new Error('일부 품목의 준비가 이미 시작되어 주문 전체를 취소할 수 없습니다. 관리자에게 문의해주세요.');
+    }
+
+    const snackRowIndexes = {};
+    for (let i = 1; i < snackBefore.length; i++) {
+      const snackId = String(snackBefore[i][0] == null ? '' : snackBefore[i][0]).trim();
+      if (!snackId) continue;
+      if (Object.prototype.hasOwnProperty.call(snackRowIndexes, snackId)) {
+        throw new Error('간식목록에 중복 간식ID가 있어 취소를 중단했습니다: ' + snackId);
+      }
+      snackRowIndexes[snackId] = i;
+    }
+    const restoreBySnackId = {};
+    let restoredItemCount = 0;
+    matched.forEach(item => {
+      const snackId = String(item.row[idx['간식ID']] == null ? '' : item.row[idx['간식ID']]).trim();
+      const quantity = Number(item.row[idx['수량']]);
+      if (!snackId || !Number.isInteger(quantity) || quantity <= 0) {
+        throw new Error('주문 간식ID 또는 수량 구조가 올바르지 않습니다.');
+      }
+      if (!Object.prototype.hasOwnProperty.call(snackRowIndexes, snackId)) {
+        throw new Error('간식목록에서 주문 간식을 찾을 수 없습니다: ' + snackId);
+      }
+      const stock = Number(snackBefore[snackRowIndexes[snackId]][5]);
+      if (!Number.isFinite(stock) || stock < 0) throw new Error('간식 재고 값이 올바르지 않습니다: ' + snackId);
+      restoreBySnackId[snackId] = (restoreBySnackId[snackId] || 0) + quantity;
+      restoredItemCount += quantity;
+    });
+
+    const isGuest = userId === 'guest';
+    let creditSheet = null;
+    if (isGuest) creditSheet = ensureGuestCreditSheet();
+    const orderBackup = createUniqueSheetBackup_(ss, orderSheet, SHEET.ORDERS + '_취소임시백업');
+    backups.push({ target: orderSheet, backup: orderBackup.sheet, name: orderBackup.name });
+    const snackBackup = createUniqueSheetBackup_(ss, snackSheet, SHEET.SNACKS + '_취소임시백업');
+    backups.push({ target: snackSheet, backup: snackBackup.sheet, name: snackBackup.name });
+    if (creditSheet) {
+      const creditBackup = createUniqueSheetBackup_(ss, creditSheet, SHEET.GUEST_CREDITS + '_취소임시백업');
+      backups.push({ target: creditSheet, backup: creditBackup.sheet, name: creditBackup.name });
+    }
+
+    const firstRow = matched[0].row;
+    const creditData = {
+      orderTime: firstRow[idx['주문시간']],
+      guestDeviceId: idx.guestDeviceId !== -1 ? firstRow[idx.guestDeviceId] || '' : '',
+      authProvider: idx.authProvider !== -1 ? firstRow[idx.authProvider] || '' : '',
+      guestKey: idx.guestKey !== -1 ? firstRow[idx.guestKey] || '' : '',
+    };
+    const periodKey = isGuest ? getGuestCreditPeriodKey(creditData.orderTime || new Date()) : '';
+    if (isGuest) mutationStarted = true;
+    const creditBefore = isGuest
+      ? resolveGuestCreditWallet(creditData, { periodKey, create: false })
+      : null;
+    if (isGuest && (!creditBefore || !creditBefore.success)) {
+      throw new Error((creditBefore && creditBefore.message) || '게스트 온기 상태를 확인하지 못했습니다.');
+    }
+    if (isGuest && totalCredit > 0 && Number(creditBefore.usedCredit || 0) < totalCredit) {
+      throw new Error('게스트 지갑의 사용 온기가 주문 환불액보다 적어 취소를 중단했습니다.');
+    }
+
+    const snackAfter = cloneSheetRows_(snackBefore);
+    Object.keys(restoreBySnackId).forEach(snackId => {
+      const rowIndex = snackRowIndexes[snackId];
+      snackAfter[rowIndex][5] = Number(snackAfter[rowIndex][5]) + restoreBySnackId[snackId];
+    });
+    mutationStarted = true;
+    writeChangedSheetRows_(snackSheet, snackBefore.slice(1), snackAfter.slice(1), 2, snackBefore[0].length);
+    throwStagingOrderMutationFailure_(data, 'cancel-stock');
+
+    let refundApplied = false;
+    if (isGuest && totalCredit > 0) {
+      const refundResult = resolveGuestCreditWallet(creditData, {
+        periodKey,
+        refundCredit: totalCredit,
+        create: true,
+      });
+      if (!refundResult || !refundResult.success) {
+        throw new Error((refundResult && refundResult.message) || '게스트 온기 환불에 실패했습니다.');
+      }
+      refundApplied = true;
+    }
+    throwStagingOrderMutationFailure_(data, 'cancel-refund');
+
+    const orderAfter = cloneSheetRows_(orderBefore);
+    const cancelTime = new Date();
+    matched.forEach(item => {
+      orderAfter[item.index][idx['제공여부']] = 'C';
+      orderAfter[item.index][idx.cancelTimestamp] = cancelTime;
+      orderAfter[item.index][idx.cancelReason] = isUserCancellation ? '이용자 직접 취소' : String(data.cancelReason || '관리자 취소');
+      orderAfter[item.index][idx.cancelReasonDetail] = isUserCancellation ? '' : String(data.cancelReasonDetail || '');
+    });
+    writeChangedSheetRows_(orderSheet, orderBefore.slice(1), orderAfter.slice(1), 2, headers.length);
+    throwStagingOrderMutationFailure_(data, 'cancel-order');
+
+    if (!verifyExactSheetValues_(snackSheet, snackAfter)) throw new Error('재고 복구 결과 검증에 실패했습니다.');
+    if (!verifyExactSheetValues_(orderSheet, orderAfter)) throw new Error('주문 취소 결과 검증에 실패했습니다.');
+    if (isGuest) {
+      const creditAfter = resolveGuestCreditWallet(creditData, { periodKey, create: false });
+      const expectedUsed = Math.max(0, Number(creditBefore.usedCredit || 0) - totalCredit);
+      if (!creditAfter || !creditAfter.success || Number(creditAfter.usedCredit) !== expectedUsed) {
+        throw new Error('온기 환불 결과 검증에 실패했습니다.');
+      }
+    }
+    throwStagingOrderMutationFailure_(data, 'cancel-verification');
+
+    const failedCleanup = cleanupOrderMutationBackups_(ss, backups);
+    clearSnackReadCache();
+    clearOrderReadCache();
+    clearUserReadCache();
+    safeAppendAdminLog(
+      isUserCancellation ? 'userCancelOrder' : 'cancelOrder',
+      'order', canonicalOrderNo, firstRow[idx['별명']], statuses.join(','), 'C',
+      isUserCancellation ? '이용자 직접 취소' : (data.adminMemo || '관리자 주문 취소')
+    );
+    return getOrderMutationResult_({
+      success: true,
+      verified: true,
+      refundApplied,
+      restoredItemCount,
+      cleanupRequired: failedCleanup.length > 0,
+      backupSheetNames: failedCleanup,
+      message: failedCleanup.length > 0
+        ? `주문 취소는 저장·검증됐지만 임시 백업 삭제가 필요합니다: ${failedCleanup.join(', ')}`
+        : (refundApplied
+          ? `주문이 취소되었습니다. 온기 ${totalCredit}개 환불과 재고 ${restoredItemCount}개 복구를 확인했습니다.`
+          : `주문이 취소되었습니다. 재고 ${restoredItemCount}개 복구를 확인했습니다.`),
+    });
   } catch (error) {
-    return { success: false, message: error.message };
+    if (!ss || backups.length === 0) return getOrderMutationResult_({ message: error.message });
+    if (!mutationStarted) {
+      const failedCleanup = cleanupOrderMutationBackups_(ss, backups);
+      return getOrderMutationResult_({
+        message: error.message,
+        cleanupRequired: failedCleanup.length > 0,
+        backupSheetNames: failedCleanup,
+      });
+    }
+    const rollback = rollbackOrderMutation_(ss, backups);
+    clearSnackReadCache();
+    clearOrderReadCache();
+    clearUserReadCache();
+    return getOrderMutationResult_(Object.assign({}, rollback, {
+      message: rollback.recoveryRequired
+        ? `주문 취소 실패(${error.message}) 후 자동 복원도 완료되지 않았습니다. 다음 백업 시트로 수동 복원이 필요합니다: ${rollback.backupSheetNames.join(', ')}`
+        : (rollback.cleanupRequired
+          ? `주문 취소 실패(${error.message})는 원상복구됐지만 임시 백업 삭제가 필요합니다: ${rollback.backupSheetNames.join(', ')}`
+          : `주문 취소 처리에 실패해 주문·재고·온기를 모두 원래 상태로 복구했습니다: ${error.message}`),
+    }));
   } finally {
     lock.releaseLock();
   }
@@ -1359,116 +1419,128 @@ function userCancelOrder(data) {
  * 보관 전 읽기 전용 점검.
  * 시트를 변경하지 않고 헤더 차이와 주문번호+간식ID 중복만 확인한다.
  */
+function getArchiveOrderKey_(row, header) {
+  const orderNoIndex = header.indexOf('주문번호');
+  const snackIdIndex = header.indexOf('간식ID');
+  if (orderNoIndex < 0 || snackIdIndex < 0) return '';
+  const orderNo = String(row[orderNoIndex] == null ? '' : row[orderNoIndex]).trim();
+  const snackId = String(row[snackIdIndex] == null ? '' : row[snackIdIndex]).trim();
+  return orderNo && snackId ? `${orderNo}|${snackId}` : '';
+}
+
+function analyzeArchiveOldOrders_(orderSheet, archiveSheet) {
+  const orderValues = orderSheet.getDataRange().getValues();
+  const archiveValues = archiveSheet ? archiveSheet.getDataRange().getValues() : [];
+  const orderHeader = (orderValues[0] || []).map(value => String(value == null ? '' : value).trim());
+  const archiveHeader = archiveValues.length
+    ? (archiveValues[0] || []).map(value => String(value == null ? '' : value).trim())
+    : [];
+  const orderRows = orderValues.slice(1).filter(row => row.some(value => value !== ''));
+  const archiveRows = archiveValues.slice(1).filter(row => row.some(value => value !== ''));
+  const requiredHeaders = ['주문시간', '주문번호', '간식ID'];
+  const missingRequiredHeaders = requiredHeaders.filter(header => orderHeader.indexOf(header) === -1);
+  const requiredHeadersPresent = missingRequiredHeaders.length === 0;
+  const hasArchiveHeader = archiveHeader.some(Boolean);
+  const archiveTargetHeader = hasArchiveHeader ? archiveHeader : orderHeader;
+  const headersCompatible = archiveTargetHeader.length <= orderHeader.length
+    && archiveTargetHeader.every((header, index) => header === orderHeader[index]);
+  const orderKeyCounts = new Map();
+  const archiveKeyCounts = new Map();
+  let orderRowsWithoutKey = 0;
+  let archiveRowsWithoutKey = 0;
+
+  orderRows.forEach(row => {
+    const key = getArchiveOrderKey_(row, orderHeader);
+    if (key) orderKeyCounts.set(key, (orderKeyCounts.get(key) || 0) + 1);
+    else orderRowsWithoutKey += 1;
+  });
+  archiveRows.forEach(row => {
+    const key = getArchiveOrderKey_(row, archiveHeader);
+    if (key) archiveKeyCounts.set(key, (archiveKeyCounts.get(key) || 0) + 1);
+    else archiveRowsWithoutKey += 1;
+  });
+
+  let duplicateOrderKeys = 0;
+  let duplicateArchiveKeys = 0;
+  let overlapKeys = 0;
+  let archiveOnlyKeys = 0;
+  let orderOnlyKeys = 0;
+  const sampleDuplicateOrderKeys = [];
+  const sampleDuplicateKeys = [];
+
+  orderKeyCounts.forEach((count, key) => {
+    if (archiveKeyCounts.has(key)) overlapKeys += 1;
+    else orderOnlyKeys += 1;
+    if (count > 1) {
+      duplicateOrderKeys += 1;
+      if (sampleDuplicateOrderKeys.length < 10) sampleDuplicateOrderKeys.push(`${key} (${count}건)`);
+    }
+  });
+  archiveKeyCounts.forEach((count, key) => {
+    if (!orderKeyCounts.has(key)) archiveOnlyKeys += 1;
+    if (count > 1) {
+      duplicateArchiveKeys += 1;
+      if (sampleDuplicateKeys.length < 10) sampleDuplicateKeys.push(`${key} (${count}건)`);
+    }
+  });
+
+  const missingInArchive = hasArchiveHeader
+    ? orderHeader.filter(header => header && archiveHeader.indexOf(header) === -1)
+    : [];
+  const extraInArchive = hasArchiveHeader
+    ? archiveHeader.filter(header => header && orderHeader.indexOf(header) === -1)
+    : [];
+  const safeToRun = requiredHeadersPresent
+    && headersCompatible
+    && duplicateOrderKeys === 0
+    && duplicateArchiveKeys === 0
+    && orderRowsWithoutKey === 0
+    && archiveRowsWithoutKey === 0;
+
+  return {
+    orderValues,
+    archiveValues,
+    orderHeader,
+    archiveHeader,
+    archiveTargetHeader,
+    summary: {
+      safeToRun,
+      requiredHeadersPresent,
+      missingRequiredHeaders,
+      orderRows: orderRows.length,
+      archiveRows: archiveRows.length,
+      orderColumns: orderHeader.length,
+      archiveColumns: archiveHeader.length,
+      headersEqual: hasArchiveHeader && JSON.stringify(orderHeader) === JSON.stringify(archiveHeader),
+      headersCompatible,
+      missingInArchive,
+      extraInArchive,
+      overlapKeys,
+      duplicateOrderKeys,
+      duplicateArchiveKeys,
+      archiveOnlyKeys,
+      orderOnlyKeys,
+      orderRowsWithoutKey,
+      archiveRowsWithoutKey,
+      sampleDuplicateOrderKeys,
+      sampleDuplicateKeys
+    }
+  };
+}
+
 function auditArchiveOldOrders() {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const orderSheet = ss.getSheetByName(SHEET.ORDERS);
-    const archiveSheet = ss.getSheetByName(SHEET.ARCHIVE);
-    if (!orderSheet) {
-      return { success: false, message: '주문내역 시트를 찾을 수 없습니다.' };
-    }
-    if (!archiveSheet) {
-      return {
-        success: true,
-        dryRun: true,
-        message: '주문보관 시트가 없습니다. 보관된 주문은 없습니다.',
-        summary: {
-          orderRows: Math.max(orderSheet.getLastRow() - 1, 0),
-          archiveRows: 0,
-          headersEqual: false,
-          headersCompatible: true,
-          missingInArchive: [],
-          extraInArchive: [],
-          overlapKeys: 0,
-          duplicateArchiveKeys: 0,
-          archiveOnlyKeys: 0,
-          orderOnlyKeys: 0,
-          sampleDuplicateKeys: []
-        }
-      };
-    }
-
-    const orderValues = orderSheet.getDataRange().getValues();
-    const archiveValues = archiveSheet.getDataRange().getValues();
-    const orderHeader = orderValues[0] || [];
-    const archiveHeader = archiveValues[0] || [];
-    const orderRows = orderValues.slice(1).filter(row => row.some(value => value !== ''));
-    const archiveRows = archiveValues.slice(1).filter(row => row.some(value => value !== ''));
-    const orderNoIndex = orderHeader.indexOf('주문번호');
-    const snackIdIndex = orderHeader.indexOf('간식ID');
-    const archiveOrderNoIndex = archiveHeader.indexOf('주문번호');
-    const archiveSnackIdIndex = archiveHeader.indexOf('간식ID');
-
-    const keyFor = (row, orderNoCol, snackIdCol) => {
-      if (orderNoCol < 0 || snackIdCol < 0) return '';
-      const orderNo = String(row[orderNoCol] == null ? '' : row[orderNoCol]).trim();
-      const snackId = String(row[snackIdCol] == null ? '' : row[snackIdCol]).trim();
-      return orderNo && snackId ? `${orderNo}|${snackId}` : '';
-    };
-    const orderKeys = new Set();
-    const archiveKeyCounts = new Map();
-    let orderRowsWithoutKey = 0;
-    let archiveRowsWithoutKey = 0;
-
-    orderRows.forEach(row => {
-      const key = keyFor(row, orderNoIndex, snackIdIndex);
-      if (key) orderKeys.add(key);
-      else orderRowsWithoutKey += 1;
-    });
-    archiveRows.forEach(row => {
-      const key = keyFor(row, archiveOrderNoIndex, archiveSnackIdIndex);
-      if (key) archiveKeyCounts.set(key, (archiveKeyCounts.get(key) || 0) + 1);
-      else archiveRowsWithoutKey += 1;
-    });
-
-    let overlapKeys = 0;
-    let archiveOnlyKeys = 0;
-    let duplicateArchiveKeys = 0;
-    const sampleDuplicateKeys = [];
-    archiveKeyCounts.forEach((count, key) => {
-      if (orderKeys.has(key)) overlapKeys += 1;
-      else archiveOnlyKeys += 1;
-      if (count > 1) {
-        duplicateArchiveKeys += 1;
-        if (sampleDuplicateKeys.length < 10) {
-          sampleDuplicateKeys.push(`${key} (${count}건)`);
-        }
-      }
-    });
-
-    let orderOnlyKeys = 0;
-    orderKeys.forEach(key => {
-      if (!archiveKeyCounts.has(key)) orderOnlyKeys += 1;
-    });
-
-    const missingInArchive = orderHeader.filter(header => header && archiveHeader.indexOf(header) === -1);
-    const extraInArchive = archiveHeader.filter(header => header && orderHeader.indexOf(header) === -1);
-    // 기존 보관 시트가 주문내역의 앞부분 열만 가진 경우(예: commitStatus 추가 전 A:W)는
-    // 열 이름과 순서가 보존되므로 안전하게 호환되는 구조로 취급한다.
-    const headersCompatible = archiveHeader.length <= orderHeader.length
-      && archiveHeader.every((header, index) => header === orderHeader[index]);
-
+    if (!orderSheet) return { success: false, message: '주문내역 시트를 찾을 수 없습니다.' };
+    const analysis = analyzeArchiveOldOrders_(orderSheet, ss.getSheetByName(SHEET.ARCHIVE));
     return {
       success: true,
       dryRun: true,
-      message: '보관 전 점검이 완료되었습니다. 시트는 변경되지 않았습니다.',
-      summary: {
-        orderRows: orderRows.length,
-        archiveRows: archiveRows.length,
-        orderColumns: orderHeader.length,
-        archiveColumns: archiveHeader.length,
-        headersEqual: JSON.stringify(orderHeader) === JSON.stringify(archiveHeader),
-        headersCompatible,
-        missingInArchive,
-        extraInArchive,
-        overlapKeys,
-        duplicateArchiveKeys,
-        archiveOnlyKeys,
-        orderOnlyKeys,
-        orderRowsWithoutKey,
-        archiveRowsWithoutKey,
-        sampleDuplicateKeys
-      }
+      message: analysis.summary.safeToRun
+        ? '보관 전 점검이 완료되었습니다. 시트는 변경되지 않았습니다.'
+        : '보관 전 점검에서 안전 문제를 발견했습니다. 시트는 변경되지 않았습니다.',
+      summary: analysis.summary
     };
   } catch (error) {
     return { success: false, message: error.message };
@@ -1488,7 +1560,6 @@ function archiveOldOrders(data) {
     };
   }
 
-  ensureOrderHeaders();
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(10000)) {
     return {
@@ -1497,41 +1568,38 @@ function archiveOldOrders(data) {
     };
   }
 
+  let ss = null;
+  let orderSheet = null;
+  let archiveSheet = null;
+  let orderBackup = null;
+  let archiveBackup = null;
+  let archiveCreated = false;
+  let mutationStarted = false;
   try {
     const memo = data && data.adminMemo ? data.adminMemo : '';
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const orderSheet = ss.getSheetByName(SHEET.ORDERS);
+    ss = SpreadsheetApp.getActiveSpreadsheet();
+    orderSheet = ss.getSheetByName(SHEET.ORDERS);
     if (!orderSheet) {
       return { success: false, message: '주문내역 시트를 찾을 수 없습니다.' };
     }
-
-    const orderValues = orderSheet.getDataRange().getValues();
-    if (orderValues.length === 0) {
+    archiveSheet = ss.getSheetByName(SHEET.ARCHIVE);
+    const analysis = analyzeArchiveOldOrders_(orderSheet, archiveSheet);
+    if (!analysis.summary.safeToRun) {
       return {
-        success: true,
-        message: '보관할 지난 주문이 없습니다.'
+        success: false,
+        verified: false,
+        rolledBack: false,
+        recoveryRequired: false,
+        cleanupRequired: false,
+        summary: analysis.summary,
+        message: '주문 데이터 안전 점검을 통과하지 못해 보관을 시작하지 않았습니다.'
       };
     }
 
-    const header = orderValues[0].map(value => String(value == null ? '' : value).trim());
+    const orderValues = analysis.orderValues;
+    const header = analysis.orderHeader;
     const rows = orderValues.slice(1);
     const timestampIndex = header.indexOf('주문시간');
-    const targetColumnCount = header.length;
-
-    const normalizeRow = (row, targetHeader = header) => {
-      const safeRow = [...row];
-      while (safeRow.length < targetHeader.length) safeRow.push('');
-      return safeRow.slice(0, targetHeader.length);
-    };
-
-    const getKey = (row, headerRow) => {
-      const orderNoCol = headerRow.indexOf('주문번호');
-      const snackIdCol = headerRow.indexOf('간식ID');
-      if (orderNoCol < 0 || snackIdCol < 0) return '';
-      const orderNo = String(row[orderNoCol] == null ? '' : row[orderNoCol]).trim();
-      const snackId = String(row[snackIdCol] == null ? '' : row[snackIdCol]).trim();
-      return orderNo && snackId ? `${orderNo}|${snackId}` : '';
-    };
 
     const mapRowByHeader = (row, sourceHeader, targetHeader = header) => {
       const sourceIndexes = {};
@@ -1547,31 +1615,24 @@ function archiveOldOrders(data) {
       });
     };
 
-    let archiveSheet = ss.getSheetByName(SHEET.ARCHIVE);
-    const archiveValues = archiveSheet ? archiveSheet.getDataRange().getValues() : [];
-    const archiveHeader = archiveValues.length > 0
-      ? archiveValues[0].map(value => String(value == null ? '' : value).trim())
+    const archiveValues = analysis.archiveValues;
+    const archiveHeader = analysis.archiveHeader;
+    const archiveRows = archiveValues.length > 1
+      ? archiveValues.slice(1).filter(row => row.some(value => value !== ''))
       : [];
-    const archiveRows = archiveValues.length > 1 ? archiveValues.slice(1) : [];
-    const hasArchiveHeader = archiveHeader.some(Boolean);
-    const archiveTargetHeader = hasArchiveHeader ? archiveHeader : header;
-    const archiveHeadersCompatible = archiveTargetHeader.length <= header.length
-      && archiveTargetHeader.every((name, index) => name === header[index]);
-    if (!archiveHeadersCompatible) {
-      return {
-        success: false,
-        message: '주문내역과 주문보관의 열 구조가 안전하게 호환되지 않아 보관을 중단했습니다. 먼저 보관 점검을 확인해주세요.'
-      };
-    }
+    const archiveTargetHeader = analysis.archiveTargetHeader;
 
     // 오늘 날짜의 자정 기준 시각 구하기
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // 같은 주문 키가 있으면 주문내역의 최신 23열 데이터를 우선한다.
     const archiveByKey = new Map();
-    const fallbackArchiveRows = [];
-    const rowsToKeep = [header];
+    archiveRows.forEach(row => {
+      const key = getArchiveOrderKey_(row, archiveHeader);
+      archiveByKey.set(key, mapRowByHeader(row, archiveHeader, archiveTargetHeader));
+    });
+    const oldRowNumbers = [];
+    const keptRows = [];
     let movedOrderRows = 0;
 
     for (let i = 0; i < rows.length; i++) {
@@ -1579,55 +1640,54 @@ function archiveOldOrders(data) {
       const timestampValue = timestampIndex >= 0 ? row[timestampIndex] : '';
       const timestamp = timestampValue instanceof Date ? new Date(timestampValue) : new Date(timestampValue);
       if (!isNaN(timestamp.getTime()) && timestamp < today) {
-        const key = getKey(row, header);
-        if (key) {
-          archiveByKey.set(key, mapRowByHeader(row, header, archiveTargetHeader));
-        } else {
-          // 키가 없는 행은 중복 판단이 불가능하므로 삭제하지 않고 보관한다.
-          fallbackArchiveRows.push(mapRowByHeader(row, header, archiveTargetHeader));
-        }
+        const key = getArchiveOrderKey_(row, header);
+        archiveByKey.set(key, mapRowByHeader(row, header, archiveTargetHeader));
+        oldRowNumbers.push(i + 2);
         movedOrderRows += 1;
       } else {
-        rowsToKeep.push(normalizeRow(row));
+        keptRows.push(row.slice(0, header.length));
       }
     }
 
-    // 기존 보관 시트에만 있는 행은 유지한다. 이미 주문내역에서 가져온 키는 덮어쓰지 않는다.
-    archiveRows.forEach(row => {
-      const key = getKey(row, archiveHeader);
-      if (key) {
-        if (!archiveByKey.has(key)) {
-          archiveByKey.set(key, mapRowByHeader(row, archiveHeader, archiveTargetHeader));
-        }
-      } else if (row.some(value => value !== '')) {
-        fallbackArchiveRows.push(mapRowByHeader(row, archiveHeader, archiveTargetHeader));
-      }
-    });
-
-    const rowsToArchive = [...archiveByKey.values(), ...fallbackArchiveRows];
-    if (movedOrderRows === 0 && rowsToArchive.length === 0) {
+    const rowsToArchive = [...archiveByKey.values()];
+    if (movedOrderRows === 0) {
       return {
         success: true,
+        movedCount: 0,
+        archiveCount: archiveRows.length,
+        verified: true,
+        rolledBack: false,
+        recoveryRequired: false,
+        cleanupRequired: false,
+        orderBackupSheetName: '',
+        archiveBackupSheetName: '',
+        archiveCreated: false,
         message: '보관할 지난 주문이 없습니다.'
       };
     }
 
-    // 쓰기 전에 최종 보관 키 중복을 확인한다.
     const archiveKeys = new Set();
     rowsToArchive.forEach(row => {
-      const key = getKey(row, archiveTargetHeader);
-      if (key) archiveKeys.add(key);
+      const key = getArchiveOrderKey_(row, archiveTargetHeader);
+      archiveKeys.add(key);
     });
-    if (archiveKeys.size !== rowsToArchive.filter(row => getKey(row, archiveTargetHeader)).length) {
+    if (archiveKeys.size !== rowsToArchive.length) {
       return {
         success: false,
         message: '최종 보관 목록에서 중복 주문 키가 발견되어 작업을 중단했습니다.'
       };
     }
 
+    orderBackup = createUniqueSheetBackup_(ss, orderSheet, SHEET.ORDERS + '_자동백업');
+    if (archiveSheet) {
+      archiveBackup = createUniqueSheetBackup_(ss, archiveSheet, SHEET.ARCHIVE + '_자동백업');
+    }
     if (!archiveSheet) {
       archiveSheet = ss.insertSheet(SHEET.ARCHIVE);
+      archiveCreated = true;
     }
+    mutationStarted = true;
+    ensureSheetGridSize_(archiveSheet, rowsToArchive.length + 1, archiveTargetHeader.length);
     if (archiveSheet.getMaxColumns() < archiveTargetHeader.length) {
       archiveSheet.insertColumnsAfter(
         archiveSheet.getMaxColumns(),
@@ -1635,41 +1695,91 @@ function archiveOldOrders(data) {
       );
     }
 
-    // 기존 보관 시트를 자동 백업한 뒤에만 원본을 다시 쓴다.
-    let backupSheetName = '';
-    if (archiveSheet.getLastRow() > 0) {
-      const timeKey = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd_HHmmss');
-      backupSheetName = `${SHEET.ARCHIVE}_자동백업_${timeKey}`;
-      let suffix = 1;
-      while (ss.getSheetByName(backupSheetName)) {
-        backupSheetName = `${SHEET.ARCHIVE}_자동백업_${timeKey}_${suffix}`;
-        suffix += 1;
-      }
-      archiveSheet.copyTo(ss).setName(backupSheetName);
-    }
-
-    // 보관 시트 쓰기가 성공한 뒤에만 주문내역을 정리한다.
+    const expectedArchiveValues = [archiveTargetHeader].concat(rowsToArchive);
     archiveSheet.clearContents();
-    archiveSheet.getRange(1, 1, 1, archiveTargetHeader.length).setValues([archiveTargetHeader]);
-    if (rowsToArchive.length > 0) {
-      archiveSheet.getRange(2, 1, rowsToArchive.length, archiveTargetHeader.length).setValues(rowsToArchive);
+    archiveSheet.getRange(1, 1, expectedArchiveValues.length, archiveTargetHeader.length)
+      .setValues(expectedArchiveValues);
+    SpreadsheetApp.flush();
+    if (!verifyExactSheetValues_(archiveSheet, expectedArchiveValues)) {
+      throw new Error('주문보관 저장 후 데이터 검증에 실패했습니다.');
     }
 
-    const safeRowsToKeep = rowsToKeep.map(normalizeRow);
-    orderSheet.clearContents();
-    orderSheet.getRange(1, 1, safeRowsToKeep.length, targetColumnCount).setValues(safeRowsToKeep);
+    const deleteGroups = [];
+    oldRowNumbers.forEach(rowNumber => {
+      const last = deleteGroups.length ? deleteGroups[deleteGroups.length - 1] : null;
+      if (last && rowNumber === last.end + 1) last.end = rowNumber;
+      else deleteGroups.push({ start: rowNumber, end: rowNumber });
+    });
+    deleteGroups.reverse().forEach(group => {
+      orderSheet.deleteRows(group.start, group.end - group.start + 1);
+    });
+    SpreadsheetApp.flush();
+
+    const expectedOrderValues = [header].concat(keptRows);
+    if (!verifyExactSheetValues_(orderSheet, expectedOrderValues)) {
+      throw new Error('주문내역 정리 후 데이터 검증에 실패했습니다.');
+    }
 
     safeAppendAdminLog('archiveOldOrders', 'orders', 'archive', '지난 주문 보관', '', `${movedOrderRows}건 보관 완료`, memo);
 
     clearOrderReadCache();
     return {
       success: true,
-      message: `${movedOrderRows}건의 지난 주문을 성공적으로 보관 처리했습니다. (보관 시트 총 ${rowsToArchive.length}건${backupSheetName ? `, 자동 백업: ${backupSheetName}` : ''})`
+      movedCount: movedOrderRows,
+      archiveCount: rowsToArchive.length,
+      verified: true,
+      rolledBack: false,
+      recoveryRequired: false,
+      cleanupRequired: false,
+      orderBackupSheetName: orderBackup.name,
+      archiveBackupSheetName: archiveBackup ? archiveBackup.name : '',
+      archiveCreated,
+      message: `${movedOrderRows}건의 지난 주문을 보관하고 검증했습니다. (주문내역 백업: ${orderBackup.name}${archiveBackup ? `, 주문보관 백업: ${archiveBackup.name}` : ''})`
     };
   } catch (error) {
+    let rolledBack = false;
+    let recoveryRequired = false;
+    if (mutationStarted) {
+      let orderRestored = !orderBackup;
+      let archiveRestored = !archiveBackup && !archiveCreated;
+      if (orderBackup && orderSheet) {
+        try {
+          restoreSheetFromBackup_(orderSheet, orderBackup.sheet);
+          orderRestored = true;
+        } catch (restoreOrderError) {
+          orderRestored = false;
+        }
+      }
+      if (archiveCreated) {
+        archiveRestored = deleteSheetQuietly_(ss, archiveSheet);
+      } else if (archiveBackup && archiveSheet) {
+        try {
+          restoreSheetFromBackup_(archiveSheet, archiveBackup.sheet);
+          archiveRestored = true;
+        } catch (restoreArchiveError) {
+          archiveRestored = false;
+        }
+      }
+      rolledBack = orderRestored && archiveRestored;
+      recoveryRequired = !rolledBack;
+    }
+    safeAppendAdminLog(
+      'archiveOldOrders', 'orders', 'archive', '지난 주문 보관 실패', '',
+      rolledBack ? '자동 복구 완료' : (recoveryRequired ? '수동 복구 필요' : '변경 전 중단'),
+      ''
+    );
     return {
       success: false,
-      message: error.message
+      verified: false,
+      rolledBack,
+      recoveryRequired,
+      cleanupRequired: false,
+      orderBackupSheetName: orderBackup ? orderBackup.name : '',
+      archiveBackupSheetName: archiveBackup ? archiveBackup.name : '',
+      archiveCreated,
+      message: recoveryRequired
+        ? `주문 보관 중 오류가 발생했고 자동 복구에 실패했습니다. ${orderBackup ? orderBackup.name : ''}${archiveBackup ? `, ${archiveBackup.name}` : ''}${archiveCreated ? ', 새 주문보관 시트' : ''}를 보존하고 관리자에게 알려 주세요.`
+        : (rolledBack ? '주문 보관 중 오류가 발생해 양쪽 시트를 자동 복구했습니다.' : '주문 보관을 시작하지 못했습니다: ' + error.message)
     };
   } finally {
     lock.releaseLock();

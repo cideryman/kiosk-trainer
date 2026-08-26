@@ -608,7 +608,7 @@ window.addEventListener('DOMContentLoaded', () => {
           });
           if (res && res.success) {
             AppState.vibrate([100, 50, 100]);
-            alert('주문이 정상적으로 취소되었습니다.');
+            alert(res.message || '주문이 정상적으로 취소되었습니다.');
             loadOrders(); // 목록 새로고침
           } else {
             alert('취소 실패: ' + (res?.message || '알 수 없는 오류'));

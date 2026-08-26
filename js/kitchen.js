@@ -884,7 +884,7 @@ let refreshTimer = null;
       currentCancelNickname = nickname;
       
       const modal = document.getElementById('modal-cancel-reason');
-      document.getElementById('cancel-modal-desc').textContent = `[${nickname} 님]의 주문을 취소하시겠습니까? 사용된 포인트가 환불되고 간식 재고가 복구됩니다.`;
+      document.getElementById('cancel-modal-desc').textContent = `[${nickname} 님]의 주문 전체를 취소하시겠습니까? 서버가 관련 데이터 변경과 복구 결과를 확인합니다.`;
       document.getElementById('cancel-reason-select').value = '';
       document.getElementById('cancel-reason-detail').value = '';
       toggleCancelReasonDetail();
@@ -1145,7 +1145,7 @@ let refreshTimer = null;
         if (res && res.success) {
           AppState.vibrate(80);
           AppState.playClickSound();
-          alert(`주문이 성공적으로 취소 및 환불되었습니다.`);
+          alert(res.message || '주문이 성공적으로 취소되었습니다.');
           await loadAdminData(); // 데이터 재로드 및 렌더링
         } else {
           clearAdminTokenIfDenied(res);
@@ -2842,22 +2842,23 @@ let refreshTimer = null;
             const missing = (summary.missingInArchive || []).join(', ') || '없음';
             const extra = (summary.extraInArchive || []).join(', ') || '없음';
             const samples = (summary.sampleDuplicateKeys || []).join(', ') || '없음';
-            archiveAuditPassed = (summary.headersEqual === true || summary.headersCompatible === true)
-              && Number(summary.duplicateArchiveKeys || 0) === 0
-              && Number(summary.orderRowsWithoutKey || 0) === 0
-              && Number(summary.archiveRowsWithoutKey || 0) === 0;
+            const orderSamples = (summary.sampleDuplicateOrderKeys || []).join(', ') || '없음';
+            archiveAuditPassed = summary.safeToRun === true;
             alert([
               '보관 전 점검 완료 (시트 변경 없음)',
               `주문내역: ${summary.orderRows || 0}행 / ${summary.orderColumns || 0}열`,
               `주문보관: ${summary.archiveRows || 0}행 / ${summary.archiveColumns || 0}열`,
               `양쪽 중복 주문 키: ${summary.overlapKeys || 0}개`,
               `보관 시트 내부 중복 키: ${summary.duplicateArchiveKeys || 0}개`,
+              `주문내역 내부 중복 키: ${summary.duplicateOrderKeys || 0}개`,
+              `필수 열 확인: ${summary.requiredHeadersPresent ? '정상' : `누락 (${(summary.missingRequiredHeaders || []).join(', ')})`}`,
               `주문내역에만 있는 키: ${summary.orderOnlyKeys || 0}개`,
               `보관 시트에만 있는 키: ${summary.archiveOnlyKeys || 0}개`,
               `보관 시트에 없는 헤더: ${missing}`,
               `보관 시트에만 있는 헤더: ${extra}`,
               `열 구조 호환: ${summary.headersCompatible ? '예' : '아니오'}${summary.headersEqual ? ' (완전 일치)' : ' (기존 보관 열 유지 가능)'}`,
-              `중복 예시: ${samples}`,
+              `주문내역 중복 예시: ${orderSamples}`,
+              `주문보관 중복 예시: ${samples}`,
               `보관 실행 가능: ${archiveAuditPassed ? '예' : '아니오'}`
             ].join('\n'));
             if (btnArchiveBeforeAudit && archiveAuditPassed) {
@@ -2882,7 +2883,7 @@ let refreshTimer = null;
       const btnArchive = document.getElementById('btn-archive-old-orders');
       if (btnArchive) {
         btnArchive.addEventListener('click', async () => {
-          if (!confirm('오늘 이전의 지난 모든 주문을 보관함으로 이동하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) {
+          if (!confirm('오늘 이전의 지난 모든 주문을 보관함으로 이동하시겠습니까?\n양쪽 시트를 자동 백업하고 결과를 검증하며, 오류가 발생하면 자동 복구합니다. 주문 백업은 계속 보관됩니다.')) {
             return;
           }
           const rawConfirm = prompt('보관을 진행하려면 아래 확인 문구 중 하나를 입력하세요:\n• 주문보관확인\n• 지난주문보관');

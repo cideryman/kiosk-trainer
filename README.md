@@ -79,6 +79,7 @@ Apps Script에서는 파일 순서가 실행 모듈을 나누는 것이 아니�
 | `00_Config.gs` | 시트명, 상수, 관리자 인증과 공통 설정 |
 | `00_Setup.gs` | GAS 편집기에서만 실행하는 일회성 설정 함수 |
 | `01_Router.gs` | 웹 요청 라우팅, 공개/관리자 API 분기 |
+| `02_SheetSafety.gs` | 파괴적 시트 작업의 백업·복원·값 검증·정확 행 쓰기 |
 | `10_KakaoGuests.gs` | 카카오 인증과 게스트 프로필 |
 | `11_AdminLog.gs` | 관리자 변경 로그 |
 | `12_GuestApplications.gs` | 배달왔삼 이용 신청, 정원, 승인·익명화 |
@@ -156,6 +157,8 @@ node scripts/check-handoff.js
 node scripts/check-guide-assets.js
 node scripts/test-guest-schedule.js
 node scripts/test-order-email-routing.js
+node scripts/test-data-safety.js
+node scripts/test-order-cancellation-safety.js
 ```
 
 주문·후기 화면의 구조나 버튼 문구를 변경한 경우에는 가이드 이미지도 함께 확인합니다. 가이드 이미지 검사에서는 참조 파일 누락과 빈 대체 텍스트를 점검합니다.
