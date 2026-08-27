@@ -157,6 +157,8 @@ function doPost(e) {
       return jsonResponse(getGuestCreditStatus(data));
     } else if (action === 'diagnoseSystem') {
       return jsonResponse(diagnoseSystem(data));
+    } else if (action === 'acknowledgeOrderRecoveryAlert') {
+      return jsonResponse(acknowledgeOrderRecoveryAlert(data));
     } else if (action === 'submitReviewReply') {
       return jsonResponse(submitReviewReply(data));
     } else if (action === 'submitGuestApplication') {

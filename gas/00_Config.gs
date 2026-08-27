@@ -31,7 +31,7 @@ const DEFAULT_USER_ORDER_LIMIT = 10;
 const ADMIN_MAX_SNACK_STOCK = 30;
 const ADMIN_MAX_SNACK_POINT = 15;
 const ADMIN_MAX_SNACK_PER_PERSON = 30;
-const API_CONTRACT_VERSION = '2026-08-27.3';
+const API_CONTRACT_VERSION = '2026-08-27.4';
 
 // 관리자 토큰이 필요한 조회·변경 API 목록입니다.
 const ADMIN_ACTIONS = [
@@ -52,6 +52,7 @@ const ADMIN_ACTIONS = [
   'updateUser',
   'updateSnack',
   'ensureOrderHeaders',
+  'acknowledgeOrderRecoveryAlert',
   'cancelOrder',
   'updateSnacksOrder',
   // 'uploadImage', // 게스트 후기 사진 업로드를 위해 허용 (함수 내에서 개별 보안 검증 수행)

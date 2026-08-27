@@ -1188,6 +1188,9 @@ function updateOrderServed(data) {
     if (!verifyExactSheetValues_(orderSheet, after)) throw new Error('제공 상태 저장 결과 검증에 실패했습니다.');
     throwStagingOrderMutationFailure_(data, 'served-verification');
     const failedCleanup = cleanupOrderMutationBackups_(ss, backups);
+    if (failedCleanup.length > 0) recordOrderRecoveryAlert_({
+      orderNo: orderId, stage: 'SERVED_BACKUP_CLEANUP', cleanupRequired: true, backupSheetNames: failedCleanup,
+    });
     clearOrderReadCache();
     safeAppendAdminLog('updateOrderServed', 'order', orderId, matched[0].row[idx['별명']], beforeStatuses.join(','), servedYn, data.adminMemo);
     return getOrderMutationResult_({
@@ -1203,6 +1206,9 @@ function updateOrderServed(data) {
     if (!ss || backups.length === 0) return getOrderMutationResult_({ message: error.message });
     if (!mutationStarted) {
       const failedCleanup = cleanupOrderMutationBackups_(ss, backups);
+      if (failedCleanup.length > 0) recordOrderRecoveryAlert_({
+        orderNo: orderId, stage: 'SERVED_BACKUP_CLEANUP', cleanupRequired: true, backupSheetNames: failedCleanup,
+      });
       return getOrderMutationResult_({
         message: error.message,
         cleanupRequired: failedCleanup.length > 0,
@@ -1210,6 +1216,10 @@ function updateOrderServed(data) {
       });
     }
     const rollback = rollbackOrderMutation_(ss, backups);
+    recordOrderRecoveryAlert_({
+      orderNo: orderId, stage: 'SERVED_ROLLBACK', recoveryRequired: rollback.recoveryRequired,
+      cleanupRequired: rollback.cleanupRequired, backupSheetNames: rollback.backupSheetNames,
+    });
     clearOrderReadCache();
     return getOrderMutationResult_(Object.assign({}, rollback, {
       message: rollback.recoveryRequired
@@ -1410,6 +1420,9 @@ function cancelOrderTransaction_(data, isUserCancellation) {
     throwStagingOrderMutationFailure_(data, 'cancel-verification');
 
     const failedCleanup = cleanupOrderMutationBackups_(ss, backups);
+    if (failedCleanup.length > 0) recordOrderRecoveryAlert_({
+      orderNo: canonicalOrderNo, stage: 'CANCEL_BACKUP_CLEANUP', cleanupRequired: true, backupSheetNames: failedCleanup,
+    });
     clearSnackReadCache();
     clearOrderReadCache();
     clearUserReadCache();
@@ -1436,6 +1449,9 @@ function cancelOrderTransaction_(data, isUserCancellation) {
     if (!ss || backups.length === 0) return getOrderMutationResult_(safeError);
     if (!mutationStarted) {
       const failedCleanup = cleanupOrderMutationBackups_(ss, backups);
+      if (failedCleanup.length > 0) recordOrderRecoveryAlert_({
+        orderNo: orderId, stage: 'CANCEL_BACKUP_CLEANUP', cleanupRequired: true, backupSheetNames: failedCleanup,
+      });
       return getOrderMutationResult_({
         message: safeError.message,
         errorCode: safeError.errorCode,
@@ -1445,6 +1461,10 @@ function cancelOrderTransaction_(data, isUserCancellation) {
       });
     }
     const rollback = rollbackOrderMutation_(ss, backups);
+    recordOrderRecoveryAlert_({
+      orderNo: orderId, stage: 'CANCEL_ROLLBACK', recoveryRequired: rollback.recoveryRequired,
+      cleanupRequired: rollback.cleanupRequired, backupSheetNames: rollback.backupSheetNames,
+    });
     clearSnackReadCache();
     clearOrderReadCache();
     clearUserReadCache();

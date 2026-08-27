@@ -144,7 +144,7 @@ assert.doesNotMatch(reviewSource, /function submitReview\(data\) \{\s*ensureOrde
 assert.match(reviewSource, /verifyOrderOwnership_/);
 assert.match(mediaSource, /requireOrderId:\s*true/);
 assert.match(mediaSource, /requireGuest:\s*true/);
-assert.match(mockSource, /const API_CONTRACT_VERSION = '2026-08-27\.3'/);
+assert.match(mockSource, /const API_CONTRACT_VERSION = '2026-08-27\.4'/);
 assert.match(mockSource, /getMockOrderOwnership/);
 assert.match(mockSource, /sanitizeMockGuestEventName/);
 

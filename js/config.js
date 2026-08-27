@@ -1,6 +1,6 @@
 // Google Apps Script API 설정
 const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ9_UPux8bq0xROvNK9E1NCBam0Qe/exec";
-const API_CONTRACT_VERSION = '2026-08-27.3';
+const API_CONTRACT_VERSION = '2026-08-27.4';
 
 function createMockOrderToken() {
   try {
@@ -2517,6 +2517,7 @@ function getMockFallback(action, options) {
         cache: {
           scriptCache: { status: 'OK', roundTrip: true }
         },
+        recoveryAlerts: { status: 'OK', openCount: 0, alerts: [] },
         timingsMs: {
           spreadsheetConnection: 3,
           sheetChecks: 12,
@@ -2527,6 +2528,10 @@ function getMockFallback(action, options) {
         }
       };
     }
+  } else if (action === 'acknowledgeOrderRecoveryAlert') {
+    res = options.body?.adminToken && /^REC-[A-Z0-9]{12}$/.test(String(options.body?.alertId || ''))
+      ? { success: true, alertId: options.body.alertId, message: '복구 경고를 확인 완료로 처리했습니다.' }
+      : { success: false, message: '복구 경고 식별자가 올바르지 않습니다.' };
   } else {
     res = { success: false, error: "액션을 찾을 수 없습니다." };
   }

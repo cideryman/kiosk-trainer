@@ -328,6 +328,21 @@ function getGaugeEditorMax(type, value) {
   return type === 'user' ? ADMIN_UI_MAX_USER_CREDIT : ADMIN_UI_MAX_SNACK_STOCK;
 }
 
+async function acknowledgeOrderRecoveryAlert(alertId) {
+  if (!/^REC-[A-Z0-9]{12}$/.test(String(alertId || ''))) return;
+  if (!confirm('백업 시트를 확인하고 필요한 수동 복구 또는 삭제를 완료했나요?\n완료한 경우에만 경고를 닫아 주세요.')) return;
+  try {
+    const res = await fetchAPI('acknowledgeOrderRecoveryAlert', {
+      method: 'POST',
+      body: { adminToken: AdminAuth.requireToken(), alertId }
+    });
+    alert(res?.message || (res?.success ? '확인 완료했습니다.' : '처리하지 못했습니다.'));
+    if (res?.success) await runSystemDiagnosis();
+  } catch (error) {
+    alert(error?.message || '복구 경고 상태를 변경하지 못했습니다.');
+  }
+}
+
 function getGaugeEditorMin(type) {
   return type === 'user' ? ADMIN_UI_MIN_USER_ORDER_LIMIT : 0;
 }

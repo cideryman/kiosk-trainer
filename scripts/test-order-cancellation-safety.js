@@ -146,6 +146,7 @@ function makeOrderRow({
 }
 
 function makeEnvironment({ orders, snacks, usedCredit = 8 } = {}) {
+  const scriptProperties = {};
   const spreadsheet = new FakeSpreadsheet({
     주문내역: [ORDER_HEADERS, ...(orders || [])],
     간식목록: [SNACK_HEADERS, ...(snacks || [
@@ -174,6 +175,10 @@ function makeEnvironment({ orders, snacks, usedCredit = 8 } = {}) {
     },
     Session: { getScriptTimeZone: () => 'Asia/Seoul' },
     Logger: { log: () => {} },
+    PropertiesService: { getScriptProperties: () => ({
+      getProperty: key => scriptProperties[key] || null,
+      setProperty: (key, value) => { scriptProperties[key] = String(value); }
+    }) },
     isCancelledOrderStatus: status => String(status || '').trim().toUpperCase() === 'C',
     clearSnackReadCache: () => {},
     clearOrderReadCache: () => {},
@@ -188,7 +193,7 @@ function makeEnvironment({ orders, snacks, usedCredit = 8 } = {}) {
     })
   };
   vm.createContext(context);
-  for (const relativePath of ['gas/02_SheetSafety.gs', 'gas/31_OrderShared.gs', 'gas/40_Orders.gs']) {
+  for (const relativePath of ['gas/02_SheetSafety.gs', 'gas/03_RecoveryAlerts.gs', 'gas/31_OrderShared.gs', 'gas/40_Orders.gs']) {
     vm.runInContext(fs.readFileSync(path.join(root, relativePath), 'utf8'), context, { filename: relativePath });
   }
   context.ensureOrderHeaders = () => 'ok';
@@ -213,6 +218,7 @@ function makeEnvironment({ orders, snacks, usedCredit = 8 } = {}) {
     spreadsheet,
     setRefundFailure(value) { refundFailure = value; },
     getRefundCalls() { return refundCalls; }
+    , getRecoveryAlerts() { return context.getOrderRecoveryAlertsSummary_(); }
   };
 }
 
@@ -402,6 +408,7 @@ function assertNoTemporaryBackups(env) {
   assert.strictEqual(result.cleanupRequired, true);
   assert.strictEqual(result.backupSheetNames.length, 3);
   result.backupSheetNames.forEach(name => assert.ok(env.spreadsheet.getSheetByName(name)));
+  assert.strictEqual(env.getRecoveryAlerts().openCount, 1, '복구 실패 경고 영구 기록');
 })();
 
 (function testCleanupFailureReportsBackupNames() {
@@ -412,6 +419,7 @@ function assertNoTemporaryBackups(env) {
   assert.strictEqual(result.verified, true);
   assert.strictEqual(result.cleanupRequired, true);
   assert.strictEqual(result.backupSheetNames.length, 3);
+  assert.strictEqual(env.getRecoveryAlerts().openCount, 1, '백업 삭제 실패 경고 영구 기록');
 })();
 
 (function testRollbackCleanupFailureKeepsRecoveredBackups() {

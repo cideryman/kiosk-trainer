@@ -26,6 +26,7 @@ function diagnoseSystem(data) {
     security: {},
     triggers: {},
     emailQueue: {},
+    recoveryAlerts: {},
     cache: {},
     timingsMs: {},
     overallStatus: 'OK'
@@ -285,6 +286,9 @@ function diagnoseSystem(data) {
     report.overallStatus = 'WARN';
   }
   report.timingsMs.emailQueue = Date.now() - emailQueueStartedAt;
+
+  report.recoveryAlerts = getOrderRecoveryAlertsSummary_();
+  if (report.recoveryAlerts.status === 'WARN') report.overallStatus = 'WARN';
 
   // D. 서비스 캐시 왕복 체크. 진단 전용 키만 사용하고 즉시 제거합니다.
   const cacheStartedAt = Date.now();

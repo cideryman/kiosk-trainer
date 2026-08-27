@@ -501,6 +501,18 @@ function renderSystemDiagnosisExtras(report) {
   const timingText = Object.entries(timings)
     .map(([key, value]) => `${escape(key)} ${escape(value)}ms`)
     .join(' · ');
+  const recovery = report?.recoveryAlerts || { status: 'OK', openCount: 0, alerts: [] };
+  const recoveryItems = (recovery.alerts || []).map(alert => {
+    const alertId = String(alert.alertId || '');
+    const flags = [alert.recoveryRequired ? '원상복구 필요' : '', alert.cleanupRequired ? '백업 삭제 필요' : ''].filter(Boolean).join(' · ');
+    const backups = (alert.backupSheetNames || []).join(', ') || '백업명 없음';
+    return `<div style="padding:10px;border:2px solid #FEB2B2;background:#FFF5F5;border-radius:var(--radius-sm);font-size:13px;color:#742A2A;word-break:break-all;">
+      <strong>🔴 ${escape(alert.orderNo || '주문번호 없음')} · ${escape(alert.stage || 'UNKNOWN')}</strong><br>
+      ${escape(flags)} · ${escape(alert.lastSeenAt || alert.occurredAt || '')}<br>
+      백업: ${escape(backups)}
+      <button class="btn btn-gray" type="button" style="margin:8px 0 0;min-height:34px;width:auto;font-size:12px;" onclick="acknowledgeOrderRecoveryAlert('${escape(alertId)}')">수동 조치 확인 완료</button>
+    </div>`;
+  }).join('');
 
   const item = (ok, title, detail) => `
     <div style="padding: 10px; border: 2px solid ${ok ? '#9AE6B4' : '#FEEBC8'}; background-color: ${ok ? '#F0FFF4' : '#FFFDF5'}; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; color: ${ok ? '#22543D' : '#9C4221'}; display: flex; flex-direction: column; gap: 3px;">
@@ -515,6 +527,9 @@ function renderSystemDiagnosisExtras(report) {
     ${item(trigger.status === 'OK' && trigger.count === 1, '주간 신청 순환 트리거', `등록 ${trigger.count ?? '확인 실패'}개`)}
     ${item(cache.status === 'OK' && cache.roundTrip === true, '서비스 캐시', cache.roundTrip ? '읽기·쓰기 정상' : '왕복 확인 실패')}
     ${item(Number(timings.total) >= 0, '진단 소요시간', timingText || '측정값 없음')}
+    <h3 style="font-size:16px;font-weight:850;margin:10px 0 6px;border-bottom:2px dashed var(--border-color);padding-bottom:4px;">자동복구 운영 경고</h3>
+    ${item(recovery.status === 'OK', '열린 복구 경고', recovery.status === 'OK' ? '없음' : `${recovery.openCount || 0}건 · 백업 확인과 수동 조치가 필요합니다.`)}
+    ${recoveryItems}
   `;
 }
 
