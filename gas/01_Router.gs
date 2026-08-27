@@ -16,7 +16,7 @@ function doGet(e) {
   }
 
   if (action === 'getSnacks') {
-    return jsonResponse(getSnacks('N', params.mode, params.guestKey, params.guestDeviceId, params.userId));
+    return jsonResponse(getSnacks('N', params.mode, '', params.guestDeviceId, params.userId));
   }
 
   if (action === 'getPublicOrderFeed') {
@@ -91,6 +91,8 @@ function doPost(e) {
       return jsonResponse(updateDeliveryPlaceAliases(data));
     } else if (action === 'prepareStabilityFixtures') {
       return jsonResponse(prepareStabilityFixtures());
+    } else if (action === 'getSnacks') {
+      return jsonResponse(getSnacksForRequest(data));
     } else if (action === 'placeOrder') {
       return jsonResponse(placeOrder(data));
     } else if (action === 'updateOrderServed') {

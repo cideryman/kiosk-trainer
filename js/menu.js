@@ -195,13 +195,24 @@ async function loadSnacks() {
   try {
     const isGuest = isGuestMenuBrowseMode() || (user && user.userId === 'guest');
     const mode = isGuest ? 'guest' : 'user';
-    const guestKey = localStorage.getItem('guestKey') || sessionStorage.getItem('guestKey') || '';
-    const guestDeviceId = localStorage.getItem('guestDeviceId') || sessionStorage.getItem('guestDeviceId') || '';
+    const guestDeviceId = AppState.getGuestDeviceId ? AppState.getGuestDeviceId() : '';
     const userId = user ? user.userId : 'guest';
-    const response = await fetchAPIReadWithRetry('getSnacks', {
-      params: { mode, guestKey, guestDeviceId, userId },
-      timeoutMs: 30000
-    });
+    const guestAuth = isGuest && AppState.getGuestAuth ? AppState.getGuestAuth() : null;
+    const response = isGuest
+      ? await fetchAPIReadWithRetry('getSnacks', {
+          method: 'POST',
+          body: {
+            mode,
+            guestDeviceId,
+            userId,
+            ...(guestAuth ? { authProvider: 'kakao', guestKey: guestAuth.guestKey } : {})
+          },
+          timeoutMs: 30000
+        })
+      : await fetchAPIReadWithRetry('getSnacks', {
+          params: { mode, guestDeviceId, userId },
+          timeoutMs: 30000
+        });
     if (response && response.success && Array.isArray(response.snacks)) {
       snacks = response.snacks;
 

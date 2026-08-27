@@ -19,7 +19,7 @@ GAS 백엔드 소스는 유지보수성을 위해 [`gas/`](./gas) 아래의 기�
 - 카카오 Redirect URI는 GAS 웹앱 URL이 아니라 배포된 `guest.html`의 도메인과 경로입니다. `guest.html`의 도메인·경로 또는 Redirect URI 생성 방식을 바꿀 때만 카카오 Developers 등록값을 갱신합니다.
 - 새 GAS 배포 URL을 만든 경우 `js/config.js`의 `API_URL`은 갱신해야 하지만, `guest.html` 주소가 같다면 카카오 Redirect URI는 그대로 둡니다.
 - 새 Apps Script 프로젝트를 만든 경우 GAS 편집기의 `00_Setup.gs`에 `setKakaoPropertiesOnce()`를 임시로 추가하고 한 번 실행합니다.
-- `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_GUEST_KEY_SALT`, `ADMIN_TOKEN` 같은 비밀값은 로컬 파일이나 GitHub에 저장하지 않습니다.
+- `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_GUEST_KEY_SALT`, `KAKAO_AUTH_PROOF_SECRET`, `ADMIN_TOKEN` 같은 비밀값은 로컬 파일이나 GitHub에 저장하지 않습니다. 증명 서명키는 게스트 식별 솔트와 다른 32자 이상의 강한 무작위 값으로 설정합니다.
 - 설정이 끝난 뒤 일회성 함수의 비밀값을 지우거나 함수 자체를 삭제해도 저장된 Script Properties는 유지됩니다.
 
 ## 파일 책임
@@ -29,6 +29,8 @@ GAS 백엔드 소스는 유지보수성을 위해 [`gas/`](./gas) 아래의 기�
 | `00_Config.gs` | 시트명, 폴더 ID, 공통 상수, 관리자 인증 |
 | `00_Setup.gs` | GAS 편집기에서만 사용하는 일회성 설정 안내 |
 | `01_Router.gs` | `doGet`, `doPost`, JSON 응답 |
+| `03_RecoveryAlerts.gs` | 주문 자동복구 실패 운영 경고 |
+| `04_PublicSecurity.gs` | 카카오 서명 증명과 공개 요청 제한 |
 | `10_KakaoGuests.gs` | 카카오 인증과 게스트 프로필 |
 | `11_AdminLog.gs` | 관리자 변경 로그 |
 | `12_GuestApplications.gs` | 배달왔삼 이용 신청, 관리자 처리, 신청 설정, 개인정보 익명화 |

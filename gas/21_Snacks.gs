@@ -115,6 +115,19 @@ function getSnacks(includeHidden, mode, guestKey, guestDeviceId, userId) {
   };
 }
 
+function getSnacksForRequest(data) {
+  const request = data || {};
+  const identity = resolveKakaoRequestIdentity_(request, { required: false });
+  if (!identity.success) return identity;
+  return getSnacks(
+    'N',
+    request.mode,
+    identity.isKakao ? identity.guestKey : '',
+    request.guestDeviceId,
+    request.userId
+  );
+}
+
 function isActiveValue(value) {
   const v = String(value || '').trim().toUpperCase();
   return v === 'Y' || v === 'TRUE' || v === '활성' || v === '판매' || v === 'O' || v === '예';

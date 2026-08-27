@@ -24,6 +24,7 @@
    - `APP_ENV=staging`
    - 운영과 다른 `ADMIN_TOKEN`
    - staging 전용 Kakao 관련 속성 또는 로그인 미사용 설정
+   - 운영과 다른 32자 이상의 `KAKAO_AUTH_PROOF_SECRET`
 5. staging 웹 앱을 별도 `/exec` URL로 배포합니다.
 6. `ensureGuestSettingsSchema()`, `ensureOrderHeaders()`,
    `ensureOrderEmailQueueSheet()`, `createOrderEmailQueueTrigger()`를 순서대로 한 번
@@ -44,11 +45,14 @@ API 경계를 바꾸는 배포는 다음 순서를 지킵니다.
 1. 운영 Script Properties에 `APP_ENV=production`을 설정합니다.
 2. 주문내역 A:X 필수 헤더를 인증된 진단으로 확인하고, 누락 시 Apps Script
    편집기에서 `ensureOrderHeaders()`를 한 번 실행합니다.
-3. 새 GAS 버전을 배포합니다. 남아 있는 `ALLOW_LEGACY_ADMIN_GET` 속성은 더 이상
+3. 카카오 증명 계약을 처음 배포할 때는 `KAKAO_AUTH_PROOF_SECRET`과 정적 배포
+   30분 뒤의 `KAKAO_AUTH_PROOF_LEGACY_UNTIL`을 먼저 설정합니다. 그 밖의 배포에서는
+   만료된 유예 속성을 제거합니다.
+4. 새 GAS 버전을 배포합니다. 남아 있는 `ALLOW_LEGACY_ADMIN_GET` 속성은 더 이상
    사용하지 않으므로 삭제합니다.
-4. 새 프런트엔드를 게시하고 `service-worker.js` 캐시 버전이 갱신됐는지
+5. 새 프런트엔드를 게시하고 `service-worker.js` 캐시 버전이 갱신됐는지
    확인합니다. 열려 있던 관리자·주방·인쇄 탭은 새로고침합니다.
-5. 이메일 알림은 OFF 상태에서 주문 응답을 먼저 확인하고, ON으로 바꾼 뒤 테스트
+6. 이메일 알림은 OFF 상태에서 주문 응답을 먼저 확인하고, ON으로 바꾼 뒤 테스트
    주문 한 건이 `이메일알림큐`에서 `PENDING`을 거쳐 `SENT`가 되는지 확인합니다.
 
 ## 3. 실행 명령

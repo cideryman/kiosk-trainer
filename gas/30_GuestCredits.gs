@@ -226,7 +226,14 @@ function resolveGuestCreditWallet(data, options) {
 }
 
 function getGuestCreditStatus(data) {
-  const status = resolveGuestCreditWallet(data || {}, { create: false });
+  const request = data || {};
+  const identity = resolveKakaoRequestIdentity_(request, { required: false });
+  if (!identity.success) return identity;
+  const status = resolveGuestCreditWallet({
+    guestDeviceId: request.guestDeviceId || '',
+    authProvider: identity.isKakao ? 'kakao' : '',
+    guestKey: identity.isKakao ? identity.guestKey : '',
+  }, { create: false });
   if (!status.success) return status;
   return {
     success: true,

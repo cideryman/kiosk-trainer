@@ -171,6 +171,7 @@ function diagnoseSystem(data) {
     { key: 'ADMIN_TOKEN', required: true, description: '관리자 API 요청 토큰' },
     { key: 'KAKAO_REST_API_KEY', required: true, description: '카카오 로그인 API 키' },
     { key: 'KAKAO_GUEST_KEY_SALT', required: true, description: '게스트 식별키 암호화 솔트' },
+    { key: 'KAKAO_AUTH_PROOF_SECRET', required: true, description: '카카오 로그인 증명 서명키' },
     { key: 'KAKAO_CLIENT_SECRET', required: false, description: '카카오 로그인 보안 비밀키 (선택)' },
     { key: 'ADMIN_EMAIL', required: false, description: '배달왔삼 주문·이용 신청 이메일 수신 주소' }
   ];
@@ -197,6 +198,15 @@ function diagnoseSystem(data) {
     }
   });
 
+  if (!isKakaoAuthProofSecretConfigured_()) {
+    report.properties.KAKAO_AUTH_PROOF_SECRET = Object.assign({}, report.properties.KAKAO_AUTH_PROOF_SECRET, {
+      configured: false,
+      status: 'ERROR',
+      message: '32자 이상의 강한 무작위 값으로 설정해야 합니다.'
+    });
+    report.overallStatus = 'WARN';
+  }
+
   report.environment = String(props.getProperty('APP_ENV') || 'unset').trim().toLowerCase();
   if (report.environment !== 'production' && report.environment !== 'staging') {
     report.properties.APP_ENV = Object.assign({}, report.properties.APP_ENV, {
@@ -206,6 +216,20 @@ function diagnoseSystem(data) {
     });
     report.overallStatus = 'WARN';
   }
+
+  const legacyKakaoAuth = getKakaoAuthProofLegacyUntil_();
+  report.security.kakaoAuthProof = {
+    status: isKakaoAuthProofSecretConfigured_() && legacyKakaoAuth.valid && !legacyKakaoAuth.active ? 'OK' : 'WARN',
+    ttlHours: KAKAO_AUTH_PROOF_TTL_SECONDS / 3600,
+    legacyWindowActive: legacyKakaoAuth.active,
+    legacyUntil: legacyKakaoAuth.configured ? legacyKakaoAuth.value : '',
+    rateLimits: {
+      placeOrder: '5/60s, global 60/60s',
+      submitGuestApplication: '3/600s, global 30/600s',
+      exchangeKakaoAuthCode: '5/600s, global 60/600s'
+    }
+  };
+  if (report.security.kakaoAuthProof.status === 'WARN') report.overallStatus = 'WARN';
 
   const emailNotificationEnabled = getGuestSettings().adminOrderEmailNotificationEnabled !== false;
   if (emailNotificationEnabled && !props.getProperty('ADMIN_EMAIL')) {

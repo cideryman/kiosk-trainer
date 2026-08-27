@@ -786,3 +786,16 @@
 5. `node scripts/test-recovery-alerts.js`와 `node scripts/test-order-cancellation-safety.js`를 실행합니다.
 9. 운영에서는 읽기 전용 안정성 검사만 실행해 새 계약 버전, 관리자 GET 차단과 주문번호 단독 상태 조회 차단을 확인합니다.
 10. P104~P106·후기·신청 회귀검사, `node check_syntax.js`, 브라우저 구문검사, `node scripts/check-guide-assets.js`, `node scripts/check-handoff.js`, `git diff --check`를 모두 통과시킵니다.
+
+## P110 카카오 이용자 증명·공개 요청 제한 검증
+
+1. GAS Script Properties에 기존 솔트와 다른 강한 무작위 `KAKAO_AUTH_PROOF_SECRET`을 설정합니다. 값은 문서·로그·시트·Git에 복사하지 않습니다.
+2. 정적 배포 예정 시각의 30분 뒤 ISO 시각을 `KAKAO_AUTH_PROOF_LEGACY_UNTIL`로 설정하고 GAS 전체 파일을 API `2026-08-28.1`로 먼저 배포합니다.
+3. 정적 파일과 `kiosk-cache-v351`을 반영합니다. 증명 없는 기존 카카오 세션이 즉시 로그아웃되고 재로그인 안내가 보이는지 확인합니다.
+4. 카카오 재로그인 뒤 온기 보너스, 저장 프로필 조회·수정·삭제, 개인별 간식 수량, 포장·배달 주문과 다른 기기 주문 조회가 정상인지 확인합니다. 주문 토큰 기반 취소·후기도 유지되어야 합니다.
+5. staging에서 누락·변조·만료 증명, 다른 `guestKey`와 결합한 증명, 임의 raw `guestKey`가 온기·프로필·주문·전체 주문 조회 전에 거부되고 시트가 바뀌지 않는지 확인합니다.
+6. staging에서 서로 다른 멱등키 주문 6번째가 60초 제한되고 같은 멱등키 재시도는 기존 주문 결과를 반환하는지 확인합니다. 이용신청은 같은 연락처의 서로 다른 요청 4번째가 10분 제한되고 같은 `requestId` 재시도는 유지되어야 합니다.
+7. 유예 시각 전에는 증명 누락 요청만 임시 허용되고 잘못된 증명은 거부되는지 확인합니다. 정적 배포 확인 뒤 유예 속성을 제거하거나 만료를 기다리고 raw `guestKey` 요청이 모두 차단되는지 확인합니다.
+8. 관리자 운영점검에서 카카오 서버 증명 12시간, 서명키 설정, 유예 종료와 요청 제한 정책이 `OK`로 표시되는지 확인합니다.
+9. `node scripts/test-kakao-auth-security.js`, `node scripts/test-api-input-security.js`, 주문 한도·성능·이메일·데이터·취소·복구·후기·신청 회귀검사를 실행합니다.
+10. `node check_syntax.js`, 브라우저 구문검사, `node scripts/check-guide-assets.js`, `node scripts/check-handoff.js`, `git diff --check`를 모두 통과시킵니다.

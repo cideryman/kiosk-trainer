@@ -11,7 +11,7 @@
 - **프론트엔드**: HTML5, Vanilla CSS, Vanilla JavaScript
 - **백엔드/서버 실행 환경**: Google Apps Script 웹앱
 - **DB**: Google Sheets
-- **인증 연동**: 선택형 카카오 로그인, GAS Script Properties에 비밀값 저장
+- **인증 연동**: 선택형 카카오 로그인, 12시간 서버 서명 증명, GAS Script Properties에 비밀값 저장
 - **PWA**: 화면별 Manifest와 `service-worker.js` 정적 캐시
 - **로컬 테스트**: `js/config.js`의 `USE_MOCK = true`로 로컬 스토리지 기반 Mock 사용
 
@@ -86,5 +86,5 @@ P99/P102 일정 운영은 시간 트리거를 만들지 않습니다. `getGuestS
 - `node check_syntax.js`로 결합 구문을 검사한 뒤 GAS 새 버전을 배포합니다.
 - 기존 GAS 프로젝트에서 파일만 나눈 경우 Script Properties와 카카오 설정은 유지됩니다.
 - 새 GAS 프로젝트에서만 `setKakaoPropertiesOnce()`를 GAS 편집기의 `00_Setup.gs`에 임시로 넣어 실행합니다.
-- `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_GUEST_KEY_SALT`, `ADMIN_TOKEN`은 로컬 파일이나 GitHub에 저장하지 않습니다.
+- `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_GUEST_KEY_SALT`, `KAKAO_AUTH_PROOF_SECRET`, `ADMIN_TOKEN`은 로컬 파일이나 GitHub에 저장하지 않습니다.
 - 정적 파일 변경 시 `service-worker.js` 캐시 버전 상향 여부를 반드시 확인합니다.

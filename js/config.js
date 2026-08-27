@@ -1,6 +1,6 @@
 // Google Apps Script API 설정
 const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ9_UPux8bq0xROvNK9E1NCBam0Qe/exec";
-const API_CONTRACT_VERSION = '2026-08-27.4';
+const API_CONTRACT_VERSION = '2026-08-28.1';
 
 function createMockOrderToken() {
   try {
@@ -683,6 +683,13 @@ async function fetchAPI(action, options = {}) {
   const timeoutMs = Number.isFinite(requestedTimeoutMs) && requestedTimeoutMs >= 1000
     ? Math.min(requestedTimeoutMs, 120000)
     : defaultTimeoutMs;
+  if (method === 'POST' && options.body && (options.body.authProvider === 'kakao' || options.body.guestKey)
+      && typeof AppState !== 'undefined' && AppState.getGuestAuthRequestPayload) {
+    options = {
+      ...options,
+      body: { ...options.body, ...AppState.getGuestAuthRequestPayload() }
+    };
+  }
   const diagnosticRequest = API_DIAGNOSTICS.beginRequest(action, method, options.params);
 
   // 1. 뮤테이션(쓰기 작업) 발생 시 모든 캐시 삭제하여 정합성 유지
@@ -711,6 +718,10 @@ async function fetchAPI(action, options = {}) {
   if (typeof USE_MOCK !== 'undefined' && USE_MOCK) {
     console.log(`[API Mock] USE_MOCK이 활성화되어 있어 Mock 데이터를 사용합니다. Action: ${action}`);
     const mockData = getMockFallback(action, options);
+    if (mockData && ['KAKAO_AUTH_REQUIRED', 'KAKAO_AUTH_INVALID', 'KAKAO_AUTH_EXPIRED'].includes(mockData.errorCode)
+        && typeof AppState !== 'undefined' && AppState.clearGuestAuth) {
+      AppState.clearGuestAuth(true);
+    }
     API_DIAGNOSTICS.finishRequest(diagnosticRequest, {
       source: 'mock',
       success: mockData?.success !== false,
@@ -752,7 +763,7 @@ async function fetchAPI(action, options = {}) {
     // API 명세 상 action이 body 안에 포함되어야 하므로 placeOrder 등의 액션을 body에 같이 전달
     const requestBody = {
       action: action,
-      ...options.body
+      ...(options.body || {})
     };
     fetchOptions.body = JSON.stringify(requestBody);
     
@@ -773,8 +784,14 @@ async function fetchAPI(action, options = {}) {
     const parseStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const data = await response.json();
     const parseFinishedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    safeLog("API Response", data);
+    safeLog("API Response", data && data.kakaoAuthProof
+      ? { ...data, kakaoAuthProof: '[REDACTED]' }
+      : data);
     warnIfApiContractMismatched(action, data);
+    if (data && ['KAKAO_AUTH_REQUIRED', 'KAKAO_AUTH_INVALID', 'KAKAO_AUTH_EXPIRED'].includes(data.errorCode)
+        && typeof AppState !== 'undefined' && AppState.clearGuestAuth) {
+      AppState.clearGuestAuth(true);
+    }
 
     // 구글 드라이브 이미지 URL 변환 처리
     if (data && data.success) {
@@ -915,6 +932,71 @@ function sanitizeMockGuestEventName(rawValue) {
   return { success: true, html, text };
 }
 
+const MOCK_PUBLIC_RATE_LIMIT_POLICIES = {
+  placeOrder: { windowSeconds: 60, principalLimit: 5, globalLimit: 60 },
+  submitGuestApplication: { windowSeconds: 600, principalLimit: 3, globalLimit: 30 },
+  exchangeKakaoAuthCode: { windowSeconds: 600, principalLimit: 5, globalLimit: 60 }
+};
+
+function createMockKakaoAuthProof(guestKey) {
+  const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
+  const token = `mock-kakao-proof-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const proofs = JSON.parse(localStorage.getItem('mockKakaoAuthProofs') || '{}');
+  proofs[token] = { guestKey, expiresAt };
+  localStorage.setItem('mockKakaoAuthProofs', JSON.stringify(proofs));
+  return { token, expiresAt };
+}
+
+function resolveMockKakaoIdentity(data, required = false) {
+  const request = data || {};
+  const provider = String(request.authProvider || '').toLowerCase();
+  const guestKey = String(request.guestKey || '');
+  const proof = String(request.kakaoAuthProof || '');
+  const claimsKakao = provider === 'kakao' || !!guestKey || !!proof;
+  if (!claimsKakao) {
+    return required
+      ? { success: false, errorCode: 'KAKAO_AUTH_REQUIRED', message: '카카오 로그인이 필요합니다. 다시 로그인해 주세요.' }
+      : { success: true, isKakao: false, guestKey: '', provider: '' };
+  }
+  if (!proof) return { success: false, errorCode: 'KAKAO_AUTH_REQUIRED', message: '카카오 로그인이 갱신되었습니다. 다시 로그인해 주세요.' };
+  const proofs = JSON.parse(localStorage.getItem('mockKakaoAuthProofs') || '{}');
+  const record = proofs[proof];
+  if (!record) return { success: false, errorCode: 'KAKAO_AUTH_INVALID', message: '카카오 로그인 확인 정보가 올바르지 않습니다.' };
+  if (new Date(record.expiresAt).getTime() <= Date.now()) {
+    return { success: false, errorCode: 'KAKAO_AUTH_EXPIRED', message: '카카오 로그인 시간이 만료되었습니다. 다시 로그인해 주세요.' };
+  }
+  if (guestKey && guestKey !== record.guestKey) {
+    return { success: false, errorCode: 'KAKAO_AUTH_INVALID', message: '카카오 로그인 이용자 정보가 일치하지 않습니다.' };
+  }
+  return { success: true, isKakao: true, provider: 'kakao', guestKey: record.guestKey, expiresAt: record.expiresAt };
+}
+
+function checkMockPublicRateLimit(policyName, principal, requestId) {
+  const policy = MOCK_PUBLIC_RATE_LIMIT_POLICIES[policyName];
+  if (!policy || !principal) return { success: true };
+  const now = Date.now();
+  const windowMs = policy.windowSeconds * 1000;
+  const windowStart = Math.floor(now / windowMs) * windowMs;
+  const storageKey = `mockRateLimit:${policyName}:${windowStart}`;
+  const state = JSON.parse(localStorage.getItem(storageKey) || '{"global":0,"principals":{},"seen":{}}');
+  const seenKey = requestId ? `${principal}:${requestId}` : '';
+  if (seenKey && state.seen[seenKey]) return { success: true, idempotentRetry: true };
+  const principalCount = Number(state.principals[principal] || 0);
+  if (principalCount >= policy.principalLimit || Number(state.global || 0) >= policy.globalLimit) {
+    return {
+      success: false,
+      errorCode: 'RATE_LIMITED',
+      retryAfterSeconds: Math.max(1, Math.ceil((windowStart + windowMs - now) / 1000)),
+      message: '요청이 너무 빠르게 반복되었습니다. 잠시 후 다시 시도해 주세요.'
+    };
+  }
+  state.principals[principal] = principalCount + 1;
+  state.global = Number(state.global || 0) + 1;
+  if (seenKey) state.seen[seenKey] = true;
+  localStorage.setItem(storageKey, JSON.stringify(state));
+  return { success: true };
+}
+
 /**
  * API 호출 실패 시 로컬에서 응답할 Mock 데이터 처리기
  */
@@ -953,6 +1035,9 @@ function getMockFallback(action, options) {
       return active === 'TRUE' || active === '사용' || active === 'Y' || active === 'O' || active === '예';
     });
   } else if (action === 'getSnacks') {
+    const snackRequest = options.body || options.params || {};
+    const snackIdentity = resolveMockKakaoIdentity(snackRequest, false);
+    if (!snackIdentity.success) return snackIdentity;
     res = {
       success: true,
       snacks: getMockSnacks()
@@ -961,7 +1046,7 @@ function getMockFallback(action, options) {
       const active = String(s.saleYn ?? s.active ?? 'Y').trim().toUpperCase();
       return active === 'TRUE' || active === '판매' || active === 'Y' || active === 'O' || active === '예';
     });
-    const mode = options.params?.mode;
+    const mode = snackRequest.mode;
     if (mode) {
       const cleanedMode = String(mode).trim().toLowerCase();
       const parseTargetList = (t) => {
@@ -997,12 +1082,15 @@ function getMockFallback(action, options) {
     const existingRequest = MOCK_GUEST_APPLICATIONS.find(application => application.requestId === requestId);
     const settings = getMockGuestApplicationSettingsResponse();
     const normalizedPhone = String(body.phone || '').replace(/\D/g, '');
+    const rateLimit = checkMockPublicRateLimit('submitGuestApplication', `phone:${normalizedPhone}`, requestId);
     const duplicatePhone = MOCK_GUEST_APPLICATIONS.find(application => (
       !application.anonymizedAt
       && String(application.phone || '').replace(/\D/g, '') === normalizedPhone
     ));
 
-    if (existingRequest) {
+    if (!rateLimit.success) {
+      res = rateLimit;
+    } else if (existingRequest) {
       res = {
         success: true,
         idempotent: true,
@@ -1250,18 +1338,32 @@ function getMockFallback(action, options) {
       message: 'Mock 카카오 설정입니다.'
     };
   } else if (action === 'exchangeKakaoAuthCode') {
-    if (!options.body?.code) {
-      res = { success: false, message: '카카오 인증 코드가 누락되었습니다.' };
+    const state = String(options.body?.state || '');
+    const rateLimit = checkMockPublicRateLimit('exchangeKakaoAuthCode', `state:${state}`, '');
+    if (!rateLimit.success) {
+      res = rateLimit;
+    } else if (!options.body?.code || !/^[A-Za-z0-9_-]{16,100}$/.test(state)) {
+      res = { success: false, message: '카카오 인증 코드 또는 state가 누락되었습니다.' };
     } else {
+      const proof = createMockKakaoAuthProof('kakao_mock_guest');
       res = {
         success: true,
         provider: 'kakao',
         guestKey: 'kakao_mock_guest',
+        kakaoAuthProof: proof.token,
+        authProofExpiresAt: proof.expiresAt,
         message: 'Mock 카카오 연결이 완료되었습니다.'
       };
     }
   } else if (action === 'getGuestCreditStatus') {
-    res = resolveMockGuestCreditWallet(options.body || {}, { create: false });
+    const identity = resolveMockKakaoIdentity(options.body || {}, false);
+    res = identity.success
+      ? resolveMockGuestCreditWallet({
+          guestDeviceId: options.body?.guestDeviceId || '',
+          authProvider: identity.isKakao ? 'kakao' : '',
+          guestKey: identity.isKakao ? identity.guestKey : ''
+        }, { create: false })
+      : identity;
   } else if (action === 'updateGuestSettings') {
     const settingsAction = options.body?.settingsAction;
     const settings = getMockGuestSettings();
@@ -1423,8 +1525,10 @@ function getMockFallback(action, options) {
       res = ownership;
     }
   } else if (action === 'getGuestOrdersByGuestKey') {
-    const authProvider = options.body?.authProvider;
-    const guestKey = options.body?.guestKey;
+    const identity = resolveMockKakaoIdentity(options.body || {}, true);
+    if (!identity.success) return identity;
+    const authProvider = 'kakao';
+    const guestKey = identity.guestKey;
     const includeArchived = options.body?.includeArchived === true;
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
     const mockArchived = includeArchived ? JSON.parse(localStorage.getItem('mockArchivedOrders') || '[]') : [];
@@ -1441,8 +1545,10 @@ function getMockFallback(action, options) {
       orders: matchedOrders.map(o => ({ ...o, reviewed: o.reviewed || false }))
     };
   } else if (action === 'getGuestProfileByGuestKey') {
-    const authProvider = options.body?.authProvider;
-    const guestKey = options.body?.guestKey;
+    const identity = resolveMockKakaoIdentity(options.body || {}, true);
+    if (!identity.success) return identity;
+    const authProvider = 'kakao';
+    const guestKey = identity.guestKey;
     const profiles = JSON.parse(localStorage.getItem('mockGuestProfiles') || '{}');
     if (authProvider !== 'kakao' || !guestKey) {
       res = { success: false, message: '카카오 연결 정보가 누락되었습니다.' };
@@ -1453,8 +1559,10 @@ function getMockFallback(action, options) {
       };
     }
   } else if (action === 'deleteGuestProfileByGuestKey') {
-    const authProvider = options.body?.authProvider;
-    const guestKey = options.body?.guestKey;
+    const identity = resolveMockKakaoIdentity(options.body || {}, true);
+    if (!identity.success) return identity;
+    const authProvider = 'kakao';
+    const guestKey = identity.guestKey;
     const profiles = JSON.parse(localStorage.getItem('mockGuestProfiles') || '{}');
     if (authProvider !== 'kakao' || !guestKey) {
       res = { success: false, message: '카카오 연결 정보가 누락되었습니다.' };
@@ -1464,8 +1572,10 @@ function getMockFallback(action, options) {
       res = { success: true, message: '저장된 게스트 정보가 삭제되었습니다.' };
     }
   } else if (action === 'updateGuestProfileByGuestKey') {
-    const authProvider = options.body?.authProvider;
-    const guestKey = options.body?.guestKey;
+    const identity = resolveMockKakaoIdentity(options.body || {}, true);
+    if (!identity.success) return identity;
+    const authProvider = 'kakao';
+    const guestKey = identity.guestKey;
     const displayName = options.body?.displayName;
     const deliveryPlace = options.body?.deliveryPlace;
     const profiles = JSON.parse(localStorage.getItem('mockGuestProfiles') || '{}');
@@ -1532,12 +1642,35 @@ function getMockFallback(action, options) {
     if (idempotencyKey.length < 8 || idempotencyKey.length > 120 || !/^[A-Za-z0-9._:-]+$/.test(idempotencyKey)) {
       return { success: false, message: '주문 중복 방지 키가 올바르지 않습니다. 화면을 새로고침한 뒤 다시 시도해 주세요.' };
     }
+    const identity = resolveMockKakaoIdentity(options.body || {}, false);
+    if (!identity.success) return identity;
+    if (!isGuest && identity.isKakao) {
+      return { success: false, errorCode: 'KAKAO_AUTH_INVALID', message: '카카오 로그인은 배달왔삼 주문에서만 사용할 수 있습니다.' };
+    }
+    if (isGuest && !identity.isKakao && !options.body?.guestDeviceId) {
+      return { success: false, message: '게스트 주문 확인 정보가 없습니다. 화면을 새로고침한 뒤 다시 시도해 주세요.' };
+    }
+    options.body.authProvider = identity.isKakao ? 'kakao' : '';
+    options.body.guestKey = identity.isKakao ? identity.guestKey : '';
+    const rateLimitPrincipal = isGuest
+      ? (identity.isKakao ? `kakao:${identity.guestKey}` : `device:${options.body?.guestDeviceId || ''}`)
+      : `user:${userId}`;
+    const rateLimit = checkMockPublicRateLimit('placeOrder', rateLimitPrincipal, idempotencyKey);
+    if (!rateLimit.success) return rateLimit;
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
     const idempotentRows = idempotencyKey
       ? localOrders.filter(o => o.idempotencyKey === idempotencyKey && String(o.userId) === String(userId))
       : [];
     if (idempotentRows.length > 0) {
       const firstRow = idempotentRows[0];
+      if (isGuest) {
+        const ownsReplay = identity.isKakao
+          ? idempotentRows.every(row => row.guestKey === identity.guestKey)
+          : idempotentRows.every(row => row.guestDeviceId === String(options.body?.guestDeviceId || ''));
+        if (!ownsReplay) {
+          return { success: false, errorCode: 'UNAUTHORIZED_ORDER', message: '주문 중복 확인 정보가 현재 이용자와 일치하지 않습니다.' };
+        }
+      }
       const replayTotal = Number(firstRow.totalCredit || idempotentRows.reduce((sum, row) => sum + Number(row.point || 0), 0));
       const selectedUser = JSON.parse(localStorage.getItem('selectedUser') || 'null');
       const storedUser = !isGuest
@@ -2509,7 +2642,21 @@ function getMockFallback(action, options) {
           'ADMIN_TOKEN': { configured: true, required: true, description: '관리자 API 요청 토큰', status: 'OK' },
           'KAKAO_REST_API_KEY': { configured: true, required: true, description: '카카오 로그인 API 키', status: 'OK' },
           'KAKAO_GUEST_KEY_SALT': { configured: true, required: true, description: '게스트 식별키 암호화 솔트', status: 'OK' },
+          'KAKAO_AUTH_PROOF_SECRET': { configured: true, required: true, description: '카카오 로그인 증명 서명키', status: 'OK' },
           'KAKAO_CLIENT_SECRET': { configured: false, required: false, description: '카카오 로그인 보안 비밀키 (선택)', status: 'INFO' }
+        },
+        security: {
+          kakaoAuthProof: {
+            status: 'OK',
+            ttlHours: 12,
+            legacyWindowActive: false,
+            legacyUntil: '',
+            rateLimits: {
+              placeOrder: '5/60s, global 60/60s',
+              submitGuestApplication: '3/600s, global 30/600s',
+              exchangeKakaoAuthCode: '5/600s, global 60/600s'
+            }
+          }
         },
         triggers: {
           weeklyRotation: { status: 'OK', count: 1, handler: 'rotateGuestApplicationWeekly' }

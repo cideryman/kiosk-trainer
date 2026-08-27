@@ -37,12 +37,16 @@ function buildKakaoGuestKey(kakaoId) {
 function exchangeKakaoAuthCode(data) {
   const code = String(data.code || '').trim();
   const redirectUri = String(data.redirectUri || '').trim();
-  if (!code || !redirectUri) {
+  const state = String(data.state || '').trim();
+  if (!code || !redirectUri || !/^[A-Za-z0-9_-]{16,100}$/.test(state)) {
     return {
       success: false,
-      message: '카카오 인증 코드 또는 redirectUri가 누락되었습니다.',
+      message: '카카오 인증 코드, state 또는 redirectUri가 누락되었습니다.',
     };
   }
+
+  const rateLimit = checkPublicRateLimit_('exchangeKakaoAuthCode', 'state:' + state, '');
+  if (!rateLimit.success) return rateLimit;
 
   const props = PropertiesService.getScriptProperties();
   const clientId = props.getProperty('KAKAO_REST_API_KEY');
@@ -98,10 +102,14 @@ function exchangeKakaoAuthCode(data) {
       };
     }
 
+    const guestKey = buildKakaoGuestKey(profileBody.id);
+    const proof = createKakaoAuthProof_(guestKey);
     return {
       success: true,
       provider: 'kakao',
-      guestKey: buildKakaoGuestKey(profileBody.id),
+      guestKey,
+      kakaoAuthProof: proof.token,
+      authProofExpiresAt: proof.expiresAt,
     };
   } catch (error) {
     return getSafeApiErrorResponse('exchangeKakaoAuthCode', error);
@@ -136,14 +144,9 @@ function ensureGuestProfileSheet() {
 }
 
 function getGuestProfileByGuestKey(data) {
-  const authProvider = String(data.authProvider || '').trim().toLowerCase();
-  const guestKey = String(data.guestKey || '').trim();
-  if (authProvider !== 'kakao' || !guestKey) {
-    return {
-      success: false,
-      message: '카카오 연결 정보가 누락되었습니다.',
-    };
-  }
+  const identity = resolveKakaoRequestIdentity_(data, { required: true });
+  if (!identity.success) return identity;
+  const guestKey = identity.guestKey;
 
   const sheet = ensureGuestProfileSheet();
   const values = sheet.getDataRange().getValues();
@@ -172,14 +175,9 @@ function getGuestProfileByGuestKey(data) {
 }
 
 function deleteGuestProfileByGuestKey(data) {
-  const authProvider = String(data.authProvider || '').trim().toLowerCase();
-  const guestKey = String(data.guestKey || '').trim();
-  if (authProvider !== 'kakao' || !guestKey) {
-    return {
-      success: false,
-      message: '카카오 연결 정보가 누락되었습니다.',
-    };
-  }
+  const identity = resolveKakaoRequestIdentity_(data, { required: true });
+  if (!identity.success) return identity;
+  const guestKey = identity.guestKey;
 
   const sheet = ensureGuestProfileSheet();
   const values = sheet.getDataRange().getValues();
@@ -203,16 +201,11 @@ function deleteGuestProfileByGuestKey(data) {
 }
 
 function updateGuestProfileByGuestKey(data) {
-  const authProvider = String(data.authProvider || '').trim().toLowerCase();
-  const guestKey = String(data.guestKey || '').trim();
+  const identity = resolveKakaoRequestIdentity_(data, { required: true });
+  if (!identity.success) return identity;
+  const guestKey = identity.guestKey;
   const displayName = String(data.displayName || '').trim();
   const deliveryPlace = String(data.deliveryPlace || '').trim();
-  if (authProvider !== 'kakao' || !guestKey) {
-    return {
-      success: false,
-      message: '카카오 연결 정보가 누락되었습니다.',
-    };
-  }
   if (!displayName) {
     return {
       success: false,

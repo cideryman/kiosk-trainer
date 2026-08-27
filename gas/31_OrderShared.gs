@@ -131,7 +131,7 @@ function verifyOrderOwnership_(data, options) {
   };
 }
 
-function getExistingIdempotentOrderResult(orderSheet, userSheet, headers, idempotencyKey, userId, knownValues) {
+function getExistingIdempotentOrderResult(orderSheet, userSheet, headers, idempotencyKey, userId, knownValues, identity) {
   const key = normalizeIdempotencyKey(idempotencyKey);
   const keyIdx = headers.indexOf(ORDER_IDEMPOTENCY_HEADER);
   if (!key || keyIdx === -1 || orderSheet.getLastRow() <= 1) return null;
@@ -148,6 +148,23 @@ function getExistingIdempotentOrderResult(orderSheet, userSheet, headers, idempo
   if (matchedRows.length === 0) return null;
 
   const firstRow = matchedRows[0];
+  if (String(userId) === 'guest') {
+    const expected = identity || {};
+    const guestDeviceIdIdx = headers.indexOf('guestDeviceId');
+    const guestKeyIdx = headers.indexOf('guestKey');
+    const ownsReplay = expected.guestKey
+      ? matchedRows.every(row => guestKeyIdx !== -1 && String(row[guestKeyIdx] || '').trim() === String(expected.guestKey))
+      : !!expected.guestDeviceId && matchedRows.every(row => (
+          guestDeviceIdIdx !== -1 && String(row[guestDeviceIdIdx] || '').trim() === String(expected.guestDeviceId)
+        ));
+    if (!ownsReplay) {
+      return {
+        success: false,
+        errorCode: 'UNAUTHORIZED_ORDER',
+        message: '주문 중복 확인 정보가 현재 이용자와 일치하지 않습니다.',
+      };
+    }
+  }
   const totalCredit = Number(firstRow[13] || matchedRows.reduce((sum, row) => sum + Number(row[7] || 0), 0));
   const result = {
     success: true,

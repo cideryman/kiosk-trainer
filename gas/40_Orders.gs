@@ -69,6 +69,25 @@ function placeOrder(data) {
     });
   }
 
+  const isGuestRequest = String(userId) === 'guest';
+  const requestIdentity = resolveKakaoRequestIdentity_(data, { required: false });
+  if (!requestIdentity.success) return respond(requestIdentity);
+  if (!isGuestRequest && requestIdentity.isKakao) {
+    return respond({
+      success: false,
+      errorCode: 'KAKAO_AUTH_INVALID',
+      message: '카카오 로그인은 배달왔삼 주문에서만 사용할 수 있습니다.',
+    });
+  }
+  if (isGuestRequest && !requestIdentity.isKakao && !String(data.guestDeviceId || '').trim()) {
+    return respond({
+      success: false,
+      message: '게스트 주문 확인 정보가 없습니다. 화면을 새로고침한 뒤 다시 시도해 주세요.',
+    });
+  }
+  data.authProvider = requestIdentity.isKakao ? 'kakao' : '';
+  data.guestKey = requestIdentity.isKakao ? requestIdentity.guestKey : '';
+
   // 클라이언트가 같은 간식을 여러 항목으로 나누어 보내도 서버에서 하나로 합산한다.
   // 이 합산 결과를 기준으로 재고·1인 제한·차감 포인트를 검증해야 우회가 없다.
   const normalizedItems = [];
@@ -91,6 +110,12 @@ function placeOrder(data) {
       normalizedItems.push({ snackId: item.snackId, quantity });
     }
   }
+
+  const rateLimitPrincipal = isGuestRequest
+    ? (requestIdentity.isKakao ? 'kakao:' + requestIdentity.guestKey : 'device:' + String(data.guestDeviceId || '').trim())
+    : 'user:' + String(userId || '').trim();
+  const rateLimit = checkPublicRateLimit_('placeOrder', rateLimitPrincipal, rawIdempotencyKey);
+  if (!rateLimit.success) return respond(rateLimit);
 
   recordOrderPerformanceDuration_(performanceState, 'validation', initialValidationStartedAt);
 
@@ -142,7 +167,11 @@ function placeOrder(data) {
       headers,
       rawIdempotencyKey,
       userId,
-      orderRowsSnapshot
+      orderRowsSnapshot,
+      {
+        guestKey: requestIdentity.isKakao ? requestIdentity.guestKey : '',
+        guestDeviceId: requestIdentity.isKakao ? '' : String(data.guestDeviceId || '').trim(),
+      }
     );
     if (existingOrderResult) {
       return respond(existingOrderResult);
@@ -151,9 +180,8 @@ function placeOrder(data) {
     const snacks = measureOrderPerformanceStep_(performanceState, 'snacksRead', () => (
       snackSheet.getDataRange().getValues()
     ));
-    const rawGuestKey = String(data.guestKey || '').trim();
-    const authProvider = isGuest && rawGuestKey && String(data.authProvider || '').trim().toLowerCase() === 'kakao' ? 'kakao' : '';
-    const guestKey = authProvider === 'kakao' ? rawGuestKey : '';
+    const authProvider = isGuest && requestIdentity.isKakao ? 'kakao' : '';
+    const guestKey = authProvider === 'kakao' ? requestIdentity.guestKey : '';
     let guestSettings = null;
 
     if (isGuest) {
@@ -923,16 +951,11 @@ function getGuestOrderByToken(data) {
  * 원본 카카오 ID가 아닌 내부 guestKey 기준으로 주문을 반환합니다.
  */
 function getGuestOrdersByGuestKey(data) {
-  const authProvider = String(data ? data.authProvider : '').trim().toLowerCase();
-  const guestKey = String(data ? data.guestKey : '').trim();
+  const identity = resolveKakaoRequestIdentity_(data, { required: true });
+  if (!identity.success) return identity;
+  const authProvider = 'kakao';
+  const guestKey = identity.guestKey;
   const includeArchived = data && (data.includeArchived === true || String(data.includeArchived).toLowerCase() === 'true');
-
-  if (authProvider !== 'kakao' || !guestKey) {
-    return {
-      success: false,
-      message: '카카오 연결 정보가 누락되었습니다.'
-    };
-  }
 
   const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET.ORDERS);
   if (!sheet) {

@@ -38,24 +38,64 @@ const AppState = {
   getGuestAuth() {
     try {
       const auth = JSON.parse(localStorage.getItem('guestAuth')) || null;
-      if (!auth || auth.provider !== 'kakao' || !auth.guestKey) return null;
+      if (!auth) return null;
+      if (auth.provider !== 'kakao' || !auth.guestKey) {
+        this.clearGuestAuth(true);
+        return null;
+      }
+      const expiresAtMs = new Date(auth.expiresAt || '').getTime();
+      if (!auth.kakaoAuthProof || !Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) {
+        this.clearGuestAuth(true);
+        return null;
+      }
       return auth;
     } catch (e) {
+      this.clearGuestAuth(true);
       return null;
     }
   },
 
   setGuestAuth(auth) {
-    if (!auth || auth.provider !== 'kakao' || !auth.guestKey) return;
+    const expiresAtMs = new Date(auth && auth.expiresAt || '').getTime();
+    if (!auth || auth.provider !== 'kakao' || !auth.guestKey || !auth.kakaoAuthProof
+        || !Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) return;
     localStorage.setItem('guestAuth', JSON.stringify({
       provider: 'kakao',
       guestKey: auth.guestKey,
+      kakaoAuthProof: auth.kakaoAuthProof,
       authenticatedAt: auth.authenticatedAt || new Date().toISOString(),
+      expiresAt: new Date(expiresAtMs).toISOString(),
     }));
+    sessionStorage.removeItem('kakaoReauthRequired');
   },
 
-  clearGuestAuth() {
+  getGuestAuthRequestPayload() {
+    const auth = this.getGuestAuth();
+    return auth ? {
+      authProvider: 'kakao',
+      guestKey: auth.guestKey,
+      kakaoAuthProof: auth.kakaoAuthProof,
+    } : {};
+  },
+
+  needsKakaoReauth() {
+    return sessionStorage.getItem('kakaoReauthRequired') === '1';
+  },
+
+  clearGuestAuth(requireReauth = false) {
+    const hadAuth = !!localStorage.getItem('guestAuth');
     localStorage.removeItem('guestAuth');
+    if (requireReauth && hadAuth) sessionStorage.setItem('kakaoReauthRequired', '1');
+    try {
+      const selectedUser = JSON.parse(localStorage.getItem('selectedUser') || 'null');
+      if (selectedUser && selectedUser.userId === 'guest' && selectedUser.authProvider === 'kakao') {
+        delete selectedUser.authProvider;
+        delete selectedUser.guestKey;
+        delete selectedUser.guestProfileSaved;
+        delete selectedUser.rememberedDeliveryPlace;
+        localStorage.setItem('selectedUser', JSON.stringify(selectedUser));
+      }
+    } catch (e) {}
   },
 
   getLocalDateKey() {
@@ -502,6 +542,7 @@ function renderSystemDiagnosisExtras(report) {
     .map(([key, value]) => `${escape(key)} ${escape(value)}ms`)
     .join(' · ');
   const recovery = report?.recoveryAlerts || { status: 'OK', openCount: 0, alerts: [] };
+  const kakaoProof = report?.security?.kakaoAuthProof || {};
   const recoveryItems = (recovery.alerts || []).map(alert => {
     const alertId = String(alert.alertId || '');
     const flags = [alert.recoveryRequired ? '원상복구 필요' : '', alert.cleanupRequired ? '백업 삭제 필요' : ''].filter(Boolean).join(' · ');
@@ -526,6 +567,7 @@ function renderSystemDiagnosisExtras(report) {
     ${item(environment === 'production' || environment === 'staging', '배포 환경', environment)}
     ${item(trigger.status === 'OK' && trigger.count === 1, '주간 신청 순환 트리거', `등록 ${trigger.count ?? '확인 실패'}개`)}
     ${item(cache.status === 'OK' && cache.roundTrip === true, '서비스 캐시', cache.roundTrip ? '읽기·쓰기 정상' : '왕복 확인 실패')}
+    ${item(kakaoProof.status === 'OK', '카카오 서버 증명', kakaoProof.legacyWindowActive ? `기존 로그인 유예 중 · ${kakaoProof.legacyUntil || '종료 시각 확인 필요'}` : `서명키 설정 · ${kakaoProof.ttlHours || 12}시간 증명 · 기존 guestKey 차단`)}
     ${item(Number(timings.total) >= 0, '진단 소요시간', timingText || '측정값 없음')}
     <h3 style="font-size:16px;font-weight:850;margin:10px 0 6px;border-bottom:2px dashed var(--border-color);padding-bottom:4px;">자동복구 운영 경고</h3>
     ${item(recovery.status === 'OK', '열린 복구 경고', recovery.status === 'OK' ? '없음' : `${recovery.openCount || 0}건 · 백업 확인과 수동 조치가 필요합니다.`)}

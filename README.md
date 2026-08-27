@@ -43,6 +43,8 @@
 - **일반 키오스크**: 이용자·간식 선택, 개인별 1회 주문 한도, 주문 확인, 완료 화면
 - **배달왔삼 주문**: 포장·배달 선택, 배달지 입력, 게스트·카카오 사용자 식별, 주문 토큰과 주문 조회
 - **멱등 주문**: `idempotencyKey`로 네트워크 재시도와 중복 클릭에 따른 동일 주문 중복 생성을 방지
+- **카카오 서버 증명**: 카카오 코드 교환 뒤 12시간 HMAC 서명 증명으로 온기·프로필·주문·조회 이용자를 확인
+- **공개 요청 제한**: 주문·이용신청·카카오 코드 교환의 반복 남용을 제한하면서 동일 멱등 재시도는 유지
 - **재고·한도 방어**: GAS의 LockService, 주문 상태 검사, 일반 주문 한도와 배달왔삼 온기 최종 검증
 - **주방 운영**: 주문 탭, 제공 완료 목록, 통계, 게스트/일반 재고 현황, 운영 설정
 - **관리자 관리**: 이용자별 1회 주문 한도, 간식 재고·가격·표시, 간식 순서, 관리자 로그
@@ -80,6 +82,7 @@ Apps Script에서는 파일 순서가 실행 모듈을 나누는 것이 아니�
 | `00_Setup.gs` | GAS 편집기에서만 실행하는 일회성 설정 함수 |
 | `01_Router.gs` | 웹 요청 라우팅, 공개/관리자 API 분기 |
 | `02_SheetSafety.gs` | 파괴적 시트 작업의 백업·복원·값 검증·정확 행 쓰기 |
+| `03_RecoveryAlerts.gs`, `04_PublicSecurity.gs` | 자동복구 운영 경고와 카카오 증명·공개 요청 제한 |
 | `10_KakaoGuests.gs` | 카카오 인증과 게스트 프로필 |
 | `11_AdminLog.gs` | 관리자 변경 로그 |
 | `12_GuestApplications.gs` | 배달왔삼 이용 신청, 정원, 승인·익명화 |
@@ -94,7 +97,7 @@ Apps Script에서는 파일 순서가 실행 모듈을 나누는 것이 아니�
 | `70_Reviews.gs` | 후기 등록·조회·답글·공개 상태 |
 | `90_Diagnostics.gs` | 시트·헤더·스크립트 속성 진단 |
 
-카카오 키와 관리자 토큰 같은 비밀값은 저장소에 넣지 않습니다. `00_Setup.gs`의 일회성 설정 함수도 새 GAS 프로젝트에서만 사용하고, 실행 후 비밀값이 포함된 코드를 GitHub에 복사하지 않습니다.
+카카오 키와 관리자 토큰 같은 비밀값은 저장소에 넣지 않습니다. `KAKAO_AUTH_PROOF_SECRET`은 `KAKAO_GUEST_KEY_SALT`와 분리한 강한 무작위 Script Property로 설정합니다. `00_Setup.gs`의 일회성 설정 함수도 새 GAS 프로젝트에서만 사용하고, 실행 후 비밀값이 포함된 코드를 GitHub에 복사하지 않습니다.
 
 ### 카카오 API 설정을 다시 확인해야 하는 경우
 
@@ -102,7 +105,7 @@ Apps Script에서는 파일 순서가 실행 모듈을 나누는 것이 아니�
 
 - **재등록 불필요**: 기존 GAS 프로젝트의 파일 추가·수정, 같은 프로젝트의 새 버전 배포, 내부 API 로직 변경
 - **카카오 Developers 설정 확인 필요**: `guest.html`의 도메인·경로 변경, Redirect URI 생성 방식 변경, 다른 카카오 앱 또는 REST API 키 사용
-- **새 GAS 프로젝트 생성 시**: 카카오 앱을 새로 만들 필요는 없지만 `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_GUEST_KEY_SALT` 등의 Script Properties를 새 프로젝트에 다시 설정
+- **새 GAS 프로젝트 생성 시**: 카카오 앱을 새로 만들 필요는 없지만 `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_GUEST_KEY_SALT`, `KAKAO_AUTH_PROOF_SECRET` 등의 Script Properties를 새 프로젝트에 다시 설정
 - **새 GAS 웹앱 URL 사용 시**: `js/config.js`의 `API_URL`을 갱신합니다. `guest.html` 주소가 그대로라면 카카오 Redirect URI는 변경하지 않습니다.
 
 카카오 로그인에서 `KOE006` 오류가 발생하면 실제 인가 요청의 `redirect_uri`와 카카오 Developers에 등록된 Redirect URI가 문자 단위로 같은지 먼저 확인합니다. 비밀 키와 OAuth 인증정보는 문서·Git·프론트엔드 코드에 기록하지 않습니다.
@@ -161,6 +164,7 @@ node scripts/test-data-safety.js
 node scripts/test-order-cancellation-safety.js
 node scripts/test-api-input-security.js
 node scripts/test-recovery-alerts.js
+node scripts/test-kakao-auth-security.js
 ```
 
 주문·후기 화면의 구조나 버튼 문구를 변경한 경우에는 가이드 이미지도 함께 확인합니다. 가이드 이미지 검사에서는 참조 파일 누락과 빈 대체 텍스트를 점검합니다.

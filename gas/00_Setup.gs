@@ -3,6 +3,9 @@
  *
  * 새 Apps Script 프로젝트를 만들었을 때만 GAS 편집기에서 이 파일에
  * setKakaoPropertiesOnce() 같은 일회성 설정 함수를 임시로 추가하고 실행합니다.
+ * P110부터 KAKAO_AUTH_PROOF_SECRET은 KAKAO_GUEST_KEY_SALT와 다른 강한 무작위 값으로
+ * Script Properties에 직접 설정합니다. 배포 전환 유예가 필요하면
+ * KAKAO_AUTH_PROOF_LEGACY_UNTIL에 정적 배포 30분 뒤의 ISO 시각을 임시로 넣습니다.
  * 같은 프로젝트 안에서 파일만 분리한 경우 기존 Script Properties는 유지됩니다.
  */
 

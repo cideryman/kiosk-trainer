@@ -219,7 +219,9 @@ window.addEventListener('DOMContentLoaded', () => {
           }
           if (kakaoAuthStatus) {
             kakaoAuthStatus.style.display = 'block';
-            kakaoAuthStatus.textContent = '카카오톡 로그인으로 다른 기기에서도 오늘 주문을 찾을 수 있어요.';
+            kakaoAuthStatus.textContent = AppState.needsKakaoReauth && AppState.needsKakaoReauth()
+              ? '카카오 로그인 보안이 갱신되었습니다. 카카오톡으로 다시 로그인해 주세요.'
+              : '카카오톡 로그인으로 다른 기기에서도 오늘 주문을 찾을 수 있어요.';
           }
           if (btnKakaoLogin) {
             renderKakaoLoginButtonLabel();
@@ -442,14 +444,16 @@ window.addEventListener('DOMContentLoaded', () => {
             }
           });
 
-          if (!res || !res.success || !res.guestKey) {
+          if (!res || !res.success || !res.guestKey || !res.kakaoAuthProof || !res.authProofExpiresAt) {
             throw new Error((res && res.message) || '카카오 연결에 실패했습니다.');
           }
 
           AppState.setGuestAuth({
             provider: 'kakao',
             guestKey: res.guestKey,
-            authenticatedAt: new Date().toISOString()
+            kakaoAuthProof: res.kakaoAuthProof,
+            authenticatedAt: res.serverTime || new Date().toISOString(),
+            expiresAt: res.authProofExpiresAt
           });
           sessionStorage.removeItem('kakaoOAuthState');
           sessionStorage.removeItem('kakaoOAuthRedirectUri');

@@ -538,6 +538,12 @@ function submitGuestApplication(data) {
   const validation = validateGuestApplication(data || {});
   if (!validation.success) return validation;
   const input = validation.value;
+  const rateLimit = checkPublicRateLimit_(
+    'submitGuestApplication',
+    'phone:' + input.phone,
+    input.requestId
+  );
+  if (!rateLimit.success) return rateLimit;
   const lock = LockService.getScriptLock();
   lock.waitLock(15000);
 

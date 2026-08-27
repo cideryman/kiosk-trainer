@@ -5,7 +5,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const EXPECTED_API_VERSION = '2026-08-27.4';
+const EXPECTED_API_VERSION = '2026-08-28.1';
 const API_URL = String(process.env.KIOSK_API_URL || '').trim();
 const ADMIN_TOKEN = String(process.env.KIOSK_ADMIN_TOKEN || '').trim();
 const MODE = String(process.env.KIOSK_STABILITY_MODE || 'read').trim().toLowerCase();
@@ -239,7 +239,7 @@ async function runReadSuite() {
   ]);
   const forbiddenKeys = new Set([
     'userId', 'snackId', 'point', 'orderToken', 'deliveryFee', 'totalCredit',
-    'deliveryPlace', 'guestKey', 'authProvider', 'cancelReasonDetail', 'idempotencyKey'
+    'deliveryPlace', 'guestKey', 'authProvider', 'kakaoAuthProof', 'cancelReasonDetail', 'idempotencyKey'
   ]);
   const feedKeysSafe = feed.every(order => (
     Object.keys(order).every(key => allowedFeedKeys.has(key))
