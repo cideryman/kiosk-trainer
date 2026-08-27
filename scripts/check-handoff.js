@@ -91,6 +91,9 @@ for (const [order, id, task, status, nextAction, verificationLink] of currentRow
   if (!/^[PV]\d+$/.test(id)) fail(`현재 작업 ID 형식이 잘못됐습니다: ${id}`);
   if (!allowedCurrentStatuses.has(status)) fail(`${id}: 허용되지 않은 현재 상태: ${status}`);
   if (!task || !nextAction || !verificationLink) fail(`${id}: 작업·다음 행동·검증 절차를 모두 기록해야 합니다.`);
+  if (/수동\s*검증\s*완료/.test(nextAction)) {
+    fail(`${id}: 수동 검증 완료 작업은 현재 우선순위에 남길 수 없습니다.`);
+  }
   ids.push(id);
 }
 
@@ -123,11 +126,29 @@ for (const heading of verificationHeadings) {
   if (/대기|완료/.test(heading)) fail(`verification.md 제목에 상태 표현이 있습니다: ${heading}`);
 }
 
-const incompleteWorkLogHeadings = workLog.split(/\r?\n/)
-  .filter(line => /^##\s/.test(line))
+const workLogTaskHeadings = workLog.split(/\r?\n/)
+  .filter(line => /^#{1,6}\s/.test(line) && /\b[PV]\d+\b/.test(line));
+const incompleteWorkLogHeadings = workLogTaskHeadings
   .filter(line => /대기|보류|폐기|구현 중/.test(line));
 if (incompleteWorkLogHeadings.length) {
   fail(`work-log.md에 완료되지 않은 상태의 제목이 있습니다: ${incompleteWorkLogHeadings.join(', ')}`);
+}
+
+if (/완료 상태로 변경하지 않았|완료 처리하지 않았/.test(workLog)) {
+  fail('work-log.md에 완료 전 작업 기록이 있습니다. handoff-archive.md로 이동해야 합니다.');
+}
+
+const completedTaskIds = new Set();
+workLogTaskHeadings
+  .filter(line => !/보완/.test(line))
+  .forEach(line => {
+    for (const match of line.matchAll(/\b[PV]\d+\b/g)) completedTaskIds.add(match[0]);
+  });
+const activeCompletedIds = currentRows
+  .map(row => row[1])
+  .filter(id => completedTaskIds.has(id));
+if (activeCompletedIds.length) {
+  fail(`완료 로그와 현재 우선순위에 같은 작업이 있습니다: ${activeCompletedIds.join(', ')}`);
 }
 
 const handoffCache = handoff.match(/kiosk-cache-v\d+/)?.[0];
