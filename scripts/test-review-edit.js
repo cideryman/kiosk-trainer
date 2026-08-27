@@ -37,9 +37,10 @@ class Range {
 }
 
 class Sheet {
-  constructor(values) {
+  constructor(values, name = '') {
     this.values = values.map(row => row.slice());
     this.maxColumns = Math.max(1, ...this.values.map(row => row.length));
+    this.name = name;
   }
 
   getLastRow() { return this.values.length; }
@@ -49,27 +50,28 @@ class Sheet {
   getRange(row, column, numRows, numColumns) { return new Range(this, row, column, numRows, numColumns); }
   insertColumnsAfter(_after, count) { this.maxColumns += count; }
   appendRow(row) { this.values.push(row.slice()); }
+  getName() { return this.name; }
 }
 
 const REVIEW_HEADERS = [
   'createdAt', 'orderId', 'guestName', 'stamp', 'tags', 'comment',
   'isPublic', 'imageUrl', 'replyText', 'replyCreatedAt', 'updatedAt', 'editCount'
 ];
-const ORDER_HEADERS = ['주문번호', '이용자ID', 'orderToken'];
+const ORDER_HEADERS = ['주문번호', '이용자ID', 'orderToken', '제공여부'];
 const createdAt = new Date(Date.now() - 24 * 60 * 60 * 1000);
 const replyCreatedAt = new Date(Date.now() - 12 * 60 * 60 * 1000);
 const sheets = {
   주문내역: new Sheet([
     ORDER_HEADERS,
-    ['ORDER-1', 'guest', 'TOKEN-1'],
-    ['ORDER-1', 'guest', 'TOKEN-1']
-  ]),
-  주문보관: new Sheet([ORDER_HEADERS]),
+    ['ORDER-1', 'guest', 'TOKEN-1', 'Y'],
+    ['ORDER-1', 'guest', 'TOKEN-1', 'Y']
+  ], '주문내역'),
+  주문보관: new Sheet([ORDER_HEADERS], '주문보관'),
   후기내역: new Sheet([
-    REVIEW_HEADERS.slice(0, 10),
+    REVIEW_HEADERS,
     [createdAt, 'ORDER-1', '손님', 'dalgomi_thumb', '친절한 미소', '처음 후기', false,
-      'https://drive.google.com/uc?export=view&id=old-image', '고마워요', replyCreatedAt]
-  ])
+      'https://drive.google.com/uc?export=view&id=old-image', '고마워요', replyCreatedAt, '', 0]
+  ], '후기내역')
 };
 
 const cleanedImages = [];
@@ -90,10 +92,14 @@ const context = {
   CacheService: { getScriptCache: () => ({ remove: () => {}, get: () => null, put: () => {} }) },
   Logger: { log: () => {} },
   clearOrderReadCache: () => {},
+  clearReviewCache: () => {},
+  getSafeApiErrorResponse: (_action, error) => ({ success: false, message: error.message }),
   trashReviewImageFile_: url => cleanedImages.push(url)
 };
 
 vm.createContext(context);
+const sharedSource = fs.readFileSync(path.join(__dirname, '..', 'gas', '31_OrderShared.gs'), 'utf8');
+vm.runInContext(sharedSource, context);
 const source = fs.readFileSync(path.join(__dirname, '..', 'gas', '70_Reviews.gs'), 'utf8');
 vm.runInContext(`${source}\nthis.reviewApi = { getGuestReview, updateGuestReview };`, context);
 const api = context.reviewApi;

@@ -497,7 +497,6 @@ function renderSystemDiagnosisExtras(report) {
   const environment = escape(report?.environment || 'unset');
   const trigger = report?.triggers?.weeklyRotation || {};
   const cache = report?.cache?.scriptCache || {};
-  const legacyAdminGet = report?.security?.legacyAdminGet || {};
   const timings = report?.timingsMs || {};
   const timingText = Object.entries(timings)
     .map(([key, value]) => `${escape(key)} ${escape(value)}ms`)
@@ -513,7 +512,6 @@ function renderSystemDiagnosisExtras(report) {
     <h3 style="font-size: 16px; font-weight: 850; margin: 10px 0 6px 0; border-bottom: 2px dashed var(--border-color); padding-bottom: 4px;">배포 및 실행 환경</h3>
     ${item(contract.compatible, 'API 계약 버전', `화면 ${contract.expected || '-'} / GAS ${contract.actual || '미확인'}`)}
     ${item(environment === 'production' || environment === 'staging', '배포 환경', environment)}
-    ${item(legacyAdminGet.enabled !== true, '관리자 공개 조회', legacyAdminGet.enabled ? '임시 호환 모드가 켜져 있습니다.' : '차단됨')}
     ${item(trigger.status === 'OK' && trigger.count === 1, '주간 신청 순환 트리거', `등록 ${trigger.count ?? '확인 실패'}개`)}
     ${item(cache.status === 'OK' && cache.roundTrip === true, '서비스 캐시', cache.roundTrip ? '읽기·쓰기 정상' : '왕복 확인 실패')}
     ${item(Number(timings.total) >= 0, '진단 소요시간', timingText || '측정값 없음')}

@@ -29,7 +29,9 @@ const ADMIN_MAX_USER_CREDIT = 15;
 const ADMIN_MIN_USER_ORDER_LIMIT = 1;
 const DEFAULT_USER_ORDER_LIMIT = 10;
 const ADMIN_MAX_SNACK_STOCK = 30;
-const API_CONTRACT_VERSION = '2026-08-27.2';
+const ADMIN_MAX_SNACK_POINT = 15;
+const ADMIN_MAX_SNACK_PER_PERSON = 30;
+const API_CONTRACT_VERSION = '2026-08-27.3';
 
 // 관리자 토큰이 필요한 조회·변경 API 목록입니다.
 const ADMIN_ACTIONS = [
@@ -49,6 +51,7 @@ const ADMIN_ACTIONS = [
   'addSnack',
   'updateUser',
   'updateSnack',
+  'ensureOrderHeaders',
   'cancelOrder',
   'updateSnacksOrder',
   // 'uploadImage', // 게스트 후기 사진 업로드를 위해 허용 (함수 내에서 개별 보안 검증 수행)
@@ -109,5 +112,44 @@ function verifyAdminAccess() {
   return {
     success: true,
     message: '관리자 권한이 확인되었습니다.',
+  };
+}
+
+function createPublicApiError(message, code) {
+  const error = new Error(String(message || '요청을 처리할 수 없습니다.'));
+  error.publicApiError = true;
+  error.publicCode = String(code || 'INVALID_REQUEST');
+  return error;
+}
+
+function getSafeApiErrorResponse(action, error, authenticatedAdmin) {
+  const actionName = String(action || 'unknown');
+  if (error && error.publicApiError === true) {
+    return {
+      success: false,
+      message: error.message,
+      errorCode: error.publicCode || 'INVALID_REQUEST'
+    };
+  }
+
+  if (authenticatedAdmin === true || ADMIN_ACTIONS.indexOf(actionName) !== -1) {
+    return {
+      success: false,
+      message: error && error.message ? error.message : '관리자 요청 처리 중 오류가 발생했습니다.'
+    };
+  }
+
+  const errorId = 'ERR-' + Utilities.getUuid().replace(/-/g, '').slice(0, 12).toUpperCase();
+  Logger.log(JSON.stringify({
+    event: 'public_api_error',
+    action: actionName,
+    errorId: errorId,
+    error: String(error && error.stack ? error.stack : error)
+  }));
+  return {
+    success: false,
+    message: '요청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
+    errorCode: 'INTERNAL_ERROR',
+    errorId: errorId
   };
 }

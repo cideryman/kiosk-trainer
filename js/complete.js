@@ -207,20 +207,12 @@ function getShortNo(orderNo) {
 // 실시간 상태 폴링 함수
 async function pollOrderStatus() {
   if (!summaryData) return;
-  const orderIdentifier = summaryData.orderToken || summaryData.orderNo;
-  if (!orderIdentifier) return;
+  if (!summaryData.orderToken) return;
   
   let isFinalStatus = false;
   try {
-    const params = {};
-    if (summaryData.orderToken) {
-      params.orderToken = summaryData.orderToken;
-    } else {
-      params.orderNo = summaryData.orderNo;
-    }
-
     const response = await fetchAPIReadWithRetry('getOrderStatus', {
-      params,
+      params: { orderToken: summaryData.orderToken },
       timeoutMs: 30000
     });
     if (response && response.success) {
@@ -639,6 +631,7 @@ window.addEventListener('DOMContentLoaded', () => {
             body: {
               base64Data: base64Data,
               fileName: fileName,
+              orderId: summaryData.orderNo,
               orderToken: summaryData.orderToken,
               type: 'review'
             }

@@ -215,19 +215,6 @@ function diagnoseSystem(data) {
     report.overallStatus = 'WARN';
   }
 
-  const legacyAdminGetEnabled = String(
-    props.getProperty('ALLOW_LEGACY_ADMIN_GET') || ''
-  ).trim().toUpperCase() === 'Y';
-  report.security.legacyAdminGet = {
-    enabled: legacyAdminGetEnabled,
-    status: legacyAdminGetEnabled ? 'WARN' : 'OK',
-    message: legacyAdminGetEnabled
-      ? 'Legacy administrator GET access is temporarily enabled.'
-      : 'Administrator dashboard GET access is disabled.'
-  };
-  if (legacyAdminGetEnabled) {
-    report.overallStatus = 'WARN';
-  }
   report.timingsMs.properties = Date.now() - propertiesStartedAt;
 
   // C. 주간 이용신청 순환 트리거 체크

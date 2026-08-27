@@ -1,6 +1,6 @@
 // Google Apps Script API 설정
 const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxKY36tTxlOMw0WvKEBn2ljbYVgwsdkcyGFS6HPJ9_UPux8bq0xROvNK9E1NCBam0Qe/exec";
-const API_CONTRACT_VERSION = '2026-08-27.2';
+const API_CONTRACT_VERSION = '2026-08-27.3';
 
 function createMockOrderToken() {
   try {
@@ -42,6 +42,7 @@ const ADMIN_MAX_USER_CREDIT = 15;
 const ADMIN_MIN_USER_ORDER_LIMIT = 1;
 const DEFAULT_USER_ORDER_LIMIT = 10;
 const ADMIN_MAX_SNACK_STOCK = 30;
+const ADMIN_MAX_SNACK_POINT = 15;
 const MOCK_GUEST_APPLICATION_DEFAULT_CAPACITY = 5;
 const MOCK_GUEST_APPLICATION_MAX_CAPACITY = 100;
 
@@ -865,7 +866,53 @@ function parseMockMaxPerPerson(value) {
   const text = String(value == null ? '' : value).trim();
   if (text === '') return 0;
   const parsed = Number(text);
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 30 ? parsed : null;
+}
+
+function getMockOrderOwnership(orderId, orderToken, { includeArchived = false, requireGuest = false, requireOrderId = true } = {}) {
+  const cleanedOrderId = String(orderId || '').trim();
+  const cleanedToken = String(orderToken || '').trim();
+  if (!cleanedToken || (requireOrderId && !cleanedOrderId)) {
+    return { success: false, errorCode: 'UNAUTHORIZED_ORDER', message: '주문번호와 주문 확인 정보(토큰)가 필요합니다.' };
+  }
+  const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
+  const archivedOrders = includeArchived ? JSON.parse(localStorage.getItem('mockArchivedOrders') || '[]') : [];
+  const allOrders = [...localOrders, ...archivedOrders, ...MOCK_DATA.getOrdersToday.orders];
+  const candidateOrderNos = requireOrderId
+    ? [cleanedOrderId]
+    : Array.from(new Set(allOrders
+      .filter(order => String(order.orderToken || '').trim() === cleanedToken)
+      .map(order => String(order.orderNo || '').trim())
+      .filter(Boolean)));
+  const matched = allOrders.filter(order => candidateOrderNos.includes(String(order.orderNo || '').trim()));
+  if (!matched.length) return { success: false, errorCode: 'NOT_FOUND', message: '주문 내역을 찾을 수 없습니다.' };
+  const canonicalOrderNo = String(matched[0].orderNo || '').trim();
+  const canonicalUserId = String(matched[0].userId || '').trim();
+  const consistent = matched.every(order =>
+    String(order.orderNo || '').trim() === canonicalOrderNo &&
+    String(order.userId || '').trim() === canonicalUserId &&
+    String(order.orderToken || '').trim() === cleanedToken
+  );
+  if (!consistent || (requireGuest && canonicalUserId !== 'guest')) {
+    return { success: false, errorCode: 'UNAUTHORIZED_ORDER', message: '주문 확인 정보(토큰)가 일치하지 않습니다.' };
+  }
+  return { success: true, orderNo: canonicalOrderNo, orderToken: cleanedToken, userId: canonicalUserId, orders: matched };
+}
+
+function sanitizeMockGuestEventName(rawValue) {
+  const allowedColors = new Set(['#E11D48', '#2563EB', '#7C3AED', '#059669', '#D97706', '#1E293B']);
+  const source = String(rawValue == null ? '' : rawValue);
+  const text = source.replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/\s+/g, ' ').trim();
+  if (Array.from(text).length < 1 || Array.from(text).length > 20) {
+    return { success: false, message: '행사명은 1~20자로 입력해 주세요.' };
+  }
+  const escaped = value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  let html = escaped(text);
+  const colorMatch = source.match(/(?:color\s*=\s*["']?|color\s*:\s*)(#[0-9a-f]{6})/i);
+  const color = colorMatch ? colorMatch[1].toUpperCase() : '';
+  if (/<(?:b|strong)\b|font-weight\s*:\s*(?:bold|[7-9]00)/i.test(source)) html = `<strong>${html}</strong>`;
+  if (allowedColors.has(color)) html = `<span style="color:${color}">${html}</span>`;
+  return { success: true, html, text };
 }
 
 /**
@@ -1148,6 +1195,7 @@ function getMockFallback(action, options) {
       : { success: false, message: '확인 문구 신청정보정리를 정확히 입력해 주세요.' };
   } else if (action === 'getGuestSettings') {
     const settings = getMockGuestSettings();
+    const eventNameResult = sanitizeMockGuestEventName(settings.guestEventName || '장애인식 개선 캠페인');
     const operatingState = resolveMockGuestOperatingState(settings);
     let message = '게스트 주문이 마감되었습니다.';
     if (operatingState.isGuestOpenNow) {
@@ -1189,7 +1237,7 @@ function getMockFallback(action, options) {
         guestAllowRandomDisplayName: settings.guestAllowRandomDisplayName !== false,
         adminOrderEmailNotificationEnabled: settings.adminOrderEmailNotificationEnabled !== false,
         guestMenuMode: settings.guestMenuMode || 'normal',
-        guestEventName: settings.guestEventName || '장애인식 개선 캠페인',
+        guestEventName: eventNameResult.success ? eventNameResult.html : '장애인식 개선 캠페인',
         guestOrderGraceMinutes: GUEST_ORDER_COMPLETION_GRACE_MINUTES,
         isGuestOpenNow: operatingState.isGuestOpenNow,
         remainingSeconds: operatingState.remainingSeconds,
@@ -1331,10 +1379,10 @@ function getMockFallback(action, options) {
       appendMockAdminLog('updateGuestSettings', 'settings', 'guestAdditionalSchedules', '추가 운영 취소', scheduleId, '', options.body?.adminMemo);
     } else if (settingsAction === 'updateMenuMode') {
       settings.guestMenuMode = String(options.body?.guestMenuMode || 'normal').toLowerCase();
-      if (options.body?.guestEventName !== undefined) {
-        settings.guestEventName = String(options.body?.guestEventName).trim();
-      }
-      appendMockAdminLog('updateGuestSettings', 'settings', 'guestMenuMode', '게스트 메뉴 모드', '', settings.guestMenuMode === 'event' ? `행사 모드 (${settings.guestEventName})` : '배달왔삼 기본 모드', options.body?.adminMemo);
+      const eventNameResult = sanitizeMockGuestEventName(options.body?.guestEventName || '장애인식 개선 캠페인');
+      if (!eventNameResult.success) return Object.assign({}, eventNameResult, { apiContractVersion: API_CONTRACT_VERSION, serverTime: new Date().toISOString() });
+      settings.guestEventName = eventNameResult.html;
+      appendMockAdminLog('updateGuestSettings', 'settings', 'guestMenuMode', '게스트 메뉴 모드', '', settings.guestMenuMode === 'event' ? `행사 모드 (${eventNameResult.text})` : '배달왔삼 기본 모드', options.body?.adminMemo);
     } else if (settingsAction === 'updateValues') {
       settings.guestBaseCredit = Number(options.body?.guestBaseCredit);
       settings.guestDeliveryFee = Number(options.body?.guestDeliveryFee);
@@ -1349,7 +1397,9 @@ function getMockFallback(action, options) {
         settings.guestMenuMode = String(options.body.guestMenuMode).toLowerCase();
       }
       if (options.body?.guestEventName !== undefined) {
-        settings.guestEventName = String(options.body.guestEventName).trim();
+        const eventNameResult = sanitizeMockGuestEventName(options.body.guestEventName);
+        if (!eventNameResult.success) return Object.assign({}, eventNameResult, { apiContractVersion: API_CONTRACT_VERSION, serverTime: new Date().toISOString() });
+        settings.guestEventName = eventNameResult.html;
       }
       appendMockAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `온기:${settings.guestBaseCredit}, 배달비:${settings.guestDeliveryFee}, 기본배달지:${settings.guestDefaultDeliveryPlace}`, options.body?.adminMemo);
     }
@@ -1357,14 +1407,12 @@ function getMockFallback(action, options) {
     saveMockGuestSettings(settings);
     res = { success: true, message: '게스트 운영 설정이 변경되었습니다.' };
   } else if (action === 'getOrderStatus') {
-    const identifier = options.params?.orderNo || options.params?.orderToken;
-    const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
-    const allMockOrders = [...localOrders, ...MOCK_DATA.getOrdersToday.orders];
-    const matched = allMockOrders.find(o => o.orderNo === identifier || o.orderToken === identifier);
-    if (matched) {
+    const ownership = getMockOrderOwnership('', options.params?.orderToken, { requireOrderId: false });
+    if (ownership.success) {
+      const matched = ownership.orders[0];
       res = {
         success: true,
-        orderNo: matched.orderNo,
+        orderNo: ownership.orderNo,
         servedYn: matched.servedYn || 'N',
         cancelTimestamp: matched.cancelTimestamp || '',
         deliveryType: matched.deliveryType || 'pickup',
@@ -1372,10 +1420,7 @@ function getMockFallback(action, options) {
         cancelReason: matched.cancelReason || ''
       };
     } else {
-      res = {
-        success: false,
-        message: '해당 주문을 찾을 수 없습니다.'
-      };
+      res = ownership;
     }
   } else if (action === 'getGuestOrdersByGuestKey') {
     const authProvider = options.body?.authProvider;
@@ -1484,6 +1529,9 @@ function getMockFallback(action, options) {
     }
     const isGuest = (userId === 'guest');
     const idempotencyKey = String(options.body?.idempotencyKey || '').trim();
+    if (idempotencyKey.length < 8 || idempotencyKey.length > 120 || !/^[A-Za-z0-9._:-]+$/.test(idempotencyKey)) {
+      return { success: false, message: '주문 중복 방지 키가 올바르지 않습니다. 화면을 새로고침한 뒤 다시 시도해 주세요.' };
+    }
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
     const idempotentRows = idempotencyKey
       ? localOrders.filter(o => o.idempotencyKey === idempotencyKey && String(o.userId) === String(userId))
@@ -1781,51 +1829,56 @@ function getMockFallback(action, options) {
     };
   } else if (action === 'updateSnackStock') {
     const snackId = Number(options.body?.snackId);
-    const stock = Number(options.body?.stock || 0);
-    if (!Number.isFinite(stock) || stock < 0 || stock > ADMIN_MAX_SNACK_STOCK) {
+    const stock = Number(options.body?.stock);
+    if (!Number.isInteger(snackId) || snackId < 1) {
+      res = { success: false, message: '간식 ID는 1 이상의 정수여야 합니다.' };
+    } else if (!Number.isInteger(stock) || stock < 0 || stock > ADMIN_MAX_SNACK_STOCK) {
       res = { success: false, message: `간식 재고는 0~${ADMIN_MAX_SNACK_STOCK} 범위로 입력해 주세요.` };
     } else {
-    const snacks = getMockSnacks();
-    const snack = snacks.find(s => s.snackId === snackId);
-    if (snack) {
-      appendMockAdminLog('updateSnackStock', 'snack', snackId, snack.name, snack.stock, stock, options.body?.adminMemo);
-      snack.stock = stock;
-      saveMockSnacks(snacks);
-    }
-    res = {
-      success: true,
-      message: "재고를 업데이트했습니다."
-    };
+      const snacks = getMockSnacks();
+      const snack = snacks.find(s => Number(s.snackId) === snackId);
+      if (snack) {
+        appendMockAdminLog('updateSnackStock', 'snack', snackId, snack.name, snack.stock, stock, options.body?.adminMemo);
+        snack.stock = stock;
+        saveMockSnacks(snacks);
+        res = { success: true, message: "재고를 업데이트했습니다." };
+      } else {
+        res = { success: false, message: '간식을 찾을 수 없습니다.' };
+      }
     }
   } else if (action === 'updateSnackSale') {
     const snackId = Number(options.body?.snackId);
     const saleYn = String(options.body?.saleYn || 'N').toUpperCase() === 'Y' ? 'Y' : 'N';
     const snacks = getMockSnacks();
     const snack = snacks.find(s => Number(s.snackId) === snackId);
-    if (snack) {
+    if (!Number.isInteger(snackId) || snackId < 1) {
+      res = { success: false, message: '간식 ID는 1 이상의 정수여야 합니다.' };
+    } else if (snack) {
       appendMockAdminLog('updateSnackSale', 'snack', snackId, snack.name, snack.saleYn ?? snack.active ?? 'Y', saleYn, options.body?.adminMemo);
       snack.saleYn = saleYn;
       snack.active = saleYn;
       saveMockSnacks(snacks);
+      res = { success: true, message: "간식 판매 상태를 업데이트했습니다.", saleYn };
+    } else {
+      res = { success: false, message: '간식을 찾을 수 없습니다.' };
     }
-    res = {
-      success: true,
-      message: "간식 판매 상태를 업데이트했습니다.",
-      saleYn
-    };
   } else if (action === 'addSnack') {
-    const name = options.body?.name || "새로운 간식";
-    const point = Number(options.body?.point || 1);
+    const name = String(options.body?.name || '').trim();
+    const point = Number(options.body?.point);
     const imageUrl = options.body?.imageUrl || "";
-    const stock = Number(options.body?.stock || 0);
+    const stock = Number(options.body?.stock);
     const saleYn = options.body?.saleYn || "Y";
     const target = options.body?.target || "user";
     const maxPerPerson = parseMockMaxPerPerson(options.body?.maxPerPerson);
     const snacks = getMockSnacks();
-    if (!Number.isFinite(stock) || stock < 0 || stock > ADMIN_MAX_SNACK_STOCK) {
+    if (!name) {
+      res = { success: false, message: '간식 이름이 필요합니다.' };
+    } else if (!Number.isInteger(point) || point < 1 || point > ADMIN_MAX_SNACK_POINT) {
+      res = { success: false, message: `간식 가격은 1~${ADMIN_MAX_SNACK_POINT} 범위의 정수로 입력해 주세요.` };
+    } else if (!Number.isInteger(stock) || stock < 0 || stock > ADMIN_MAX_SNACK_STOCK) {
       res = { success: false, message: `간식 재고는 0~${ADMIN_MAX_SNACK_STOCK} 범위로 입력해 주세요.` };
     } else if (maxPerPerson === null) {
-      res = { success: false, message: "1인당 제한 수량은 0 또는 양의 정수로 입력해 주세요." };
+      res = { success: false, message: "1인당 제한 수량은 0~30 범위의 정수로 입력해 주세요." };
     } else {
     const maxId = snacks.reduce((max, s) => s.snackId > max ? s.snackId : max, 0);
     const newSnackId = maxId + 1;
@@ -1859,10 +1912,14 @@ function getMockFallback(action, options) {
     const maxPerPerson = parseMockMaxPerPerson(options.body?.maxPerPerson);
     const snacks = getMockSnacks();
     const snack = snacks.find(s => s.snackId === snackId);
-    if (!Number.isFinite(stock) || stock < 0 || stock > ADMIN_MAX_SNACK_STOCK) {
+    if (!Number.isInteger(snackId) || snackId < 1) {
+      res = { success: false, message: '간식 ID는 1 이상의 정수여야 합니다.' };
+    } else if (!Number.isInteger(point) || point < 1 || point > ADMIN_MAX_SNACK_POINT) {
+      res = { success: false, message: `간식 가격은 1~${ADMIN_MAX_SNACK_POINT} 범위의 정수로 입력해 주세요.` };
+    } else if (!Number.isInteger(stock) || stock < 0 || stock > ADMIN_MAX_SNACK_STOCK) {
       res = { success: false, message: `간식 재고는 0~${ADMIN_MAX_SNACK_STOCK} 범위로 입력해 주세요.` };
     } else if (maxPerPerson === null) {
-      res = { success: false, message: "1인당 제한 수량은 0 또는 양의 정수로 입력해 주세요." };
+      res = { success: false, message: "1인당 제한 수량은 0~30 범위의 정수로 입력해 주세요." };
     } else if (snack) {
       appendMockAdminLog('updateSnack', 'snack', snackId, name, 
         JSON.stringify({ name: snack.name, point: snack.point, imageUrl: snack.imageUrl, saleYn: snack.saleYn, stock: snack.stock, target: snack.target, maxPerPerson: snack.maxPerPerson || 0 }),
@@ -1878,11 +1935,10 @@ function getMockFallback(action, options) {
       snack.target = target;
       snack.maxPerPerson = maxPerPerson;
       saveMockSnacks(snacks);
+      res = { success: true, message: "간식 정보를 수정했습니다." };
+    } else {
+      res = { success: false, message: '간식을 찾을 수 없습니다.' };
     }
-    res = {
-      success: true,
-      message: "간식 정보를 수정했습니다."
-    };
   } else if (action === 'updateUser') {
     const userId = options.body?.userId;
     const nickname = options.body?.nickname;
@@ -1929,9 +1985,7 @@ function getMockFallback(action, options) {
     const localOrders = JSON.parse(localOrdersBeforeRaw || '[]');
     const fixedOrders = MOCK_DATA.getOrdersToday.orders;
     const allOrders = [...localOrders, ...fixedOrders];
-    const seed = isUserCancellation
-      ? allOrders.filter(o => String(o.orderNo || '') === orderId || String(o.orderToken || '') === orderId)
-      : allOrders.filter(o => String(o.orderNo || '') === orderId);
+    const seed = allOrders.filter(o => String(o.orderNo || '') === orderId);
 
     if (!orderId || seed.length === 0) {
       res = { ...baseResult, message: '해당 주문 기록을 찾을 수 없습니다.' };
@@ -2062,18 +2116,17 @@ function getMockFallback(action, options) {
     } else if (!/^data:(image\/(jpeg|png|webp|gif|jpg));base64,/i.test(base64Data)) {
       res = { success: false, message: '허용되지 않는 파일 형식입니다. 이미지 파일(jpg, jpeg, png, webp, gif)만 업로드할 수 있습니다.' };
     } else if (type === 'review') {
+      const orderId = String(options.body?.orderId || '').trim();
       const orderToken = String(options.body?.orderToken || '').trim();
-      const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
-      const allMockOrders = [...localOrders, ...MOCK_DATA.getOrdersToday.orders];
-      const matchedOrders = allMockOrders.filter(o =>
-        String(o.orderToken || '').trim() === orderToken && String(o.userId || '') === 'guest'
-      );
+      const ownership = getMockOrderOwnership(orderId, orderToken, {
+        includeArchived: options.body?.reviewEdit === true || options.body?.reviewEdit === 'true',
+        requireGuest: true
+      });
+      const matchedOrders = ownership.success ? ownership.orders : [];
 
-      if (!orderToken) {
-        res = { success: false, message: '주문 확인 정보(토큰)가 없어 이미지를 업로드할 수 없습니다.' };
-      } else if (matchedOrders.length === 0) {
-        res = { success: false, message: '유효하지 않은 주문 정보입니다.' };
-      } else if (!matchedOrders.some(o => o.servedYn === 'Y' || o.status === '수령완료')) {
+      if (!ownership.success) {
+        res = ownership;
+      } else if (!matchedOrders.every(o => o.servedYn === 'Y' || o.status === '수령완료')) {
         res = { success: false, message: '수령완료된 주문만 후기 사진을 업로드할 수 있습니다.' };
       } else if (!options.body?.reviewEdit && matchedOrders.some(o => o.reviewed === true || String(o.reviewed).toUpperCase() === 'TRUE' || String(o.reviewed).toUpperCase() === 'Y')) {
         res = { success: false, message: '이미 응원 메시지를 남긴 주문입니다.' };
@@ -2092,7 +2145,8 @@ function getMockFallback(action, options) {
       res = { success: false, message: '올바르지 않은 이미지 타입입니다.' };
     }
   } else if (action === 'submitReview') {
-    const orderId = options.body?.orderId;
+    const orderId = String(options.body?.orderId || '').trim();
+    const orderToken = String(options.body?.orderToken || '').trim();
     const guestName = options.body?.guestName;
     const stamp = options.body?.stamp || '';
     const tags = options.body?.tags || '';
@@ -2100,8 +2154,13 @@ function getMockFallback(action, options) {
     const isPublic = options.body?.isPublic !== false && options.body?.isPublic !== 'false';
     const imageUrl = options.body?.imageUrl || '';
 
+    const ownership = getMockOrderOwnership(orderId, orderToken, { requireGuest: true });
     if (!orderId || !guestName) {
       res = { success: false, message: '필수 매개변수가 누락되었습니다.' };
+    } else if (!ownership.success) {
+      res = ownership;
+    } else if (!ownership.orders.every(order => order.servedYn === 'Y' || order.status === '수령완료')) {
+      res = { success: false, message: '수령완료된 주문만 응원 메시지를 남길 수 있습니다.' };
     } else {
       const mockReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
       const alreadyExists = mockReviews.some(r => r.orderId === orderId);
@@ -2149,9 +2208,9 @@ function getMockFallback(action, options) {
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
     const mockArchived = JSON.parse(localStorage.getItem('mockArchivedOrders') || '[]');
     const allOrders = [...localOrders, ...mockArchived, ...MOCK_DATA.getOrdersToday.orders];
-    const ownsOrder = allOrders.some(o => String(o.orderNo || '') === orderId && String(o.orderToken || '') === orderToken);
+    const ownership = getMockOrderOwnership(orderId, orderToken, { includeArchived: true, requireGuest: true });
     const matches = mockReviews.filter(r => String(r.orderId || '') === orderId);
-    if (!ownsOrder) {
+    if (!ownership.success) {
       res = { success: false, message: '주문 확인 정보(토큰)가 일치하지 않습니다.' };
     } else if (matches.length !== 1) {
       res = { success: false, message: matches.length ? '중복 후기 데이터가 있습니다.' : '작성된 후기를 찾을 수 없습니다.' };
@@ -2169,10 +2228,10 @@ function getMockFallback(action, options) {
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
     const mockArchived = JSON.parse(localStorage.getItem('mockArchivedOrders') || '[]');
     const allOrders = [...localOrders, ...mockArchived, ...MOCK_DATA.getOrdersToday.orders];
-    const ownsOrder = allOrders.some(o => String(o.orderNo || '') === orderId && String(o.orderToken || '') === orderToken);
+    const ownership = getMockOrderOwnership(orderId, orderToken, { includeArchived: true, requireGuest: true });
     const matches = mockReviews.filter(r => String(r.orderId || '') === orderId);
-    if (!ownsOrder || matches.length !== 1) {
-      res = { success: false, message: !ownsOrder ? '주문 확인 정보(토큰)가 일치하지 않습니다.' : '수정할 후기를 찾을 수 없습니다.' };
+    if (!ownership.success || matches.length !== 1) {
+      res = { success: false, message: !ownership.success ? '주문 확인 정보(토큰)가 일치하지 않습니다.' : '수정할 후기를 찾을 수 없습니다.' };
     } else {
       const review = matches[0];
       const expiresAt = new Date(new Date(review.createdAt).getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -2242,14 +2301,16 @@ function getMockFallback(action, options) {
       res = { success: false, message: '해당 주문의 후기를 찾을 수 없습니다.' };
     }
   } else if (action === 'getGuestOrderByToken') {
-    const tokens = options.body?.tokens || [];
+    const tokens = Array.from(new Set((Array.isArray(options.body?.tokens) ? options.body.tokens : []).map(token => String(token || '').trim()).filter(Boolean)));
     const includeArchived = options.body?.includeArchived === true;
     const localOrders = JSON.parse(localStorage.getItem('mockOrders') || '[]');
     const mockArchived = includeArchived ? JSON.parse(localStorage.getItem('mockArchivedOrders') || '[]') : [];
     const allMockOrders = [...localOrders, ...mockArchived, ...MOCK_DATA.getOrdersToday.orders];
-    const matchedOrders = allMockOrders.filter(o =>
-      String(o.userId || '') === 'guest' && o.orderToken && tokens.includes(o.orderToken)
-    );
+    const matchedOrders = [];
+    tokens.forEach(token => {
+      const ownership = getMockOrderOwnership('', token, { includeArchived, requireGuest: true, requireOrderId: false });
+      if (ownership.success) matchedOrders.push(...ownership.orders);
+    });
     res = {
       success: true,
       orders: matchedOrders.map(o => ({

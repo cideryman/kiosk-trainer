@@ -150,10 +150,13 @@ function canOrderSnack(snackRow, mode) {
 function updateSnackStock(data) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.SNACKS);
   var rows = sheet.getDataRange().getValues();
-  var snackId = Number(data.snackId);
-  var newStock = Number(data.stock);
+  var snackId = parseSnackInteger_(data.snackId, 1, Number.MAX_SAFE_INTEGER);
+  var newStock = parseSnackInteger_(data.stock, 0, ADMIN_MAX_SNACK_STOCK);
 
-  if (!isFinite(newStock) || newStock < 0 || newStock > ADMIN_MAX_SNACK_STOCK) {
+  if (snackId === null) {
+    return { success: false, message: '간식 ID는 1 이상의 정수여야 합니다.' };
+  }
+  if (newStock === null) {
     return { success: false, message: '간식 재고는 0~' + ADMIN_MAX_SNACK_STOCK + ' 범위로 입력해 주세요.' };
   }
 
@@ -175,8 +178,12 @@ function updateSnackStock(data) {
 function updateSnackSale(data) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.SNACKS);
   var rows = sheet.getDataRange().getValues();
-  var snackId = Number(data.snackId);
+  var snackId = parseSnackInteger_(data.snackId, 1, Number.MAX_SAFE_INTEGER);
   var saleYn = String(data.saleYn || 'N').toUpperCase() === 'Y' ? 'Y' : 'N';
+
+  if (snackId === null) {
+    return { success: false, message: '간식 ID는 1 이상의 정수여야 합니다.' };
+  }
 
   for (var i = 1; i < rows.length; i++) {
     if (Number(rows[i][0]) === snackId) {
@@ -204,7 +211,15 @@ function parseMaxPerPerson(value) {
   var text = String(value == null ? '' : value).trim();
   if (text === '') return 0;
   var parsed = Number(text);
-  if (!isFinite(parsed) || parsed < 0 || Math.floor(parsed) !== parsed) return null;
+  if (!isFinite(parsed) || parsed < 0 || parsed > ADMIN_MAX_SNACK_PER_PERSON || Math.floor(parsed) !== parsed) return null;
+  return parsed;
+}
+
+function parseSnackInteger_(value, min, max, defaultValue) {
+  var text = String(value == null ? '' : value).trim();
+  if (text === '' && defaultValue !== undefined) return defaultValue;
+  var parsed = Number(text);
+  if (!isFinite(parsed) || Math.floor(parsed) !== parsed || parsed < min || parsed > max) return null;
   return parsed;
 }
 
@@ -222,21 +237,29 @@ function addSnack(data) {
   }
   var newSnackId = maxId + 1;
   var target = cleanSnackTarget(data.target);
-  var initialStock = Number(data.stock || 0);
+  var name = String(data.name || '').trim();
+  var point = parseSnackInteger_(data.point, 1, ADMIN_MAX_SNACK_POINT);
+  var initialStock = parseSnackInteger_(data.stock, 0, ADMIN_MAX_SNACK_STOCK);
 
-  if (!isFinite(initialStock) || initialStock < 0 || initialStock > ADMIN_MAX_SNACK_STOCK) {
+  if (!name) {
+    return { success: false, message: '간식 이름이 필요합니다.' };
+  }
+  if (point === null) {
+    return { success: false, message: '간식 가격은 1~' + ADMIN_MAX_SNACK_POINT + ' 범위의 정수로 입력해 주세요.' };
+  }
+  if (initialStock === null) {
     return { success: false, message: '간식 재고는 0~' + ADMIN_MAX_SNACK_STOCK + ' 범위로 입력해 주세요.' };
   }
 
   var maxPerPerson = parseMaxPerPerson(data.maxPerPerson);
   if (maxPerPerson === null) {
-    return { success: false, message: '1인당 제한 수량은 0 또는 양의 정수로 입력해 주세요.' };
+    return { success: false, message: '1인당 제한 수량은 0~' + ADMIN_MAX_SNACK_PER_PERSON + ' 범위의 정수로 입력해 주세요.' };
   }
 
   var newRow = [
     newSnackId,
-    data.name,
-    Number(data.point || 1),
+    name,
+    point,
     data.imageUrl || "",
     data.saleYn || "Y",
     initialStock,
@@ -246,7 +269,7 @@ function addSnack(data) {
   ];
 
   sheet.appendRow(newRow);
-  safeAppendAdminLog('addSnack', 'snack', newSnackId, data.name, '', JSON.stringify({ point: Number(data.point || 1), saleYn: data.saleYn || 'Y', stock: initialStock, target: target, maxPerPerson: maxPerPerson }), data.adminMemo);
+  safeAppendAdminLog('addSnack', 'snack', newSnackId, name, '', JSON.stringify({ point: point, saleYn: data.saleYn || 'Y', stock: initialStock, target: target, maxPerPerson: maxPerPerson }), data.adminMemo);
   clearSnackReadCache();
   return { success: true, message: '신규 간식을 등록했습니다.', snackId: newSnackId };
 }
@@ -257,26 +280,29 @@ function addSnack(data) {
 function updateSnack(data) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.SNACKS);
   var rows = sheet.getDataRange().getValues();
-  var snackId = Number(data.snackId);
+  var snackId = parseSnackInteger_(data.snackId, 1, Number.MAX_SAFE_INTEGER);
   var name = String(data.name || '').trim();
-  var point = Number(data.point);
+  var point = parseSnackInteger_(data.point, 1, ADMIN_MAX_SNACK_POINT);
   var imageUrl = String(data.imageUrl || '').trim();
-  var stock = Number(data.stock);
+  var stock = parseSnackInteger_(data.stock, 0, ADMIN_MAX_SNACK_STOCK);
   var saleYn = String(data.saleYn || 'Y').toUpperCase() === 'Y' ? 'Y' : 'N';
   var target = cleanSnackTarget(data.target);
   var maxPerPerson = parseMaxPerPerson(data.maxPerPerson);
 
-  if (!snackId) {
+  if (snackId === null) {
     return { success: false, message: '간식 ID가 필요합니다.' };
   }
   if (!name) {
     return { success: false, message: '간식 이름이 필요합니다.' };
   }
-  if (!isFinite(stock) || stock < 0 || stock > ADMIN_MAX_SNACK_STOCK) {
+  if (point === null) {
+    return { success: false, message: '간식 가격은 1~' + ADMIN_MAX_SNACK_POINT + ' 범위의 정수로 입력해 주세요.' };
+  }
+  if (stock === null) {
     return { success: false, message: '간식 재고는 0~' + ADMIN_MAX_SNACK_STOCK + ' 범위로 입력해 주세요.' };
   }
   if (maxPerPerson === null) {
-    return { success: false, message: '1인당 제한 수량은 0 또는 양의 정수로 입력해 주세요.' };
+    return { success: false, message: '1인당 제한 수량은 0~' + ADMIN_MAX_SNACK_PER_PERSON + ' 범위의 정수로 입력해 주세요.' };
   }
 
   for (var i = 1; i < rows.length; i++) {

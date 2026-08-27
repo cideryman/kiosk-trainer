@@ -2609,6 +2609,12 @@ let refreshTimer = null;
       const todayDeliveryTeamMessage = teamMessageInput ? teamMessageInput.value.trim() : '';
       const guestMenuMode = selectMenuMode ? selectMenuMode.value : 'normal';
       const guestEventName = inputEventName ? inputEventName.innerHTML.trim() : '장애인식 개선 캠페인';
+      const guestEventNameLength = Array.from(inputEventName ? (inputEventName.textContent || '').trim() : '장애인식 개선 캠페인').length;
+      if (guestEventNameLength < 1 || guestEventNameLength > 20) {
+        alert('행사명은 1~20자로 입력해 주세요.');
+        if (saveButton) saveButton.disabled = false;
+        return;
+      }
 
       try {
         const adminToken = getAdminToken();

@@ -179,10 +179,16 @@ function makeEnvironment({ orders, snacks, usedCredit = 8 } = {}) {
     clearOrderReadCache: () => {},
     clearUserReadCache: () => {},
     safeAppendAdminLog: () => {},
-    getGuestCreditPeriodKey: () => '2026-08-26'
+    getGuestCreditPeriodKey: () => '2026-08-26',
+    createPublicApiError: (message, code) => Object.assign(new Error(message), { publicApiError: true, publicCode: code }),
+    getSafeApiErrorResponse: (_action, error) => ({
+      success: false,
+      message: error.publicApiError ? error.message : '요청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
+      errorCode: error.publicApiError ? error.publicCode : 'INTERNAL_ERROR'
+    })
   };
   vm.createContext(context);
-  for (const relativePath of ['gas/02_SheetSafety.gs', 'gas/40_Orders.gs']) {
+  for (const relativePath of ['gas/02_SheetSafety.gs', 'gas/31_OrderShared.gs', 'gas/40_Orders.gs']) {
     vm.runInContext(fs.readFileSync(path.join(root, relativePath), 'utf8'), context, { filename: relativePath });
   }
   context.ensureOrderHeaders = () => 'ok';

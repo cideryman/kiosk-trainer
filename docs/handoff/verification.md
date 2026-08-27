@@ -765,3 +765,16 @@
 8. 복제 staging에서만 `KIOSK_STABILITY_MODE=performance`를 실행해 일반·배달왔삼 각 10건, 멱등 재요청, 동시 5건과 자동 정리를 확인합니다. 운영 URL에서는 실행하지 않습니다.
 9. 성능 합격 기준은 성공률 100%, warm p95 5초 이하 또는 이전 기준 대비 30% 개선, cold 20초 이하, 이메일 큐 단계 warm p95 500ms 이하입니다.
 10. `node scripts/test-order-performance.js`, `node scripts/test-email-queue-performance.js`, 주문 한도·이메일·데이터·취소 안전 검사, `node check_syntax.js`, `node scripts/check-handoff.js`, `git diff --check`가 모두 통과하는지 확인합니다.
+
+### P108 주문 소유권·API 입력 보안 검증
+
+1. `node scripts/test-api-input-security.js`에서 정상·누락·오류 토큰, 다품목 혼합 토큰, 토큰 없는 과거 주문, 빈 멱등키, 관리자 경계, 간식 숫자 범위, 행사명 HTML과 공개 오류 정규화가 모두 통과하는지 확인합니다.
+2. 배포 전 인증된 진단에서 주문내역 A:X 필수 헤더를 확인합니다. 누락된 경우에만 Apps Script 편집기에서 `ensureOrderHeaders()`를 한 번 실행하며 공개 후기 요청으로 헤더가 생성되거나 바뀌지 않아야 합니다.
+3. 주문번호만 사용한 `getOrderStatus` 요청과 인증 없는 `ensureOrderHeaders`, `getAdminDashboard`, `getKitchenDashboard` 요청이 모두 거부되는지 확인합니다.
+4. 신규 일반·배달왔삼 주문을 각각 한 건 생성해 유효한 멱등키와 토큰이 저장되고, 완료 화면 상태 조회가 토큰으로 정상 갱신되는지 확인합니다.
+5. 다른 주문의 토큰으로 취소·후기 등록·후기 조회/수정·사진 업로드를 요청했을 때 주문·후기·Drive 파일이 전혀 변경되지 않는지 확인합니다.
+6. 행사명에서 굵게와 고정 색상은 유지되고 링크·스크립트·이벤트 속성·임의 색상은 저장되지 않으며, 공개 화면과 관리자 로그에 실행 가능한 HTML이 없는지 확인합니다.
+7. 간식 가격 1~15, 재고 0~30, 1인 제한 0~30의 경계 정수가 저장되고 소수·범위 초과·잘못된 ID는 쓰기 전에 거부되는지 확인합니다.
+8. GAS `2026-08-27.3`을 먼저 배포하고 `ALLOW_LEGACY_ADMIN_GET` Script Property를 삭제한 뒤 정적 파일과 서비스워커 `kiosk-cache-v349`를 배포합니다.
+9. 운영에서는 읽기 전용 안정성 검사만 실행해 새 계약 버전, 관리자 GET 차단과 주문번호 단독 상태 조회 차단을 확인합니다.
+10. P104~P106·후기·신청 회귀검사, `node check_syntax.js`, 브라우저 구문검사, `node scripts/check-guide-assets.js`, `node scripts/check-handoff.js`, `git diff --check`를 모두 통과시킵니다.

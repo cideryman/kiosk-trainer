@@ -237,6 +237,7 @@ const adminMutationStates = new Map();
 const ADMIN_UI_MAX_USER_CREDIT = 15;
 const ADMIN_UI_MIN_USER_ORDER_LIMIT = 1;
 const ADMIN_UI_MAX_SNACK_STOCK = 30;
+const ADMIN_UI_MAX_SNACK_POINT = 15;
 const ADMIN_TOKEN_STORAGE_KEY = AdminAuth.storageKey;
 const isApplicationsView = new URLSearchParams(window.location.search).get('view') === 'applications';
 
@@ -437,7 +438,12 @@ async function confirmGaugeEdit(type, id) {
   const input = document.getElementById(gaugeRangeId(type, id));
   const min = getGaugeEditorMin(type);
   const limit = type === 'user' ? ADMIN_UI_MAX_USER_CREDIT : ADMIN_UI_MAX_SNACK_STOCK;
-  const value = Math.min(limit, Math.max(min, Number(input?.value || min)));
+  const value = Number(input?.value);
+  if (!Number.isInteger(value) || value < min || value > limit) {
+    isSubmitting = false;
+    alert(`${min}~${limit} 범위의 정수로 입력해 주세요.`);
+    return;
+  }
   const editState = activeGaugeEdit;
   activeGaugeEdit = null;
   try {
@@ -1991,7 +1997,11 @@ function appendSnackGroupRows(tbody, title, snacks) {
 }
 
 async function updateSnackStockAction(snackId, stock) {
-  stock = Math.min(ADMIN_UI_MAX_SNACK_STOCK, Math.max(0, Number(stock) || 0));
+  stock = Number(stock);
+  if (!Number.isInteger(stock) || stock < 0 || stock > ADMIN_UI_MAX_SNACK_STOCK) {
+    alert(`재고는 0~${ADMIN_UI_MAX_SNACK_STOCK} 범위의 정수로 입력해 주세요.`);
+    return false;
+  }
   setSnackRowLoading(snackId, true);
   try {
     const res = await fetchAPI('updateSnackStock', {
@@ -2056,9 +2066,9 @@ async function addNewSnackAction() {
   const stockInput = document.getElementById('new-snack-stock');
   
   const name = nameInput.value.trim();
-  const point = Number(pointInput.value || 1);
+  const point = Number(pointInput.value);
   const imageUrl = imageInput.value.trim();
-  const stock = Math.min(ADMIN_UI_MAX_SNACK_STOCK, Math.max(0, Number(stockInput.value || 0)));
+  const stock = Number(stockInput.value);
   const selectedTargets = Array.from(document.querySelectorAll('.new-snack-target-cb:checked')).map(cb => cb.value);
   const target = selectedTargets.length > 0 ? selectedTargets.join(',') : 'user';
   const isLimitPerson = document.getElementById('new-snack-limit-person')?.checked || false;
@@ -2067,6 +2077,16 @@ async function addNewSnackAction() {
   if (!name) {
     alert("간식 이름을 입력해 주세요!");
     nameInput.focus();
+    return;
+  }
+  if (!Number.isInteger(point) || point < 1 || point > ADMIN_UI_MAX_SNACK_POINT) {
+    alert(`가격은 1~${ADMIN_UI_MAX_SNACK_POINT} 범위의 정수로 입력해 주세요.`);
+    pointInput.focus();
+    return;
+  }
+  if (!Number.isInteger(stock) || stock < 0 || stock > ADMIN_UI_MAX_SNACK_STOCK) {
+    alert(`재고는 0~${ADMIN_UI_MAX_SNACK_STOCK} 범위의 정수로 입력해 주세요.`);
+    stockInput.focus();
     return;
   }
 
@@ -2269,9 +2289,9 @@ function closeSnackImageGuide() {
 async function updateSnackAction() {
   const snackId = document.getElementById('edit-snack-id').value;
   const name = document.getElementById('edit-snack-name').value.trim();
-  const point = Number(document.getElementById('edit-snack-point').value || 1);
+  const point = Number(document.getElementById('edit-snack-point').value);
   const imageUrl = document.getElementById('edit-snack-image').value.trim();
-  const stock = Math.min(ADMIN_UI_MAX_SNACK_STOCK, Math.max(0, Number(document.getElementById('edit-snack-stock').value || 0)));
+  const stock = Number(document.getElementById('edit-snack-stock').value);
   const saleYn = document.getElementById('edit-snack-sale').value;
   const selectedTargets = Array.from(document.querySelectorAll('.edit-snack-target-cb:checked')).map(cb => cb.value);
   const target = selectedTargets.length > 0 ? selectedTargets.join(',') : 'user';
@@ -2280,6 +2300,14 @@ async function updateSnackAction() {
 
   if (!name) {
     alert("간식 이름을 입력해 주세요.");
+    return;
+  }
+  if (!Number.isInteger(point) || point < 1 || point > ADMIN_UI_MAX_SNACK_POINT) {
+    alert(`가격은 1~${ADMIN_UI_MAX_SNACK_POINT} 범위의 정수로 입력해 주세요.`);
+    return;
+  }
+  if (!Number.isInteger(stock) || stock < 0 || stock > ADMIN_UI_MAX_SNACK_STOCK) {
+    alert(`재고는 0~${ADMIN_UI_MAX_SNACK_STOCK} 범위의 정수로 입력해 주세요.`);
     return;
   }
 

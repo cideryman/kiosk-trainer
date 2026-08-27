@@ -104,11 +104,7 @@ function exchangeKakaoAuthCode(data) {
       guestKey: buildKakaoGuestKey(profileBody.id),
     };
   } catch (error) {
-    Logger.log('exchangeKakaoAuthCode Error: ' + (error && error.stack ? error.stack : error));
-    return {
-      success: false,
-      message: error && error.message ? error.message : '카카오 연결 처리 중 오류가 발생했습니다.',
-    };
+    return getSafeApiErrorResponse('exchangeKakaoAuthCode', error);
   }
 }
 

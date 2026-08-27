@@ -1,6 +1,86 @@
 /**
  * 20. 게스트 운영 설정 조회
  */
+const GUEST_EVENT_NAME_COLORS = ['#E11D48', '#2563EB', '#7C3AED', '#059669', '#D97706', '#1E293B'];
+
+function decodeGuestEventHtmlEntities_(value) {
+  return String(value || '')
+    .replace(/&#(\d+);/g, function(_, code) { return String.fromCharCode(Number(code)); })
+    .replace(/&#x([0-9a-f]+);/gi, function(_, code) { return String.fromCharCode(parseInt(code, 16)); })
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&amp;/gi, '&');
+}
+
+function escapeGuestEventHtml_(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function sanitizeGuestEventNameHtml_(rawValue) {
+  const source = String(rawValue == null ? '' : rawValue);
+  const tokens = source.match(/<[^>]*>|[^<]+/g) || [];
+  const segments = [];
+  let bold = false;
+  let color = '';
+
+  tokens.forEach(function(token) {
+    if (token.charAt(0) === '<') {
+      const tag = token.trim();
+      if (/^<\/?(?:b|strong)\s*>$/i.test(tag)) {
+        bold = tag.charAt(1) !== '/';
+        return;
+      }
+      if (/^<\/(?:font|span)\s*>$/i.test(tag)) {
+        color = '';
+        bold = false;
+        return;
+      }
+      if (/^<(?:br|div)\b/i.test(tag) || /^<\/div\s*>$/i.test(tag)) {
+        segments.push({ text: ' ', bold: bold, color: color });
+        return;
+      }
+      if (/^<(?:font|span)\b/i.test(tag)) {
+        const colorMatch = tag.match(/(?:color\s*=\s*["']?|color\s*:\s*)(#[0-9a-f]{6})/i);
+        const candidate = colorMatch ? colorMatch[1].toUpperCase() : '';
+        color = GUEST_EVENT_NAME_COLORS.indexOf(candidate) !== -1 ? candidate : '';
+        if (/font-weight\s*:\s*(?:bold|[7-9]00)/i.test(tag)) bold = true;
+      }
+      return;
+    }
+    const decoded = decodeGuestEventHtmlEntities_(token).replace(/[\r\n\t]+/g, ' ');
+    if (decoded) segments.push({ text: decoded, bold: bold, color: color });
+  });
+
+  const visibleText = segments.map(function(segment) { return segment.text; }).join('').replace(/\s+/g, ' ').trim();
+  const visibleLength = Array.from(visibleText).length;
+  if (visibleLength < 1 || visibleLength > 20) {
+    return { success: false, message: '행사명은 1~20자로 입력해 주세요.' };
+  }
+
+  let remaining = visibleLength;
+  const htmlParts = [];
+  segments.forEach(function(segment) {
+    if (remaining <= 0) return;
+    const chars = Array.from(segment.text.replace(/\s+/g, ' '));
+    const text = chars.slice(0, remaining).join('');
+    remaining -= chars.length;
+    if (!text) return;
+    let html = escapeGuestEventHtml_(text);
+    if (segment.bold) html = '<strong>' + html + '</strong>';
+    if (segment.color) html = '<span style="color:' + segment.color + '">' + html + '</span>';
+    htmlParts.push(html);
+  });
+  return { success: true, html: htmlParts.join('').trim(), text: visibleText };
+}
+
 function upsertSettingValue(sheet, key, value) {
   writeSettingValuesBatch(sheet, { [key]: value });
 }
@@ -133,6 +213,8 @@ function parseSettingBoolean(val, defaultValue = true) {
 function buildGuestSettingsResponse(settings) {
   const now = new Date();
   const operatingState = resolveGuestOperatingState(settings, now);
+  const eventNameResult = sanitizeGuestEventNameHtml_(settings.guestEventName || '장애인식 개선 캠페인');
+  const safeEventName = eventNameResult.success ? eventNameResult.html : '장애인식 개선 캠페인';
   let message = '게스트 주문이 마감되었습니다.';
   if (operatingState.isGuestOpenNow) {
     message = operatingState.effectiveCloseAt
@@ -187,7 +269,7 @@ function buildGuestSettingsResponse(settings) {
     guestAllowRandomDisplayName: parseSettingBoolean(settings.guestAllowRandomDisplayName, true),
     adminOrderEmailNotificationEnabled: parseSettingBoolean(settings.adminOrderEmailNotificationEnabled, true),
     guestMenuMode: String(settings.guestMenuMode || 'normal').toLowerCase(),
-    guestEventName: settings.guestEventName || '장애인식 개선 캠페인',
+    guestEventName: safeEventName,
     guestEventEmblemBase64: settings.guestEventEmblemBase64 || '',
     guestOrderGraceMinutes: GUEST_ORDER_COMPLETION_GRACE_MINUTES,
     isGuestOpenNow: operatingState.isGuestOpenNow,
@@ -454,6 +536,10 @@ function updateGuestSettings(data) {
     const guestAllowMultipleOrders = data.guestAllowMultipleOrders !== undefined ? (parseSettingBoolean(data.guestAllowMultipleOrders, true) ? 'TRUE' : 'FALSE') : undefined;
     const guestAllowRandomDisplayName = data.guestAllowRandomDisplayName !== undefined ? (parseSettingBoolean(data.guestAllowRandomDisplayName, true) ? 'TRUE' : 'FALSE') : undefined;
     const adminOrderEmailNotificationEnabled = data.adminOrderEmailNotificationEnabled !== undefined ? (parseSettingBoolean(data.adminOrderEmailNotificationEnabled, true) ? 'TRUE' : 'FALSE') : undefined;
+    const eventNameResult = data.guestEventName !== undefined
+      ? sanitizeGuestEventNameHtml_(data.guestEventName)
+      : null;
+    if (eventNameResult && !eventNameResult.success) return eventNameResult;
 
     const updates = {
       guestBaseCredit,
@@ -468,7 +554,7 @@ function updateGuestSettings(data) {
     if (guestAllowRandomDisplayName !== undefined) updates.guestAllowRandomDisplayName = guestAllowRandomDisplayName;
     if (adminOrderEmailNotificationEnabled !== undefined) updates.adminOrderEmailNotificationEnabled = adminOrderEmailNotificationEnabled;
     if (data.guestMenuMode !== undefined) updates.guestMenuMode = String(data.guestMenuMode).trim().toLowerCase();
-    if (data.guestEventName !== undefined) updates.guestEventName = String(data.guestEventName).trim();
+    if (eventNameResult) updates.guestEventName = eventNameResult.html;
     if (data.guestEventEmblemBase64 !== undefined) updates.guestEventEmblemBase64 = String(data.guestEventEmblemBase64).trim();
     writeSettingValuesBatch(sheet, updates);
 
@@ -496,7 +582,7 @@ function updateGuestSettings(data) {
         ? String(data.guestMenuMode || 'normal').trim().toLowerCase()
         : undefined,
       guestEventName: data.guestEventName !== undefined
-        ? String(data.guestEventName || '장애인식 개선 캠페인').trim()
+        ? eventNameResult.html
         : undefined,
       guestEventEmblemBase64: data.guestEventEmblemBase64 !== undefined
         ? String(data.guestEventEmblemBase64 || '').trim()
@@ -504,11 +590,13 @@ function updateGuestSettings(data) {
     };
   } else if (action === 'updateMenuMode') {
     const guestMenuMode = String(data.guestMenuMode || 'normal').trim().toLowerCase();
-    const guestEventName = String(data.guestEventName || '장애인식 개선 캠페인').trim();
+    const eventNameResult = sanitizeGuestEventNameHtml_(data.guestEventName || '장애인식 개선 캠페인');
+    if (!eventNameResult.success) return eventNameResult;
+    const guestEventName = eventNameResult.html;
     const updates = { guestMenuMode };
     if (data.guestEventName !== undefined) updates.guestEventName = guestEventName;
     writeSettingValuesBatch(sheet, updates);
-    safeAppendAdminLog('updateGuestSettings', 'settings', 'guestMenuMode', '게스트 메뉴 모드 변경', '', `${guestMenuMode === 'event' ? '행사 모드 (' + guestEventName + ')' : '배달왔삼 기본 모드'}`, data.adminMemo);
+    safeAppendAdminLog('updateGuestSettings', 'settings', 'guestMenuMode', '게스트 메뉴 모드 변경', '', `${guestMenuMode === 'event' ? '행사 모드 (' + eventNameResult.text + ')' : '배달왔삼 기본 모드'}`, data.adminMemo);
     clearGuestSettingsCache();
     return { success: true, message: '게스트 메뉴 모드가 변경되었습니다.' };
   } else {

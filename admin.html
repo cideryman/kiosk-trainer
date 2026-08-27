@@ -441,7 +441,7 @@
         </div>
         <div class="form-field">
           <label for="new-snack-point">가격 (온기)</label>
-          <input type="number" id="new-snack-point" min="1" value="1">
+          <input type="number" id="new-snack-point" min="1" max="15" step="1" value="1">
         </div>
         <div class="form-field">
           <label for="new-snack-image">이미지 등록 (구글 드라이브 또는 공백) <button type="button" class="image-guide-trigger" onclick="openSnackImageGuide('new')" aria-label="간식 썸네일 제작 도움말">ⓘ</button></label>
@@ -451,7 +451,7 @@
         </div>
         <div class="form-field">
           <label for="new-snack-stock">초기 입고 재고량</label>
-          <input type="number" id="new-snack-stock" min="0" max="30" value="10">
+          <input type="number" id="new-snack-stock" min="0" max="30" step="1" value="10">
         </div>
         <div class="form-field">
           <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">판매 대상 (다중 선택 가능)</label>
@@ -539,7 +539,7 @@
         </div>
         <div class="form-field">
           <label for="edit-snack-point">가격 (온기)</label>
-          <input type="number" id="edit-snack-point" min="1">
+          <input type="number" id="edit-snack-point" min="1" max="15" step="1">
         </div>
         <div class="form-field">
           <label for="edit-snack-image">이미지 등록 (구글 드라이브 등) <button type="button" class="image-guide-trigger" onclick="openSnackImageGuide('edit')" aria-label="간식 썸네일 제작 도움말">ⓘ</button></label>
@@ -549,7 +549,7 @@
         </div>
         <div class="form-field">
           <label for="edit-snack-stock">재고 수량</label>
-          <input type="number" id="edit-snack-stock" min="0" max="30">
+          <input type="number" id="edit-snack-stock" min="0" max="30" step="1">
         </div>
         <div class="form-field">
           <label style="font-size: 16px; font-weight: 800; color: var(--text-main);">판매 상태</label>

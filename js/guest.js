@@ -489,26 +489,25 @@ window.addEventListener('DOMContentLoaded', () => {
         const temp = document.createElement('div');
         temp.innerHTML = decoded;
         
-        temp.querySelectorAll('script, style, iframe, object, embed, form').forEach(el => el.remove());
-        
+        const allowedColors = new Set(['#E11D48', '#2563EB', '#7C3AED', '#059669', '#D97706', '#1E293B']);
         const allNodes = temp.querySelectorAll('*');
         allNodes.forEach(node => {
           const tagName = node.tagName.toLowerCase();
-          if (!['span', 'font', 'b', 'strong', 'i', 'em', 'div'].includes(tagName)) {
+          if (!['span', 'font', 'b', 'strong'].includes(tagName)) {
             const text = document.createTextNode(node.textContent);
             node.parentNode?.replaceChild(text, node);
             return;
           }
           const colorAttr = node.getAttribute('color');
           const styleColor = node.style.color;
-          const color = styleColor || colorAttr;
-          const fontWeight = node.style.fontWeight;
+          const color = String(styleColor || colorAttr || '').toUpperCase();
+          const isBold = tagName === 'b' || tagName === 'strong' || /^(bold|[7-9]00)$/i.test(node.style.fontWeight || '');
           node.removeAttribute('style');
           node.removeAttribute('class');
           node.removeAttribute('id');
-          
-          if (color) node.style.color = color;
-          if (fontWeight) node.style.fontWeight = fontWeight;
+          [...node.attributes].forEach(attr => node.removeAttribute(attr.name));
+          if (allowedColors.has(color)) node.style.color = color;
+          if (isBold) node.style.fontWeight = '700';
         });
         
         return temp.innerHTML;

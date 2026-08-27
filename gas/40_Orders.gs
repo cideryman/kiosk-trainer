@@ -62,7 +62,7 @@ function placeOrder(data) {
       message: '주문 정보가 부족합니다.',
     });
   }
-  if (rawIdempotencyKey && !isValidIdempotencyKey(rawIdempotencyKey)) {
+  if (!isValidIdempotencyKey(rawIdempotencyKey)) {
     return respond({
       success: false,
       message: '주문 중복 방지 키가 올바르지 않습니다. 화면을 새로고침한 뒤 다시 시도해 주세요.',
@@ -239,7 +239,7 @@ function placeOrder(data) {
       });
 
       if (snackRowIndex === -1) {
-        throw new Error('간식을 찾을 수 없습니다: ' + item.snackId);
+        throw createPublicApiError('선택한 간식을 찾을 수 없습니다.', 'NOT_FOUND');
       }
 
       const snack = snacks[snackRowIndex];
@@ -252,11 +252,11 @@ function placeOrder(data) {
 
       const mode = isGuest ? 'guest' : 'user';
       if (!canOrderSnack(snack, mode)) {
-        throw new Error(`'${snackName}' 은(는) 현재 주문할 수 없는 간식입니다.`);
+        throw createPublicApiError(`'${snackName}' 은(는) 현재 주문할 수 없는 간식입니다.`, 'CONFLICT');
       }
 
       if (stock < quantity) {
-        throw new Error(`${snackName} 재고가 부족합니다. 현재 재고: ${stock}개`);
+        throw createPublicApiError(`${snackName} 재고가 부족합니다. 현재 재고: ${stock}개`, 'CONFLICT');
       }
 
       const maxPerPerson = Number(snack[8] || 0);
@@ -264,9 +264,9 @@ function placeOrder(data) {
         const alreadyOrderedCount = Number(todayCountsMap[snackId] || 0);
         if (alreadyOrderedCount + quantity > maxPerPerson) {
           if (alreadyOrderedCount > 0) {
-            throw new Error(`추가 주문 불가: '${snackName}'`);
+            throw createPublicApiError(`추가 주문 불가: '${snackName}'`, 'CONFLICT');
           } else {
-            throw new Error(`주문 수량 초과: '${snackName}' 1인 ${maxPerPerson}개`);
+            throw createPublicApiError(`주문 수량 초과: '${snackName}' 1인 ${maxPerPerson}개`, 'CONFLICT');
           }
         }
       }
@@ -549,16 +549,11 @@ function placeOrder(data) {
     }
     Logger.log('placeOrder failed: ' + JSON.stringify({
       orderNo: transaction ? transaction.orderNo : '',
-      idempotencyKey: rawIdempotencyKey,
       stage: transaction
         ? (transaction.creditApplied ? 'credit' : (transaction.stockApplied ? 'stock' : 'order'))
-        : 'validation',
-      error: error && error.message ? error.message : String(error)
+        : 'validation'
     }));
-    return respond({
-      success: false,
-      message: error.message || '주문 처리 중 오류가 발생했습니다.'
-    });
+    return respond(getSafeApiErrorResponse('placeOrder', error));
   } finally {
     lock.releaseLock();
   }
@@ -725,56 +720,32 @@ function getPublicOrderFeed() {
 /**
  * 8.5. 특정 주문의 진행 상태 단일 조회 API
  */
-function getOrderStatus(id) {
-  if (!id) {
-    return {
-      success: false,
-      message: '주문 식별자(orderNo 또는 orderToken)가 누락되었습니다.'
-    };
-  }
-
-  const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET.ORDERS);
-  if (!sheet) {
-    return {
-      success: false,
-      message: '주문내역 시트를 찾을 수 없습니다.'
-    };
-  }
-
-  const values = getOrderValuesForRead(sheet);
-  const headers = values[0] || [];
-  const rows = values.slice(1);
-
-  const reviewedIdx = headers.indexOf('reviewed');
-  // orderNo(index 1) 또는 orderToken(index 10) 필터링
-  const matchedRows = rows.filter(row => {
-    return isCommittedOrderRow(row, headers)
-      && (String(row[1]) === String(id) || (row[10] && String(row[10]) === String(id)));
+function getOrderStatus(data) {
+  const orderToken = String(data && data.orderToken || '').trim();
+  const ownership = verifyOrderOwnership_({ orderToken: orderToken }, {
+    requireOrderId: false,
+    includeArchived: false
   });
+  if (!ownership.success) return ownership;
 
-  if (matchedRows.length === 0) {
-    return {
-      success: false,
-      message: '해당 주문을 찾을 수 없습니다.'
-    };
-  }
-
-  // 첫 번째 항목의 정보 및 상태 반환
-  const firstRow = matchedRows[0];
-  const servedYn = firstRow[8] || 'N';
-  const cancelTimestamp = firstRow[9] || '';
-
-  const reviewedValue = firstRow[14];
+  const headers = ownership.headers;
+  const firstRow = ownership.matched[0].row;
+  const servedYnIdx = headers.indexOf('제공여부');
+  const cancelTimestampIdx = headers.indexOf('cancelTimestamp');
+  const reviewedIdx = headers.indexOf('reviewed');
+  const deliveryTypeIdx = headers.indexOf('deliveryType');
+  const cancelReasonIdx = headers.indexOf('cancelReason');
+  const reviewedValue = reviewedIdx !== -1 ? firstRow[reviewedIdx] : '';
   const isReviewed = reviewedValue === true || String(reviewedValue).toUpperCase() === 'TRUE' || String(reviewedValue).toUpperCase() === 'Y';
 
   return {
     success: true,
-    orderNo: firstRow[1],
-    servedYn: servedYn,
-    cancelTimestamp: cancelTimestamp,
-    deliveryType: firstRow[11] || 'pickup',
+    orderNo: ownership.orderNo,
+    servedYn: firstRow[servedYnIdx] || 'N',
+    cancelTimestamp: cancelTimestampIdx !== -1 ? firstRow[cancelTimestampIdx] || '' : '',
+    deliveryType: deliveryTypeIdx !== -1 ? firstRow[deliveryTypeIdx] || 'pickup' : 'pickup',
     reviewed: isReviewed,
-    cancelReason: firstRow[16] || ''
+    cancelReason: cancelReasonIdx !== -1 ? firstRow[cancelReasonIdx] || '' : ''
   };
 }
 
@@ -800,7 +771,6 @@ function getGuestOrdersToday(guestName) {
   const values = getOrderValuesForRead(sheet);
   const headers = values[0] || [];
   const rows = values.slice(1);
-
   const reviewedIdx = headers.indexOf('reviewed');
   const rIdx = reviewedIdx !== -1 ? reviewedIdx : 14;
   const authProviderIdx = headers.indexOf('authProvider');
@@ -865,17 +835,21 @@ function getGuestOrdersToday(guestName) {
  * 8.7. 게스트 본인의 주문 토큰 목록으로 조회 API
  */
 function getGuestOrderByToken(data) {
-  const tokens = data ? data.tokens : null;
+  const rawTokens = data ? data.tokens : null;
   const includeArchived = data && (data.includeArchived === true || String(data.includeArchived).toLowerCase() === 'true');
 
-  if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
+  const tokens = Array.isArray(rawTokens)
+    ? Array.from(new Set(rawTokens.map(token => String(token || '').trim()).filter(Boolean)))
+    : [];
+  if (tokens.length === 0) {
     return {
       success: false,
       message: '조회할 토큰이 없습니다.'
     };
   }
 
-  const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET.ORDERS);
+  const ss = SpreadsheetApp.getActive();
+  const sheet = ss.getSheetByName(SHEET.ORDERS);
   if (!sheet) {
     return {
       success: false,
@@ -885,8 +859,6 @@ function getGuestOrderByToken(data) {
 
   const values = getOrderValuesForRead(sheet);
   const headers = values[0] || [];
-  const rows = values.slice(1);
-
   const reviewedIdx = headers.indexOf('reviewed');
   const tokenIdx = headers.indexOf('orderToken');
   const authProviderIdx = headers.indexOf('authProvider');
@@ -926,34 +898,19 @@ function getGuestOrderByToken(data) {
     };
   };
 
-  let orders = rows
-    .filter(row => {
-      if (!isCommittedOrderRow(row, headers)) return false;
-      const rowToken = String(row[tIdx] || '');
-      return String(row[2] || '') === 'guest' && rowToken && tokens.includes(rowToken);
-    })
-    .map(row => mapRow(row, headers));
-
-  if (includeArchived) {
-    const archiveSheet = SpreadsheetApp.getActive().getSheetByName(SHEET.ARCHIVE);
-    if (archiveSheet && archiveSheet.getLastRow() > 1) {
-      const archiveValues = archiveSheet.getDataRange().getValues();
-      const archiveHeaders = archiveValues[0] || [];
-      const archiveRows = archiveValues.slice(1);
-      const aTokenIdx = archiveHeaders.indexOf('orderToken');
-      const useATokenIdx = aTokenIdx !== -1 ? aTokenIdx : 10;
-
-      const archivedOrders = archiveRows
-        .filter(row => {
-          if (!isCommittedOrderRow(row, archiveHeaders)) return false;
-          const rowToken = String(row[useATokenIdx] || '');
-          return String(row[2] || '') === 'guest' && rowToken && tokens.includes(rowToken);
-        })
-        .map(row => mapRow(row, archiveHeaders));
-
-      orders = orders.concat(archivedOrders);
-    }
-  }
+  let orders = [];
+  tokens.forEach(token => {
+    const ownership = verifyOrderOwnership_({ orderToken: token }, {
+      spreadsheet: ss,
+      orderSheet: sheet,
+      orderValues: values,
+      requireOrderId: false,
+      requireGuest: true,
+      includeArchived: includeArchived
+    });
+    if (!ownership.success) return;
+    ownership.matched.forEach(item => orders.push(mapRow(item.row, ownership.headers)));
+  });
 
   return {
     success: true,
@@ -1300,23 +1257,28 @@ function cancelOrderTransaction_(data, isUserCancellation) {
     const headers = orderBefore[0] || [];
     const idx = getRequiredOrderIndexes_(headers);
 
-    let seed = [];
+    let canonicalOrderNo = '';
+    let matched = [];
     if (isUserCancellation) {
-      seed = orderBefore.slice(1).filter(row =>
-        String(row[idx['주문번호']] || '').trim() === orderId
-          || String(row[idx.orderToken] || '').trim() === orderId
-      );
+      const ownership = verifyOrderOwnership_({ orderId: orderId, orderToken: requestToken }, {
+        spreadsheet: ss,
+        orderSheet: orderSheet,
+        orderValues: orderBefore,
+        requireOrderId: true,
+        includeArchived: false
+      });
+      if (!ownership.success) throw createPublicApiError(ownership.message, ownership.errorCode);
+      canonicalOrderNo = ownership.orderNo;
+      matched = ownership.matched;
     } else {
-      seed = orderBefore.slice(1).filter(row => String(row[idx['주문번호']] || '').trim() === orderId);
-    }
-    if (seed.length === 0) throw new Error('해당 주문 기록을 찾을 수 없습니다.');
-    const canonicalOrderNo = String(seed[0][idx['주문번호']] || '').trim();
-    const matched = [];
-    for (let i = 1; i < orderBefore.length; i++) {
-      if (String(orderBefore[i][idx['주문번호']] || '').trim() === canonicalOrderNo) {
-        matched.push({ index: i, row: orderBefore[i] });
+      canonicalOrderNo = orderId;
+      for (let i = 1; i < orderBefore.length; i++) {
+        if (String(orderBefore[i][idx['주문번호']] || '').trim() === canonicalOrderNo) {
+          matched.push({ index: i, row: orderBefore[i] });
+        }
       }
     }
+    if (matched.length === 0) throw new Error('해당 주문 기록을 찾을 수 없습니다.');
     if (!canonicalOrderNo || matched.length === 0) throw new Error('주문번호 구조가 올바르지 않습니다.');
 
     const userId = validateSameOrderField_(matched, idx['이용자ID'], '이용자');
@@ -1326,10 +1288,8 @@ function cancelOrderTransaction_(data, isUserCancellation) {
       return Number(value);
     });
     if (!Number.isFinite(totalCredit) || totalCredit < 0) throw new Error('주문의 총 온기 값이 올바르지 않습니다.');
-    if (isUserCancellation && (!storedToken || !requestToken || storedToken !== requestToken)) {
-      throw new Error(storedToken
-        ? '주문 확인 정보(토큰)가 일치하지 않거나 누락되었습니다.'
-        : '이 주문은 이용자 취소용 토큰이 없어 관리자만 취소할 수 있습니다.');
+    if (isUserCancellation && (!storedToken || storedToken !== requestToken)) {
+      throw createPublicApiError('주문 확인 정보(토큰)가 일치하지 않습니다.', 'UNAUTHORIZED_ORDER');
     }
 
     const statuses = matched.map(item => String(item.row[idx['제공여부']] || 'N').trim().toUpperCase());
@@ -1344,7 +1304,7 @@ function cancelOrderTransaction_(data, isUserCancellation) {
     }
     if (cancelledCount > 0) throw new Error('동일 주문 안에 취소 상태가 섞여 있어 작업을 중단했습니다.');
     if (isUserCancellation && statuses.some(status => status !== 'N')) {
-      throw new Error('일부 품목의 준비가 이미 시작되어 주문 전체를 취소할 수 없습니다. 관리자에게 문의해주세요.');
+      throw createPublicApiError('일부 품목의 준비가 이미 시작되어 주문 전체를 취소할 수 없습니다. 관리자에게 문의해주세요.', 'CONFLICT');
     }
 
     const snackRowIndexes = {};
@@ -1472,11 +1432,14 @@ function cancelOrderTransaction_(data, isUserCancellation) {
           : `주문이 취소되었습니다. 재고 ${restoredItemCount}개 복구를 확인했습니다.`),
     });
   } catch (error) {
-    if (!ss || backups.length === 0) return getOrderMutationResult_({ message: error.message });
+    const safeError = getSafeApiErrorResponse(isUserCancellation ? 'userCancelOrder' : 'cancelOrder', error);
+    if (!ss || backups.length === 0) return getOrderMutationResult_(safeError);
     if (!mutationStarted) {
       const failedCleanup = cleanupOrderMutationBackups_(ss, backups);
       return getOrderMutationResult_({
-        message: error.message,
+        message: safeError.message,
+        errorCode: safeError.errorCode,
+        errorId: safeError.errorId,
         cleanupRequired: failedCleanup.length > 0,
         backupSheetNames: failedCleanup,
       });
@@ -1487,10 +1450,12 @@ function cancelOrderTransaction_(data, isUserCancellation) {
     clearUserReadCache();
     return getOrderMutationResult_(Object.assign({}, rollback, {
       message: rollback.recoveryRequired
-        ? `주문 취소 실패(${error.message}) 후 자동 복원도 완료되지 않았습니다. 다음 백업 시트로 수동 복원이 필요합니다: ${rollback.backupSheetNames.join(', ')}`
+        ? `주문 취소 실패(${safeError.message}) 후 자동 복원도 완료되지 않았습니다. 다음 백업 시트로 수동 복원이 필요합니다: ${rollback.backupSheetNames.join(', ')}`
         : (rollback.cleanupRequired
-          ? `주문 취소 실패(${error.message})는 원상복구됐지만 임시 백업 삭제가 필요합니다: ${rollback.backupSheetNames.join(', ')}`
-          : `주문 취소 처리에 실패해 주문·재고·온기를 모두 원래 상태로 복구했습니다: ${error.message}`),
+          ? `주문 취소 실패(${safeError.message})는 원상복구됐지만 임시 백업 삭제가 필요합니다: ${rollback.backupSheetNames.join(', ')}`
+          : `주문 취소 처리에 실패해 주문·재고·온기를 모두 원래 상태로 복구했습니다: ${safeError.message}`),
+      errorCode: safeError.errorCode,
+      errorId: safeError.errorId,
     }));
   } finally {
     lock.releaseLock();

@@ -37,41 +37,29 @@ function getReviewHeaderMap_(headers) {
   return map;
 }
 
+function getRequiredReviewHeaderMap_(headers) {
+  const map = getReviewHeaderMap_(headers || []);
+  const missing = REVIEW_HEADERS.filter(header => map[header] === -1);
+  if (missing.length > 0) {
+    throw new Error('후기내역 필수 헤더가 없습니다: ' + missing.join(', '));
+  }
+  return map;
+}
+
 function isTruthyReviewValue_(value) {
   return value === true || ['TRUE', 'Y', 'O', 'YES', '예'].indexOf(String(value || '').trim().toUpperCase()) !== -1;
 }
 
 function verifyGuestReviewOrderOwnership_(data) {
-  const orderId = String(data && data.orderId || '').trim();
-  const orderToken = String(data && data.orderToken || '').trim();
-  if (!orderId || !orderToken) {
-    return { success: false, message: '주문번호와 주문 확인 정보(토큰)가 필요합니다.' };
-  }
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetNames = [SHEET.ORDERS, SHEET.ARCHIVE];
-  for (let s = 0; s < sheetNames.length; s++) {
-    const sheet = ss.getSheetByName(sheetNames[s]);
-    if (!sheet || sheet.getLastRow() < 2) continue;
-    const values = sheet.getDataRange().getValues();
-    const headers = values[0] || [];
-    const orderIdIdx = headers.indexOf('주문번호');
-    const tokenIdx = headers.indexOf('orderToken');
-    const userIdIdx = headers.indexOf('이용자ID');
-    if (orderIdIdx === -1 || tokenIdx === -1) continue;
-
-    const matches = values.slice(1).filter(row => String(row[orderIdIdx] || '').trim() === orderId);
-    if (!matches.length) continue;
-    const ownsOrder = matches.every(row =>
-      String(row[tokenIdx] || '').trim() === orderToken &&
-      (userIdIdx === -1 || String(row[userIdIdx] || '').trim() === 'guest')
-    );
-    if (!ownsOrder) {
-      return { success: false, message: '주문 확인 정보(토큰)가 일치하지 않습니다.' };
-    }
-    return { success: true, orderId, orderToken, sourceSheet: sheetNames[s] };
-  }
-  return { success: false, message: '수정할 주문 내역을 찾을 수 없습니다.' };
+  const ownership = verifyOrderOwnership_(data, {
+    requireOrderId: true,
+    requireGuest: true,
+    includeArchived: true
+  });
+  if (!ownership.success) return ownership;
+  ownership.orderId = ownership.orderNo;
+  ownership.sourceSheet = ownership.sheet.getName();
+  return ownership;
 }
 
 function getReviewEditState_(createdAt) {
@@ -143,11 +131,11 @@ function updateGuestReview(data) {
   try {
     const ownership = verifyGuestReviewOrderOwnership_(data);
     if (!ownership.success) return ownership;
-    ensureReviewHeaders();
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.REVIEWS);
+    if (!sheet) throw new Error('후기내역 시트를 찾을 수 없습니다.');
     const values = sheet.getDataRange().getValues();
     const headers = values[0] || [];
-    const idx = getReviewHeaderMap_(headers);
+    const idx = getRequiredReviewHeaderMap_(headers);
     const matches = [];
     for (let i = 1; i < values.length; i++) {
       if (String(values[i][idx.orderId] || '').trim() === ownership.orderId) matches.push(i);
@@ -186,8 +174,7 @@ function updateGuestReview(data) {
     const review = reviewRowToObject_(row, headers);
     return { success: true, message: '후기가 수정되었습니다.', review };
   } catch (error) {
-    Logger.log(JSON.stringify({ event: 'update_guest_review_failed', orderId: String(data && data.orderId || ''), error: String(error) }));
-    return { success: false, message: '후기 수정 중 오류: ' + error.message };
+    return getSafeApiErrorResponse('updateGuestReview', error);
   } finally {
     lock.releaseLock();
     if (staleImageUrl) trashReviewImageFile_(staleImageUrl);
@@ -198,9 +185,7 @@ function updateGuestReview(data) {
  * 22. 후기 등록 API
  */
 function submitReview(data) {
-  ensureOrderHeaders();
-  const orderId = data.orderId;
-  const requestToken = data.orderToken;
+  const orderId = String(data && data.orderId || '').trim();
   const guestName = data.guestName;
   const stamp = data.stamp || '';
   const tags = data.tags || '';
@@ -247,46 +232,24 @@ function submitReview(data) {
     }
     const orderValues = orderSheet.getDataRange().getValues();
     const headers = orderValues[0] || [];
-
-    let reviewedIdx = headers.indexOf('reviewed');
-    if (reviewedIdx === -1) {
-      reviewedIdx = headers.length;
-      orderSheet.getRange(1, reviewedIdx + 1).setValue('reviewed');
-      headers.push('reviewed');
-    }
-
-    const orderNoIdx = headers.indexOf('주문번호');
-    const servedYnIdx = headers.indexOf('제공여부');
-    const statusIdx = headers.indexOf('상태');
-    const orderTokenIdx = headers.indexOf('orderToken');
-
-    let targetIndices = [];
-
-    for (let i = 1; i < orderValues.length; i++) {
-      const rowOrderId = String(orderValues[i][orderNoIdx !== -1 ? orderNoIdx : 1]);
-      const rowOrderToken = String(orderValues[i][orderTokenIdx !== -1 ? orderTokenIdx : 10] || '');
-
-      if (rowOrderId === String(orderId)) {
-        // 게스트 주문이고 시트에 토큰이 있는 경우, 요청 토큰 검증 필수
-        if (rowOrderToken) {
-          if (!requestToken || rowOrderToken !== String(requestToken)) {
-            return { success: false, message: '주문 확인 정보(토큰)가 일치하지 않거나 누락되었습니다.' };
-          }
-        }
-        targetIndices.push(i);
-      }
-    }
-
-    if (targetIndices.length === 0) {
-      return { success: false, message: '주문 내역을 찾을 수 없습니다.' };
-    }
-
-    // 수령완료 여부 체크 (첫 번째 매칭된 행 기준)
-    const targetRow = orderValues[targetIndices[0]];
-    const servedYnValue = targetRow[servedYnIdx !== -1 ? servedYnIdx : 8];
-    const statusValue = statusIdx !== -1 ? targetRow[statusIdx] : null;
-
-    if (servedYnValue !== 'Y' && servedYnValue !== '수령완료' && statusValue !== '수령완료') {
+    const reviewedIdx = headers.indexOf('reviewed');
+    if (reviewedIdx === -1) throw new Error('주문내역 reviewed 헤더가 없습니다.');
+    const ownership = verifyOrderOwnership_(data, {
+      spreadsheet: ss,
+      orderSheet: orderSheet,
+      orderValues: orderValues,
+      requireOrderId: true,
+      requireGuest: true,
+      includeArchived: false
+    });
+    if (!ownership.success) return ownership;
+    const targetIndices = ownership.matched.map(item => item.index);
+    const servedYnIdx = ownership.indexes.servedYn;
+    const allCompleted = ownership.matched.every(item => {
+      const served = String(item.row[servedYnIdx] || '').trim().toUpperCase();
+      return served === 'Y' || served === '수령완료';
+    });
+    if (!allCompleted) {
       return { success: false, message: '수령완료된 주문만 응원 메시지를 남길 수 있습니다.' };
     }
 
@@ -305,11 +268,11 @@ function submitReview(data) {
       return { success: false, message: '이미 응원 메시지를 남긴 주문입니다.' };
     }
 
-    // 2. 후기내역 시트 가져오기/생성
-    ensureReviewHeaders();
+    // 2. 후기내역 시트 조회 (공개 요청에서는 구조를 변경하지 않음)
     const reviewSheet = ss.getSheetByName(SHEET.REVIEWS);
+    if (!reviewSheet) throw new Error('후기내역 시트를 찾을 수 없습니다.');
     const reviewHeaders = reviewSheet.getRange(1, 1, 1, reviewSheet.getLastColumn()).getValues()[0];
-    const reviewIdx = getReviewHeaderMap_(reviewHeaders);
+    const reviewIdx = getRequiredReviewHeaderMap_(reviewHeaders);
 
     // 3. 후기 기록 추가
     const reviewRow = new Array(reviewHeaders.length).fill('');
@@ -336,10 +299,7 @@ function submitReview(data) {
       message: '리뷰가 성공적으로 등록되었습니다.'
     };
   } catch (error) {
-    return {
-      success: false,
-      message: error.message
-    };
+    return getSafeApiErrorResponse('submitReview', error);
   } finally {
     lock.releaseLock();
   }
@@ -819,17 +779,14 @@ function getPublicReviews() {
 
     return result;
   } catch (error) {
-    Logger.log('getPublicReviews Error: ' + error);
-    return {
-      success: false,
-      message: '공개 후기 조회 중 오류: ' + error.message,
+    return Object.assign(getSafeApiErrorResponse('getPublicReviews', error), {
       reviews: [],
       totalCount: 0,
       cycle: 1,
       progress: 0,
       temperature: 36.5,
       stage: 0
-    };
+    });
   }
 }
 

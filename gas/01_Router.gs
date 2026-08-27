@@ -1,29 +1,14 @@
-function isLegacyAdminGetEnabled() {
-  return String(
-    PropertiesService.getScriptProperties().getProperty('ALLOW_LEGACY_ADMIN_GET') || ''
-  ).trim().toUpperCase() === 'Y';
-}
-
 /**
  * 2. GET 요청 라우터 (조회 API)
  */
 function doGet(e) {
   try {
   const params = e && e.parameter ? e.parameter : {};
-  Logger.log('doGet Request: ' + JSON.stringify(params));
   const action = params.action;
+  Logger.log('doGet Action: ' + String(action || '(unknown)'));
 
   if (action === 'healthCheck') {
     return jsonResponse({ success: true, status: 'ok' });
-  }
-
-  // Temporary rollout bridge. Remove the property after the new frontend is live.
-  if (isLegacyAdminGetEnabled() && action === 'getAdminDashboard') {
-    return jsonResponse(getAdminDashboard(params.perfDebug));
-  }
-
-  if (isLegacyAdminGetEnabled() && action === 'getKitchenDashboard') {
-    return jsonResponse(getKitchenDashboard(params.perfDebug));
   }
 
   if (action === 'getUsers') {
@@ -39,12 +24,11 @@ function doGet(e) {
   }
 
   if (action === 'getOrdersToday') {
-    return jsonResponse(isLegacyAdminGetEnabled() ? getOrdersToday() : getPublicOrderFeed());
+    return jsonResponse(getPublicOrderFeed());
   }
 
   if (action === 'getOrderStatus') {
-    const identifier = params.orderNo || params.orderToken;
-    return jsonResponse(getOrderStatus(identifier));
+    return jsonResponse(getOrderStatus({ orderToken: params.orderToken }));
   }
 
   if (action === 'getGuestSettings') {
@@ -72,11 +56,7 @@ function doGet(e) {
     message: '알 수 없는 요청입니다.',
   });
   } catch (error) {
-    Logger.log('doGet Error: ' + (error && error.stack ? error.stack : error));
-    return jsonResponse({
-      success: false,
-      message: error && error.message ? error.message : '요청 처리 중 오류가 발생했습니다.',
-    });
+    return jsonResponse(getSafeApiErrorResponse(e && e.parameter ? e.parameter.action : '', error));
   }
 }
 
@@ -220,11 +200,7 @@ function doPost(e) {
       message: '알 수 없는 액션입니다.'
     });
   } catch (error) {
-    Logger.log('doPost Error: ' + (error && error.stack ? error.stack : error));
-    return jsonResponse({
-      success: false,
-      message: error && error.message ? error.message : '요청 처리 중 오류가 발생했습니다.',
-    });
+    return jsonResponse(getSafeApiErrorResponse(typeof action !== 'undefined' ? action : '', error));
   }
 }
 

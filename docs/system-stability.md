@@ -42,18 +42,14 @@
 API 경계를 바꾸는 배포는 다음 순서를 지킵니다.
 
 1. 운영 Script Properties에 `APP_ENV=production`을 설정합니다.
-2. Script Properties에 `ALLOW_LEGACY_ADMIN_GET=Y`를 임시로 설정하고 새 GAS
-   버전을 배포합니다. 구버전 관리자 탭이 잠시 계속 동작하는 호환 단계입니다.
-3. 새 프런트엔드를 게시하고 `service-worker.js` 캐시 버전이 갱신됐는지
+2. 주문내역 A:X 필수 헤더를 인증된 진단으로 확인하고, 누락 시 Apps Script
+   편집기에서 `ensureOrderHeaders()`를 한 번 실행합니다.
+3. 새 GAS 버전을 배포합니다. 남아 있는 `ALLOW_LEGACY_ADMIN_GET` 속성은 더 이상
+   사용하지 않으므로 삭제합니다.
+4. 새 프런트엔드를 게시하고 `service-worker.js` 캐시 버전이 갱신됐는지
    확인합니다. 열려 있던 관리자·주방·인쇄 탭은 새로고침합니다.
-4. `ALLOW_LEGACY_ADMIN_GET` 속성을 삭제하거나 `N`으로 바꿉니다. 이 단계는
-   코드 재배포가 필요하지 않습니다. 관리자 진단에서 `관리자 공개 조회: 차단됨`을
-   확인합니다.
 5. 이메일 알림은 OFF 상태에서 주문 응답을 먼저 확인하고, ON으로 바꾼 뒤 테스트
    주문 한 건이 `이메일알림큐`에서 `PENDING`을 거쳐 `SENT`가 되는지 확인합니다.
-
-호환 스위치는 장기간 켜 두지 않습니다. 켜져 있으면 `diagnoseSystem`이 WARN을
-반환하고 보안 검사는 실패합니다.
 
 ## 3. 실행 명령
 

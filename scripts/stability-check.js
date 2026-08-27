@@ -5,7 +5,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const EXPECTED_API_VERSION = '2026-08-27.2';
+const EXPECTED_API_VERSION = '2026-08-27.3';
 const API_URL = String(process.env.KIOSK_API_URL || '').trim();
 const ADMIN_TOKEN = String(process.env.KIOSK_ADMIN_TOKEN || '').trim();
 const MODE = String(process.env.KIOSK_STABILITY_MODE || 'read').trim().toLowerCase();
@@ -249,11 +249,10 @@ async function runReadSuite() {
 
   if (feed[0]?.orderNo) {
     const statusResult = await readApi('getOrderStatus', { params: { orderNo: feed[0].orderNo }, kind: 'security' });
-    const statusKeys = Object.keys(statusResult.data || {});
     addCheck(
-      'Public order status excludes sensitive fields',
-      statusResult.data?.success !== false && statusKeys.every(key => !forbiddenKeys.has(key)),
-      `keys=${statusKeys.length}`
+      'Order-number-only status lookup is denied',
+      statusResult.data?.success === false,
+      `errorCode=${statusResult.data?.errorCode || 'missing'}`
     );
   }
 

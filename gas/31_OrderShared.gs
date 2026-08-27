@@ -35,6 +35,102 @@ function isValidIdempotencyKey(value) {
   return key.length >= 8 && key.length <= 120 && /^[A-Za-z0-9._:-]+$/.test(key);
 }
 
+function getOrderOwnershipIndexes_(headers) {
+  const required = ['주문번호', '이용자ID', '제공여부', 'orderToken'];
+  const missing = required.filter(name => headers.indexOf(name) === -1);
+  if (missing.length > 0) {
+    throw new Error('주문 데이터 필수 헤더가 없습니다: ' + missing.join(', '));
+  }
+  return {
+    orderNo: headers.indexOf('주문번호'),
+    userId: headers.indexOf('이용자ID'),
+    servedYn: headers.indexOf('제공여부'),
+    orderToken: headers.indexOf('orderToken')
+  };
+}
+
+function verifyOrderOwnership_(data, options) {
+  const request = data || {};
+  const settings = options || {};
+  const orderId = String(request.orderId || request.orderNo || '').trim();
+  const orderToken = String(request.orderToken || '').trim();
+  const requireOrderId = settings.requireOrderId !== false;
+  if (!orderToken || (requireOrderId && !orderId)) {
+    return { success: false, errorCode: 'UNAUTHORIZED_ORDER', message: '주문번호와 주문 확인 정보(토큰)가 필요합니다.' };
+  }
+
+  const ss = settings.spreadsheet || SpreadsheetApp.getActiveSpreadsheet();
+  const sources = [];
+  const activeSheet = settings.orderSheet || ss.getSheetByName(SHEET.ORDERS);
+  if (activeSheet) sources.push({ sheet: activeSheet, values: settings.orderValues || null, archived: false });
+  if (settings.includeArchived === true && SHEET.ARCHIVE) {
+    const archiveSheet = ss.getSheetByName(SHEET.ARCHIVE);
+    if (archiveSheet) sources.push({ sheet: archiveSheet, values: null, archived: true });
+  }
+
+  const matchesBySource = [];
+  for (let s = 0; s < sources.length; s++) {
+    const source = sources[s];
+    const values = source.values || source.sheet.getDataRange().getValues();
+    if (!values || values.length <= 1) continue;
+    const headers = values[0] || [];
+    const idx = getOrderOwnershipIndexes_(headers);
+    const candidateOrderNos = [];
+    if (!requireOrderId && !orderId) {
+      for (let i = 1; i < values.length; i++) {
+        if (!isCommittedOrderRow(values[i], headers)) continue;
+        if (String(values[i][idx.orderToken] || '').trim() !== orderToken) continue;
+        const candidateOrderNo = String(values[i][idx.orderNo] || '').trim();
+        if (candidateOrderNo && candidateOrderNos.indexOf(candidateOrderNo) === -1) candidateOrderNos.push(candidateOrderNo);
+      }
+    }
+    const matched = [];
+    for (let i = 1; i < values.length; i++) {
+      if (!isCommittedOrderRow(values[i], headers)) continue;
+      const rowOrderNo = String(values[i][idx.orderNo] || '').trim();
+      if ((orderId && rowOrderNo === orderId) || (!requireOrderId && !orderId && candidateOrderNos.indexOf(rowOrderNo) !== -1)) {
+        matched.push({ index: i, row: values[i] });
+      }
+    }
+    if (matched.length > 0) matchesBySource.push({ source, values, headers, idx, matched });
+  }
+
+  if (matchesBySource.length === 0) {
+    return { success: false, errorCode: 'NOT_FOUND', message: '주문 내역을 찾을 수 없습니다.' };
+  }
+  if (matchesBySource.length !== 1) {
+    return { success: false, errorCode: 'CONFLICT', message: '중복 주문 데이터가 있어 관리자 확인이 필요합니다.' };
+  }
+
+  const found = matchesBySource[0];
+  const canonicalOrderNo = String(found.matched[0].row[found.idx.orderNo] || '').trim();
+  const canonicalUserId = String(found.matched[0].row[found.idx.userId] || '').trim();
+  const allConsistent = found.matched.every(item =>
+    String(item.row[found.idx.orderNo] || '').trim() === canonicalOrderNo &&
+    String(item.row[found.idx.userId] || '').trim() === canonicalUserId &&
+    String(item.row[found.idx.orderToken] || '').trim() === orderToken
+  );
+  if (!allConsistent || !canonicalOrderNo || (orderId && canonicalOrderNo !== orderId)) {
+    return { success: false, errorCode: 'UNAUTHORIZED_ORDER', message: '주문 확인 정보(토큰)가 일치하지 않습니다.' };
+  }
+  if (settings.requireGuest === true && canonicalUserId !== 'guest') {
+    return { success: false, errorCode: 'UNAUTHORIZED_ORDER', message: '배달왔삼 주문만 이 기능을 이용할 수 있습니다.' };
+  }
+
+  return {
+    success: true,
+    orderNo: canonicalOrderNo,
+    orderToken: orderToken,
+    userId: canonicalUserId,
+    archived: found.source.archived,
+    sheet: found.source.sheet,
+    values: found.values,
+    headers: found.headers,
+    indexes: found.idx,
+    matched: found.matched
+  };
+}
+
 function getExistingIdempotentOrderResult(orderSheet, userSheet, headers, idempotencyKey, userId, knownValues) {
   const key = normalizeIdempotencyKey(idempotencyKey);
   const keyIdx = headers.indexOf(ORDER_IDEMPOTENCY_HEADER);

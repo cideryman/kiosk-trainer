@@ -60,6 +60,20 @@ function uploadImage(data) {
       }
     } else if (type === 'review') {
       const isReviewEdit = data.reviewEdit === true || data.reviewEdit === 'true';
+      const ownership = verifyOrderOwnership_(data, {
+        requireOrderId: true,
+        requireGuest: true,
+        includeArchived: isReviewEdit
+      });
+      if (!ownership.success) return ownership;
+      const servedYnIdx = ownership.indexes.servedYn;
+      const allCompleted = ownership.matched.every(item => {
+        const status = String(item.row[servedYnIdx] || '').trim().toUpperCase();
+        return status === 'Y' || status === '수령완료';
+      });
+      if (!allCompleted) {
+        return { success: false, message: '수령완료된 주문만 후기 사진을 업로드할 수 있습니다.' };
+      }
       if (isReviewEdit) {
         const reviewResult = getGuestReview(data);
         if (!reviewResult.success) return reviewResult;
@@ -67,55 +81,10 @@ function uploadImage(data) {
           return { success: false, message: '후기 작성 후 7일이 지나 사진을 변경할 수 없습니다.' };
         }
       } else {
-      // 게스트 후기 사진 업로드 시 orderToken 필수 검증
-      const orderToken = String(data.orderToken || '').trim();
-      if (!orderToken) {
-        return {
-          success: false,
-          message: '주문 확인 정보(토큰)가 없어 이미지를 업로드할 수 없습니다.'
-        };
-      }
-
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
-      const orderSheet = ss.getSheetByName(SHEET.ORDERS);
-      if (!orderSheet) {
-        return { success: false, message: '주문내역 시트를 찾을 수 없습니다.' };
-      }
-      const values = orderSheet.getDataRange().getValues();
-      const headers = values[0] || [];
-      const orderTokenIdx = headers.indexOf('orderToken');
-      const userIdIdx = headers.indexOf('이용자ID');
-      const servedYnIdx = headers.indexOf('제공여부');
-      const statusIdx = headers.indexOf('상태');
-      const reviewedIdx = headers.indexOf('reviewed');
-      const tIdx = orderTokenIdx !== -1 ? orderTokenIdx : 10;
-      const uIdx = userIdIdx !== -1 ? userIdIdx : 2;
-      const sIdx = servedYnIdx !== -1 ? servedYnIdx : 8;
-      const rIdx = reviewedIdx !== -1 ? reviewedIdx : 14;
-
-      const matchedRows = values.slice(1).filter(row =>
-        String(row[tIdx]).trim() === orderToken && String(row[uIdx]).trim() === 'guest'
-      );
-
-      if (matchedRows.length === 0) {
-        return {
-          success: false,
-          message: '유효하지 않은 주문 정보입니다.'
-        };
-      }
-
-      const firstMatchedRow = matchedRows[0];
-      const servedYnValue = firstMatchedRow[sIdx];
-      const statusValue = statusIdx !== -1 ? firstMatchedRow[statusIdx] : '';
-      if (servedYnValue !== 'Y' && servedYnValue !== '수령완료' && statusValue !== '수령완료') {
-        return {
-          success: false,
-          message: '수령완료된 주문만 후기 사진을 업로드할 수 있습니다.'
-        };
-      }
-
-      const isAlreadyReviewed = matchedRows.some(row => {
-        const reviewedValue = row[rIdx];
+      const reviewedIdx = ownership.headers.indexOf('reviewed');
+      if (reviewedIdx === -1) throw new Error('주문내역 reviewed 헤더가 없습니다.');
+      const isAlreadyReviewed = ownership.matched.some(item => {
+        const reviewedValue = item.row[reviewedIdx];
         return reviewedValue === true || String(reviewedValue).toUpperCase() === 'TRUE' || String(reviewedValue).toUpperCase() === 'Y';
       });
       if (isAlreadyReviewed) {
@@ -175,10 +144,9 @@ function uploadImage(data) {
       imageUrl: imageUrl
     };
   } catch (error) {
-    return {
-      success: false,
-      message: '이미지 업로드 중 오류 발생: ' + error.toString()
-    };
+    const requestedType = String(data && data.type || '').trim().toLowerCase();
+    const authenticatedAdmin = (requestedType === 'user' || requestedType === 'snack') && verifyAdminToken(data).success;
+    return getSafeApiErrorResponse('uploadImage', error, authenticatedAdmin);
   }
 }
 
