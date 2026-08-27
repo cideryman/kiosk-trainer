@@ -48,7 +48,10 @@ assert.deepEqual(
   '배달왔삼은 기존 지갑 차감 상태를 유지해야 함'
 );
 
-assert(orderSource.includes('if (isGuest) {\n      const walletUpdate = resolveGuestCreditWallet'), '게스트만 지갑을 영구 차감해야 함');
+assert(
+  /if \(isGuest\) \{[\s\S]{0,240}const walletUpdate = measureOrderPerformanceStep_[\s\S]{0,240}spendCredit: totalCredit/.test(orderSource),
+  '게스트만 지갑을 영구 차감해야 함'
+);
 assert(!orderSource.includes('transaction.userSheet\n              .getRange'), '일반 주문 실패 롤백에서 이용자 한도를 쓰면 안 됨');
 assert(!orderSource.includes('const newCredit = currentCredit + point'), '일반 주문 취소에서 한도를 환불하면 안 됨');
 assert(setupSource.includes("DEFAULT_USER_ORDER_LIMIT"), '활성 이용자 기본 한도 마이그레이션이 있어야 함');

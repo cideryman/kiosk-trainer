@@ -633,7 +633,7 @@ function submitGuestApplication(data) {
     };
 
     sheet.appendRow(guestApplicationObjectToRow(application, table.headers));
-    enqueueGuestApplicationNotification(application);
+    enqueueGuestApplicationNotification(application, { callerHoldsScriptLock: true });
     clearGuestApplicationSettingsCache();
 
     var result = {

@@ -5,22 +5,68 @@ function createOrderSecurityToken_() {
   return 'O-' + Utilities.getUuid().replace(/-/g, '');
 }
 
+function createOrderPerformanceState_(data) {
+  if (String(data && data.perfDebug || '').trim() !== '1') return null;
+  return {
+    startedAt: Date.now(),
+    timings: {
+      lockWait: 0,
+      ordersRead: 0,
+      snacksRead: 0,
+      userOrGuestRead: 0,
+      validation: 0,
+      orderWrite: 0,
+      stockWrite: 0,
+      walletWrite: 0,
+      commitWrite: 0,
+      profileWrite: 0,
+      emailQueue: 0
+    }
+  };
+}
+
+function measureOrderPerformanceStep_(state, name, callback) {
+  if (!state) return callback();
+  const startedAt = Date.now();
+  try {
+    return callback();
+  } finally {
+    state.timings[name] = Number(state.timings[name] || 0) + (Date.now() - startedAt);
+  }
+}
+
+function recordOrderPerformanceDuration_(state, name, startedAt) {
+  if (!state) return;
+  state.timings[name] = Number(state.timings[name] || 0) + (Date.now() - startedAt);
+}
+
+function finishOrderPerformanceResponse_(response, state) {
+  if (!state) return response;
+  state.timings.total = Date.now() - state.startedAt;
+  response._timings = state.timings;
+  return response;
+}
+
 function placeOrder(data) {
+  data = data || {};
+  const performanceState = createOrderPerformanceState_(data);
+  const respond = response => finishOrderPerformanceResponse_(response, performanceState);
+  const initialValidationStartedAt = Date.now();
   const userId = data.userId;
   const items = data.items;
   const rawIdempotencyKey = normalizeIdempotencyKey(data.idempotencyKey);
 
   if (!userId || !Array.isArray(items) || items.length === 0) {
-    return {
+    return respond({
       success: false,
       message: '주문 정보가 부족합니다.',
-    };
+    });
   }
   if (rawIdempotencyKey && !isValidIdempotencyKey(rawIdempotencyKey)) {
-    return {
+    return respond({
       success: false,
       message: '주문 중복 방지 키가 올바르지 않습니다. 화면을 새로고침한 뒤 다시 시도해 주세요.',
-    };
+    });
   }
 
   // 클라이언트가 같은 간식을 여러 항목으로 나누어 보내도 서버에서 하나로 합산한다.
@@ -32,10 +78,10 @@ function placeOrder(data) {
     const snackIdKey = String(item.snackId == null ? '' : item.snackId).trim();
     const quantity = Number(item.quantity);
     if (!snackIdKey || !Number.isFinite(quantity) || !Number.isInteger(quantity) || quantity <= 0) {
-      return {
+      return respond({
         success: false,
         message: '주문 간식 수량이 올바르지 않습니다.',
-      };
+      });
     }
 
     if (Object.prototype.hasOwnProperty.call(itemIndexBySnackId, snackIdKey)) {
@@ -46,15 +92,22 @@ function placeOrder(data) {
     }
   }
 
+  recordOrderPerformanceDuration_(performanceState, 'validation', initialValidationStartedAt);
+
   const lock = LockService.getScriptLock();
+  const lockStartedAt = Date.now();
   if (!lock.tryLock(10000)) {
-    return {
+    recordOrderPerformanceDuration_(performanceState, 'lockWait', lockStartedAt);
+    return respond({
       success: false,
       message: '다른 주문을 처리 중입니다. 잠시 후 다시 시도해 주세요.',
-    };
+    });
   }
+  recordOrderPerformanceDuration_(performanceState, 'lockWait', lockStartedAt);
 
   let transaction = null;
+  let committedResponse = null;
+  let notificationContext = null;
   try {
     const ss = SpreadsheetApp.getActive();
     const userSheet = ss.getSheetByName(SHEET.USERS);
@@ -70,7 +123,9 @@ function placeOrder(data) {
     if (!userSheet || !snackSheet || !orderSheet) {
       throw new Error('주문 처리에 필요한 시트를 찾을 수 없습니다.');
     }
-    const orderValues = orderSheet.getDataRange().getValues();
+    const orderValues = measureOrderPerformanceStep_(performanceState, 'ordersRead', () => (
+      orderSheet.getDataRange().getValues()
+    ));
     const headers = orderValues[0] || [];
     const orderRowsSnapshot = orderValues.slice(1);
     const deviceIdIdx = headers.indexOf('guestDeviceId');
@@ -90,31 +145,33 @@ function placeOrder(data) {
       orderRowsSnapshot
     );
     if (existingOrderResult) {
-      return existingOrderResult;
+      return respond(existingOrderResult);
     }
 
-    const snacks = snackSheet.getDataRange().getValues();
+    const snacks = measureOrderPerformanceStep_(performanceState, 'snacksRead', () => (
+      snackSheet.getDataRange().getValues()
+    ));
     const rawGuestKey = String(data.guestKey || '').trim();
     const authProvider = isGuest && rawGuestKey && String(data.authProvider || '').trim().toLowerCase() === 'kakao' ? 'kakao' : '';
     const guestKey = authProvider === 'kakao' ? rawGuestKey : '';
     let guestSettings = null;
 
     if (isGuest) {
-      guestSettings = getGuestSettings();
+      guestSettings = measureOrderPerformanceStep_(performanceState, 'userOrGuestRead', () => getGuestSettings());
       if (!canCompleteStartedGuestOrder(guestSettings, data.orderStartedAt)) {
-        return {
+        return respond({
           success: false,
           message: guestSettings.guestCompletionGraceCloseAt
             ? '주문 운영 종료 후 완료 가능 시간이 지났습니다.'
             : (guestSettings.message || '게스트 주문이 마감되었습니다.'),
-        };
+        });
       }
 
       if (!data.guestDeviceId && !guestKey) {
-        return {
+        return respond({
           success: false,
           message: '게스트 주문 확인 정보가 없습니다. 화면을 새로고침한 뒤 다시 시도해 주세요.',
-        };
+        });
       }
 
       if (!guestSettings.guestAllowMultipleOrders && (data.guestDeviceId || guestKey)) {
@@ -136,10 +193,10 @@ function placeOrder(data) {
           }
         }
         if (hasActiveOrder) {
-          return {
+          return respond({
             success: false,
             message: '현재 진행 중인 주문이 있습니다. 주문 완료 후 다시 주문해주세요.'
-          };
+          });
         }
       }
 
@@ -147,22 +204,25 @@ function placeOrder(data) {
       currentCredit = guestSettings.guestBaseCredit;
       guestFee = guestSettings.guestDeliveryFee;
     } else {
-      const users = userSheet.getDataRange().getValues();
+      const users = measureOrderPerformanceStep_(performanceState, 'userOrGuestRead', () => (
+        getUserValuesForRead(userSheet)
+      ));
       userRowIndex = users.findIndex((row, index) => {
         return index > 0 && String(row[0]) === String(userId);
       });
 
       if (userRowIndex === -1) {
-        return {
+        return respond({
           success: false,
           message: '이용자를 찾을 수 없습니다.',
-        };
+        });
       }
 
       nickname = users[userRowIndex][1];
       currentCredit = Number(users[userRowIndex][2]);
     }
 
+    const orderValidationStartedAt = Date.now();
     let totalPoint = 0;
     const orderItems = [];
     const todayCountsMap = getUserTodaySnackCountsMap(
@@ -231,27 +291,30 @@ function placeOrder(data) {
     const totalCredit = totalPoint + deliveryFee;
     const deliveryPlace = isGuest && deliveryType === 'delivery' ? String(data.deliveryPlace || '').trim() : '';
     const shouldRememberGuestProfile = data.rememberGuestProfile === true || String(data.rememberGuestProfile || '').trim().toUpperCase() === 'Y';
+    recordOrderPerformanceDuration_(performanceState, 'validation', orderValidationStartedAt);
 
     if (isGuest) {
-      const creditStatus = resolveGuestCreditWallet({
-        guestDeviceId: data.guestDeviceId || '',
-        authProvider,
-        guestKey,
-      }, {
-        settings: guestSettings,
-        create: false,
-      });
+      const creditStatus = measureOrderPerformanceStep_(performanceState, 'userOrGuestRead', () => (
+        resolveGuestCreditWallet({
+          guestDeviceId: data.guestDeviceId || '',
+          authProvider,
+          guestKey,
+        }, {
+          settings: guestSettings,
+          create: false,
+        })
+      ));
       currentCredit = creditStatus.remainingCredit;
     }
 
     const creditState = getOrderCreditState(isGuest, currentCredit, totalCredit);
     if (!creditState.canOrder) {
-      return {
+      return respond({
         success: false,
         message: isGuest ? '온기가 부족합니다.' : '1회 주문 한도를 넘었습니다.',
         currentCredit,
         totalPoint: totalCredit,
-      };
+      });
     }
 
     const todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyMMdd');
@@ -335,9 +398,11 @@ function placeOrder(data) {
       return safeRow;
     });
     const orderStartRow = orderSheet.getLastRow() + 1;
-    orderSheet
-      .getRange(orderStartRow, 1, safeOrderRows.length, maxOrderCols)
-      .setValues(safeOrderRows);
+    measureOrderPerformanceStep_(performanceState, 'orderWrite', () => {
+      orderSheet
+        .getRange(orderStartRow, 1, safeOrderRows.length, maxOrderCols)
+        .setValues(safeOrderRows);
+    });
     const stockValuesBefore = snacks.slice(1).map(row => [row[5]]);
     transaction = {
       orderSheet,
@@ -362,14 +427,18 @@ function placeOrder(data) {
       idempotencyKey: rawIdempotencyKey
     };
     throwStagingOrderFailure(data, 'order');
-    orderSheet
-      .getRange(orderStartRow, 1, safeOrderRows.length, 1)
-      .setNumberFormat('yyyy. m. d AM/PM h:mm:ss');
+    measureOrderPerformanceStep_(performanceState, 'orderWrite', () => {
+      orderSheet
+        .getRange(orderStartRow, 1, safeOrderRows.length, 1)
+        .setNumberFormat('yyyy. m. d AM/PM h:mm:ss');
+    });
 
     orderItems.forEach(item => { snacks[item.snackRowIndex][5] = item.afterStock; });
-    snackSheet
-      .getRange(2, 6, snacks.length - 1, 1)
-      .setValues(snacks.slice(1).map(row => [row[5]]));
+    measureOrderPerformanceStep_(performanceState, 'stockWrite', () => {
+      snackSheet
+        .getRange(2, 6, snacks.length - 1, 1)
+        .setValues(snacks.slice(1).map(row => [row[5]]));
+    });
     transaction.stockApplied = true;
     throwStagingOrderFailure(data, 'stock');
     clearSnackReadCache();
@@ -378,15 +447,17 @@ function placeOrder(data) {
     // 일반 키오스크는 이용자별 값을 1회 주문 한도로 사용하므로 영구 차감하지 않는다.
     let newCredit = creditState.afterCredit;
     if (isGuest) {
-      const walletUpdate = resolveGuestCreditWallet({
-        guestDeviceId: data.guestDeviceId || '',
-        authProvider,
-        guestKey,
-      }, {
-        settings: guestSettings,
-        spendCredit: totalCredit,
-        create: true,
-      });
+      const walletUpdate = measureOrderPerformanceStep_(performanceState, 'walletWrite', () => (
+        resolveGuestCreditWallet({
+          guestDeviceId: data.guestDeviceId || '',
+          authProvider,
+          guestKey,
+        }, {
+          settings: guestSettings,
+          spendCredit: totalCredit,
+          create: true,
+        })
+      ));
       if (!walletUpdate.success) {
         throw new Error(walletUpdate.message || '게스트 온기를 업데이트하지 못했습니다.');
       }
@@ -397,21 +468,25 @@ function placeOrder(data) {
 
     if (isGuest && authProvider === 'kakao' && guestKey && shouldRememberGuestProfile) {
       try {
-        upsertGuestProfile(guestKey, data.guestName || '', deliveryPlace);
+        measureOrderPerformanceStep_(performanceState, 'profileWrite', () => (
+          upsertGuestProfile(guestKey, data.guestName || '', deliveryPlace)
+        ));
       } catch (profileError) {
         Logger.log('Guest profile save failed: ' + (profileError && profileError.stack ? profileError.stack : profileError));
       }
     }
 
-    orderSheet
-      .getRange(orderStartRow, commitStatusIdx + 1, safeOrderRows.length, 1)
-      .setValues(safeOrderRows.map(() => ['COMMITTED']));
+    measureOrderPerformanceStep_(performanceState, 'commitWrite', () => {
+      orderSheet
+        .getRange(orderStartRow, commitStatusIdx + 1, safeOrderRows.length, 1)
+        .setValues(safeOrderRows.map(() => ['COMMITTED']));
+    });
     transaction.committed = true;
 
     clearOrderReadCache();
 
     if (shouldEnqueueOrderNotification(isGuest, guestSettings)) {
-      enqueueOrderNotification({
+      notificationContext = {
         orderNo: orderNo,
         nickname: nickname,
         deliveryType: deliveryType,
@@ -419,10 +494,10 @@ function placeOrder(data) {
         items: orderItems,
         totalPoint: totalCredit,
         timestamp: now.getTime(),
-      });
+      };
     }
 
-    return {
+    committedResponse = {
       success: true,
       message: '주문이 완료되었습니다.',
       orderNo,
@@ -480,13 +555,20 @@ function placeOrder(data) {
         : 'validation',
       error: error && error.message ? error.message : String(error)
     }));
-    return {
+    return respond({
       success: false,
       message: error.message || '주문 처리 중 오류가 발생했습니다.'
-    };
+    });
   } finally {
     lock.releaseLock();
   }
+
+  if (notificationContext) {
+    measureOrderPerformanceStep_(performanceState, 'emailQueue', () => (
+      enqueueOrderNotification(notificationContext, { uniqueCommittedOrder: true })
+    ));
+  }
+  return respond(committedResponse);
 }
 
 function throwStagingOrderFailure(data, stage) {

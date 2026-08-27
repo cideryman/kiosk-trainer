@@ -747,3 +747,16 @@
 8. GAS `2026-08-26.2`를 먼저 배포합니다. 진행 중인 토큰 없는 일반 주문이 없는 시간에 정적 파일을 배포하고 서비스워커 `kiosk-cache-v346` 활성화를 확인합니다.
 9. 완료 화면·내 주문·주방 취소 결과에 서버의 실제 환불·복구 메시지가 표시되고, 일반 주문에 온기나 포인트 환불을 잘못 안내하지 않는지 확인합니다.
 10. `node scripts/test-order-cancellation-safety.js`, `node scripts/test-data-safety.js`, 주문 한도·이메일·일정·후기 검사, `node check_syntax.js`, `node scripts/check-handoff.js`, `git diff --check`가 모두 통과하는지 확인합니다.
+
+### P106 주문 생성·이메일 큐 성능 검증
+
+1. `perfDebug: 1` 주문 응답에만 `_timings`가 포함되고 일반 응답에는 노출되지 않는지 확인합니다. 계측에는 시간 숫자만 있고 개인정보·주문 내용·토큰이 없어야 합니다.
+2. 일반 키오스크 반복 주문에서 이용자목록 캐시가 사용되며 이용자 한도·활성 상태 변경 뒤에는 기존 캐시 무효화가 유지되는지 확인합니다.
+3. 주문내역·간식목록은 실데이터를 기준으로 멱등성, 오늘 수량 제한, 주문번호, 재고를 판정하고 `PENDING → COMMITTED/FAILED`와 실패 복구 순서가 유지되는지 확인합니다.
+4. 일반 키오스크와 이메일 알림 OFF 배달왔삼 주문은 큐를 만들지 않고, 알림 ON 배달왔삼 주문은 고유 주문번호로 한 행만 적재되는지 확인합니다.
+5. 큐 잠금·헤더·수신자 조회·행 저장 실패가 커밋된 주문을 실패로 되돌리지 않는지 확인합니다.
+6. 큐 처리기가 F:H 선점과 F:J 결과 열만 갱신하고 본문·유형·참조 ID와 기존 A:L 구조를 보존하는지 확인합니다.
+7. 발송 실패 시 1·5·15분 뒤 재시도하고 4번째 실패에서 `FAILED`, 성공하면 `SENT`가 되는지 확인합니다. 이용신청 알림 중복 차단도 유지되어야 합니다.
+8. 복제 staging에서만 `KIOSK_STABILITY_MODE=performance`를 실행해 일반·배달왔삼 각 10건, 멱등 재요청, 동시 5건과 자동 정리를 확인합니다. 운영 URL에서는 실행하지 않습니다.
+9. 성능 합격 기준은 성공률 100%, warm p95 5초 이하 또는 이전 기준 대비 30% 개선, cold 20초 이하, 이메일 큐 단계 warm p95 500ms 이하입니다.
+10. `node scripts/test-order-performance.js`, `node scripts/test-email-queue-performance.js`, 주문 한도·이메일·데이터·취소 안전 검사, `node check_syntax.js`, `node scripts/check-handoff.js`, `git diff --check`가 모두 통과하는지 확인합니다.

@@ -5,7 +5,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const EXPECTED_API_VERSION = '2026-08-26.2';
+const EXPECTED_API_VERSION = '2026-08-27.1';
 const API_URL = String(process.env.KIOSK_API_URL || '').trim();
 const ADMIN_TOKEN = String(process.env.KIOSK_ADMIN_TOKEN || '').trim();
 const MODE = String(process.env.KIOSK_STABILITY_MODE || 'read').trim().toLowerCase();
@@ -14,6 +14,7 @@ const BURST_ENABLED = String(process.env.KIOSK_BURST || '').trim() === '1';
 const OBSERVE_HOURS = clampNumber(process.env.KIOSK_OBSERVE_HOURS, 0, 0, 168);
 const OBSERVE_INTERVAL_MINUTES = clampNumber(process.env.KIOSK_OBSERVE_INTERVAL_MINUTES, 240, 1, 1440);
 const REQUEST_TIMEOUT_MS = clampNumber(process.env.KIOSK_TIMEOUT_MS, 40000, 5000, 120000);
+const ORDER_BASELINE_P95_MS = clampNumber(process.env.KIOSK_ORDER_BASELINE_P95_MS, 0, 0, 120000);
 const OUTPUT_DIR = path.resolve(__dirname, '..', 'tmp', 'stability-results');
 const RUN_ID = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
 const endpointHash = API_URL
@@ -144,7 +145,10 @@ async function requestApi(action, options = {}) {
       responseBytes,
       transportSuccess: !error && status >= 200 && status < 300,
       apiSuccess: !error && data?.success !== false,
-      errorType: classifyError(error) || responseCategory(data)
+      errorType: classifyError(error) || responseCategory(data),
+      serverTimings: data?._timings && typeof data._timings === 'object'
+        ? Object.fromEntries(Object.entries(data._timings).filter(([, value]) => Number.isFinite(Number(value))))
+        : null
     };
     report.requests.push(metric);
     lastResult = { data, metric, error };
@@ -693,6 +697,186 @@ async function runFullSuite() {
   await runApplicationScenario();
 }
 
+async function requireStagingEnvironment(modeLabel) {
+  if (!ADMIN_TOKEN) throw new Error(`KIOSK_ADMIN_TOKEN is required for ${modeLabel} mode.`);
+  const diagnosis = await adminRead('diagnoseSystem', {}, 'preflight');
+  const stagingReady = diagnosis.data?.mode === 'detailed'
+    && diagnosis.data?.environment === 'staging'
+    && diagnosis.data?.apiContractVersion === EXPECTED_API_VERSION;
+  addCheck(`${modeLabel} mode staging guard`, stagingReady, `environment=${diagnosis.data?.environment || 'missing'}`);
+  if (!stagingReady) throw new Error(`${modeLabel} mode is blocked unless diagnoseSystem reports the expected staging environment.`);
+}
+
+function guestValuesBody(settings, emailEnabled) {
+  return {
+    settingsAction: 'updateValues',
+    guestBaseCredit: settings.guestBaseCredit,
+    guestDeliveryFee: settings.guestDeliveryFee,
+    guestDefaultDeliveryPlace: settings.guestDefaultDeliveryPlace,
+    todayDeliveryTeamEnabled: settings.todayDeliveryTeamEnabled,
+    todayDeliveryTeamTitle: settings.todayDeliveryTeamTitle,
+    todayDeliveryTeamMembers: settings.todayDeliveryTeamMembers,
+    todayDeliveryTeamMessage: settings.todayDeliveryTeamMessage,
+    guestAllowMultipleOrders: settings.guestAllowMultipleOrders,
+    guestAllowRandomDisplayName: settings.guestAllowRandomDisplayName,
+    adminOrderEmailNotificationEnabled: emailEnabled,
+    adminMemo: 'order performance settings'
+  };
+}
+
+async function runOrderPerformanceSuite() {
+  await requireStagingEnvironment('performance');
+  const fixtures = await seedFixtures();
+  if (fixtures.users.length < 10 || fixtures.snacks.length < 2) {
+    throw new Error('Performance mode requires 10 staging users and at least 2 staging snacks.');
+  }
+
+  const regularSnack = fixtures.snacks[0];
+  const concurrentSnack = fixtures.snacks[1];
+  const createdOrderNos = [];
+  const regularBodies = [];
+  await resetStock(regularSnack.snackId, 100);
+  await resetStock(concurrentSnack.snackId, 20);
+
+  try {
+    for (let index = 0; index < 10; index++) {
+      const body = {
+        userId: fixtures.users[index].userId,
+        items: [{ snackId: regularSnack.snackId, quantity: 1 }],
+        idempotencyKey: `perf.user.${RUN_ID}.${index}`,
+        perfDebug: 1
+      };
+      regularBodies.push(body);
+      const result = await adminWrite(
+        'placeOrder',
+        body,
+        index === 0 ? 'order-performance-cold' : 'order-performance-warm'
+      );
+      if (result.data?.orderNo) createdOrderNos.push(result.data.orderNo);
+      addCheck(`Performance regular order ${index + 1}`, result.data?.success === true, result.metric.errorType);
+    }
+
+    const replay = await adminWrite('placeOrder', regularBodies[0], 'order-performance-replay');
+    addCheck(
+      'Performance idempotent replay preserves order',
+      replay.data?.success === true
+        && replay.data?.idempotentReplay === true
+        && replay.data?.orderNo === createdOrderNos[0]
+    );
+
+    const concurrentResults = await Promise.all(
+      fixtures.users.slice(0, 5).map((user, index) => adminWrite('placeOrder', {
+        userId: user.userId,
+        items: [{ snackId: concurrentSnack.snackId, quantity: 1 }],
+        idempotencyKey: `perf.concurrent.${RUN_ID}.${index}`,
+        perfDebug: 1
+      }, 'order-performance-concurrent'))
+    );
+    concurrentResults.forEach(result => {
+      if (result.data?.orderNo) createdOrderNos.push(result.data.orderNo);
+    });
+    addCheck(
+      'Performance concurrent orders succeed',
+      concurrentResults.every(result => result.data?.success === true),
+      `success=${concurrentResults.filter(result => result.data?.success === true).length}`
+    );
+
+    const settingsResult = await readApi('getGuestSettings', { kind: 'verification' });
+    const previousSettings = settingsResult.data || {};
+    try {
+      for (const schedule of (previousSettings.guestAdditionalSchedules || [])) {
+        await adminWrite('updateGuestSettings', {
+          settingsAction: 'deleteAdditionalSchedule',
+          scheduleId: schedule.scheduleId,
+          adminMemo: 'performance additional schedule pause'
+        }, 'setup');
+      }
+      await adminWrite('updateGuestSettings', {
+        settingsAction: 'updateWeeklySchedule',
+        guestWeeklyScheduleEnabled: false,
+        guestWeeklyScheduleDay: previousSettings.guestWeeklyScheduleDay || 3,
+        guestWeeklyScheduleStartTime: previousSettings.guestWeeklyScheduleStartTime || '13:00',
+        guestWeeklyScheduleEndTime: previousSettings.guestWeeklyScheduleEndTime || '15:00',
+        adminMemo: 'performance weekly schedule pause'
+      }, 'setup');
+      await adminWrite('updateGuestSettings', guestValuesBody(previousSettings, true), 'setup');
+      const opened = await adminWrite('updateGuestSettings', {
+        settingsAction: 'openUntil',
+        guestManualEndTime: formatKstTime(new Date(Date.now() + 20 * 60 * 1000)),
+        adminMemo: 'performance guest test'
+      }, 'setup');
+      if (!opened.data?.success) throw new Error('Cannot open guest mode for performance test.');
+
+      for (let index = 0; index < 10; index++) {
+        const result = await adminWrite('placeOrder', {
+          userId: 'guest',
+          guestName: `PERF Guest ${index + 1}`,
+          guestDeviceId: `PERF-${RUN_ID}-${index}`,
+          orderStartedAt: new Date().toISOString(),
+          deliveryType: 'pickup',
+          items: [{ snackId: regularSnack.snackId, quantity: 1 }],
+          idempotencyKey: `perf.guest.${RUN_ID}.${index}`,
+          perfDebug: 1
+        }, 'order-performance-warm');
+        if (result.data?.orderNo) createdOrderNos.push(result.data.orderNo);
+        addCheck(`Performance guest order ${index + 1}`, result.data?.success === true, result.metric.errorType);
+      }
+    } finally {
+      await adminWrite('updateGuestSettings', { settingsAction: 'closeNow', adminMemo: 'performance manual close' }, 'cleanup');
+      await adminWrite('updateGuestSettings', guestValuesBody(
+        previousSettings,
+        previousSettings.adminOrderEmailNotificationEnabled !== false
+      ), 'cleanup');
+      await adminWrite('updateGuestSettings', {
+        settingsAction: 'updateWeeklySchedule',
+        guestWeeklyScheduleEnabled: previousSettings.guestWeeklyScheduleEnabled === true,
+        guestWeeklyScheduleDay: previousSettings.guestWeeklyScheduleDay || 3,
+        guestWeeklyScheduleStartTime: previousSettings.guestWeeklyScheduleStartTime || '13:00',
+        guestWeeklyScheduleEndTime: previousSettings.guestWeeklyScheduleEndTime || '15:00',
+        adminMemo: 'performance schedule restore'
+      }, 'cleanup');
+      if (!previousSettings.guestWeeklyScheduleSkipped) {
+        await adminWrite('updateGuestSettings', { settingsAction: 'resumeWeeklyScheduleOccurrence', adminMemo: 'performance schedule resume restore' }, 'cleanup');
+      }
+      for (const schedule of (previousSettings.guestAdditionalSchedules || [])) {
+        await adminWrite('updateGuestSettings', {
+          settingsAction: 'upsertAdditionalSchedule',
+          date: schedule.date,
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+          adminMemo: 'performance additional schedule restore'
+        }, 'cleanup');
+      }
+    }
+  } finally {
+    await cancelOrders(createdOrderNos);
+  }
+
+  const measured = report.requests.filter(item => (
+    item.kind === 'order-performance-cold' || item.kind === 'order-performance-warm'
+  ));
+  addCheck('Performance timings returned', measured.every(item => Number.isFinite(Number(item.serverTimings?.total))));
+  const warm = measured.filter(item => item.kind === 'order-performance-warm');
+  const warmP95 = percentile(warm.map(item => item.durationMs), 0.95);
+  const coldMax = Math.max(...measured.filter(item => item.kind === 'order-performance-cold').map(item => item.durationMs));
+  const queueTimings = warm
+    .map(item => Number(item.serverTimings?.emailQueue))
+    .filter(Number.isFinite);
+  const baselineTarget = ORDER_BASELINE_P95_MS > 0 ? ORDER_BASELINE_P95_MS * 0.7 : 0;
+  const warmPassed = warmP95 <= 5000 || (baselineTarget > 0 && warmP95 <= baselineTarget);
+  addCheck(
+    'Performance warm p95 target',
+    warmPassed,
+    `p95=${warmP95}ms${ORDER_BASELINE_P95_MS > 0 ? `, baseline=${ORDER_BASELINE_P95_MS}ms` : ''}`
+  );
+  addCheck('Performance cold target', coldMax <= 20000, `max=${coldMax}ms`);
+  addCheck(
+    'Performance email queue p95 target',
+    queueTimings.length > 0 && percentile(queueTimings, 0.95) <= 500,
+    queueTimings.length ? `p95=${percentile(queueTimings, 0.95)}ms` : 'missing'
+  );
+}
+
 function percentile(values, ratio) {
   if (!values.length) return 0;
   const sorted = [...values].sort((a, b) => a - b);
@@ -701,7 +885,10 @@ function percentile(values, ratio) {
 }
 
 function buildSummary() {
-  const measuredKinds = new Set(['read', 'burst', 'observation-cold', 'observation-warm']);
+  const measuredKinds = new Set([
+    'read', 'burst', 'observation-cold', 'observation-warm',
+    'order-performance-cold', 'order-performance-warm'
+  ]);
   const measured = report.requests.filter(item => measuredKinds.has(item.kind));
   const firstAttempts = measured.filter(item => item.attempt === 1);
   const finalAttempts = [...measured.reduce((map, item) => {
@@ -727,11 +914,17 @@ function buildSummary() {
   }
   const firstSuccesses = firstAttempts.filter(item => item.transportSuccess && item.apiSuccess).length;
   const finalSuccesses = finalAttempts.filter(item => item.transportSuccess && item.apiSuccess).length;
+  const warmKinds = MODE === 'performance'
+    ? new Set(['order-performance-warm'])
+    : new Set(['observation-warm']);
+  const coldKinds = MODE === 'performance'
+    ? new Set(['order-performance-cold'])
+    : new Set(['observation-cold']);
   const warmDurations = measured
-    .filter(item => item.kind === 'observation-warm')
+    .filter(item => warmKinds.has(item.kind))
     .map(item => item.durationMs);
   const coldDurations = measured
-    .filter(item => item.kind === 'observation-cold')
+    .filter(item => coldKinds.has(item.kind))
     .map(item => item.durationMs);
   const firstAttemptSuccessRate = firstAttempts.length ? firstSuccesses / firstAttempts.length : 0;
   const finalSuccessRate = finalAttempts.length ? finalSuccesses / finalAttempts.length : 0;
@@ -744,13 +937,19 @@ function buildSummary() {
     retryRate: { value: retryRate, targetMax: 0.05, passed: retryRate <= 0.05 },
     warmP95Ms: {
       value: warmDurations.length ? percentile(warmDurations, 0.95) : null,
-      targetMax: 10000,
-      passed: warmDurations.length ? percentile(warmDurations, 0.95) <= 10000 : null
+      targetMax: MODE === 'performance' ? 5000 : 10000,
+      baselineMs: MODE === 'performance' && ORDER_BASELINE_P95_MS > 0 ? ORDER_BASELINE_P95_MS : null,
+      passed: warmDurations.length
+        ? (MODE === 'performance'
+          ? percentile(warmDurations, 0.95) <= 5000
+            || (ORDER_BASELINE_P95_MS > 0 && percentile(warmDurations, 0.95) <= ORDER_BASELINE_P95_MS * 0.7)
+          : percentile(warmDurations, 0.95) <= 10000)
+        : null
     },
     coldMaxMs: {
       value: coldDurations.length ? Math.max(...coldDurations) : null,
-      targetMax: 30000,
-      passed: coldDurations.length ? Math.max(...coldDurations) <= 30000 : null
+      targetMax: MODE === 'performance' ? 20000 : 30000,
+      passed: coldDurations.length ? Math.max(...coldDurations) <= (MODE === 'performance' ? 20000 : 30000) : null
     }
   };
   const measuredAcceptance = Object.values(acceptance).filter(item => item.passed !== null);
@@ -779,7 +978,7 @@ function writeReport() {
 
 async function main() {
   if (!API_URL) throw new Error('KIOSK_API_URL is required.');
-  if (!['read', 'full'].includes(MODE)) throw new Error('KIOSK_STABILITY_MODE must be read or full.');
+  if (!['read', 'full', 'performance'].includes(MODE)) throw new Error('KIOSK_STABILITY_MODE must be read, full, or performance.');
   if (MODE === 'full' && CONCURRENCY !== 10) {
     throw new Error('Full mode requires KIOSK_CONCURRENCY=10.');
   }
@@ -790,6 +989,7 @@ async function main() {
 
   await runReadSuite();
   if (MODE === 'full') await runFullSuite();
+  if (MODE === 'performance') await runOrderPerformanceSuite();
   if (BURST_ENABLED) await runBurstSuite();
 
   if (OBSERVE_HOURS > 0) {

@@ -101,6 +101,21 @@ $env:KIOSK_OBSERVE_HOURS='0'
 node scripts/stability-check.js
 ```
 
+staging 주문 성능 점검(일반·배달왔삼 각 10건, 멱등 재요청, 동시 5건):
+
+```powershell
+$env:KIOSK_STABILITY_MODE='performance'
+$env:KIOSK_BURST='0'
+$env:KIOSK_OBSERVE_HOURS='0'
+# 이전 주문 p95가 있으면 밀리초 단위로 선택 입력합니다.
+$env:KIOSK_ORDER_BASELINE_P95_MS='7000'
+node scripts/stability-check.js
+```
+
+`performance` 모드도 관리자 진단에서 `APP_ENV=staging`과 API 계약 일치를 확인한
+경우에만 실행됩니다. 테스트 주문과 설정은 자동 복원하며 운영 URL에서는 실행하지
+않습니다.
+
 각 실행의 원본 JSON은 `tmp/stability-results/`에 저장되고 Git에서 제외됩니다.
 확정 결과만 날짜를 붙인 Markdown 보고서로 요약해 `docs/reports/`에 남깁니다.
 
@@ -118,6 +133,8 @@ node scripts/stability-check.js
 - 취소·중복 취소 시 재고와 온기 복원
 - 게스트 주문 토큰 조회, 후기 중복 방지, 공개 후기·답글 캐시 반영
 - 이용신청 requestId 중복 방지
+- 주문 단계별 `_timings`, 일반·배달왔삼 각 10건 응답시간, 이메일 큐 적재 시간
+- 주문 큐의 별도 잠금, 상태 열 부분 쓰기와 1·5·15분 재시도
 
 테스트용 행은 staging에 남겨 후속 비교에 재사용할 수 있습니다. 새로 깨끗한
 환경이 필요할 때만 staging 시트의 테스트 행을 삭제합니다.
@@ -147,6 +164,7 @@ git diff --check
 - 재시도 후 최종 성공률 100%
 - 최초 성공률 95% 이상, 재시도율 5% 이하
 - 웜 p95 10초 이하, 콜드 응답 30초 이하
+- `performance` 모드는 주문 웜 p95 5초 이하, 콜드 20초 이하, 이메일 큐 p95 500ms 이하
 - 중복 주문, 음수 재고, 온기 불일치, 개인정보 노출, API 버전 불일치 0건
 
 실패는 `즉시 수정`, `관찰 필요`, `구조 개선`으로 분류합니다. 즉시 수정 항목이
@@ -157,6 +175,7 @@ git diff --check
 ## 7. 금지 사항
 
 - 운영 URL에서 `KIOSK_STABILITY_MODE=full`을 실행하지 않습니다.
+- 운영 URL에서 `KIOSK_STABILITY_MODE=performance`를 실행하지 않습니다.
 - 운영 URL에서 주문·취소·재고·후기·신청 부하 테스트를 실행하지 않습니다.
 - `ADMIN_TOKEN`을 URL, 문서, Git, 스크린샷에 남기지 않습니다.
 - staging 결과를 운영 안정성 합격 결과로 대신하지 않습니다.
