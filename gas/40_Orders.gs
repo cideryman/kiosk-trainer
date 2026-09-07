@@ -248,6 +248,69 @@ function placeOrder(data) {
 
       nickname = users[userRowIndex][1];
       currentCredit = Number(users[userRowIndex][2]);
+
+      // 일반 키오스크 주문 제한 정책 검증 (직원 긴급 우회 data.staffBypass가 아닌 경우)
+      if (data.staffBypass !== true) {
+        const kioskPolicy = String(guestSettings.kioskOrderPolicy || 'once_daily').toLowerCase();
+        if (kioskPolicy !== 'unlimited') {
+          const servedYnIdx = headers.indexOf('제공여부');
+          const userIdColIdx = headers.indexOf('이용자ID');
+          const targetUserIdColIdx = userIdColIdx !== -1 ? userIdColIdx : 2;
+          const targetServedColIdx = servedYnIdx !== -1 ? servedYnIdx : 8;
+          const nowTime = new Date();
+          let hasPreparingOrder = false;
+          let hasServedOrderToday = false;
+          let latestServedTimestamp = 0;
+
+          for (let i = 0; i < orderRowsSnapshot.length; i++) {
+            const row = orderRowsSnapshot[i];
+            if (!isCommittedOrderRow(row, headers)) continue;
+            if (String(row[targetUserIdColIdx]) !== String(userId)) continue;
+
+            const orderTime = row[0];
+            if (!isSameKoreaDate(orderTime, nowTime)) continue;
+
+            const status = String(row[targetServedColIdx]).trim();
+            if (status === 'C' || isCancelledOrderStatus(status)) continue;
+
+            if (status === 'N') {
+              hasPreparingOrder = true;
+            } else if (status === 'Y') {
+              hasServedOrderToday = true;
+              const t = new Date(orderTime).getTime();
+              if (!isNaN(t) && t > latestServedTimestamp) {
+                latestServedTimestamp = t;
+              }
+            }
+          }
+
+          if (hasPreparingOrder) {
+            return respond({
+              success: false,
+              message: `${nickname}님의 간식이 현재 준비 중입니다. 잠시만 기다려주세요! 😊`
+            });
+          }
+
+          if (kioskPolicy === 'once_daily' && hasServedOrderToday) {
+            return respond({
+              success: false,
+              message: `${nickname}님은 오늘 간식을 이미 맛있게 받았습니다. 내일 또 만나요! ❤️`
+            });
+          }
+
+          if (kioskPolicy === 'cooldown' && hasServedOrderToday && latestServedTimestamp > 0) {
+            const cooldownMinutes = Math.max(1, Number(guestSettings.kioskCooldownMinutes || 60));
+            const elapsedMinutes = Math.floor((nowTime.getTime() - latestServedTimestamp) / (60 * 1000));
+            if (elapsedMinutes < cooldownMinutes) {
+              const minutesLeft = cooldownMinutes - elapsedMinutes;
+              return respond({
+                success: false,
+                message: `${nickname}님은 조금 전 간식을 받았어요. ${minutesLeft}분 뒤에 다시 주문할 수 있습니다. ⏰`
+              });
+            }
+          }
+        }
+      }
     }
 
     const orderValidationStartedAt = Date.now();
@@ -728,11 +791,16 @@ function getPublicOrderFeed() {
   const result = getOrdersToday();
   if (!result || result.success === false) return result;
 
+  const guestSettings = getGuestSettings();
+
   return {
     success: true,
+    kioskOrderPolicy: guestSettings.kioskOrderPolicy || 'once_daily',
+    kioskCooldownMinutes: Number(guestSettings.kioskCooldownMinutes || 60),
     orders: (result.orders || []).map(order => ({
       timestamp: order.timestamp,
       orderNo: order.orderNo,
+      userId: (order.authProvider === 'kakao' || order.userId === 'guest') ? '' : String(order.userId || ''),
       nickname: order.nickname,
       snackName: order.snackName,
       quantity: order.quantity,

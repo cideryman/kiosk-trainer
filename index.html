@@ -93,6 +93,34 @@
     </div>
   </div>
 
+    <!-- 이용자 상태 친절 안내 모달 -->
+    <div class="overlay" id="friendly-notice-overlay" style="display: none; z-index: 1000;">
+      <div class="kiosk-modal-box">
+        <div class="kiosk-modal-icon" id="friendly-notice-icon">👨‍🍳</div>
+        <h2 class="kiosk-modal-title" id="friendly-notice-title">간식 준비 중</h2>
+        <p class="kiosk-modal-msg" id="friendly-notice-message">맛있는 간식을 열심히 준비하고 있어요!</p>
+        <div class="kiosk-modal-actions">
+          <button class="btn btn-primary" id="btn-friendly-notice-close" style="width: 100%;">확인</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 직원 3초 롱프레스 긴급 우회 확인 모달 -->
+    <div class="overlay" id="staff-bypass-overlay" style="display: none; z-index: 1000;">
+      <div class="kiosk-modal-box" style="border: 4px solid #2EC4B6;">
+        <div class="kiosk-modal-icon">👨‍🏫</div>
+        <h2 class="kiosk-modal-title">직원 / 교사 확인</h2>
+        <p class="kiosk-modal-msg" id="staff-bypass-message">
+          <strong id="staff-bypass-user-name">OO</strong> 님의 추가 주문을 1회 허용하시겠습니까?
+          <br><small style="color: #64748B; font-size: 14px;">(간식을 쏟았거나 특별 배정이 필요한 경우)</small>
+        </p>
+        <div class="kiosk-modal-actions">
+          <button class="btn btn-primary" id="btn-staff-bypass-confirm" style="background-color: #2EC4B6; border-color: #2EC4B6;">네, 1회 허용하기</button>
+          <button class="btn btn-secondary" id="btn-staff-bypass-cancel">닫기</button>
+        </div>
+      </div>
+    </div>
+
   <!-- 스크립트 참조 -->
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>
@@ -125,8 +153,171 @@
       }
     }
 
+    // 키오스크 이용자 주문 상태 및 정책 캐시
+    let currentKioskUserStatuses = {};
+    let currentKioskOrderPolicy = 'once_daily';
+    let currentKioskCooldownMinutes = 60;
+    let cachedUsersList = [];
+    let pendingBypassUser = null;
+
+    function openFriendlyNotice(icon, title, message) {
+      const overlay = document.getElementById('friendly-notice-overlay');
+      const iconEl = document.getElementById('friendly-notice-icon');
+      const titleEl = document.getElementById('friendly-notice-title');
+      const msgEl = document.getElementById('friendly-notice-message');
+      if (iconEl) iconEl.textContent = icon || 'ℹ️';
+      if (titleEl) titleEl.textContent = title || '안내';
+      if (msgEl) msgEl.textContent = message || '';
+      if (overlay) overlay.style.display = 'flex';
+      AppState.speak(message);
+    }
+
+    function closeFriendlyNotice() {
+      const overlay = document.getElementById('friendly-notice-overlay');
+      if (overlay) overlay.style.display = 'none';
+    }
+
+    function openStaffBypassModal(user) {
+      pendingBypassUser = user;
+      const overlay = document.getElementById('staff-bypass-overlay');
+      const nameEl = document.getElementById('staff-bypass-user-name');
+      if (nameEl) nameEl.textContent = user.nickname || '이용자';
+      if (overlay) overlay.style.display = 'flex';
+      AppState.vibrate([100, 60, 100]);
+    }
+
+    function closeStaffBypassModal() {
+      pendingBypassUser = null;
+      const overlay = document.getElementById('staff-bypass-overlay');
+      if (overlay) overlay.style.display = 'none';
+    }
+
+    function confirmStaffBypass() {
+      if (!pendingBypassUser) return;
+      const user = pendingBypassUser;
+      sessionStorage.setItem('staffBypass_' + user.userId, 'true');
+      sessionStorage.setItem('currentOrderStaffBypass', 'true');
+      closeStaffBypassModal();
+
+      if (window.latestPublicOrders) {
+        updateKioskUserStatusesFromFeed(window.latestPublicOrders, currentKioskOrderPolicy, currentKioskCooldownMinutes);
+      } else {
+        currentKioskUserStatuses[user.userId] = { status: 'BYPASSED', badge: '⭐ 추가 주문 허용' };
+        applyUserCardStatuses();
+      }
+
+      AppState.speak(`${user.nickname} 님의 추가 주문이 허용되었습니다.`);
+      AppState.vibrate(60);
+    }
+
+    function updateKioskUserStatusesFromFeed(orders, policy, cooldownMinutes) {
+      window.latestPublicOrders = orders;
+      if (policy) currentKioskOrderPolicy = policy;
+      if (cooldownMinutes) currentKioskCooldownMinutes = Number(cooldownMinutes);
+
+      const statusMap = {};
+      const now = Date.now();
+
+      if (currentKioskOrderPolicy !== 'unlimited') {
+        (orders || []).forEach(order => {
+          const userId = String(order.userId || '').trim();
+          if (!userId) return;
+
+          const status = String(order.servedYn || '').trim();
+          if (status === 'C') return;
+
+          if (sessionStorage.getItem('staffBypass_' + userId) === 'true') {
+            statusMap[userId] = { status: 'BYPASSED', badge: '⭐ 추가 주문 허용' };
+            return;
+          }
+
+          if (status === 'N') {
+            statusMap[userId] = {
+              status: 'PREPARING',
+              badge: '👨‍🍳 간식 준비 중',
+              icon: '👨‍🍳',
+              title: '간식 준비 중',
+              message: `${order.nickname || '회원'}님의 간식을 열심히 준비하고 있어요! 조금만 앉아서 기다려 주세요 😊`
+            };
+          } else if (status === 'Y') {
+            if (statusMap[userId]?.status === 'PREPARING') return;
+
+            const orderTime = new Date(order.timestamp).getTime();
+            const elapsedMinutes = !isNaN(orderTime) ? Math.floor((now - orderTime) / (60 * 1000)) : 999;
+
+            if (currentKioskOrderPolicy === 'once_daily') {
+              statusMap[userId] = {
+                status: 'SERVED',
+                badge: '✅ 오늘 간식 완료',
+                icon: '❤️',
+                title: '오늘 간식 완료!',
+                message: `${order.nickname || '회원'}님은 오늘 간식을 맛있게 먹었어요! 내일 또 만나요 ❤️`
+              };
+            } else if (currentKioskOrderPolicy === 'cooldown') {
+              if (elapsedMinutes < currentKioskCooldownMinutes) {
+                const minutesLeft = currentKioskCooldownMinutes - elapsedMinutes;
+                statusMap[userId] = {
+                  status: 'SERVED',
+                  badge: `⏰ ${minutesLeft}분 후 가능`,
+                  icon: '⏰',
+                  title: '잠시 쉬어가는 시간',
+                  message: `${order.nickname || '회원'}님은 조금 전 간식을 받았어요. ${minutesLeft}분 뒤에 다시 주문할 수 있어요 ⏰`
+                };
+              }
+            }
+          }
+        });
+      }
+
+      currentKioskUserStatuses = statusMap;
+      applyUserCardStatuses();
+    }
+
+    function applyUserCardStatuses() {
+      const cards = document.querySelectorAll('.user-card[data-user-id]');
+      cards.forEach(card => {
+        const userId = card.dataset.userId;
+        const info = currentKioskUserStatuses[userId];
+        let badgeEl = card.querySelector('.user-card-status-badge');
+
+        card.classList.remove('is-preparing', 'is-served', 'is-bypassed');
+
+        if (!info) {
+          if (badgeEl) badgeEl.remove();
+          return;
+        }
+
+        if (info.status === 'PREPARING') {
+          card.classList.add('is-preparing');
+          if (!badgeEl) {
+            badgeEl = document.createElement('div');
+            badgeEl.className = 'user-card-status-badge';
+            card.appendChild(badgeEl);
+          }
+          badgeEl.textContent = info.badge || '👨‍🍳 간식 준비 중';
+        } else if (info.status === 'SERVED') {
+          card.classList.add('is-served');
+          if (!badgeEl) {
+            badgeEl = document.createElement('div');
+            badgeEl.className = 'user-card-status-badge';
+            card.appendChild(badgeEl);
+          }
+          badgeEl.textContent = info.badge || '✅ 오늘 간식 완료';
+        } else if (info.status === 'BYPASSED') {
+          card.classList.add('is-bypassed');
+          if (!badgeEl) {
+            badgeEl = document.createElement('div');
+            badgeEl.className = 'user-card-status-badge';
+            card.appendChild(badgeEl);
+          }
+          badgeEl.textContent = info.badge || '⭐ 추가 주문 허용';
+        }
+      });
+    }
+
     // 이용자 목록 렌더링
     function renderUsers(users) {
+      cachedUsersList = users;
       const userGrid = document.getElementById('user-grid');
       
       if (users.length === 0) {
@@ -139,6 +330,7 @@
         card.className = 'user-card clickable-card';
         card.setAttribute('role', 'button');
         card.setAttribute('aria-label', `${user.nickname || ''} 선택`);
+        card.dataset.userId = String(user.userId || '');
         
         // 파스텔 색상 목록 (가독성 좋고 부드러운)
         const colors = ['#FF9F1C', '#2EC4B6', '#118AB2', '#FF5A5F', '#8338EC', '#3A86C8'];
@@ -169,6 +361,7 @@
         // 일반 키오스크에서는 이용자별 1회 주문 한도를 표시한다.
         const safeCreditNum = AppState.escapeHtml(String(user.credit ?? 0));
         card.innerHTML = `
+          <div class="user-card-hold-progress"></div>
           ${avatarHTML}
           <div class="user-card-name">${safeNickname}</div>
           <div class="user-card-credit" aria-label="1회 주문 한도 ${safeCreditNum}개">
@@ -177,9 +370,76 @@
             <span class="coin-number">${safeCreditNum}</span>
           </div>
         `;
+
+        // 3초 롱프레스(직원 긴급 우회) 핸들러
+        let holdTimeout = null;
+        let isHolding = false;
+        let holdTriggered = false;
+        let touchStartX = 0, touchStartY = 0;
+
+        function startHold(e) {
+          const info = currentKioskUserStatuses[user.userId];
+          if (!info || (info.status !== 'PREPARING' && info.status !== 'SERVED')) return;
+
+          holdTriggered = false;
+          isHolding = true;
+          touchStartX = e.clientX || (e.touches && e.touches[0]?.clientX) || 0;
+          touchStartY = e.clientY || (e.touches && e.touches[0]?.clientY) || 0;
+          card.classList.add('is-holding');
+
+          holdTimeout = setTimeout(() => {
+            if (isHolding) {
+              holdTriggered = true;
+              card.classList.remove('is-holding');
+              openStaffBypassModal(user);
+            }
+          }, 3000);
+        }
+
+        function endHold() {
+          isHolding = false;
+          if (holdTimeout) {
+            clearTimeout(holdTimeout);
+            holdTimeout = null;
+          }
+          card.classList.remove('is-holding');
+        }
+
+        function moveHold(e) {
+          if (!isHolding) return;
+          const curX = e.clientX || (e.touches && e.touches[0]?.clientX) || 0;
+          const curY = e.clientY || (e.touches && e.touches[0]?.clientY) || 0;
+          if (Math.abs(curX - touchStartX) > 20 || Math.abs(curY - touchStartY) > 20) {
+            endHold();
+          }
+        }
+
+        card.addEventListener('pointerdown', startHold);
+        card.addEventListener('pointerup', endHold);
+        card.addEventListener('pointercancel', endHold);
+        card.addEventListener('pointerleave', endHold);
+        card.addEventListener('pointermove', moveHold);
         
         // 카드 터치/클릭 이벤트 (지터 및 흔들림 보정 지원)
         AppState.bindCardTap(card, () => {
+          if (holdTriggered) {
+            holdTriggered = false;
+            return;
+          }
+
+          const info = currentKioskUserStatuses[user.userId];
+          if (info && (info.status === 'PREPARING' || info.status === 'SERVED')) {
+            AppState.vibrate(50);
+            openFriendlyNotice(info.icon, info.title, info.message);
+            return;
+          }
+
+          if (info && info.status === 'BYPASSED') {
+            sessionStorage.setItem('currentOrderStaffBypass', 'true');
+          } else {
+            sessionStorage.removeItem('currentOrderStaffBypass');
+          }
+
           AppState.setSelectedUser(user);
           
           // 피드백 효과 및 음성 안내 후 이동
@@ -195,7 +455,10 @@
 
         userGrid.appendChild(card);
       });
+
+      applyUserCardStatuses();
     }
+
 
     const CANCELLATION_POLL_MS = 10000;
     let cancellationInterval = null;

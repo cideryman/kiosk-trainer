@@ -748,10 +748,18 @@ async function submitOrder() {
     }
   }
 
+  if (sessionStorage.getItem('currentOrderStaffBypass') === 'true') {
+    orderPayload.staffBypass = true;
+  }
+
   try {
     const response = await fetchAPI('placeOrder', { method: 'POST', body: orderPayload });
 
     if (response && response.success) {
+      sessionStorage.removeItem('currentOrderStaffBypass');
+      if (user && user.userId) {
+        sessionStorage.removeItem('staffBypass_' + user.userId);
+      }
       const parsedAfterCredit = Number(response.afterCredit);
       let responseRemainPoints = !Number.isNaN(parsedAfterCredit)
         ? parsedAfterCredit

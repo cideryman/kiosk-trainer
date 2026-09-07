@@ -3949,3 +3949,152 @@ body.admin-shell-page {
 
 
 
+
+/* 이용자 카드 상태 스타일 (준비 중, 제공 완료, 우회 허용) */
+.user-card {
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.user-card.is-preparing {
+  border-color: #FF9F1C;
+  background-color: #FFFDF8;
+}
+
+.user-card.is-preparing .user-avatar-container,
+.user-card.is-preparing .user-card-name,
+.user-card.is-preparing .user-card-credit {
+  opacity: 0.65;
+  filter: blur(0.6px);
+}
+
+.user-card.is-served {
+  border-color: #CBD5E1;
+  background-color: #F8FAFC;
+}
+
+.user-card.is-served .user-avatar-container,
+.user-card.is-served .user-card-name,
+.user-card.is-served .user-card-credit {
+  filter: grayscale(0.9) opacity(0.5);
+}
+
+.user-card.is-bypassed {
+  border-color: #2EC4B6;
+  background-color: #F0FDFA;
+}
+
+.user-card-status-badge {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.user-card.is-preparing .user-card-status-badge {
+  background-color: #FF9F1C;
+  color: white;
+  animation: pulseGlowBadge 2s infinite ease-in-out;
+}
+
+.user-card.is-served .user-card-status-badge {
+  background-color: #475569;
+  color: white;
+}
+
+.user-card.is-bypassed .user-card-status-badge {
+  background-color: #2EC4B6;
+  color: white;
+}
+
+/* 3초 롱프레스 홀드 게이지 바 */
+.user-card-hold-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 8px;
+  width: 0%;
+  background: linear-gradient(90deg, #FF9F1C, #2EC4B6);
+  transition: width 3s linear;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.user-card.is-holding .user-card-hold-progress {
+  width: 100%;
+}
+
+.user-card.is-holding {
+  transform: scale(0.96);
+  border-color: #2EC4B6 !important;
+}
+
+@keyframes pulseGlowBadge {
+  0% { transform: translateX(-50%) scale(1); box-shadow: 0 0 0 rgba(255, 159, 28, 0); }
+  50% { transform: translateX(-50%) scale(1.04); box-shadow: 0 0 12px rgba(255, 159, 28, 0.5); }
+  100% { transform: translateX(-50%) scale(1); box-shadow: 0 0 0 rgba(255, 159, 28, 0); }
+}
+
+/* 주간매점 안내/직원 확인 모달 */
+.kiosk-modal-box {
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: 32px 24px;
+  text-align: center;
+  max-width: 440px;
+  width: 90%;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  animation: modalPopIn 0.25s ease-out;
+}
+
+.kiosk-modal-icon {
+  font-size: 56px;
+  line-height: 1;
+}
+
+.kiosk-modal-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.kiosk-modal-msg {
+  font-size: 18px;
+  font-weight: 600;
+  color: #475569;
+  line-height: 1.5;
+  margin: 0;
+  word-break: keep-all;
+}
+
+.kiosk-modal-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.kiosk-modal-actions .btn {
+  flex: 1;
+  min-height: 52px;
+  font-size: 18px;
+  font-weight: 700;
+}

@@ -2036,6 +2036,27 @@ let refreshTimer = null;
       if (markDirty && previousValue !== isEnabled) markGuestSettingsDirty();
     }
 
+    function setKioskOrderPolicy(policy, markDirty = false) {
+      const normalized = ['once_daily', 'cooldown', 'unlimited'].indexOf(String(policy).toLowerCase()) !== -1
+        ? String(policy).toLowerCase()
+        : 'once_daily';
+      const inputEl = document.getElementById('input-kiosk-order-policy');
+      const cooldownContainer = document.getElementById('kiosk-cooldown-container');
+      const previousValue = inputEl ? inputEl.value : 'once_daily';
+
+      if (inputEl) inputEl.value = normalized;
+      if (cooldownContainer) {
+        cooldownContainer.style.display = normalized === 'cooldown' ? 'flex' : 'none';
+      }
+      document.querySelectorAll('[data-kiosk-order-policy]').forEach(button => {
+        const isActive = button.dataset.kioskOrderPolicy === normalized;
+        button.classList.toggle('is-active', isActive);
+        button.setAttribute('aria-pressed', String(isActive));
+      });
+
+      if (markDirty && previousValue !== normalized) markGuestSettingsDirty();
+    }
+
     let latestGuestOpsSettings = null;
 
     function formatGuestScheduleDate(dateKey) {
@@ -2198,6 +2219,9 @@ let refreshTimer = null;
         renderGuestAdditionalSchedules(data.guestAdditionalSchedules);
         setGuestRandomDisplayName(data.guestAllowRandomDisplayName !== false);
         setAdminOrderEmailNotification(data.adminOrderEmailNotificationEnabled !== false);
+        setKioskOrderPolicy(data.kioskOrderPolicy || 'once_daily');
+        const cooldownMinutesEl = document.getElementById('input-kiosk-cooldown-minutes');
+        if (cooldownMinutesEl) cooldownMinutesEl.value = data.kioskCooldownMinutes || 60;
         
         if (teamEnabledEl) teamEnabledEl.checked = data.todayDeliveryTeamEnabled !== false && String(data.todayDeliveryTeamEnabled).toLowerCase() !== 'false';
         if (teamTitleEl) teamTitleEl.value = data.todayDeliveryTeamTitle || '';
@@ -2603,6 +2627,10 @@ let refreshTimer = null;
       const guestDefaultDeliveryPlace = deliveryPlaceInput.value.trim();
       const guestAllowRandomDisplayName = randomDisplayNameInput ? randomDisplayNameInput.value === 'true' : true;
       const adminOrderEmailNotificationEnabled = emailNotificationInput ? emailNotificationInput.value === 'true' : true;
+      const kioskOrderPolicyInput = document.getElementById('input-kiosk-order-policy');
+      const kioskCooldownMinutesInput = document.getElementById('input-kiosk-cooldown-minutes');
+      const kioskOrderPolicy = kioskOrderPolicyInput ? kioskOrderPolicyInput.value : 'once_daily';
+      const kioskCooldownMinutes = kioskCooldownMinutesInput ? Math.max(1, Number(kioskCooldownMinutesInput.value) || 60) : 60;
       const todayDeliveryTeamEnabled = teamEnabledInput ? teamEnabledInput.checked : true;
       const todayDeliveryTeamTitle = teamTitleInput ? teamTitleInput.value.trim() : '';
       const todayDeliveryTeamMembers = getComposedTeamMembers();
@@ -2627,6 +2655,8 @@ let refreshTimer = null;
             guestDefaultDeliveryPlace,
             guestAllowRandomDisplayName,
             adminOrderEmailNotificationEnabled,
+            kioskOrderPolicy,
+            kioskCooldownMinutes,
             todayDeliveryTeamEnabled,
             todayDeliveryTeamTitle,
             todayDeliveryTeamMembers,
@@ -2642,6 +2672,8 @@ let refreshTimer = null;
         if (res && res.success) {
           setGuestRandomDisplayName(res.guestAllowRandomDisplayName !== false);
           setAdminOrderEmailNotification(res.adminOrderEmailNotificationEnabled !== false);
+          if (res.kioskOrderPolicy) setKioskOrderPolicy(res.kioskOrderPolicy);
+          if (res.kioskCooldownMinutes && kioskCooldownMinutesInput) kioskCooldownMinutesInput.value = res.kioskCooldownMinutes;
           updateGuestSettingsSaveState(false);
           alert('게스트 설정이 저장되었습니다.');
           await loadGuestOpsPanel();
@@ -2693,6 +2725,10 @@ let refreshTimer = null;
 
       document.querySelectorAll('[data-admin-order-email-notification]').forEach(button => {
         button.addEventListener('click', () => setAdminOrderEmailNotification(button.dataset.adminOrderEmailNotification === 'true', true));
+      });
+
+      document.querySelectorAll('[data-kiosk-order-policy]').forEach(button => {
+        button.addEventListener('click', () => setKioskOrderPolicy(button.dataset.kioskOrderPolicy, true));
       });
 
       const guestSettingsPanel = document.getElementById('guest-ops-settings');

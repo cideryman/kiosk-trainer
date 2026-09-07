@@ -284,6 +284,23 @@
                     </div>
                     <small>ON이면 배달왔삼 포장·배달 주문만 이메일로 알립니다. 일반 키오스크 주문은 발송하지 않습니다.</small>
                   </div>
+                  <div class="guest-ops-setting guest-ops-setting-wide kiosk-order-policy-setting">
+                    <div class="guest-random-display-name-heading">
+                      <span>주간매점(키오스크) 주문 정책</span>
+                      <input type="hidden" id="input-kiosk-order-policy" value="once_daily">
+                      <div class="guest-mode-segmented kiosk-order-policy-segmented" role="group" aria-label="주간매점 키오스크 주문 제한 정책">
+                        <button class="guest-mode-option is-active" type="button" data-kiosk-order-policy="once_daily" aria-pressed="true">🔒 1일 1회 (기본)</button>
+                        <button class="guest-mode-option" type="button" data-kiosk-order-policy="cooldown" aria-pressed="false">⏰ 쿨다운 N분</button>
+                        <button class="guest-mode-option" type="button" data-kiosk-order-policy="unlimited" aria-pressed="false">♾️ 제한 없음</button>
+                      </div>
+                    </div>
+                    <small>일반 이용자(키오스크)의 반복 주문 제한 방식을 설정합니다.</small>
+                    <div id="kiosk-cooldown-container" style="display: none; align-items: center; gap: 8px; margin-top: 8px;">
+                      <span style="font-size: 14px; font-weight: 700;">쿨다운 시간:</span>
+                      <input type="number" id="input-kiosk-cooldown-minutes" class="admin-inline-input" value="60" min="1" max="1440" style="width: 80px;">
+                      <span style="font-size: 14px;">분 후 재주문 가능</span>
+                    </div>
+                  </div>
                 </div>
               </section>
 

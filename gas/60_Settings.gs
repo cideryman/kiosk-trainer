@@ -111,7 +111,9 @@ function getDefaultGuestSettings() {
     guestOrderLimitPolicyVersion: 'creditWalletV1',
     guestMenuMode: 'normal',
     guestEventName: '장애인식 개선 캠페인',
-    guestEventEmblemBase64: ''
+    guestEventEmblemBase64: '',
+    kioskOrderPolicy: 'once_daily',
+    kioskCooldownMinutes: 60
   };
 }
 
@@ -271,6 +273,8 @@ function buildGuestSettingsResponse(settings) {
     guestMenuMode: String(settings.guestMenuMode || 'normal').toLowerCase(),
     guestEventName: safeEventName,
     guestEventEmblemBase64: settings.guestEventEmblemBase64 || '',
+    kioskOrderPolicy: String(settings.kioskOrderPolicy || 'once_daily').toLowerCase(),
+    kioskCooldownMinutes: Math.max(1, Number(settings.kioskCooldownMinutes || 60)),
     guestOrderGraceMinutes: GUEST_ORDER_COMPLETION_GRACE_MINUTES,
     isGuestOpenNow: operatingState.isGuestOpenNow,
     remainingSeconds: operatingState.remainingSeconds,
@@ -536,6 +540,14 @@ function updateGuestSettings(data) {
     const guestAllowMultipleOrders = data.guestAllowMultipleOrders !== undefined ? (parseSettingBoolean(data.guestAllowMultipleOrders, true) ? 'TRUE' : 'FALSE') : undefined;
     const guestAllowRandomDisplayName = data.guestAllowRandomDisplayName !== undefined ? (parseSettingBoolean(data.guestAllowRandomDisplayName, true) ? 'TRUE' : 'FALSE') : undefined;
     const adminOrderEmailNotificationEnabled = data.adminOrderEmailNotificationEnabled !== undefined ? (parseSettingBoolean(data.adminOrderEmailNotificationEnabled, true) ? 'TRUE' : 'FALSE') : undefined;
+    const kioskOrderPolicy = data.kioskOrderPolicy !== undefined
+      ? (['once_daily', 'cooldown', 'unlimited'].indexOf(String(data.kioskOrderPolicy).trim().toLowerCase()) !== -1
+          ? String(data.kioskOrderPolicy).trim().toLowerCase()
+          : 'once_daily')
+      : undefined;
+    const kioskCooldownMinutes = data.kioskCooldownMinutes !== undefined
+      ? Math.max(1, Math.min(1440, Number(data.kioskCooldownMinutes) || 60))
+      : undefined;
     const eventNameResult = data.guestEventName !== undefined
       ? sanitizeGuestEventNameHtml_(data.guestEventName)
       : null;
@@ -553,6 +565,8 @@ function updateGuestSettings(data) {
     if (guestAllowMultipleOrders !== undefined) updates.guestAllowMultipleOrders = guestAllowMultipleOrders;
     if (guestAllowRandomDisplayName !== undefined) updates.guestAllowRandomDisplayName = guestAllowRandomDisplayName;
     if (adminOrderEmailNotificationEnabled !== undefined) updates.adminOrderEmailNotificationEnabled = adminOrderEmailNotificationEnabled;
+    if (kioskOrderPolicy !== undefined) updates.kioskOrderPolicy = kioskOrderPolicy;
+    if (kioskCooldownMinutes !== undefined) updates.kioskCooldownMinutes = kioskCooldownMinutes;
     if (data.guestMenuMode !== undefined) updates.guestMenuMode = String(data.guestMenuMode).trim().toLowerCase();
     if (eventNameResult) updates.guestEventName = eventNameResult.html;
     if (data.guestEventEmblemBase64 !== undefined) updates.guestEventEmblemBase64 = String(data.guestEventEmblemBase64).trim();
@@ -578,6 +592,8 @@ function updateGuestSettings(data) {
       adminOrderEmailNotificationEnabled: adminOrderEmailNotificationEnabled === undefined
         ? true
         : parseSettingBoolean(adminOrderEmailNotificationEnabled, true),
+      kioskOrderPolicy: kioskOrderPolicy !== undefined ? kioskOrderPolicy : undefined,
+      kioskCooldownMinutes: kioskCooldownMinutes !== undefined ? kioskCooldownMinutes : undefined,
       guestMenuMode: data.guestMenuMode !== undefined
         ? String(data.guestMenuMode || 'normal').trim().toLowerCase()
         : undefined,
