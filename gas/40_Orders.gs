@@ -250,6 +250,10 @@ function placeOrder(data) {
       currentCredit = Number(users[userRowIndex][2]);
 
       // 일반 키오스크 주문 제한 정책 검증 (직원 긴급 우회 data.staffBypass가 아닌 경우)
+      if (!guestSettings) {
+        guestSettings = measureOrderPerformanceStep_(performanceState, 'userOrGuestRead', () => getGuestSettings());
+      }
+
       if (data.staffBypass !== true) {
         const kioskPolicy = String(guestSettings.kioskOrderPolicy || 'once_daily').toLowerCase();
         if (kioskPolicy !== 'unlimited') {
