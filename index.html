@@ -512,6 +512,11 @@
           // 내 주문 상태 점검 호출
           checkMyOrderStatus(response.orders);
 
+          // P111: 키오스크 메인 화면 사용자별 주문 상태/쿨다운 시각화 업데이트 연동
+          if (typeof updateKioskUserStatusesFromFeed === 'function') {
+            updateKioskUserStatusesFromFeed(response.orders, response.kioskOrderPolicy, response.kioskCooldownMinutes);
+          }
+
           const dismissedList = JSON.parse(localStorage.getItem('dismissedCancellations') || '[]');
           
           const activeCancellations = [];
