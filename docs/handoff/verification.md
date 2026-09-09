@@ -799,3 +799,11 @@
 8. 관리자 운영점검에서 카카오 서버 증명 12시간, 서명키 설정, 유예 종료와 요청 제한 정책이 `OK`로 표시되는지 확인합니다.
 9. `node scripts/test-kakao-auth-security.js`, `node scripts/test-api-input-security.js`, 주문 한도·성능·이메일·데이터·취소·복구·후기·신청 회귀검사를 실행합니다.
 10. `node check_syntax.js`, 브라우저 구문검사, `node scripts/check-guide-assets.js`, `node scripts/check-handoff.js`, `git diff --check`를 모두 통과시킵니다.
+
+## P113 정기 자동운영 시간 변경 및 즉시 마감 검증
+
+1. `gas/60_Settings.gs`와 `gas/61_GuestSchedule.gs`를 사용자가 Apps Script 편집기에서 반영하고 새 버전으로 배포합니다.
+2. 주방 운영설정 화면에서 정기 자동운영 시간을 `13:00~15:00` 이외의 다른 시각(예: `14:00~16:00`)으로 변경하고 저장합니다.
+3. 저장 완료 알림 후 화면을 새로고침했을 때 변경한 시간(`14:00~16:00`)이 그대로 유지되는지 확인합니다.
+4. 정기 운영 시간 중에 주방의 `🛑 지금 마감` 버튼을 누르고 확인창을 수락했을 때 매장 운영 상태가 즉시 마감(`🔴 마감`)으로 전환되는지 확인합니다.
+5. `node scripts/test-guest-schedule.js`, `node check_syntax.js`, `node scripts/check-handoff.js`를 실행해 자동 검사를 통과시킵니다.

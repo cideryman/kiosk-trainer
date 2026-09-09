@@ -138,6 +138,14 @@ function writeSettingValuesBatch(sheet, updates) {
     }
   });
   sheet.getRange(1, 1, values.length, 2).setValues(values);
+  try {
+    if (values.length > 1 && typeof sheet.getRange === 'function') {
+      const valueCol = sheet.getRange(2, 2, values.length - 1, 1);
+      if (typeof valueCol.setNumberFormat === 'function') {
+        valueCol.setNumberFormat('@');
+      }
+    }
+  } catch (_) {}
 }
 
 function ensureGuestSettingsSchema() {
@@ -307,10 +315,20 @@ function canCompleteStartedGuestOrder(settings, orderStartedAt, nowValue) {
 function readGuestSettingsFromSheet(sheet) {
   const settings = getDefaultGuestSettings();
   if (sheet && sheet.getLastRow() > 1) {
-    const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
+    const range = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2);
+    const values = range.getValues();
     values.forEach(row => {
       const key = String(row[0] || '').trim();
-      if (key) settings[key] = row[1];
+      if (!key) return;
+      let val = row[1];
+      if (key === 'guestWeeklyScheduleStartTime' || key === 'guestWeeklyScheduleEndTime') {
+        val = normalizeGuestScheduleTime(val, key === 'guestWeeklyScheduleStartTime' ? '13:00' : '15:00');
+      } else if (key === 'guestWeeklyScheduleSkipDate') {
+        val = normalizeGuestScheduleDateKey(val);
+      } else if (val instanceof Date) {
+        val = val.toISOString();
+      }
+      settings[key] = val;
     });
   }
   return settings;
@@ -431,12 +449,12 @@ function updateGuestSettings(data) {
   } else if (action === 'updateWeeklySchedule') {
     const enabled = parseSettingBoolean(data.guestWeeklyScheduleEnabled, false);
     const weekday = Number(data.guestWeeklyScheduleDay);
-    const startTime = String(data.guestWeeklyScheduleStartTime || '').trim();
-    const endTime = String(data.guestWeeklyScheduleEndTime || '').trim();
+    const startTime = normalizeGuestScheduleTime(data.guestWeeklyScheduleStartTime, '');
+    const endTime = normalizeGuestScheduleTime(data.guestWeeklyScheduleEndTime, '');
     if (!GUEST_WEEKLY_SCHEDULE_ALLOWED_DAYS.includes(weekday)) {
       return { success: false, message: '정기 운영 요일은 월요일부터 금요일 중에서 선택해 주세요.' };
     }
-    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime)) {
+    if (!startTime || !endTime) {
       return { success: false, message: '정기 운영 시간을 HH:MM 형식으로 입력해 주세요.' };
     }
     if (getGuestScheduleTimeMinutes(startTime) >= getGuestScheduleTimeMinutes(endTime)) {
@@ -478,7 +496,7 @@ function updateGuestSettings(data) {
     clearGuestSettingsCache();
     return { success: true, message: `${formatGuestScheduleKoreanDate(skipDate)} 정기 운영을 쉬도록 설정했습니다.`, guestWeeklyScheduleSkipDate: skipDate };
   } else if (action === 'resumeWeeklyScheduleOccurrence') {
-    const resumedDate = String(currentSettings.guestWeeklyScheduleSkipDate || '').trim();
+    const resumedDate = normalizeGuestScheduleDateKey(currentSettings.guestWeeklyScheduleSkipDate);
     writeSettingValuesBatch(sheet, { guestWeeklyScheduleSkipDate: '' });
     safeAppendAdminLog('updateGuestSettings', 'settings', 'guestWeeklyScheduleSkipDate', '정기 운영 회차 재개', resumedDate, '', data.adminMemo);
     clearGuestSettingsCache();

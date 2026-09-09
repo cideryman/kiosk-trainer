@@ -203,6 +203,51 @@ assert.equal(editedSchedule.success, true, '추가 일정 행 수정');
 const deletedSchedule = context.updateGuestSettings({ settingsAction: 'deleteAdditionalSchedule', scheduleId: 'test-schedule-id' });
 assert.equal(deletedSchedule.success, true, '추가 일정 취소');
 
+// P113 Date 객체 정규화 및 스프레드시트 셀 서식 호환성 검증
+const mockTimeDate = new Date('1899-12-30T14:30:00');
+assert.equal(context.normalizeGuestScheduleTime(mockTimeDate, '13:00'), '14:30', '1899 Date 시간 객체 14:30 추출');
+assert.equal(context.normalizeGuestScheduleTime('14:30:00', '13:00'), '14:30', '초 단위 포함 문자열 14:30 추출');
+assert.equal(context.normalizeGuestScheduleTime('9:05', '13:00'), '09:05', '한 자리 시간 패딩');
+
+const mockSkipDate = new Date('2026-08-26T00:00:00+09:00');
+assert.equal(context.normalizeGuestScheduleDateKey(mockSkipDate), '2026-08-26', 'Date 날짜 객체 2026-08-26 추출');
+assert.equal(context.normalizeGuestScheduleDateKey('2026-8-26'), '2026-08-26', '한 자리 월 날짜 패딩');
+
+// 정기 운영 시간이 Date 객체로 들어왔을 때 정상 개방 검증
+const dateScheduleState = resolve({
+  ...base,
+  guestWeeklyScheduleStartTime: new Date('1899-12-30T10:00:00'),
+  guestWeeklyScheduleEndTime: new Date('1899-12-30T12:00:00')
+}, new Date('2026-08-26T10:30:00+09:00'));
+assert.equal(dateScheduleState.isGuestOpenNow, true, 'Date 객체 시작/종료 시간으로 정기 운영 정상 개방');
+assert.equal(dateScheduleState.startTime, '10:00', 'Date 객체에서 startTime 문자열 10:00 보존');
+assert.equal(dateScheduleState.endTime, '12:00', 'Date 객체에서 endTime 문자열 12:00 보존');
+
+// 정기 운영 중 '지금 마감'(skipDate가 Date 객체)일 때 정상 마감 검증
+const dateSkippedState = resolve({
+  ...base,
+  guestWeeklyScheduleSkipDate: new Date('2026-08-26T00:00:00+09:00')
+}, new Date('2026-08-26T14:00:00+09:00'));
+assert.equal(dateSkippedState.isGuestOpenNow, false, 'Date 객체 skipDate로 정기 운영 즉시 마감 성공');
+// Date 객체를 포함한 시트 읽기 검증
+const dateSheetRows = [
+  ['key', 'value'],
+  ['guestWeeklyScheduleStartTime', new Date('1899-12-30T16:20:00')],
+  ['guestWeeklyScheduleEndTime', new Date('1899-12-30T17:45:00')],
+  ['guestWeeklyScheduleSkipDate', new Date('2026-09-09T00:00:00+09:00')]
+];
+const mockDateSheet = {
+  getLastRow: () => dateSheetRows.length,
+  getRange: (r, c, numRows, numCols) => ({
+    getValues: () => dateSheetRows.slice(r - 1, r - 1 + numRows).map(row => row.slice(c - 1, c - 1 + numCols)),
+    getDisplayValues: () => dateSheetRows.slice(r - 1, r - 1 + numRows).map(row => row.slice(c - 1, c - 1 + numCols).map(String))
+  })
+};
+const parsedSheetSettings = context.readGuestSettingsFromSheet(mockDateSheet);
+assert.equal(parsedSheetSettings.guestWeeklyScheduleStartTime, '16:20', '시트에서 읽은 Date 시작 시각을 16:20으로 정규화');
+assert.equal(parsedSheetSettings.guestWeeklyScheduleEndTime, '17:45', '시트에서 읽은 Date 종료 시각을 17:45로 정규화');
+assert.equal(parsedSheetSettings.guestWeeklyScheduleSkipDate, '2026-09-09', '시트에서 읽은 Date skipDate를 2026-09-09로 정규화');
+
 const kitchenHtml = fs.readFileSync(path.resolve(__dirname, '../kitchen.html'), 'utf8');
 const kitchenJs = fs.readFileSync(path.resolve(__dirname, '../js/kitchen.js'), 'utf8');
 ['input-guest-weekly-schedule-day', 'input-guest-additional-date', 'guest-additional-schedule-list', 'input-guest-manual-end', 'btn-guest-open-until'].forEach(id => {

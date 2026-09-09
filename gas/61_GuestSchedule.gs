@@ -16,8 +16,20 @@ function parseGuestScheduleBoolean(value, defaultValue) {
 }
 
 function normalizeGuestScheduleTime(value, fallbackValue) {
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    const hours = value.getHours();
+    const minutes = value.getMinutes();
+    const formatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    if (/^([01]\d|2[0-3]):[0-5]\d$/.test(formatted)) {
+      return formatted;
+    }
+  }
   const normalized = String(value || '').trim();
-  return /^([01]\d|2[0-3]):[0-5]\d$/.test(normalized) ? normalized : fallbackValue;
+  const timeMatch = /^([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/.exec(normalized);
+  if (timeMatch) {
+    return `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}`;
+  }
+  return fallbackValue;
 }
 
 function normalizeGuestScheduleWeekday(value) {
@@ -63,6 +75,20 @@ function formatGuestScheduleDateKey(year, month, day) {
 function getGuestScheduleDateKey(nowValue) {
   const parts = getGuestScheduleKstParts(nowValue);
   return formatGuestScheduleDateKey(parts.year, parts.month, parts.day);
+}
+
+function normalizeGuestScheduleDateKey(value) {
+  if (!value) return '';
+  if (value instanceof Date) {
+    if (isNaN(value.getTime())) return '';
+    return getGuestScheduleDateKey(value);
+  }
+  const str = String(value).trim();
+  const match = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(str);
+  if (match) {
+    return [match[1], match[2].padStart(2, '0'), match[3].padStart(2, '0')].join('-');
+  }
+  return '';
 }
 
 function addGuestScheduleDays(dateKey, days) {
@@ -189,9 +215,7 @@ function resolveGuestOperatingState(rawSettings, nowValue) {
   const weeklyEnabled = parseGuestScheduleBoolean(settings.guestWeeklyScheduleEnabled, false);
   const additionalSchedules = normalizeGuestAdditionalSchedules(settings.guestAdditionalSchedulesJson || settings.guestAdditionalSchedules);
   const menuMode = String(settings.guestMenuMode || 'normal').trim().toLowerCase();
-  const skipDate = /^\d{4}-\d{2}-\d{2}$/.test(String(settings.guestWeeklyScheduleSkipDate || '').trim())
-    ? String(settings.guestWeeklyScheduleSkipDate).trim()
-    : '';
+  const skipDate = normalizeGuestScheduleDateKey(settings.guestWeeklyScheduleSkipDate);
   const targetScheduleDate = getGuestScheduleTargetDate(now, weekday, endTime);
   const targetOccurrenceSkipped = weeklyEnabled && skipDate === targetScheduleDate;
   const todayOccurrenceSkipped = weeklyEnabled && skipDate === todayKey;
