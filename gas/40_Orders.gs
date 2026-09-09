@@ -277,7 +277,7 @@ function placeOrder(data) {
             const status = String(row[targetServedColIdx]).trim();
             if (status === 'C' || isCancelledOrderStatus(status)) continue;
 
-            if (status === 'N') {
+            if (status === 'N' || status === 'P' || status === 'R') {
               hasPreparingOrder = true;
             } else if (status === 'Y') {
               hasServedOrderToday = true;
@@ -291,7 +291,7 @@ function placeOrder(data) {
           if (hasPreparingOrder) {
             return respond({
               success: false,
-              message: `${nickname}님의 간식이 현재 준비 중입니다. 잠시만 기다려주세요! 😊`
+              message: `${nickname}님의 간식이 현재 준비 중이거나 수령 대기 중입니다. 잠시만 기다려주세요! 😊`
             });
           }
 

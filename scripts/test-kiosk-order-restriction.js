@@ -91,6 +91,8 @@ assert(orderSource.includes('kioskPolicy === \'cooldown\' && hasServedOrderToday
 assert(orderSource.includes('kioskOrderPolicy: guestSettings.kioskOrderPolicy || \'once_daily\''), 'getPublicOrderFeed에 kioskOrderPolicy가 포함되어야 함');
 assert(orderSource.includes('userId: (order.authProvider === \'kakao\' || order.userId === \'guest\') ? \'\' : String(order.userId || \'\')'), 'getPublicOrderFeed에서 일반 이용자 userId가 포함되어야 함');
 
+assert(orderSource.includes("status === 'N' || status === 'P' || status === 'R'"), 'N, P, R 주문 차단 조건이 있어야 함');
+
 // 4. 프론트엔드 파일 검증
 const kitchenHtml = fs.readFileSync(path.join(root, 'kitchen.html'), 'utf8');
 assert(kitchenHtml.includes('id="input-kiosk-order-policy"'), 'kitchen.html에 input-kiosk-order-policy가 있어야 함');
@@ -106,13 +108,15 @@ assert(indexHtml.includes('id="staff-bypass-overlay"'), 'index.html에 직원 �
 assert(indexHtml.includes('user-card-hold-progress'), 'index.html에 롱프레스 게이지가 있어야 함');
 assert(indexHtml.includes('openStaffBypassModal'), 'index.html에 openStaffBypassModal이 있어야 함');
 assert(indexHtml.includes('updateKioskUserStatusesFromFeed'), 'index.html에 updateKioskUserStatusesFromFeed가 있어야 함');
+assert(indexHtml.includes("status === 'R'"), 'index.html에 R(준비완료) 분기가 있어야 함');
 
 const confirmJs = fs.readFileSync(path.join(root, 'js/confirm.js'), 'utf8');
 assert(confirmJs.includes('currentOrderStaffBypass'), 'confirm.js에서 currentOrderStaffBypass 확인 및 staffBypass 전송이 있어야 함');
 
 const styleCss = fs.readFileSync(path.join(root, 'css/style.css'), 'utf8');
 assert(styleCss.includes('.user-card.is-preparing'), 'css/style.css에 is-preparing 스타일이 있어야 함');
+assert(styleCss.includes('.user-card.is-ready'), 'css/style.css에 is-ready 스타일이 있어야 함');
 assert(styleCss.includes('.user-card.is-served'), 'css/style.css에 is-served 스타일이 있어야 함');
 assert(styleCss.includes('.user-card-hold-progress'), 'css/style.css에 롱프레스 게이지 스타일이 있어야 함');
 
-console.log('All 15 Kiosk order restriction & UI integration tests PASSED!');
+console.log('All 18 Kiosk order restriction & UI integration tests PASSED!');

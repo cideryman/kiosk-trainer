@@ -3970,6 +3970,17 @@ body.admin-shell-page {
   filter: blur(0.6px);
 }
 
+.user-card.is-ready {
+  border-color: #2EC4B6;
+  background-color: #F0FDFA;
+}
+
+.user-card.is-ready .user-avatar-container,
+.user-card.is-ready .user-card-name,
+.user-card.is-ready .user-card-credit {
+  opacity: 0.85;
+}
+
 .user-card.is-served {
   border-color: #CBD5E1;
   background-color: #F8FAFC;
@@ -4008,6 +4019,12 @@ body.admin-shell-page {
   background-color: #FF9F1C;
   color: white;
   animation: pulseGlowBadge 2s infinite ease-in-out;
+}
+
+.user-card.is-ready .user-card-status-badge {
+  background-color: #0D9488;
+  color: white;
+  animation: pulseGlowBadge 1.8s infinite ease-in-out;
 }
 
 .user-card.is-served .user-card-status-badge {

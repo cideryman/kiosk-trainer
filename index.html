@@ -231,7 +231,7 @@
             return;
           }
 
-          if (status === 'N') {
+          if (status === 'N' || status === 'P') {
             statusMap[userId] = {
               status: 'PREPARING',
               badge: '👨‍🍳 간식 준비 중',
@@ -239,8 +239,16 @@
               title: '간식 준비 중',
               message: `${order.nickname || '회원'}님의 간식을 열심히 준비하고 있어요! 조금만 앉아서 기다려 주세요 😊`
             };
+          } else if (status === 'R') {
+            statusMap[userId] = {
+              status: 'READY',
+              badge: '🔔 간식 준비 완료',
+              icon: '🔔',
+              title: '간식 준비 완료!',
+              message: `${order.nickname || '회원'}님, 주문하신 간식이 준비되었습니다! 카운터에서 받아가세요 😊`
+            };
           } else if (status === 'Y') {
-            if (statusMap[userId]?.status === 'PREPARING') return;
+            if (statusMap[userId]?.status === 'PREPARING' || statusMap[userId]?.status === 'READY') return;
 
             const orderTime = new Date(order.timestamp).getTime();
             const elapsedMinutes = !isNaN(orderTime) ? Math.floor((now - orderTime) / (60 * 1000)) : 999;
@@ -280,7 +288,7 @@
         const info = currentKioskUserStatuses[userId];
         let badgeEl = card.querySelector('.user-card-status-badge');
 
-        card.classList.remove('is-preparing', 'is-served', 'is-bypassed');
+        card.classList.remove('is-preparing', 'is-ready', 'is-served', 'is-bypassed');
 
         if (!info) {
           if (badgeEl) badgeEl.remove();
@@ -295,6 +303,14 @@
             card.appendChild(badgeEl);
           }
           badgeEl.textContent = info.badge || '👨‍🍳 간식 준비 중';
+        } else if (info.status === 'READY') {
+          card.classList.add('is-ready');
+          if (!badgeEl) {
+            badgeEl = document.createElement('div');
+            badgeEl.className = 'user-card-status-badge';
+            card.appendChild(badgeEl);
+          }
+          badgeEl.textContent = info.badge || '🔔 간식 준비 완료';
         } else if (info.status === 'SERVED') {
           card.classList.add('is-served');
           if (!badgeEl) {
@@ -379,7 +395,7 @@
 
         function startHold(e) {
           const info = currentKioskUserStatuses[user.userId];
-          if (!info || (info.status !== 'PREPARING' && info.status !== 'SERVED')) return;
+          if (!info || (info.status !== 'PREPARING' && info.status !== 'READY' && info.status !== 'SERVED')) return;
 
           holdTriggered = false;
           isHolding = true;
@@ -428,7 +444,7 @@
           }
 
           const info = currentKioskUserStatuses[user.userId];
-          if (info && (info.status === 'PREPARING' || info.status === 'SERVED')) {
+          if (info && (info.status === 'PREPARING' || info.status === 'READY' || info.status === 'SERVED')) {
             AppState.vibrate(50);
             openFriendlyNotice(info.icon, info.title, info.message);
             return;
@@ -477,6 +493,11 @@
           const dismissed = JSON.parse(localStorage.getItem('dismissedCancellations') || '[]');
           const newDismissed = Array.from(new Set([...dismissed, ...existingCancelled]));
           localStorage.setItem('dismissedCancellations', JSON.stringify(newDismissed));
+
+          // P112: 첫 화면 진입 시에도 즉시 키오스크 카드 주문 상태 시각화 적용
+          if (typeof updateKioskUserStatusesFromFeed === 'function') {
+            updateKioskUserStatusesFromFeed(response.orders, response.kioskOrderPolicy, response.kioskCooldownMinutes);
+          }
         }
       } catch (e) {
         console.warn('취소 알림 초기화 에러:', e);
