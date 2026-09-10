@@ -4126,3 +4126,35 @@ body.admin-shell-page {
   font-size: 18px;
   font-weight: 700;
 }
+
+/* 안내 모달 내 주문 메뉴 상세 박스 */
+.friendly-notice-menu-box {
+  background: #FFF7ED;
+  border: 2px solid #FDBA74;
+  border-radius: 14px;
+  padding: 14px 18px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.friendly-notice-menu-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #C2410C;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.friendly-notice-menu-items {
+  font-size: 20px;
+  font-weight: 800;
+  color: #7C2D12;
+  line-height: 1.4;
+  word-break: keep-all;
+}
