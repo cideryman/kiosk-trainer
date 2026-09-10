@@ -2442,7 +2442,16 @@ let refreshTimer = null;
         `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
     }
 
-    async function handleGuestOpsAction(settingsAction, values = {}) {
+    async function handleGuestOpsAction(settingsAction, values = {}, triggerButton = null, loadingText = '⏳ 처리 중...') {
+      if (triggerButton && triggerButton.disabled) return;
+      let originalText = '';
+      if (triggerButton) {
+        triggerButton.disabled = true;
+        triggerButton.classList.add('is-loading');
+        triggerButton.setAttribute('aria-busy', 'true');
+        originalText = triggerButton.textContent;
+        if (loadingText) triggerButton.textContent = loadingText;
+      }
       try {
         const adminToken = getAdminToken();
         const body = {
@@ -2464,6 +2473,13 @@ let refreshTimer = null;
         }
       } catch (e) {
         alert('설정 변경 중 오류가 발생했습니다.');
+      } finally {
+        if (triggerButton) {
+          triggerButton.disabled = false;
+          triggerButton.classList.remove('is-loading');
+          triggerButton.removeAttribute('aria-busy');
+          if (originalText) triggerButton.textContent = originalText;
+        }
       }
       // 최신 상태 다시 로드
       await loadGuestOpsPanel();
@@ -2480,9 +2496,12 @@ let refreshTimer = null;
       }
       const button = buttonOverride || document.getElementById('btn-add-guest-additional-schedule');
       if (button?.disabled) return;
+      const originalText = button ? button.textContent : '';
       if (button) {
         button.disabled = true;
+        button.classList.add('is-loading');
         button.setAttribute('aria-busy', 'true');
+        button.textContent = scheduleId ? '⏳ 저장 중...' : '⏳ 등록 중...';
       }
       try {
         const res = await fetchAPI('updateGuestSettings', {
@@ -2508,7 +2527,9 @@ let refreshTimer = null;
       } finally {
         if (button) {
           button.disabled = false;
+          button.classList.remove('is-loading');
           button.removeAttribute('aria-busy');
+          if (originalText) button.textContent = originalText;
         }
         await loadGuestOpsPanel();
       }
@@ -2518,8 +2539,11 @@ let refreshTimer = null;
       if (!schedule?.scheduleId || button?.disabled) return;
       const actionLabel = schedule.isActive ? '현재 추가 운영을 즉시 취소' : '추가 운영 일정을 취소';
       if (!confirm(`${formatGuestScheduleDate(schedule.date)} ${schedule.startTime}~${schedule.endTime} ${actionLabel}할까요?`)) return;
+      const originalText = button.textContent;
       button.disabled = true;
+      button.classList.add('is-loading');
       button.setAttribute('aria-busy', 'true');
+      button.textContent = '⏳ 취소 중...';
       try {
         const res = await fetchAPI('updateGuestSettings', {
           method: 'POST',
@@ -2540,7 +2564,9 @@ let refreshTimer = null;
         alert(error.message || '추가 운영 일정 취소 중 오류가 발생했습니다.');
       } finally {
         button.disabled = false;
+        button.classList.remove('is-loading');
         button.removeAttribute('aria-busy');
+        if (originalText) button.textContent = originalText;
         await loadGuestOpsPanel();
       }
     }
@@ -2551,13 +2577,20 @@ let refreshTimer = null;
       const startEl = document.getElementById('input-guest-weekly-schedule-start');
       const endEl = document.getElementById('input-guest-weekly-schedule-end');
       const button = document.getElementById('btn-save-guest-weekly-schedule');
+      if (button?.disabled) return;
       const startTime = String(startEl?.value || '').trim();
       const endTime = String(endEl?.value || '').trim();
       if (!startTime || !endTime || startTime >= endTime) {
         alert('종료 시각을 시작 시각보다 늦게 설정해 주세요.');
         return;
       }
-      if (button) button.disabled = true;
+      const originalText = button ? button.textContent : '';
+      if (button) {
+        button.disabled = true;
+        button.classList.add('is-loading');
+        button.setAttribute('aria-busy', 'true');
+        button.textContent = '⏳ 저장 중...';
+      }
       try {
         const res = await fetchAPI('updateGuestSettings', {
           method: 'POST',
@@ -2580,7 +2613,12 @@ let refreshTimer = null;
       } catch (error) {
         alert(error.message || '정기 일정 저장 중 오류가 발생했습니다.');
       } finally {
-        if (button) button.disabled = false;
+        if (button) {
+          button.disabled = false;
+          button.classList.remove('is-loading');
+          button.removeAttribute('aria-busy');
+          if (originalText) button.textContent = originalText;
+        }
         await loadGuestOpsPanel();
       }
     }
@@ -2595,12 +2633,7 @@ let refreshTimer = null;
         ? `${targetLabel} 정기 자동 운영을 다시 진행할까요?`
         : `${targetLabel} 정기 운영을 쉬도록 설정할까요? 같은 날의 추가 운영은 유지됩니다.`;
       if (!confirm(prompt)) return;
-      button.disabled = true;
-      try {
-        await handleGuestOpsAction(action);
-      } finally {
-        button.disabled = false;
-      }
+      await handleGuestOpsAction(action, {}, button, isResume ? '⏳ 재개 중...' : '⏳ 중단 중...');
     }
 
     async function saveGuestSettings() {
@@ -2618,7 +2651,14 @@ let refreshTimer = null;
       if (!creditInput || !feeInput || !deliveryPlaceInput) return;
 
       const saveButton = document.getElementById('btn-save-guest-settings');
-      if (saveButton) saveButton.disabled = true;
+      if (saveButton?.disabled) return;
+      const originalText = saveButton ? saveButton.textContent : '';
+      if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.classList.add('is-loading');
+        saveButton.setAttribute('aria-busy', 'true');
+        saveButton.textContent = '⏳ 저장 중...';
+      }
 
       const guestBaseCredit = Number(creditInput.value);
       const guestDeliveryFee = Number(feeInput.value);
@@ -2638,7 +2678,12 @@ let refreshTimer = null;
       const guestEventNameLength = Array.from(inputEventName ? (inputEventName.textContent || '').trim() : '장애인식 개선 캠페인').length;
       if (guestEventNameLength < 1 || guestEventNameLength > 20) {
         alert('행사명은 1~20자로 입력해 주세요.');
-        if (saveButton) saveButton.disabled = false;
+        if (saveButton) {
+          saveButton.disabled = false;
+          saveButton.classList.remove('is-loading');
+          saveButton.removeAttribute('aria-busy');
+          if (originalText) saveButton.textContent = originalText;
+        }
         return;
       }
 
@@ -2682,7 +2727,12 @@ let refreshTimer = null;
       } catch (e) {
         alert('설정 저장 중 오류가 발생했습니다.');
       } finally {
-        if (saveButton) saveButton.disabled = !guestSettingsDirty;
+        if (saveButton) {
+          saveButton.classList.remove('is-loading');
+          saveButton.removeAttribute('aria-busy');
+          if (originalText) saveButton.textContent = originalText;
+          saveButton.disabled = !guestSettingsDirty;
+        }
       }
     }
 
@@ -2988,13 +3038,14 @@ let refreshTimer = null;
       const btnGuestOpenUntil = document.getElementById('btn-guest-open-until');
       if (btnGuestOpenUntil) {
         btnGuestOpenUntil.addEventListener('click', () => {
+          if (btnGuestOpenUntil.disabled) return;
           const endTime = String(document.getElementById('input-guest-manual-end')?.value || '').trim();
           if (!endTime) {
             alert('긴급 운영 종료 시각을 선택해 주세요.');
             return;
           }
           if (confirm(`지금부터 오늘 ${endTime}까지 주문을 받을까요?`)) {
-            handleGuestOpsAction('openUntil', { guestManualEndTime: endTime });
+            handleGuestOpsAction('openUntil', { guestManualEndTime: endTime }, btnGuestOpenUntil, '⏳ 개방 중...');
           }
         });
       }
@@ -3002,6 +3053,7 @@ let refreshTimer = null;
       const btnGuestClose = document.getElementById('btn-guest-close');
       if (btnGuestClose) {
         btnGuestClose.addEventListener('click', () => {
+          if (btnGuestClose.disabled) return;
           const source = latestGuestOpsSettings?.guestOpenSource;
           const closeMessage = source === 'weekly'
             ? '게스트 주문을 즉시 마감할까요? 현재 정기 회차는 중단되고 다음 회차에 자동 재개합니다.'
@@ -3009,7 +3061,7 @@ let refreshTimer = null;
               ? '게스트 주문을 즉시 마감할까요? 현재 추가 운영 일정도 취소됩니다.'
               : '게스트 주문을 즉시 마감하시겠습니까?';
           if (confirm(closeMessage)) {
-            handleGuestOpsAction('closeNow');
+            handleGuestOpsAction('closeNow', {}, btnGuestClose, '⏳ 마감 중...');
           }
         });
       }
