@@ -2294,9 +2294,7 @@ let refreshTimer = null;
           : `${formatGuestScheduleDate(data.guestWeeklyScheduleTargetDate)} 운영 안 함`;
         skipButton.classList.toggle('is-resume', isSkipped);
       }
-      const skippedToday = data.guestWeeklyScheduleEnabled === true
-        && data.guestWeeklyScheduleSkipDate === getGuestKstDateTimeParts().date;
-      setGuestManualOpenDisabled(skippedToday);
+      setGuestManualOpenDisabled(false);
 
       if (data.isGuestOpenNow) {
         badge.textContent = '🟢 운영중';

@@ -395,10 +395,6 @@ function updateGuestSettings(data) {
   let logBefore = 'N';
   let logAfter = 'N';
 
-  if (['open20', 'open30', 'open60', 'openCustom', 'openUntil'].includes(action) && currentOperatingState.todayOccurrenceSkipped) {
-    return { success: false, message: '이번 회차 운영 중단을 먼저 해제해 주세요.' };
-  }
-
   if (action === 'openUntil') {
     const closeTime = normalizeGuestScheduleTime(data.guestManualEndTime, '');
     const closeInstant = closeTime ? buildGuestScheduleInstant(getGuestScheduleDateKey(now), closeTime) : null;

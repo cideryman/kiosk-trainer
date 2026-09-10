@@ -157,7 +157,7 @@ function resolveMockGuestOperatingState(settingsValue, nowValue) {
   const manualCloseAt = settings.guestCloseAt ? new Date(settings.guestCloseAt) : null;
   const manualRequested = String(settings.guestOpen || 'N').toUpperCase() === 'Y';
   const validManualCloseAt = manualCloseAt && !isNaN(manualCloseAt.getTime()) ? manualCloseAt : null;
-  const manualActive = Boolean(manualRequested && (!validManualCloseAt || nowMillis < validManualCloseAt.getTime()) && !todayOccurrenceSkipped);
+  const manualActive = Boolean(manualRequested && (!validManualCloseAt || nowMillis < validManualCloseAt.getTime()));
   const candidates = [];
   if (weeklyActive) candidates.push({ source: 'weekly', endAt: todayEndAt });
   activeAdditional.forEach(item => candidates.push({ source: 'additional', endAt: item.endAt }));
@@ -173,7 +173,7 @@ function resolveMockGuestOperatingState(settingsValue, nowValue) {
   if (!scheduleSuppressedByEvent) additionalOccurrences.forEach(item => {
     if (item.date === todayKey && nowMillis >= item.endAt.getTime()) completionTimes.push(item.endAt);
   });
-  if (manualRequested && validManualCloseAt && now >= validManualCloseAt && !todayOccurrenceSkipped) completionTimes.push(validManualCloseAt);
+  if (manualRequested && validManualCloseAt && now >= validManualCloseAt) completionTimes.push(validManualCloseAt);
   const completionGraceCloseAt = completionTimes.sort((a, b) => b - a)[0] || null;
   const upcoming = [];
   if (weeklyEnabled && !scheduleSuppressedByEvent) {
@@ -1369,11 +1369,6 @@ function getMockFallback(action, options) {
     const settings = getMockGuestSettings();
     const now = new Date();
     const currentState = resolveMockGuestOperatingState(settings, now);
-
-    if (['open20', 'open30', 'open60', 'openCustom', 'openUntil'].includes(settingsAction) && currentState.todayOccurrenceSkipped) {
-      res = { success: false, message: '이번 회차 운영 중단을 먼저 해제해 주세요.' };
-      return Object.assign({}, res, { apiContractVersion: API_CONTRACT_VERSION, serverTime: new Date().toISOString() });
-    }
 
     if (settingsAction === 'openUntil') {
       const endTime = String(options.body?.guestManualEndTime || '').trim();

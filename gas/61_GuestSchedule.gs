@@ -242,7 +242,6 @@ function resolveGuestOperatingState(rawSettings, nowValue) {
   const manualActive = Boolean(
     manualRequested
     && (!validManualCloseAt || nowMillis < validManualCloseAt.getTime())
-    && !todayOccurrenceSkipped
   );
 
   const activeOccurrences = [];
@@ -265,7 +264,7 @@ function resolveGuestOperatingState(rawSettings, nowValue) {
       if (item.date === todayKey && nowMillis >= item.endAt.getTime()) completionCloseTimes.push(item.endAt);
     });
   }
-  if (manualRequested && validManualCloseAt && nowMillis >= validManualCloseAt.getTime() && !todayOccurrenceSkipped) {
+  if (manualRequested && validManualCloseAt && nowMillis >= validManualCloseAt.getTime()) {
     completionCloseTimes.push(validManualCloseAt);
   }
   const completionGraceCloseAt = completionCloseTimes.sort((a, b) => b.getTime() - a.getTime())[0] || null;

@@ -124,14 +124,25 @@ assert.equal(overlapBoundary.nextStateChangeAt.toISOString(), '2026-08-26T05:00:
 
 const skippedWithAdditional = at('2026-08-26T14:00:00+09:00', {
   guestWeeklyScheduleSkipDate: '2026-08-26',
-  guestOpen: 'Y',
-  guestCloseAt: '2026-08-26T16:00:00+09:00',
+  guestOpen: 'N',
+  guestCloseAt: '',
   guestAdditionalSchedulesJson: JSON.stringify([
     { scheduleId: 'extra-kept', date: '2026-08-26', startTime: '13:00', endTime: '15:30' }
   ])
 });
-assert.equal(skippedWithAdditional.manualActive, false, '중단일에는 긴급 수동 운영 차단');
+assert.equal(skippedWithAdditional.manualActive, false, '수동 개방 미요청 시 manualActive false');
 assert.equal(skippedWithAdditional.guestOpenSource, 'additional', '정기 회차 중단과 별도 추가 운영은 분리');
+
+// P115 정기 회차 중단일에도 긴급 수동 운영(openUntil) 허용 검증
+const emergencyOnSkippedDay = at('2026-08-26T14:00:00+09:00', {
+  guestWeeklyScheduleSkipDate: '2026-08-26',
+  guestOpen: 'Y',
+  guestCloseAt: '2026-08-26T16:00:00+09:00'
+});
+assert.equal(emergencyOnSkippedDay.manualActive, true, '정기 회차 중단일에도 긴급 수동 운영 정상 활성화');
+assert.equal(emergencyOnSkippedDay.isGuestOpenNow, true, '정기 회차 중단일 긴급 운영 시 정상 개방');
+assert.equal(emergencyOnSkippedDay.guestOpenSource, 'manual', '긴급 수동 운영 출처 정상 식별');
+assert.equal(emergencyOnSkippedDay.effectiveCloseAt.toISOString(), '2026-08-26T07:00:00.000Z', '긴급 마감 시각까지 정상 운영');
 
 const eventSuppression = at('2026-08-27T10:00:00+09:00', {
   guestWeeklyScheduleEnabled: 'FALSE',
@@ -259,4 +270,23 @@ const kitchenJs = fs.readFileSync(path.resolve(__dirname, '../js/kitchen.js'), '
 assert.equal(kitchenJs.includes("settingsAction: 'upsertAdditionalSchedule'"), true, '추가 일정 저장 API 연결');
 assert.equal(kitchenJs.includes("settingsAction: 'deleteAdditionalSchedule'"), true, '추가 일정 취소 API 연결');
 
-console.log('Guest schedule tests passed: recurring, additional, manual, grace, suppression');
+// P115 당일 정기 회차가 중단/마감된 상태에서 updateGuestSettings openUntil 성공 검증
+const todayKey = context.getGuestScheduleDateKey(new Date());
+fakeRows.length = 1;
+fakeRows.push(['guestWeeklyScheduleEnabled', 'TRUE']);
+fakeRows.push(['guestWeeklyScheduleSkipDate', todayKey]);
+fakeRows.push(['guestOpen', 'N']);
+fakeRows.push(['guestCloseAt', '']);
+
+const openUntilResult = context.updateGuestSettings({
+  settingsAction: 'openUntil',
+  guestManualEndTime: '23:59'
+});
+assert.equal(openUntilResult.success, true, '당일 회차 중단/마감 상태에서도 openUntil 성공');
+const updatedSheetSettings = context.readGuestSettingsFromSheet(fakeSheet);
+assert.equal(updatedSheetSettings.guestOpen, 'Y', 'openUntil 후 시트에 guestOpen Y 저장');
+
+// 주방 화면에서 skippedToday 상태로 긴급 운영 버튼을 비활성화하지 않는지 정적 검증
+assert.equal(kitchenJs.includes('setGuestManualOpenDisabled(skippedToday)'), false, '주방 UI에서 중단일에 긴급 운영 비활성화하지 않음');
+
+console.log('Guest schedule tests passed: recurring, additional, manual, grace, suppression, emergency open (P115)');
