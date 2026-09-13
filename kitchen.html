@@ -258,6 +258,18 @@
                     <span>배달비 🛵</span>
                     <input type="number" id="input-guest-fee" class="admin-inline-input" value="3" min="0">
                   </label>
+                  <label class="guest-ops-setting">
+                    <span>총 주문 정원 (건) 🎯</span>
+                    <input type="number" id="input-guest-max-order-count" class="admin-inline-input" value="5" min="1" max="50">
+                  </label>
+                  <label class="guest-ops-setting">
+                    <span>최대 배달 건수 (건) 🛵</span>
+                    <input type="number" id="input-guest-max-delivery-count" class="admin-inline-input" value="2" min="0" max="20">
+                  </label>
+                  <label class="guest-ops-setting guest-ops-setting-wide">
+                    <span>배달 가능 지역 안내</span>
+                    <input type="text" id="input-guest-delivery-area" class="admin-inline-input" value="영주시 동 지역 (가흥동, 영주동, 휴천동 등)" placeholder="배달 가능 지역">
+                  </label>
                   <label class="guest-ops-setting guest-ops-setting-wide">
                     <span>기본 배달지</span>
                     <input type="text" id="input-guest-delivery-place" class="admin-inline-input" value="사무실 원탁">

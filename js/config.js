@@ -1297,10 +1297,47 @@ function getMockFallback(action, options) {
       message = `다음 운영은 ${next.date} ${next.startTime}~${next.endTime}입니다.`;
     }
 
+      const localOrdersForCap = JSON.parse(localStorage.getItem('mockOrders') || '[]');
+      const allOrdersForCap = [...localOrdersForCap, ...MOCK_DATA.getOrdersToday.orders];
+      const todayOrderMap = {};
+      const todayKstKey = formatMockGuestScheduleDateKey(nowParts.year, nowParts.month, nowParts.day);
+      allOrdersForCap.forEach(o => {
+        if (!o.cancelTimestamp && o.orderNo) {
+          const oDate = String(o.timestamp || '').slice(0, 10);
+          if (oDate === todayKstKey || !o.timestamp) {
+            if (!todayOrderMap[o.orderNo]) {
+              todayOrderMap[o.orderNo] = (o.deliveryType === 'delivery');
+            } else if (o.deliveryType === 'delivery') {
+              todayOrderMap[o.orderNo] = true;
+            }
+          }
+        }
+      });
+      const orderKeys = Object.keys(todayOrderMap);
+      const todayOrderCount = orderKeys.length;
+      let todayDeliveryCount = 0;
+      orderKeys.forEach(k => { if (todayOrderMap[k]) todayDeliveryCount++; });
+
+      const maxOrderCount = Math.max(1, Number(settings.guestMaxOrderCount || 5));
+      const maxDeliveryCount = Math.max(0, Number(settings.guestMaxDeliveryCount !== undefined ? settings.guestMaxDeliveryCount : 2));
+      const remainingOrderCount = Math.max(0, maxOrderCount - todayOrderCount);
+      const remainingDeliveryCount = Math.max(0, maxDeliveryCount - todayDeliveryCount);
+      const isOrderCapped = todayOrderCount >= maxOrderCount;
+      const isDeliveryCapped = todayDeliveryCount >= maxDeliveryCount;
+
       res = {
         success: true,
         guestOpen: settings.guestOpen,
         guestCloseAt: settings.guestCloseAt,
+        guestMaxOrderCount: maxOrderCount,
+        guestMaxDeliveryCount: maxDeliveryCount,
+        guestDeliveryArea: String(settings.guestDeliveryArea || '영주시 동 지역 (가흥동, 영주동, 휴천동 등)'),
+        todayOrderCount: todayOrderCount,
+        todayDeliveryCount: todayDeliveryCount,
+        remainingOrderCount: remainingOrderCount,
+        remainingDeliveryCount: remainingDeliveryCount,
+        isOrderCapped: isOrderCapped,
+        isDeliveryCapped: isDeliveryCapped,
         guestWeeklyScheduleEnabled: operatingState.weeklyEnabled,
         guestWeeklyScheduleDay: operatingState.weekday,
         guestWeeklyScheduleDayName: operatingState.weekdayName,
@@ -1484,6 +1521,15 @@ function getMockFallback(action, options) {
       settings.guestBaseCredit = Number(options.body?.guestBaseCredit);
       settings.guestDeliveryFee = Number(options.body?.guestDeliveryFee);
       settings.guestDefaultDeliveryPlace = String(options.body?.guestDefaultDeliveryPlace ?? '사무실 원탁').trim();
+      if (options.body?.guestMaxOrderCount !== undefined) {
+        settings.guestMaxOrderCount = Math.max(1, Number(options.body.guestMaxOrderCount) || 5);
+      }
+      if (options.body?.guestMaxDeliveryCount !== undefined) {
+        settings.guestMaxDeliveryCount = Math.max(0, Number(options.body.guestMaxDeliveryCount) || 0);
+      }
+      if (options.body?.guestDeliveryArea !== undefined) {
+        settings.guestDeliveryArea = String(options.body.guestDeliveryArea).trim();
+      }
       if (options.body?.guestAllowRandomDisplayName !== undefined) {
         settings.guestAllowRandomDisplayName = options.body.guestAllowRandomDisplayName !== false;
       }
@@ -1715,6 +1761,50 @@ function getMockFallback(action, options) {
       if (!options.body?.guestDeviceId && !hasKakaoKey) {
         return { success: false, message: '게스트 주문 확인 정보가 없습니다. 화면을 새로고침한 뒤 다시 시도해 주세요.' };
       }
+
+      const deliveryType = String(options.body?.deliveryType || 'pickup');
+      const rawDeliveryPlace = String(options.body?.deliveryPlace || '').trim();
+      const deliveryPhone = String(options.body?.deliveryPhone || options.body?.deliveryContact || '').trim();
+
+      if (deliveryType === 'delivery') {
+        if (!rawDeliveryPlace) {
+          return { success: false, message: '배달 받으실 상세 장소를 입력해 주세요.' };
+        }
+        if (!deliveryPhone) {
+          return { success: false, message: '배달 확인 및 도착 안내를 위해 연락처(전화번호)를 입력해 주세요.' };
+        }
+      }
+
+      // 오늘 접수된 유효 주문 및 배달 건수 검증
+      const allOrdersForOrderCap = [...localOrders, ...MOCK_DATA.getOrdersToday.orders];
+      const todayOrderMapCheck = {};
+      const todayKstStr = formatMockGuestScheduleDateKey(now.getFullYear(), now.getMonth() + 1, now.getDate());
+      allOrdersForOrderCap.forEach(o => {
+        if (!o.cancelTimestamp && o.orderNo) {
+          const oDate = String(o.timestamp || '').slice(0, 10);
+          if (oDate === todayKstStr || !o.timestamp) {
+            if (!todayOrderMapCheck[o.orderNo]) {
+              todayOrderMapCheck[o.orderNo] = (o.deliveryType === 'delivery');
+            } else if (o.deliveryType === 'delivery') {
+              todayOrderMapCheck[o.orderNo] = true;
+            }
+          }
+        }
+      });
+      const orderKeysCheck = Object.keys(todayOrderMapCheck);
+      const totalTodayOrders = orderKeysCheck.length;
+      let totalTodayDeliveries = 0;
+      orderKeysCheck.forEach(k => { if (todayOrderMapCheck[k]) totalTodayDeliveries++; });
+
+      const maxOrders = Math.max(1, Number(gSettings.guestMaxOrderCount || 5));
+      const maxDeliveries = Math.max(0, Number(gSettings.guestMaxDeliveryCount !== undefined ? gSettings.guestMaxDeliveryCount : 2));
+
+      if (totalTodayOrders >= maxOrders) {
+        return { success: false, message: '오늘 준비된 주문 정원이 모두 마감되었습니다. 다음 운영 시간을 확인해 주세요.' };
+      }
+      if (deliveryType === 'delivery' && totalTodayDeliveries >= maxDeliveries) {
+        return { success: false, message: '오늘 배달 주문 정원이 마감되었습니다. 매장 픽업으로 주문해 주세요.' };
+      }
     }
     
     // 사용자 이름 매핑
@@ -1754,7 +1844,11 @@ function getMockFallback(action, options) {
     const orderToken = createMockOrderToken();
 
     const deliveryType = options.body?.deliveryType || 'pickup';
-    const deliveryPlace = (deliveryType === 'delivery') ? String(options.body?.deliveryPlace || '').trim() : '';
+    const deliveryPhone = String(options.body?.deliveryPhone || options.body?.deliveryContact || '').trim();
+    const rawDeliveryPlace = (deliveryType === 'delivery') ? String(options.body?.deliveryPlace || '').trim() : '';
+    const deliveryPlace = (deliveryType === 'delivery')
+      ? (deliveryPhone ? `${rawDeliveryPlace} (연락처: ${deliveryPhone})` : rawDeliveryPlace)
+      : '';
     // 게스트 배달비는 서버 설정값 기준으로 재계산
     let deliveryFee = 0;
     let gSettings = null;
@@ -2719,6 +2813,9 @@ function getMockGuestSettings() {
     kakaoGuestBonusCredit: 2,
     guestDeliveryFee: GUEST_DELIVERY_FEE,
     guestDefaultDeliveryPlace: '사무실 원탁',
+    guestMaxOrderCount: 5,
+    guestMaxDeliveryCount: 2,
+    guestDeliveryArea: '영주시 동 지역 (가흥동, 영주동, 휴천동 등)',
     guestAllowRandomDisplayName: true,
     adminOrderEmailNotificationEnabled: true
   };

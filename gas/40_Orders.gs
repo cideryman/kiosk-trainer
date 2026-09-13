@@ -384,11 +384,74 @@ function placeOrder(data) {
     const deliveryType = String(data.deliveryType || 'pickup');
     const deliveryFee = isGuest && deliveryType === 'delivery' ? guestFee : Number(data.deliveryFee || 0);
     const totalCredit = totalPoint + deliveryFee;
-    const deliveryPlace = isGuest && deliveryType === 'delivery' ? String(data.deliveryPlace || '').trim() : '';
+    const rawDeliveryPlace = isGuest && deliveryType === 'delivery' ? String(data.deliveryPlace || '').trim() : '';
+    const deliveryPhone = isGuest && deliveryType === 'delivery' ? String(data.deliveryPhone || data.deliveryContact || '').trim() : '';
+    const deliveryPlace = isGuest && deliveryType === 'delivery'
+      ? (deliveryPhone ? `${rawDeliveryPlace} (연락처: ${deliveryPhone})` : rawDeliveryPlace)
+      : '';
     const shouldRememberGuestProfile = data.rememberGuestProfile === true || String(data.rememberGuestProfile || '').trim().toUpperCase() === 'Y';
     recordOrderPerformanceDuration_(performanceState, 'validation', orderValidationStartedAt);
 
     if (isGuest) {
+      if (deliveryType === 'delivery') {
+        if (!rawDeliveryPlace) {
+          return respond({
+            success: false,
+            message: '배달 받으실 상세 장소를 입력해 주세요.',
+          });
+        }
+        if (!deliveryPhone) {
+          return respond({
+            success: false,
+            message: '배달 확인 및 도착 안내를 위해 연락처(전화번호)를 입력해 주세요.',
+          });
+        }
+      }
+
+      // 오늘 접수된 유효 주문 및 배달 건수 집계 (orderRowsSnapshot 기준)
+      const todayOrderMap = {};
+      const todayKst = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyMMdd');
+      const cancelTimestampIdx = headers.indexOf('cancelTimestamp');
+      for (let i = 0; i < orderRowsSnapshot.length; i++) {
+        const r = orderRowsSnapshot[i];
+        if (!r[0] || !isCommittedOrderRow(r, headers)) continue;
+        try {
+          const rDate = Utilities.formatDate(new Date(r[0]), Session.getScriptTimeZone(), 'yyMMdd');
+          if (rDate === todayKst) {
+            const oNo = String(r[1] || '');
+            const isCancelled = cancelTimestampIdx !== -1 && String(r[cancelTimestampIdx] || '').trim() !== '';
+            if (oNo && !isCancelled) {
+              const rDelType = String(r[11] || 'pickup');
+              if (!todayOrderMap[oNo]) {
+                todayOrderMap[oNo] = (rDelType === 'delivery');
+              } else if (rDelType === 'delivery') {
+                todayOrderMap[oNo] = true;
+              }
+            }
+          }
+        } catch (_) {}
+      }
+      const existingOrderNos = Object.keys(todayOrderMap);
+      const totalTodayOrders = existingOrderNos.length;
+      let totalTodayDeliveries = 0;
+      existingOrderNos.forEach(k => { if (todayOrderMap[k]) totalTodayDeliveries++; });
+
+      const maxOrders = Math.max(1, Number(guestSettings.guestMaxOrderCount || 5));
+      const maxDeliveries = Math.max(0, Number(guestSettings.guestMaxDeliveryCount !== undefined ? guestSettings.guestMaxDeliveryCount : 2));
+
+      if (totalTodayOrders >= maxOrders) {
+        return respond({
+          success: false,
+          message: '오늘 준비된 주문 정원이 모두 마감되었습니다. 다음 운영 시간을 확인해 주세요.',
+        });
+      }
+      if (deliveryType === 'delivery' && totalTodayDeliveries >= maxDeliveries) {
+        return respond({
+          success: false,
+          message: '오늘 배달 주문 정원이 마감되었습니다. 매장 픽업으로 주문해 주세요.',
+        });
+      }
+
       const creditStatus = measureOrderPerformanceStep_(performanceState, 'userOrGuestRead', () => (
         resolveGuestCreditWallet({
           guestDeviceId: data.guestDeviceId || '',

@@ -2204,6 +2204,12 @@ let refreshTimer = null;
         if (creditEl) creditEl.value = data.guestBaseCredit ?? 10;
         if (feeEl) feeEl.value = data.guestDeliveryFee ?? 3;
         if (deliveryPlaceEl) deliveryPlaceEl.value = data.guestDefaultDeliveryPlace ?? '사무실 원탁';
+        const maxOrderEl = document.getElementById('input-guest-max-order-count');
+        const maxDeliveryEl = document.getElementById('input-guest-max-delivery-count');
+        const deliveryAreaEl = document.getElementById('input-guest-delivery-area');
+        if (maxOrderEl) maxOrderEl.value = data.guestMaxOrderCount ?? 5;
+        if (maxDeliveryEl) maxDeliveryEl.value = data.guestMaxDeliveryCount ?? 2;
+        if (deliveryAreaEl) deliveryAreaEl.value = data.guestDeliveryArea || '영주시 동 지역 (가흥동, 영주동, 휴천동 등)';
         if (weeklyEnabledEl) weeklyEnabledEl.checked = data.guestWeeklyScheduleEnabled === true;
         if (weeklyDayEl) weeklyDayEl.value = String(data.guestWeeklyScheduleDay || 3);
         if (weeklyStartEl) weeklyStartEl.value = data.guestWeeklyScheduleStartTime || '13:00';
@@ -2663,6 +2669,12 @@ let refreshTimer = null;
       const guestBaseCredit = Number(creditInput.value);
       const guestDeliveryFee = Number(feeInput.value);
       const guestDefaultDeliveryPlace = deliveryPlaceInput.value.trim();
+      const maxOrderInput = document.getElementById('input-guest-max-order-count');
+      const maxDeliveryInput = document.getElementById('input-guest-max-delivery-count');
+      const deliveryAreaInput = document.getElementById('input-guest-delivery-area');
+      const guestMaxOrderCount = maxOrderInput ? Math.max(1, Number(maxOrderInput.value) || 5) : 5;
+      const guestMaxDeliveryCount = maxDeliveryInput ? Math.max(0, Number(maxDeliveryInput.value) || 0) : 2;
+      const guestDeliveryArea = deliveryAreaInput ? deliveryAreaInput.value.trim() : '영주시 동 지역 (가흥동, 영주동, 휴천동 등)';
       const guestAllowRandomDisplayName = randomDisplayNameInput ? randomDisplayNameInput.value === 'true' : true;
       const adminOrderEmailNotificationEnabled = emailNotificationInput ? emailNotificationInput.value === 'true' : true;
       const kioskOrderPolicyInput = document.getElementById('input-kiosk-order-policy');
@@ -2696,6 +2708,9 @@ let refreshTimer = null;
             guestBaseCredit,
             guestDeliveryFee,
             guestDefaultDeliveryPlace,
+            guestMaxOrderCount,
+            guestMaxDeliveryCount,
+            guestDeliveryArea,
             guestAllowRandomDisplayName,
             adminOrderEmailNotificationEnabled,
             kioskOrderPolicy,

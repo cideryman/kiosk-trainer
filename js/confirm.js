@@ -90,6 +90,55 @@ function applyLocalGuestDisplayNamePolicy() {
   if (policyValue) policyValue.textContent = savedName;
 }
 
+function applyDeliveryCapStatus() {
+  const isGuest = (user && user.userId === 'guest');
+  if (!isGuest) return;
+
+  const isDeliveryCapped = sessionStorage.getItem('isDeliveryCapped') === 'true';
+  const deliveryArea = sessionStorage.getItem('guestDeliveryArea') || '영주시 동 지역 (가흥동, 영주동, 휴천동 등)';
+  
+  const btnDeliver = document.getElementById('btn-delivery-deliver');
+  const btnPickup = document.getElementById('btn-delivery-pickup');
+  const deliveryPlaceBox = document.getElementById('delivery-place-box');
+  const deliveryCappedNotice = document.getElementById('delivery-capped-notice');
+  const deliveryAreaText = document.getElementById('delivery-area-text');
+
+  if (deliveryAreaText) {
+    deliveryAreaText.textContent = deliveryArea;
+  }
+
+  if (isDeliveryCapped) {
+    if (btnDeliver) {
+      btnDeliver.disabled = true;
+      btnDeliver.style.opacity = '0.55';
+      btnDeliver.style.cursor = 'not-allowed';
+      btnDeliver.title = '오늘 배달 주문 정원이 마감되었습니다';
+      btnDeliver.textContent = '배달 (마감 🛵)';
+    }
+    if (deliveryCappedNotice) {
+      deliveryCappedNotice.style.display = 'block';
+    }
+    if (deliveryType === 'delivery') {
+      deliveryType = 'pickup';
+      if (btnPickup) btnPickup.className = 'btn btn-secondary';
+      if (btnDeliver) btnDeliver.className = 'btn btn-gray';
+      if (deliveryPlaceBox) deliveryPlaceBox.style.display = 'none';
+      updateBill();
+    }
+  } else {
+    if (btnDeliver) {
+      btnDeliver.disabled = false;
+      btnDeliver.style.opacity = '1';
+      btnDeliver.style.cursor = 'pointer';
+      btnDeliver.title = '';
+      btnDeliver.textContent = '배달 (+3❤️)';
+    }
+    if (deliveryCappedNotice) {
+      deliveryCappedNotice.style.display = 'none';
+    }
+  }
+}
+
 async function refreshConfirmGuestSettings() {
   if (!user || user.userId !== 'guest' || isGuestPreviewMode()) return;
 
@@ -109,12 +158,23 @@ async function refreshConfirmGuestSettings() {
     if (settingsRes.guestDefaultDeliveryPlace !== undefined) {
       sessionStorage.setItem('guestDefaultDeliveryPlace', String(settingsRes.guestDefaultDeliveryPlace ?? '사무실 원탁'));
     }
+    if (settingsRes.guestDeliveryArea !== undefined) {
+      sessionStorage.setItem('guestDeliveryArea', String(settingsRes.guestDeliveryArea));
+    }
+    if (settingsRes.isDeliveryCapped !== undefined) {
+      sessionStorage.setItem('isDeliveryCapped', String(settingsRes.isDeliveryCapped === true));
+    }
+    if (settingsRes.isOrderCapped !== undefined) {
+      sessionStorage.setItem('isOrderCapped', String(settingsRes.isOrderCapped === true));
+    }
     sessionStorage.setItem('guestAllowRandomDisplayName', String(settingsRes.guestAllowRandomDisplayName === true));
     applyLocalGuestDisplayNamePolicy();
+    applyDeliveryCapStatus();
     updateBill();
   } catch (error) {
     console.warn('확인 화면 게스트 설정 재조회 실패:', error);
     applyLocalGuestDisplayNamePolicy();
+    applyDeliveryCapStatus();
   }
 }
 
@@ -132,7 +192,7 @@ function generateOrderIdempotencyKey() {
   return `order-${Date.now()}-${randomPart}`;
 }
 
-function buildOrderAttemptSignature(isGuest, selectedDeliveryType, deliveryPlace) {
+function buildOrderAttemptSignature(isGuest, selectedDeliveryType, deliveryPlace, deliveryPhone) {
   const normalizedItems = cart
     .map(item => ({
       snackId: String(item.snackId),
@@ -148,6 +208,7 @@ function buildOrderAttemptSignature(isGuest, selectedDeliveryType, deliveryPlace
     nickname: isGuest && user ? String(user.nickname || '') : '',
     deliveryType: isGuest ? selectedDeliveryType : 'pickup',
     deliveryPlace: isGuest && selectedDeliveryType === 'delivery' ? String(deliveryPlace || '').trim() : '',
+    deliveryPhone: isGuest && selectedDeliveryType === 'delivery' ? String(deliveryPhone || '').trim() : '',
     items: normalizedItems,
   });
 }
@@ -276,7 +337,7 @@ function updateBill() {
   const deliveryFee = (isGuest && deliveryType === 'delivery') ? fee : 0;
   const snackPoints = cart.reduce((sum, item) => sum + (item.point * item.quantity), 0);
   const totalPoints = snackPoints + deliveryFee;
-  const remainPoints = user.credit - totalPoints;
+  const remainPoints = (user.credit ?? 0) - totalPoints;
 
   // 동전 아이콘 숫자만 업데이트 (HTML 구조는 고정)
   document.getElementById('use-credit-num').textContent = snackPoints;
@@ -635,6 +696,10 @@ function initData() {
       });
       
       btnDeliver.addEventListener('click', () => {
+        if (sessionStorage.getItem('isDeliveryCapped') === 'true') {
+          alert('오늘 배달 정원이 마감되었습니다. 포장(픽업)으로 주문해 주세요! 🛵');
+          return;
+        }
         deliveryType = 'delivery';
         btnPickup.className = 'btn btn-gray';
         btnDeliver.className = 'btn btn-secondary';
@@ -647,6 +712,7 @@ function initData() {
 
   renderOrderList();
   renderGuestPreviewNotice();
+  applyDeliveryCapStatus();
   updateBill();
 }
 
@@ -712,15 +778,28 @@ async function submitOrder() {
   const remainPoints = user.credit - totalPoints;
 
   let deliveryPlace = '';
+  let deliveryPhone = '';
   if (isGuest && deliveryType === 'delivery') {
     const deliveryPlaceInput = document.getElementById('delivery-place-input');
+    const deliveryPhoneInput = document.getElementById('delivery-phone-input');
     deliveryPlace = deliveryPlaceInput ? deliveryPlaceInput.value.trim() : '';
+    deliveryPhone = deliveryPhoneInput ? deliveryPhoneInput.value.trim() : '';
+
     if (!deliveryPlace) {
-      alert('배달지를 입력해 주세요.');
+      alert('배달 받으실 상세 장소(주소)를 입력해 주세요.');
       if (loadingOverlay) loadingOverlay.style.display = 'none';
       if (btnSubmit) btnSubmit.disabled = false;
       if (btnPrev) btnPrev.disabled   = false;
       if (deliveryPlaceInput) deliveryPlaceInput.focus();
+      return;
+    }
+
+    if (!deliveryPhone) {
+      alert('배달 받으실 분의 연락처(전화번호)를 입력해 주세요.\n(도착 시 안전한 전달 및 연락 목적으로 사용됩니다.)');
+      if (loadingOverlay) loadingOverlay.style.display = 'none';
+      if (btnSubmit) btnSubmit.disabled = false;
+      if (btnPrev) btnPrev.disabled   = false;
+      if (deliveryPhoneInput) deliveryPhoneInput.focus();
       return;
     }
   }
@@ -729,7 +808,7 @@ async function submitOrder() {
     userId: user.userId,
     items: cart.map(item => ({ snackId: item.snackId, quantity: item.quantity }))
   };
-  const idempotencySignature = buildOrderAttemptSignature(isGuest, deliveryType, deliveryPlace);
+  const idempotencySignature = buildOrderAttemptSignature(isGuest, deliveryType, deliveryPlace, deliveryPhone);
   const idempotencyKey = getOrderIdempotencyKey(idempotencySignature);
   orderPayload.idempotencyKey = idempotencyKey;
 
@@ -738,6 +817,7 @@ async function submitOrder() {
     orderPayload.deliveryType = deliveryType;
     orderPayload.deliveryFee = deliveryFee;
     orderPayload.deliveryPlace = deliveryPlace;
+    orderPayload.deliveryPhone = deliveryPhone;
     orderPayload.orderStartedAt = sessionStorage.getItem('guestOrderStartedAt') || '';
     orderPayload.guestDeviceId = AppState.getGuestDeviceId();
     if (user.authProvider === 'kakao' && user.guestKey) {

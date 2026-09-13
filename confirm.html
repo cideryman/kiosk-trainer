@@ -41,6 +41,9 @@
             <button class="btn btn-secondary" id="btn-delivery-pickup" style="flex: 1; min-height: 60px; font-size: 20px; box-shadow: none; animation: none;">포장 (❤️ 0개)</button>
             <button class="btn btn-gray" id="btn-delivery-deliver" style="flex: 1; min-height: 60px; font-size: 20px; box-shadow: none; animation: none;">배달 (+3❤️)</button>
           </div>
+          <div id="delivery-capped-notice" style="display: none; font-size: 13.5px; font-weight: 800; color: var(--danger-color); background-color: #FFF5F5; border: 1.5px solid #FFD1D1; border-radius: var(--radius-sm); padding: 8px 12px; text-align: center; word-break: keep-all;">
+            🛵 오늘 배달 주문 정원이 마감되었습니다. 포장(픽업)으로 주문해 주세요!
+          </div>
 
           <!-- 주문자 정보 입력 영역 -->
           <div id="guest-orderer-info-box" style="display: none; flex-direction: column; gap: 8px; margin-top: 12px; border-top: 2px dashed var(--border-color); padding-top: 12px;">
@@ -61,9 +64,25 @@
           </div>
           
           <!-- 배달지 입력 영역 -->
-          <div id="delivery-place-box" style="display: none; flex-direction: column; gap: 8px; margin-top: 12px; border-top: 2px dashed var(--border-color); padding-top: 12px;">
-            <label for="delivery-place-input" style="font-size: 18px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 4px;">📍 어디로 배달할까요?</label>
-            <input type="text" id="delivery-place-input" class="guest-input" style="width: 100%; box-sizing: border-box; font-size: 18px; min-height: 48px; font-weight: 800; text-align: left; padding: 8px 12px; margin-top: 4px;" placeholder="예: 사무실 원탁">
+          <div id="delivery-place-box" style="display: none; flex-direction: column; gap: 10px; margin-top: 12px; border-top: 2px dashed var(--border-color); padding-top: 12px;">
+            <!-- 배달 가능 지역 안내 배너 -->
+            <div id="delivery-area-banner" style="display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 800; color: #006D67; background-color: #E0F7F5; border: 1.5px solid #2EC4B6; border-radius: var(--radius-sm); padding: 10px 12px; word-break: keep-all; line-height: 1.4;">
+              <span>🛵</span>
+              <span><strong>배달 가능 지역:</strong> <span id="delivery-area-text">영주시 동 지역 (가흥동, 영주동, 휴천동 등)</span></span>
+            </div>
+
+            <div>
+              <label for="delivery-place-input" style="font-size: 17px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 4px;">📍 어디로 배달할까요? <span style="color: var(--danger-color); font-size: 14px;">(필수)</span></label>
+              <input type="text" id="delivery-place-input" class="guest-input" style="width: 100%; box-sizing: border-box; font-size: 17px; min-height: 48px; font-weight: 800; text-align: left; padding: 8px 12px; margin-top: 4px;" placeholder="예: 영주시 OO로 123 OO빌딩 2층 사무실">
+            </div>
+
+            <div>
+              <label for="delivery-phone-input" style="font-size: 17px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 4px;">📞 받는 분 연락처 <span style="color: var(--danger-color); font-size: 14px;">(필수)</span></label>
+              <input type="tel" id="delivery-phone-input" class="guest-input" style="width: 100%; box-sizing: border-box; font-size: 17px; min-height: 48px; font-weight: 700; text-align: left; padding: 8px 12px; margin-top: 4px;" placeholder="예: 010-1234-5678" maxlength="15">
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); line-height: 1.4; margin-top: 4px;">
+                * 안전한 배달 및 수령 확인 목적으로만 수집되며, 배달 완료 후 즉시 파기됩니다.
+              </div>
+            </div>
           </div>
 
           <label id="remember-guest-profile-box" style="display: none; align-items: flex-start; gap: 10px; border-top: 2px dashed var(--border-color); padding-top: 12px; font-size: 15px; font-weight: 800; line-height: 1.45; color: var(--text-main); cursor: pointer;">

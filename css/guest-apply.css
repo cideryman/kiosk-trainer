@@ -594,3 +594,192 @@ a { color: inherit; }
   html { scroll-behavior: auto; }
   .reveal { opacity: 1; transform: none; transition: none; }
 }
+
+/* ==========================================================================
+   실시간 운영 상황판 (Live Status Board)
+   ========================================================================== */
+.live-status-board {
+  margin-top: 32px;
+  background: #FFFFFF;
+  border-radius: 16px;
+  border: 2px solid #E2E8F0;
+  box-shadow: 0 10px 30px rgba(15, 118, 110, 0.08);
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.live-status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.live-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 800;
+  background: #F1F5F9;
+  color: #475569;
+}
+.live-status-badge.open {
+  background: #DCFCE7;
+  color: #15803D;
+}
+.live-status-badge.closed {
+  background: #FEE2E2;
+  color: #B91C1C;
+}
+.live-status-badge.ready {
+  background: #FEF3C7;
+  color: #B45309;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.live-status-badge.open .status-dot {
+  animation: pulseDot 1.5s infinite;
+}
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.7; }
+}
+
+.live-status-schedule {
+  font-size: 14px;
+  font-weight: 700;
+  color: #64748B;
+}
+
+.live-status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 20px 0;
+}
+.live-status-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  background: #F8FAFC;
+  border-radius: 12px;
+  border: 1px solid #EDF2F7;
+}
+.live-status-item.full-width {
+  grid-column: 1 / -1;
+}
+.live-status-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #64748B;
+}
+.live-status-value {
+  font-size: 17px;
+  font-weight: 900;
+  color: #1E293B;
+}
+.live-status-value small {
+  font-size: 13px;
+  font-weight: 600;
+  color: #94A3B8;
+}
+.live-status-value.accent {
+  color: #0F766E;
+}
+.live-status-value.warning {
+  color: #D97706;
+}
+.live-status-value.danger {
+  color: #E11D48;
+}
+
+.live-status-action {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.btn-live-cta {
+  width: 100%;
+  min-height: 56px;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 900;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #0F766E, #14B8A6);
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(15, 118, 110, 0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.btn-live-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(15, 118, 110, 0.4);
+}
+.btn-live-cta.disabled {
+  background: #CBD5E1;
+  color: #64748B;
+  box-shadow: none;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.live-status-note {
+  margin: 0;
+  text-align: center;
+  font-size: 13px;
+  color: #64748B;
+  font-weight: 600;
+}
+
+/* 이용 수칙 카드 그리드 */
+.rules-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 24px;
+}
+.rule-card {
+  padding: 18px;
+  background: #FFFFFF;
+  border-radius: 14px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+.rule-card-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+.rule-card strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 800;
+  color: #1E293B;
+  margin-bottom: 6px;
+}
+.rule-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #64748B;
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .live-status-grid { grid-template-columns: 1fr; }
+  .rules-grid { grid-template-columns: 1fr; }
+}

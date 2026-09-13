@@ -608,6 +608,11 @@ window.addEventListener('DOMContentLoaded', () => {
             sessionStorage.setItem('kakaoGuestBonusCredit', String(kakaoGuestBonusCredit));
             sessionStorage.setItem('guestDeliveryFee', String(guestDeliveryFee));
             sessionStorage.setItem('guestDefaultDeliveryPlace', settingsRes.guestDefaultDeliveryPlace ?? '사무실 원탁');
+            sessionStorage.setItem('guestDeliveryArea', settingsRes.guestDeliveryArea || '영주시 동 지역 (가흥동, 영주동, 휴천동 등)');
+            sessionStorage.setItem('guestMaxOrderCount', String(settingsRes.guestMaxOrderCount ?? 5));
+            sessionStorage.setItem('guestMaxDeliveryCount', String(settingsRes.guestMaxDeliveryCount ?? 2));
+            sessionStorage.setItem('isDeliveryCapped', String(settingsRes.isDeliveryCapped === true));
+            sessionStorage.setItem('isOrderCapped', String(settingsRes.isOrderCapped === true));
             const allowRandomDisplayName = settingsRes.guestAllowRandomDisplayName === true;
             sessionStorage.setItem('guestAllowRandomDisplayName', String(allowRandomDisplayName));
             if (btnRandomName) {
@@ -626,6 +631,10 @@ window.addEventListener('DOMContentLoaded', () => {
             if (!isGuestOpen) {
               // 마감 상태
               applyGuestClosedUi(settingsRes.message, true);
+            } else if (settingsRes.isOrderCapped) {
+              // 오늘 총 주문 정원 마감
+              const maxCount = settingsRes.guestMaxOrderCount ?? 5;
+              applyGuestClosedUi(`오늘 주문 정원(${maxCount}건)이 모두 마감되었습니다. 다음 운영일에 찾아뵙겠습니다! 🐻‍❄️❤️`, true);
             } else {
               // 운영 중 - 남은 시간 표시
               closedNotice.style.display = 'none';

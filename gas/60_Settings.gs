@@ -99,6 +99,9 @@ function getDefaultGuestSettings() {
     kakaoGuestBonusCredit: 2,
     guestDeliveryFee: 3,
     guestDefaultDeliveryPlace: '사무실 원탁',
+    guestMaxOrderCount: 5,
+    guestMaxDeliveryCount: 2,
+    guestDeliveryArea: '영주시 동 지역 (가흥동, 영주동, 휴천동 등)',
     todayDeliveryTeamEnabled: true,
     todayDeliveryTeamTitle: '📦 오늘의 배달팀',
     todayDeliveryTeamMembers: '김○○|배달 담당, 박○○|상품 준비 담당',
@@ -244,10 +247,51 @@ function buildGuestSettingsResponse(settings) {
     message = '게스트 주문 운영 시간이 종료되었습니다.';
   }
 
+  let todayOrderCount = 0;
+  let todayDeliveryCount = 0;
+  try {
+    if (typeof getOrdersToday === 'function') {
+      const todayResult = getOrdersToday();
+      if (todayResult && Array.isArray(todayResult.orders)) {
+        const orderMap = {};
+        todayResult.orders.forEach(function(o) {
+          if (!o.cancelTimestamp && o.orderNo) {
+            if (!orderMap[o.orderNo]) {
+              orderMap[o.orderNo] = (o.deliveryType === 'delivery');
+            } else if (o.deliveryType === 'delivery') {
+              orderMap[o.orderNo] = true;
+            }
+          }
+        });
+        const orderKeys = Object.keys(orderMap);
+        todayOrderCount = orderKeys.length;
+        orderKeys.forEach(function(k) {
+          if (orderMap[k]) todayDeliveryCount++;
+        });
+      }
+    }
+  } catch (_) {}
+
+  const maxOrderCount = Math.max(1, Number(settings.guestMaxOrderCount || 5));
+  const maxDeliveryCount = Math.max(0, Number(settings.guestMaxDeliveryCount !== undefined ? settings.guestMaxDeliveryCount : 2));
+  const remainingOrderCount = Math.max(0, maxOrderCount - todayOrderCount);
+  const remainingDeliveryCount = Math.max(0, maxDeliveryCount - todayDeliveryCount);
+  const isOrderCapped = todayOrderCount >= maxOrderCount;
+  const isDeliveryCapped = todayDeliveryCount >= maxDeliveryCount;
+
   return {
     success: true,
     guestOpen: settings.guestOpen,
     guestCloseAt: settings.guestCloseAt,
+    guestMaxOrderCount: maxOrderCount,
+    guestMaxDeliveryCount: maxDeliveryCount,
+    guestDeliveryArea: String(settings.guestDeliveryArea || '영주시 동 지역 (가흥동, 영주동, 휴천동 등)'),
+    todayOrderCount: todayOrderCount,
+    todayDeliveryCount: todayDeliveryCount,
+    remainingOrderCount: remainingOrderCount,
+    remainingDeliveryCount: remainingDeliveryCount,
+    isOrderCapped: isOrderCapped,
+    isDeliveryCapped: isDeliveryCapped,
     guestWeeklyScheduleEnabled: operatingState.weeklyEnabled,
     guestWeeklyScheduleDay: operatingState.weekday,
     guestWeeklyScheduleDayName: operatingState.weekdayName,
@@ -565,7 +609,9 @@ function updateGuestSettings(data) {
     const eventNameResult = data.guestEventName !== undefined
       ? sanitizeGuestEventNameHtml_(data.guestEventName)
       : null;
-    if (eventNameResult && !eventNameResult.success) return eventNameResult;
+    const guestMaxOrderCount = data.guestMaxOrderCount !== undefined ? Math.max(1, Number(data.guestMaxOrderCount) || 5) : undefined;
+    const guestMaxDeliveryCount = data.guestMaxDeliveryCount !== undefined ? Math.max(0, Number(data.guestMaxDeliveryCount) || 0) : undefined;
+    const guestDeliveryArea = data.guestDeliveryArea !== undefined ? String(data.guestDeliveryArea).trim() : undefined;
 
     const updates = {
       guestBaseCredit,
@@ -576,6 +622,9 @@ function updateGuestSettings(data) {
       todayDeliveryTeamMembers,
       todayDeliveryTeamMessage
     };
+    if (guestMaxOrderCount !== undefined) updates.guestMaxOrderCount = guestMaxOrderCount;
+    if (guestMaxDeliveryCount !== undefined) updates.guestMaxDeliveryCount = guestMaxDeliveryCount;
+    if (guestDeliveryArea !== undefined) updates.guestDeliveryArea = guestDeliveryArea;
     if (guestAllowMultipleOrders !== undefined) updates.guestAllowMultipleOrders = guestAllowMultipleOrders;
     if (guestAllowRandomDisplayName !== undefined) updates.guestAllowRandomDisplayName = guestAllowRandomDisplayName;
     if (adminOrderEmailNotificationEnabled !== undefined) updates.adminOrderEmailNotificationEnabled = adminOrderEmailNotificationEnabled;
@@ -586,7 +635,7 @@ function updateGuestSettings(data) {
     if (data.guestEventEmblemBase64 !== undefined) updates.guestEventEmblemBase64 = String(data.guestEventEmblemBase64).trim();
     writeSettingValuesBatch(sheet, updates);
 
-    safeAppendAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `온기:${guestBaseCredit}, 배달비:${guestDeliveryFee}, 기본배달지:${guestDefaultDeliveryPlace}`, data.adminMemo);
+    safeAppendAdminLog('updateGuestSettings', 'settings', 'guestValues', '게스트 설정 변경', '', `온기:${guestBaseCredit}, 배달비:${guestDeliveryFee}, 기본배달지:${guestDefaultDeliveryPlace}, 정원:${guestMaxOrderCount || ''}, 배달정원:${guestMaxDeliveryCount !== undefined ? guestMaxDeliveryCount : ''}`, data.adminMemo);
     clearGuestSettingsCache();
     return {
       success: true,
@@ -596,6 +645,9 @@ function updateGuestSettings(data) {
       guestDefaultDeliveryPlace: guestDefaultDeliveryPlace === undefined || guestDefaultDeliveryPlace === null
         ? '사무실 원탁'
         : String(guestDefaultDeliveryPlace),
+      guestMaxOrderCount: guestMaxOrderCount !== undefined ? guestMaxOrderCount : Number(currentSettings.guestMaxOrderCount || 5),
+      guestMaxDeliveryCount: guestMaxDeliveryCount !== undefined ? guestMaxDeliveryCount : Number(currentSettings.guestMaxDeliveryCount !== undefined ? currentSettings.guestMaxDeliveryCount : 2),
+      guestDeliveryArea: guestDeliveryArea !== undefined ? guestDeliveryArea : String(currentSettings.guestDeliveryArea || '영주시 동 지역 (가흥동, 영주동, 휴천동 등)'),
       todayDeliveryTeamEnabled: parseSettingBoolean(todayDeliveryTeamEnabled, true),
       todayDeliveryTeamTitle,
       todayDeliveryTeamMembers,

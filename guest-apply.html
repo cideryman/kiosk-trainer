@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>배달왔삼 이용 신청</title>
+  <title>배달왔삼 - 함께 만드는 카페 배달 서비스</title>
   <meta name="theme-color" content="#0F766E">
-  <meta name="description" content="복지관 봉사자와 후원자를 위한 배달왔삼 이용 신청 페이지">
+  <meta name="description" content="영주시장애인복지관 주간보호 배달왔삼 - 발달장애인 이용자들이 준비하고 배달하는 따뜻한 음료 배달 서비스">
   <link rel="stylesheet" href="css/guest-apply.css">
   <link rel="stylesheet" href="css/public-nav.css">
   <link rel="manifest" href="manifest-guest.json">
@@ -23,7 +23,7 @@
       </button>
       <nav class="public-tab-nav" aria-label="공개 서비스 메뉴">
         <a href="guest-apply.html" class="public-tab-item tab-apply active" aria-current="page">
-          <span class="tab-label">이용신청</span>
+          <span class="tab-label">이용안내</span>
         </a>
         <a href="reviews-public.html" class="public-tab-item tab-reviews">
           <span class="tab-label">고객 후기</span>
@@ -40,16 +40,12 @@
         <div class="hero-copy">
           <p class="hero-kicker">영주시장애인복지관 주간보호</p>
           <h1 id="application-title">직접 준비하고,<br>직접 전합니다.</h1>
-          <p>발달장애인 이용자들이 주문을 확인하고 음료를 준비해<br>지역사회에 직접 배달합니다.</p>
-          <div class="hero-actions">
-            <button class="primary-action" type="button" data-open-application>배달왔삼 이용 신청하기</button>
-            <a class="secondary-action" href="#how-it-works">이용 절차 보기</a>
-          </div>
-          <p class="hero-privacy-note">연락처와 배달 장소는 주문 화면·주방·전광판에 표시되지 않습니다.</p>
-          <!-- 고객 후기 유입용 회전 배너 추가 -->
+          <p>발달장애인 이용자들이 주문을 확인하고 음료를 준비해<br>지역사회 이웃들에게 직접 배달합니다.</p>
+          
+          <!-- 고객 후기 유입용 회전 배너 -->
           <a href="reviews-public.html" class="rotating-glow-banner" style="display: block; text-decoration: none; margin-top: 24px;">
             <div class="banner-inner">
-              <span class="banner-title" style="font-size: 14px; font-weight: 800; color: #2D3748;">❤️ 생생한 고객 후기</span>
+              <span class="banner-title" style="font-size: 14px; font-weight: 800; color: #2D3748;">❤️ 생생한 고객 후기 둘러보기</span>
               <span class="banner-btn" style="font-size: 11px; font-weight: 900; background: linear-gradient(135deg, #FF6B6B, #E53E3E); color: #FFF; padding: 4px 8px; border-radius: 8px;">구경하기 ›</span>
             </div>
           </a>
@@ -58,33 +54,92 @@
           <img class="hero-image" src="assets/delivery-banner.png" alt="배달왔삼 배달 활동 일러스트" decoding="async" fetchpriority="high">
         </div>
       </div>
-      <div class="application-summary" aria-label="이용 신청 핵심 안내">
-        <div class="application-summary-item">
-          <span class="application-summary-label">현재 상태</span>
-          <strong class="application-summary-value status" id="summary-state">확인 중</strong>
+
+      <!-- 실시간 운영 상황판 (Live Status Board) -->
+      <div class="live-status-board" aria-label="실시간 운영 현황판">
+        <div class="live-status-header">
+          <div class="live-status-badge ready" id="live-status-badge">
+            <span class="status-dot"></span>
+            <strong id="live-status-text">운영 상태 확인 중</strong>
+          </div>
+          <div class="live-status-schedule" id="live-schedule-text">
+            확인 중...
+          </div>
         </div>
-        <div class="application-summary-item">
-          <span class="application-summary-label">이용 대상</span>
-          <strong class="application-summary-value" id="summary-target">확인 중</strong>
+
+        <div class="live-status-grid">
+          <div class="live-status-item">
+            <span class="live-status-label">오늘 주문 정원 현황</span>
+            <strong class="live-status-value accent" id="live-order-capacity">
+              <span id="live-order-remaining">-</span>건 남음 <small>(총 <span id="live-order-max">-</span>건)</small>
+            </strong>
+          </div>
+          <div class="live-status-item">
+            <span class="live-status-label">오늘 배달 슬롯 현황</span>
+            <strong class="live-status-value" id="live-delivery-capacity">
+              <span id="live-delivery-remaining">-</span>건 남음 <small>(최대 <span id="live-delivery-max">-</span>건)</small>
+            </strong>
+          </div>
+          <div class="live-status-item full-width">
+            <span class="live-status-label">📍 배달 가능 지역</span>
+            <strong class="live-status-value" id="live-delivery-area" style="font-size: 15px;">
+              확인 중...
+            </strong>
+          </div>
         </div>
-        <div class="application-summary-item">
-          <span class="application-summary-label">운영일</span>
-          <strong class="application-summary-value" id="summary-days">확인 중</strong>
+
+        <div class="live-status-action">
+          <a href="guest.html" class="btn-live-cta disabled" id="btn-live-order-cta">
+            <span>🛵 지금 주문하기</span>
+          </a>
+          <p class="live-status-note" id="live-status-note">
+            운영 시간 내에 별도의 신청 없이 누구나 바로 주문하실 수 있습니다.
+          </p>
         </div>
-        <div class="application-summary-item">
-          <span class="application-summary-label">배달 지역</span>
-          <strong class="application-summary-value" id="summary-area">확인 중</strong>
-        </div>
-        <p class="application-summary-note">신청 내용을 확인한 뒤 기관 담당자가 이용 방법을 안내합니다.</p>
       </div>
     </section>
 
+    <!-- 달곰이 대원의 배달 및 주문 수칙 -->
+    <section class="section reveal" aria-labelledby="notice-title">
+      <div class="section-inner">
+        <div class="section-heading">
+          <p class="section-kicker">안내 수칙</p>
+          <h2 id="notice-title">달곰이 대원의<br>배달 & 주문 수칙</h2>
+          <p class="section-lead">서로를 배려하며 안전하고 즐거운 훈련을 만들기 위해 꼭 확인해 주세요.</p>
+        </div>
+
+        <div class="rules-grid">
+          <article class="rule-card">
+            <div class="rule-card-icon">📞</div>
+            <strong>배달 시 연락처 & 상세 장소 필수</strong>
+            <p>배달 주문 시 도착 안내 및 확인을 위해 받는 분의 연락처(휴대폰 번호)와 정확한 건물명·층·호수를 꼭 입력해 주세요.</p>
+          </article>
+          <article class="rule-card">
+            <div class="rule-card-icon">📍</div>
+            <strong>배달 가능 지역 한정</strong>
+            <p>훈련생들의 안전한 도보 및 차량 이동을 위해 지정된 영주시 동 지역에 한해 배달됩니다. (읍·면 지역은 배달이 어렵습니다)</p>
+          </article>
+          <article class="rule-card">
+            <div class="rule-card-icon">☕</div>
+            <strong>회차당 한정 수량 정성 제조</strong>
+            <p>차분하고 꼼꼼한 훈련을 위해 1인당 1~2잔 수준(기본 온기 한도)으로 소량씩 선착순 접수하며, 정원 소진 시 조기 마감됩니다.</p>
+          </article>
+          <article class="rule-card">
+            <div class="rule-card-icon">💖</div>
+            <strong>따뜻한 온기 후기 남기기</strong>
+            <p>음료를 맛있게 드셨다면 온기보드(고객 후기)에 짧은 응원의 한마디를 남겨주세요. 훈련생들에게 가장 큰 선물이 됩니다.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- 함께 만드는 서비스 (스토리) -->
     <section class="section soft reveal" aria-labelledby="meaning-title">
       <div class="section-inner">
         <div class="section-heading">
           <p class="section-kicker">함께 만드는 서비스</p>
           <h2 id="meaning-title">준비하는 사람과<br>기다리는 사람이 연결됩니다.</h2>
-          <p class="section-lead">배달왔삼은 단순히 음료를 전달하는 서비스가 아닙니다.<br><br>주문을 확인하고, 음료를 준비하고, 직접 배달하는 과정을 통해 발달장애인 이용자는 지역사회에 필요한 서비스를 제공하는 역할을 경험합니다.<br><br>그리고 한 잔의 음료를 기다리는 사람과 감사의 마음으로 자연스럽게 연결됩니다.</p>
+          <p class="section-lead">배달왔삼은 단순히 음료를 전달하는 서비스가 아닙니다.<br><br>주문을 확인하고, 음료를 준비하고, 직접 배달하는 과정을 통해 발달장애인 이용자는 지역사회에 필요한 역할을 경험합니다.<br><br>그리고 한 잔의 음료를 기다리는 사람과 감사의 마음으로 자연스럽게 연결됩니다.</p>
         </div>
         <div class="meaning-grid">
           <article class="meaning-item">
@@ -111,128 +166,16 @@
             </div>
             <div class="meaning-card-body">
               <strong>직접 전합니다</strong>
-              <p>복지관을 넘어 봉사자와 후원자를 찾아가<br>음료와 함께 감사의 마음을 전달합니다.</p>
+              <p>복지관을 넘어 지역 이웃들을 찾아가<br>음료와 함께 감사의 마음을 전달합니다.</p>
             </div>
           </article>
         </div>
       </div>
     </section>
-
-    <section class="section reveal" id="how-it-works" aria-labelledby="process-title">
-      <div class="section-inner">
-        <div class="section-heading">
-          <p class="section-kicker">이용 절차</p>
-          <h2 id="process-title">신청과 주문은<br>나누어 진행합니다.</h2>
-          <p class="section-lead">이 페이지에서는 메뉴를 선택하지 않습니다.<br><br>먼저 이용 신청을 통해 대상과 배달 가능 장소를 확인한 뒤, 승인된 이용자에게 실제 주문 화면을 안내합니다.</p>
-        </div>
-        <div class="steps">
-          <div class="step"><strong>이용 신청</strong><span>연락처와 배달 장소, 희망 운영일을 작성합니다.</span></div>
-          <div class="step"><strong>관리자 확인</strong><span>신청 대상과 배달 가능 장소를 확인합니다.</span></div>
-          <div class="step"><strong>이용 안내</strong><span>기관 담당자가 전화 또는 문자로 주문 방법과 운영 일정을 안내합니다.</span></div>
-          <div class="step"><strong>운영일 주문</strong><span>안내받은 배달왔삼 주문 화면에서 원하는 메뉴를 직접 선택합니다.</span></div>
-          <div class="step"><strong>준비와 배달</strong><span>배달왔삼 이용자들이 주문을 확인하고 음료를 준비해 순서대로 전달합니다.</span></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section orange-band reveal" aria-labelledby="operation-title">
-      <div class="section-inner">
-        <div class="section-heading">
-          <p class="section-kicker">운영 안내</p>
-          <h2 id="operation-title">신청 전에<br>확인해 주세요.</h2>
-          <span class="application-state" id="application-state">신청 상태 확인 중</span>
-        </div>
-        <dl class="operation-grid">
-          <div class="operation-row"><dt>이용 대상</dt><dd id="info-target">확인 중</dd></div>
-          <div class="operation-row"><dt>모집 정원</dt><dd id="info-capacity">확인 중</dd></div>
-          <div class="operation-row"><dt>운영 요일</dt><dd id="info-days">확인 중</dd></div>
-          <div class="operation-row"><dt>주문 시간</dt><dd id="info-order-time">확인 중</dd></div>
-          <div class="operation-row"><dt>배달 시간</dt><dd id="info-delivery-time">확인 중</dd></div>
-          <div class="operation-row"><dt>배달 지역</dt><dd id="info-area">확인 중</dd></div>
-          <div class="operation-row"><dt>이용 방법</dt><dd id="info-usage">확인 중</dd></div>
-        </dl>
-        <div style="margin-top: 24px;">
-          <button class="primary-action" type="button" data-open-application>배달왔삼 이용 신청하기</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="section soft form-section" id="application-form-section" aria-labelledby="form-title">
-      <div class="section-inner application-form-wrap">
-        <div class="section-heading reveal">
-          <p class="section-kicker">사전 이용 등록</p>
-          <h2 id="form-title">배달왔삼 이용 신청</h2>
-          <p class="section-lead">신청 내용을 확인한 뒤 기관 담당자가 직접 연락드립니다.</p>
-        </div>
-
-        <div class="application-closed" id="application-closed" role="status"></div>
-        <div class="application-success" id="application-success" role="status">
-          <h3>신청이 접수되었습니다</h3>
-          <p>관리자가 배달 가능 여부를 확인한 뒤 연락드립니다.</p>
-          <span class="application-number" id="application-number"></span>
-        </div>
-
-        <form class="application-form reveal" id="guest-application-form" autocomplete="off" novalidate>
-          <section class="form-group" aria-labelledby="basic-info-title">
-            <h3 class="form-group-title" id="basic-info-title">기본 정보</h3>
-            <div class="form-field">
-              <label for="applicant-name">이름 <span class="required">필수</span></label>
-              <input id="applicant-name" name="name" type="text" maxlength="30" autocomplete="off" required>
-            </div>
-            <div class="form-field">
-              <label for="applicant-relation">복지관과의 관계 <span class="required">필수</span></label>
-              <select id="applicant-relation" name="relationType" required>
-                <option value="">선택해 주세요</option>
-                <option value="VOLUNTEER">봉사자</option>
-                <option value="SPONSOR">후원자</option>
-                <option value="OTHER">기타</option>
-              </select>
-            </div>
-            <div class="form-field full">
-              <label for="applicant-phone">연락처 <span class="required">필수</span></label>
-              <input id="applicant-phone" name="phone" type="tel" maxlength="20" inputmode="tel" autocomplete="off" placeholder="010-0000-0000" required>
-              <span class="field-hint">신청 확인, 일정 변경, 당일 전달 안내에만 사용합니다.</span>
-            </div>
-          </section>
-
-          <section class="form-group" aria-labelledby="delivery-info-title">
-            <h3 class="form-group-title" id="delivery-info-title">배달 정보</h3>
-            <div class="form-field">
-              <label for="applicant-place">배달받을 장소 <span class="required">필수</span></label>
-              <input id="applicant-place" name="deliveryPlace" type="text" maxlength="80" autocomplete="off" placeholder="예: 원당로 OO반점" required>
-            </div>
-            <fieldset class="form-field full" style="border: 0; padding: 0; margin: 0;">
-              <legend class="form-label">이용 희망 요일 <span class="required">필수</span></legend>
-              <div class="day-options" id="preferred-day-options"></div>
-            </fieldset>
-          </section>
-
-          <div class="honeypot" aria-hidden="true">
-            <label for="applicant-website">웹사이트</label>
-            <input id="applicant-website" name="website" type="text" tabindex="-1" autocomplete="off">
-          </div>
-
-          <section class="form-group form-group-consent" aria-labelledby="consent-info-title">
-            <h3 class="form-group-title" id="consent-info-title">이용 동의</h3>
-            <div class="form-field full consent-box">
-              <label class="consent-label" for="applicant-consent">
-                <input id="applicant-consent" name="consent" type="checkbox" required>
-                <span class="consent-copy">
-                  <strong>개인정보 수집·이용에 동의합니다. <span class="required">필수</span></strong>
-                  이름, 관계, 연락처, 배달 장소와 희망 요일을 신청 확인·운영 안내·원활한 전달 목적으로 수집합니다. 승인된 신청은 이용 중 보관하며, 반려 또는 이용 중지 후 30일이 지나면 개인정보를 익명화합니다. 연락처와 장소는 주문 화면·주방·전광판·빌지에 표시하지 않습니다.
-                </span>
-              </label>
-            </div>
-          </section>
-          <div class="form-message" id="application-form-message" role="alert"></div>
-          <button class="primary-action form-submit" id="application-submit" type="submit" disabled>이용 신청 접수하기</button>
-        </form>
-      </div>
-    </section>
   </main>
 
   <footer class="apply-footer">
-    이 페이지의 신청은 주문 접수가 아닙니다. 승인 안내를 받은 뒤 운영일에 배달왔삼 주문 화면을 이용해 주세요.
+    배달왔삼은 영주시장애인복지관 주간보호 발달장애인 직업훈련 프로그램의 일환으로 운영됩니다.
   </footer>
 
   <script src="js/public-nav.js"></script>
