@@ -93,14 +93,14 @@ assert(orderSource.includes('userId: (order.authProvider === \'kakao\' || order.
 
 assert(orderSource.includes("status === 'N' || status === 'P' || status === 'R'"), 'N, P, R 주문 차단 조건이 있어야 함');
 
-// 4. 프론트엔드 파일 검증
-const kitchenHtml = fs.readFileSync(path.join(root, 'kitchen.html'), 'utf8');
-assert(kitchenHtml.includes('id="input-kiosk-order-policy"'), 'kitchen.html에 input-kiosk-order-policy가 있어야 함');
-assert(kitchenHtml.includes('id="input-kiosk-cooldown-minutes"'), 'kitchen.html에 input-kiosk-cooldown-minutes가 있어야 함');
+// 4. 프론트엔드 파일 검증 (P120: settings.html로 분리)
+const settingsHtml = fs.readFileSync(path.join(root, 'settings.html'), 'utf8');
+assert(settingsHtml.includes('id="input-kiosk-order-policy"'), 'settings.html에 input-kiosk-order-policy가 있어야 함');
+assert(settingsHtml.includes('id="input-kiosk-cooldown-minutes"'), 'settings.html에 input-kiosk-cooldown-minutes가 있어야 함');
 
-const kitchenJs = fs.readFileSync(path.join(root, 'js/kitchen.js'), 'utf8');
-assert(kitchenJs.includes('setKioskOrderPolicy'), 'kitchen.js에 setKioskOrderPolicy 함수가 있어야 함');
-assert(kitchenJs.includes('kioskOrderPolicy'), 'kitchen.js 저장 페이로드에 kioskOrderPolicy가 있어야 함');
+const settingsJs = fs.readFileSync(path.join(root, 'js/settings.js'), 'utf8');
+assert(settingsJs.includes('setKioskOrderPolicy'), 'settings.js에 setKioskOrderPolicy 함수가 있어야 함');
+assert(settingsJs.includes('kioskOrderPolicy'), 'settings.js 저장 페이로드에 kioskOrderPolicy가 있어야 함');
 
 const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 assert(indexHtml.includes('id="friendly-notice-overlay"'), 'index.html에 친절 안내 모달이 있어야 함');

@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>간식 키오스크 - 운영 설정</title>
+  <!-- Google Fonts (Noto Sans KR) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <style>
+    /* 운영 설정 전용 대시보드 카드 스타일 */
+    .settings-dashboard-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      padding: 16px 0 40px 0;
+    }
+    .settings-card {
+      background: #FFFFFF;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+    .settings-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid #EDF2F7;
+      gap: 12px;
+    }
+    .settings-card-title {
+      font-size: 19px;
+      font-weight: 900;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      word-break: keep-all;
+    }
+    .settings-card-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin: 6px 0 0 0;
+      line-height: 1.45;
+      word-break: keep-all;
+    }
+    .settings-form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .settings-form-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .settings-form-row.full-width {
+      grid-column: 1 / -1;
+    }
+    .settings-form-label {
+      font-size: 14px;
+      font-weight: 800;
+      color: #334155;
+    }
+    .settings-card-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid #F1F5F9;
+    }
+    .btn-save-settings {
+      min-height: 48px;
+      padding: 0 24px;
+      font-size: 16px;
+      font-weight: 800;
+      border-radius: var(--radius-sm);
+      border: none;
+      background: linear-gradient(135deg, #0F766E, #14B8A6);
+      color: #FFFFFF;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(15, 118, 110, 0.25);
+      transition: opacity 0.2s, transform 0.1s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-save-settings:hover:not(:disabled) {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+    .btn-save-settings:disabled {
+      background: #CBD5E1;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    /* 📱 모바일 환경 최적화 (태블릿 / 스마트폰) */
+    @media (max-width: 768px) {
+      .settings-dashboard-grid {
+        gap: 16px;
+        padding: 10px 4px 40px 4px;
+      }
+      .settings-card {
+        padding: 16px 14px;
+        border-radius: 12px;
+      }
+      .settings-card-title {
+        font-size: 17px;
+      }
+      .settings-card-subtitle {
+        font-size: 12.5px;
+      }
+      .settings-form-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+      .settings-card-actions {
+        margin-top: 16px;
+        padding-top: 12px;
+      }
+      .btn-save-settings {
+        width: 100%;
+        min-height: 48px;
+        font-size: 15px;
+      }
+      .guest-weekly-schedule-form,
+      .guest-additional-schedule-form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .guest-weekly-schedule-form label,
+      .guest-additional-schedule-form label {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        gap: 4px;
+      }
+      .guest-weekly-schedule-form input,
+      .guest-weekly-schedule-form select,
+      .guest-additional-schedule-form input {
+        width: 100% !important;
+        box-sizing: border-box;
+      }
+      .guest-weekly-schedule-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+      }
+      .guest-weekly-schedule-actions button {
+        width: 100%;
+        min-height: 44px;
+      }
+      .guest-emergency-open {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 14px;
+      }
+      .guest-emergency-open label {
+        width: 100%;
+      }
+      .guest-emergency-open input[type="time"] {
+        width: 100% !important;
+      }
+      .guest-emergency-open button {
+        width: 100%;
+        min-height: 44px;
+      }
+      .team-members-container {
+        flex-direction: column !important;
+        gap: 8px !important;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .admin-header .admin-screen-title {
+        font-size: 17px;
+      }
+      .admin-header-actions {
+        gap: 6px;
+      }
+      .btn-small-action.admin-toolbar-action {
+        font-size: 13px;
+        padding: 6px 10px;
+      }
+      .kiosk-order-policy-segmented {
+        flex-direction: column;
+        gap: 8px;
+      }
+      .kiosk-order-policy-option {
+        width: 100%;
+        text-align: left;
+        padding: 12px;
+      }
+    }
+  </style>
+</head>
+<body class="admin-page page-settings">
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar(false)"></div>
+
+  <div class="admin-app-layout">
+    <!-- 좌측 세로 사이드바 -->
+    <aside class="admin-sidebar" id="admin-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <img src="icons/배달왔삼.png" alt="배달왔삼" class="sidebar-logo-img">
+          <span>배달왔삼</span>
+        </div>
+        <button class="sidebar-close-btn" onclick="toggleSidebar(false)" aria-label="메뉴 닫기">✕</button>
+      </div>
+
+      <!-- 큰 메뉴 전환 (대분류 4종) -->
+      <nav class="sidebar-nav" aria-label="관리 화면 전환">
+        <a class="sidebar-nav-item admin" href="admin.html">⚙️ 관리자</a>
+        <a class="sidebar-nav-item kitchen" href="kitchen.html">🍳 주방</a>
+        <a class="sidebar-nav-item settings is-active" href="settings.html" aria-current="page">🛠️ 운영설정</a>
+        <a class="sidebar-nav-item reviews" href="reviews.html">💬 후기</a>
+      </nav>
+
+      <!-- 외부 서비스 바로가기 (6종 일원화) -->
+      <div class="sidebar-section-title">바로가기</div>
+      <nav class="sidebar-external-links">
+        <a class="sidebar-ext-link kiosk" href="index.html?type=kiosk" target="_blank" rel="noopener">🛒 키오스크</a>
+        <a class="sidebar-ext-link guest" href="guest.html" target="_blank" rel="noopener">🛵 배달왔삼</a>
+        <a class="sidebar-ext-link board" href="board.html" target="_blank" rel="noopener">🖥️ 전광판</a>
+        <a class="sidebar-ext-link reviews-board" href="reviews-public.html" target="_blank" rel="noopener">💖 온기보드</a>
+        <a class="sidebar-ext-link guest-apply" href="guest-apply.html" target="_blank" rel="noopener">📢 배달왔삼 소개</a>
+        <a class="sidebar-ext-link order-guide" href="order-guide.html" target="_blank" rel="noopener">📖 주문 방법 안내</a>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="sidebar-app-update" data-app-update-button type="button" title="화면 코드의 최신 버전을 확인합니다.">
+          <span aria-hidden="true">↻</span>
+          <span data-app-update-label>앱 업데이트 확인</span>
+        </button>
+        <div class="sidebar-update-status" data-app-update-status role="status" aria-live="polite" hidden></div>
+        <button class="sidebar-logout" data-admin-toolbar-lock type="button" hidden title="관리자 나가기" aria-label="관리자 나가기">🚪 나가기</button>
+      </div>
+    </aside>
+
+    <!-- 메인 본문 영역 -->
+    <div class="admin-main-area">
+      <div class="kiosk-container" style="height: auto; min-height: 100vh; max-width: 100%; border-radius: 0; box-shadow: none;">
+        <!-- 1줄 슬림 헤더 -->
+        <header class="kiosk-header admin-header">
+          <div class="header-left-group">
+            <button class="mobile-menu-btn" id="btn-menu-toggle" onclick="toggleSidebar(true)" aria-label="메뉴 열기">☰</button>
+            <h1 class="admin-screen-title">🛠️ 통합 운영 설정</h1>
+          </div>
+          <div class="kiosk-header-top">
+            <div class="admin-header-actions">
+              <button class="btn-small-action admin-toolbar-action" id="btn-refresh-settings" type="button" onclick="loadAllSettings()">🔄 새로고침</button>
+              <a href="kitchen.html" class="btn-small-action admin-toolbar-action" style="background: #2B6CB0; color: white; text-decoration: none; display: inline-flex; align-items: center;">🍳 주방 가기</a>
+            </div>
+          </div>
+        </header>
+
+        <!-- 관리자 인증 바 -->
+        <section class="admin-auth-bar" data-admin-auth aria-label="관리자 잠금 해제">
+          <div class="admin-auth-gate-visual">
+            <img class="admin-auth-gate-image" src="icons/admin-512.png" alt="관리자 안내 이미지">
+            <div class="admin-auth-gate-title">관리자 로그인</div>
+            <p class="admin-auth-gate-description">관리자 키를 입력하면 운영 설정을 변경할 수 있습니다.</p>
+          </div>
+          <div class="admin-auth-info">
+            <span class="admin-auth-icon" data-admin-auth-icon role="img" aria-label="관리자 잠금 상태">🔒</span>
+            <div>
+              <strong class="admin-auth-title">관리자 잠금</strong>
+              <span class="admin-auth-status" data-admin-auth-status>변경 전 잠금 해제 필요</span>
+            </div>
+          </div>
+          <div class="admin-auth-actions" data-admin-auth-actions>
+            <form class="admin-auth-form" data-admin-auth-form>
+              <input class="admin-auth-username" type="text" name="username" value="kiosk-admin" autocomplete="username" aria-label="관리자 계정" tabindex="-1">
+              <label class="admin-auth-label" for="admin-auth-password-settings">관리자 키</label>
+              <input class="admin-auth-password" id="admin-auth-password-settings" data-admin-auth-password name="password" type="password" autocomplete="current-password" placeholder="관리자 키 입력" required>
+              <button class="btn btn-secondary admin-auth-submit" data-admin-auth-submit type="submit">잠금 해제</button>
+            </form>
+            <button class="btn btn-gray admin-auth-lock" data-admin-auth-lock type="button" hidden>잠그기</button>
+            <div class="admin-auth-error" data-admin-auth-error role="alert" hidden></div>
+          </div>
+        </section>
+
+        <!-- 바디: 4대 카드 대시보드 -->
+        <main class="kiosk-body" style="max-width: 1080px; margin: 0 auto; width: 100%;">
+          <div class="settings-dashboard-grid">
+
+            <!-- 카드 1: 🛒 일반 매점 키오스크 주문 제한 -->
+            <section class="settings-card" aria-labelledby="title-kiosk-policy">
+              <div class="settings-card-header">
+                <div>
+                  <h2 class="settings-card-title" id="title-kiosk-policy">🛒 매점 키오스크 주문 제한</h2>
+                  <p class="settings-card-subtitle">일반 이용자(회원)의 키오스크 주문 반복 횟수 및 쿨다운 정책을 설정합니다.</p>
+                </div>
+              </div>
+              <div class="kiosk-order-restriction-panel" style="padding: 0; background: transparent; border: none; box-shadow: none;">
+                <input type="hidden" id="input-kiosk-order-policy" value="once_daily">
+                <div class="kiosk-order-policy-segmented" role="group" aria-label="키오스크 주문 제한 방식">
+                  <button class="kiosk-order-policy-option is-active" type="button" data-kiosk-order-policy="once_daily" aria-pressed="true">
+                    <strong>1일 1회 주문</strong>
+                    <small>당일 1회 주문 후 추가 주문 차단</small>
+                  </button>
+                  <button class="kiosk-order-policy-option" type="button" data-kiosk-order-policy="cooldown" aria-pressed="false">
+                    <strong>쿨다운 시간 제한</strong>
+                    <small>주문 후 지정된 시간 동안 차단</small>
+                  </button>
+                  <button class="kiosk-order-policy-option" type="button" data-kiosk-order-policy="unlimited" aria-pressed="false">
+                    <strong>무제한 (제한 없음)</strong>
+                    <small>횟수나 시간 제한 없이 주문 가능</small>
+                  </button>
+                </div>
+                <div class="kiosk-cooldown-input-container" id="kiosk-cooldown-container" style="display: none; margin-top: 14px;">
+                  <label for="input-kiosk-cooldown-minutes" style="font-size: 14px; font-weight: 800; color: #334155;">쿨다운 시간(분):</label>
+                  <input type="number" id="input-kiosk-cooldown-minutes" class="admin-inline-input" value="60" min="1" max="1440" step="5" style="width: 100px;">
+                  <span style="font-size: 13px; color: var(--text-muted);">분 (예: 60분 = 주문 후 1시간 동안 차단)</span>
+                </div>
+              </div>
+              <div class="settings-card-actions">
+                <button type="button" class="btn-save-settings" id="btn-save-kiosk-policy" onclick="saveKioskPolicyAction()">키오스크 주문 정책 저장</button>
+              </div>
+            </section>
+
+            <!-- 카드 2: 📅 배달왔삼 운영 일정 관리 -->
+            <section class="settings-card" aria-labelledby="title-schedule-policy">
+              <div class="settings-card-header">
+                <div>
+                  <h2 class="settings-card-title" id="title-schedule-policy">📅 배달왔삼 운영 일정 관리</h2>
+                  <p class="settings-card-subtitle">정기 자동 운영 요일 및 시각, 날짜 지정 추가 운영, 긴급 운영을 통합 관리합니다.</p>
+                </div>
+              </div>
+
+              <!-- 2-1. 정기 일정 -->
+              <div class="guest-weekly-schedule" style="margin-bottom: 20px;">
+                <div class="guest-weekly-schedule-heading">
+                  <strong>⏰ 정기 자동 운영</strong>
+                  <small>매주 같은 요일에 자동으로 주문을 열고 닫습니다.</small>
+                </div>
+                <div class="guest-weekly-schedule-form">
+                  <label class="guest-weekly-schedule-toggle">
+                    <input type="checkbox" id="input-guest-weekly-schedule-enabled" checked>
+                    <span>정기 운영 사용</span>
+                  </label>
+                  <label>
+                    <span>요일</span>
+                    <select id="input-guest-weekly-schedule-day" class="admin-inline-input">
+                      <option value="1">월요일</option>
+                      <option value="2">화요일</option>
+                      <option value="3" selected>수요일</option>
+                      <option value="4">목요일</option>
+                      <option value="5">금요일</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>시작</span>
+                    <input type="time" id="input-guest-weekly-schedule-start" class="admin-inline-input" value="13:00" step="300">
+                  </label>
+                  <label>
+                    <span>종료</span>
+                    <input type="time" id="input-guest-weekly-schedule-end" class="admin-inline-input" value="15:00" step="300">
+                  </label>
+                </div>
+                <div class="guest-weekly-schedule-summary" aria-live="polite" style="margin: 12px 0;">
+                  <div>현재 운영: <strong id="guest-ops-source">마감</strong></div>
+                  <div>다음 확정 운영: <strong id="guest-ops-next-open">-</strong></div>
+                </div>
+                <div class="guest-weekly-schedule-warning" id="guest-weekly-schedule-warning" hidden></div>
+                <div class="guest-weekly-schedule-actions">
+                  <button type="button" class="btn-small-action" id="btn-save-guest-weekly-schedule" onclick="saveGuestWeeklyScheduleAction()">정기 일정 저장</button>
+                  <button type="button" class="btn-danger-action" id="btn-toggle-guest-weekly-skip" onclick="toggleGuestWeeklyScheduleSkipAction()">이번 회차 운영 안 함</button>
+                </div>
+              </div>
+
+              <!-- 2-2. 날짜 지정 추가 운영 -->
+              <div class="guest-additional-schedule" id="guest-additional-schedule" style="margin-bottom: 20px;">
+                <div class="guest-additional-schedule-heading">
+                  <strong>➕ 날짜 지정 특별 추가 운영</strong>
+                  <small>행사나 특정 일정이 있는 날짜만 따로 등록합니다.</small>
+                </div>
+                <div class="guest-additional-schedule-form">
+                  <label>
+                    <span>날짜</span>
+                    <input type="date" id="input-guest-additional-date" class="admin-inline-input">
+                  </label>
+                  <label>
+                    <span>시작</span>
+                    <input type="time" id="input-guest-additional-start" class="admin-inline-input" value="09:00" step="300">
+                  </label>
+                  <label>
+                    <span>종료</span>
+                    <input type="time" id="input-guest-additional-end" class="admin-inline-input" value="12:00" step="300">
+                  </label>
+                  <button type="button" class="btn-small-action" id="btn-add-guest-additional-schedule" onclick="addGuestAdditionalScheduleAction()">추가 운영 등록</button>
+                </div>
+                <div id="guest-additional-schedule-list" class="guest-additional-schedule-list" aria-live="polite"></div>
+              </div>
+
+              <!-- 2-3. 긴급 운영 -->
+              <div class="guest-emergency-open">
+                <div>
+                  <strong>🚨 오늘 긴급 운영 제어</strong>
+                  <small>오늘 종료 시각을 정해 지금 바로 주문을 열거나 즉시 마감합니다.</small>
+                </div>
+                <label>
+                  <span>종료</span>
+                  <input type="time" id="input-guest-manual-end" class="admin-inline-input" step="300" aria-label="긴급 운영 종료 시각">
+                </label>
+                <button class="btn-small-action" id="btn-guest-open-until" onclick="guestOpenUntilAction()">지금부터 운영</button>
+                <button class="btn-danger-action" id="btn-guest-close" onclick="guestCloseNowAction()">🛑 지금 마감</button>
+              </div>
+            </section>
+
+            <!-- 카드 3: 🎯 당일 정원 및 배달 설정 -->
+            <section class="settings-card" aria-labelledby="title-capacity-policy">
+              <div class="settings-card-header">
+                <div>
+                  <h2 class="settings-card-title" id="title-capacity-policy">🎯 당일 정원 및 배달 관리</h2>
+                  <p class="settings-card-subtitle">회차당 준비 가능한 총 주문 수량 및 최대 배달 건수, 배달 가능 지역을 설정합니다.</p>
+                </div>
+              </div>
+              <div class="settings-form-grid">
+                <div class="settings-form-row">
+                  <label class="settings-form-label" for="input-guest-max-order-count">총 주문 정원 (건) 🎯</label>
+                  <input type="number" id="input-guest-max-order-count" class="admin-inline-input" value="5" min="1" max="100" style="padding: 10px; font-size: 16px;">
+                  <small style="color: var(--text-muted);">정원에 도달하면 더 이상 주문을 받지 않습니다.</small>
+                </div>
+                <div class="settings-form-row">
+                  <label class="settings-form-label" for="input-guest-max-delivery-count">최대 배달 가능 건수 (건) 🛵</label>
+                  <input type="number" id="input-guest-max-delivery-count" class="admin-inline-input" value="2" min="0" max="50" style="padding: 10px; font-size: 16px;">
+                  <small style="color: var(--text-muted);">배달 건수가 소진되면 [매장 픽업]만 선택 가능합니다.</small>
+                </div>
+                <div class="settings-form-row full-width">
+                  <label class="settings-form-label" for="input-guest-delivery-area">📍 배달 가능 지역 안내 문구</label>
+                  <input type="text" id="input-guest-delivery-area" class="admin-inline-input" value="영주시 동 지역 (가흥동, 영주동, 휴천동 등)" placeholder="배달 가능 지역 입력" style="padding: 10px; font-size: 15px; width: 100%;">
+                  <small style="color: var(--text-muted);">이용안내 상황판에 공개적으로 노출되는 배달 지역 설명입니다.</small>
+                </div>
+              </div>
+              <div class="settings-card-actions">
+                <button type="button" class="btn-save-settings" id="btn-save-capacity" onclick="saveCapacitySettingsAction()">정원 및 배달 지역 저장</button>
+              </div>
+            </section>
+
+            <!-- 카드 4: 🛵 서비스 기본 및 담당자 -->
+            <section class="settings-card" aria-labelledby="title-base-policy">
+              <div class="settings-card-header">
+                <div>
+                  <h2 class="settings-card-title" id="title-base-policy">🛵 서비스 기본 및 담당자</h2>
+                  <p class="settings-card-subtitle">기본 온기 지급량, 배달비, 기본 배달지, 닉네임 설정 및 오늘 역할 담당자를 지정합니다.</p>
+                </div>
+              </div>
+              <div class="settings-form-grid">
+                <div class="settings-form-row">
+                  <label class="settings-form-label" for="input-guest-credit">기본 온기 ❤️</label>
+                  <input type="number" id="input-guest-credit" class="admin-inline-input" value="10" min="0" style="padding: 10px; font-size: 16px;">
+                </div>
+                <div class="settings-form-row">
+                  <label class="settings-form-label" for="input-guest-fee">배달비 🛵</label>
+                  <input type="number" id="input-guest-fee" class="admin-inline-input" value="3" min="0" style="padding: 10px; font-size: 16px;">
+                </div>
+                <div class="settings-form-row">
+                  <label class="settings-form-label" for="input-guest-delivery-place">기본 배달 장소</label>
+                  <input type="text" id="input-guest-delivery-place" class="admin-inline-input" value="사무실 원탁" style="padding: 10px; font-size: 15px;">
+                </div>
+                <div class="settings-form-row">
+                  <label class="settings-form-label">랜덤 주문표시명</label>
+                  <input type="hidden" id="input-guest-random-display-name" value="true">
+                  <div class="guest-mode-segmented guest-random-name-segmented" role="group" aria-label="랜덤 주문표시명 허용 여부">
+                    <button class="guest-mode-option is-active" type="button" data-guest-random-name="true" aria-pressed="true">🟢 허용</button>
+                    <button class="guest-mode-option" type="button" data-guest-random-name="false" aria-pressed="false">⚪ 비허용</button>
+                  </div>
+                </div>
+
+                <!-- 담당자 설정 -->
+                <div class="settings-form-row full-width" style="margin-top: 10px; padding-top: 14px; border-top: 1px dashed #E2E8F0;">
+                  <label class="guest-weekly-schedule-toggle" style="margin-bottom: 10px;">
+                    <input type="checkbox" id="input-team-enabled" checked>
+                    <span style="font-weight: 800; font-size: 15px;">오늘의 역할 담당자 공개 안내 사용</span>
+                  </label>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;">
+                    <div>
+                      <label class="settings-form-label" for="input-team-title">배달팀 명칭</label>
+                      <input type="text" id="input-team-title" class="admin-inline-input" value="삼각지 배달팀" style="padding: 9px; font-size: 14px; width: 100%;">
+                    </div>
+                    <div>
+                      <label class="settings-form-label" for="input-team-message">준비 담당 또는 안내 메시지</label>
+                      <input type="text" id="input-team-message" class="admin-inline-input" value="달곰이들이 정성껏 준비하고 배달합니다" style="padding: 9px; font-size: 14px; width: 100%;">
+                    </div>
+                  </div>
+                  <div style="margin-top: 12px;">
+                    <label class="settings-form-label">배달 담당 대원 (최대 3명)</label>
+                    <div class="team-members-container" style="display: flex; gap: 10px; margin-top: 6px;">
+                      <input type="text" id="input-team-member-1" class="admin-inline-input" placeholder="대원 1" style="padding: 8px; font-size: 14px; flex: 1;">
+                      <input type="text" id="input-team-member-2" class="admin-inline-input" placeholder="대원 2" style="padding: 8px; font-size: 14px; flex: 1;">
+                      <input type="text" id="input-team-member-3" class="admin-inline-input" placeholder="대원 3" style="padding: 8px; font-size: 14px; flex: 1;">
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="settings-card-actions">
+                <button type="button" class="btn-save-settings" id="btn-save-base-settings" onclick="saveBaseSettingsAction()">기본 및 담당자 설정 저장</button>
+              </div>
+            </section>
+
+          </div>
+        </main>
+      </div><!-- /.kiosk-container -->
+    </div><!-- /.admin-main-area -->
+  </div><!-- /.admin-app-layout -->
+
+  <!-- 스크립트 참조 -->
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/settings.js"></script>
+  <script>
+    function toggleSidebar(open) {
+      const sidebar = document.getElementById('admin-sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      if (sidebar && overlay) {
+        const shouldOpen = open !== undefined ? open : !sidebar.classList.contains('is-open');
+        sidebar.classList.toggle('is-open', shouldOpen);
+        overlay.classList.toggle('is-open', shouldOpen);
+      }
+    }
+  </script>
+</body>
+</html>

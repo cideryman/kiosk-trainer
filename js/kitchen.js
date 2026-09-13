@@ -3097,3 +3097,64 @@ let refreshTimer = null;
         });
       });
     });
+
+    // 주방 긴급 마감 / 운영 연장 팝업 제어
+    function openKitchenEmergencyModal() {
+      const modal = document.getElementById('modal-kitchen-emergency');
+      if (!modal) return;
+
+      const statusEl = document.getElementById('kitchen-emergency-current-status');
+      if (statusEl) {
+        if (latestGuestOpsSettings?.isGuestOpenNow) {
+          const closeAtText = latestGuestOpsSettings?.effectiveGuestCloseAt
+            ? new Date(latestGuestOpsSettings.effectiveGuestCloseAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
+            : '';
+          statusEl.textContent = `🟢 운영 중 (${closeAtText ? closeAtText + ' 마감 예정' : '주문 접수 가능'})`;
+          statusEl.style.color = '#0F766E';
+        } else {
+          statusEl.textContent = '🔴 마감 상태 (주문 불가)';
+          statusEl.style.color = '#BE123C';
+        }
+      }
+
+      const inputEnd = document.getElementById('input-kitchen-emergency-end');
+      if (inputEnd && !inputEnd.value) {
+        const now = new Date();
+        now.setHours(now.getHours() + 1);
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(Math.floor(now.getMinutes() / 5) * 5).padStart(2, '0');
+        inputEnd.value = `${hh}:${mm}`;
+      }
+
+      modal.classList.add('is-open');
+    }
+
+    function closeKitchenEmergencyModal() {
+      const modal = document.getElementById('modal-kitchen-emergency');
+      if (modal) modal.classList.remove('is-open');
+    }
+
+    async function kitchenEmergencyOpenAction() {
+      const btn = document.getElementById('btn-kitchen-emergency-open');
+      const endTime = String(document.getElementById('input-kitchen-emergency-end')?.value || '').trim();
+      if (!endTime) {
+        alert('오늘 주문 마감 시각을 선택해 주세요.');
+        return;
+      }
+      if (!confirm(`지금부터 오늘 ${endTime}까지 긴급 주문을 오픈하시겠습니까?`)) return;
+      await handleGuestOpsAction('openUntil', { guestManualEndTime: endTime }, btn, '⏳ 오픈 중...');
+      closeKitchenEmergencyModal();
+    }
+
+    async function kitchenEmergencyCloseAction() {
+      const btn = document.getElementById('btn-kitchen-emergency-close');
+      if (!confirm('정기/추가 일정과 상관없이 지금 즉시 오늘 주문을 마감하시겠습니까?')) return;
+      await handleGuestOpsAction('closeNow', {}, btn, '⏳ 마감 중...');
+      closeKitchenEmergencyModal();
+    }
+
+    window.openKitchenEmergencyModal = openKitchenEmergencyModal;
+    window.closeKitchenEmergencyModal = closeKitchenEmergencyModal;
+    window.kitchenEmergencyOpenAction = kitchenEmergencyOpenAction;
+    window.kitchenEmergencyCloseAction = kitchenEmergencyCloseAction;
+

@@ -33,6 +33,7 @@
       <nav class="sidebar-nav" aria-label="관리 화면 전환">
         <a class="sidebar-nav-item admin" href="admin.html">⚙️ 관리자</a>
         <a class="sidebar-nav-item kitchen is-active" href="kitchen.html" aria-current="page">🍳 주방</a>
+        <a class="sidebar-nav-item settings" href="settings.html">🛠️ 운영설정</a>
         <a class="sidebar-nav-item reviews" href="reviews.html">💬 후기</a>
       </nav>
 
@@ -67,6 +68,8 @@
           </div>
           <div class="kiosk-header-top">
             <div class="admin-header-actions">
+              <button class="btn-small-action admin-toolbar-action" id="btn-kitchen-emergency" type="button" onclick="openKitchenEmergencyModal()" style="background: linear-gradient(135deg, #E11D48, #BE123C); color: white; border: none; font-weight: 800;">🚨 긴급 마감/연장</button>
+              <a href="settings.html" class="btn-small-action admin-toolbar-action" style="background: #0F766E; color: white; text-decoration: none; display: inline-flex; align-items: center; font-weight: 700;">⚙️ 운영 설정</a>
               <button class="btn-small-action admin-toolbar-action" id="btnEnableSound" type="button" aria-pressed="false" title="알림음 켜기">🔊 알림 켜기</button>
               <button class="btn-small-action admin-toolbar-action" onclick="openTodaySummaryModal()">📊 운영 결과</button>
               <button class="btn-small-action admin-toolbar-action desktop-only-action" onclick="window.open('print-bills.html', '_blank')">🖨️ 빌지 인쇄</button>
@@ -141,281 +144,11 @@
 
       <!-- 주방 업무 탭 (모바일 가로 스크롤 지원) -->
       <nav class="kitchen-content-tabs" role="tablist" aria-label="주방 업무 구분">
-        <button class="kitchen-content-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-settings" data-kitchen-tab="tab-settings">⚙️ 운영설정</button>
         <button class="kitchen-content-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="tab-orders" data-kitchen-tab="tab-orders">📋 주문</button>
         <button class="kitchen-content-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-stats" data-kitchen-tab="tab-stats">📊 통계</button>
         <button class="kitchen-content-tab" type="button" role="tab" aria-selected="false" aria-controls="tab-stock" data-kitchen-tab="tab-stock">📦 재고</button>
       </nav>
 
-      <!-- 운영설정 탭 -->
-      <section id="tab-settings" class="kitchen-tab-panel" role="tabpanel" hidden>
-        <!-- 게스트 운영 관리 패널 -->
-        <div id="guest-ops-panel" class="guest-ops-panel">
-          <div class="guest-ops-header">
-            <div class="guest-ops-title">🎫 게스트 운영</div>
-          </div>
-          <section class="guest-settings-section guest-order-management">
-            <div class="guest-settings-section-header">
-              <h3>주문 관리</h3>
-              <div id="guest-ops-status-badge" class="guest-ops-status-badge">
-                로딩 중...
-              </div>
-            </div>
-            <div id="guest-ops-info" class="guest-ops-info">
-              <div class="guest-ops-status-grid">
-                <div>⏰ 마감 예정: <span id="guest-ops-close-time">-</span></div>
-                <div>⏳ 남은 시간: <span id="guest-ops-remaining">-</span></div>
-              </div>
-            </div>
-            <div class="guest-weekly-schedule" id="guest-weekly-schedule">
-              <div class="guest-weekly-schedule-heading">
-                <div>
-                  <strong>📅 정기 자동 운영</strong>
-                  <small>한국시간 기준으로 자동 개방·마감합니다.</small>
-                </div>
-                <label class="guest-weekly-schedule-toggle">
-                  <input type="checkbox" id="input-guest-weekly-schedule-enabled">
-                  <span>자동 운영</span>
-                </label>
-              </div>
-              <div class="guest-weekly-schedule-times">
-                <label>
-                  <span>요일</span>
-                  <select id="input-guest-weekly-schedule-day" class="admin-inline-input" aria-label="정기 운영 요일">
-                    <option value="1">월요일</option>
-                    <option value="2">화요일</option>
-                    <option value="3" selected>수요일</option>
-                    <option value="4">목요일</option>
-                    <option value="5">금요일</option>
-                  </select>
-                </label>
-                <label>
-                  <span>시작</span>
-                  <input type="time" id="input-guest-weekly-schedule-start" class="admin-inline-input" value="13:00" step="300">
-                </label>
-                <span class="guest-weekly-schedule-separator" aria-hidden="true">~</span>
-                <label>
-                  <span>종료</span>
-                  <input type="time" id="input-guest-weekly-schedule-end" class="admin-inline-input" value="15:00" step="300">
-                </label>
-              </div>
-              <div class="guest-weekly-schedule-summary" aria-live="polite">
-                <div>현재 운영: <strong id="guest-ops-source">마감</strong></div>
-                <div>다음 확정 운영: <strong id="guest-ops-next-open">-</strong></div>
-              </div>
-              <div class="guest-weekly-schedule-warning" id="guest-weekly-schedule-warning" hidden></div>
-              <div class="guest-weekly-schedule-actions">
-                <button type="button" class="btn-small-action" id="btn-save-guest-weekly-schedule">정기 일정 저장</button>
-                <button type="button" class="btn-danger-action" id="btn-toggle-guest-weekly-skip" data-schedule-action="skipWeeklyScheduleOccurrence">이번 회차 운영 안 함</button>
-              </div>
-            </div>
-            <div class="guest-additional-schedule" id="guest-additional-schedule">
-              <div class="guest-additional-schedule-heading">
-                <strong>➕ 날짜 지정 추가 운영</strong>
-                <small>신청이 있는 날처럼 필요한 날짜만 따로 등록합니다.</small>
-              </div>
-              <div class="guest-additional-schedule-form">
-                <label>
-                  <span>날짜</span>
-                  <input type="date" id="input-guest-additional-date" class="admin-inline-input">
-                </label>
-                <label>
-                  <span>시작</span>
-                  <input type="time" id="input-guest-additional-start" class="admin-inline-input" value="09:00" step="300">
-                </label>
-                <label>
-                  <span>종료</span>
-                  <input type="time" id="input-guest-additional-end" class="admin-inline-input" value="12:00" step="300">
-                </label>
-                <button type="button" class="btn-small-action" id="btn-add-guest-additional-schedule">추가 운영 등록</button>
-              </div>
-              <div id="guest-additional-schedule-list" class="guest-additional-schedule-list" aria-live="polite"></div>
-            </div>
-            <div class="guest-emergency-open">
-              <div>
-                <strong>🚨 긴급 운영</strong>
-                <small>오늘 종료 시각을 정해 지금 바로 시작합니다.</small>
-              </div>
-              <label>
-                <span>종료</span>
-                <input type="time" id="input-guest-manual-end" class="admin-inline-input" step="300" aria-label="긴급 운영 종료 시각">
-              </label>
-              <button class="btn-small-action" id="btn-guest-open-until">지금부터 운영</button>
-              <button class="btn-danger-action" id="btn-guest-close">🛑 지금 마감</button>
-            </div>
-          </section>
-          <div class="guest-ops-settings-panel" id="guest-ops-settings">
-            <div class="guest-settings-grid">
-              <section class="guest-settings-section guest-basic-settings">
-                <div class="guest-settings-section-header">
-                  <h3>기본 설정</h3>
-                </div>
-                <div class="guest-ops-base-settings">
-                  <label class="guest-ops-setting">
-                    <span>기본 온기 ❤️</span>
-                    <input type="number" id="input-guest-credit" class="admin-inline-input" value="10" min="0">
-                  </label>
-                  <label class="guest-ops-setting">
-                    <span>배달비 🛵</span>
-                    <input type="number" id="input-guest-fee" class="admin-inline-input" value="3" min="0">
-                  </label>
-                  <label class="guest-ops-setting">
-                    <span>총 주문 정원 (건) 🎯</span>
-                    <input type="number" id="input-guest-max-order-count" class="admin-inline-input" value="5" min="1" max="50">
-                  </label>
-                  <label class="guest-ops-setting">
-                    <span>최대 배달 건수 (건) 🛵</span>
-                    <input type="number" id="input-guest-max-delivery-count" class="admin-inline-input" value="2" min="0" max="20">
-                  </label>
-                  <label class="guest-ops-setting guest-ops-setting-wide">
-                    <span>배달 가능 지역 안내</span>
-                    <input type="text" id="input-guest-delivery-area" class="admin-inline-input" value="영주시 동 지역 (가흥동, 영주동, 휴천동 등)" placeholder="배달 가능 지역">
-                  </label>
-                  <label class="guest-ops-setting guest-ops-setting-wide">
-                    <span>기본 배달지</span>
-                    <input type="text" id="input-guest-delivery-place" class="admin-inline-input" value="사무실 원탁">
-                  </label>
-                  <div class="guest-ops-setting guest-ops-setting-wide guest-random-display-name-setting">
-                    <div class="guest-random-display-name-heading">
-                      <span>랜덤 주문표시명</span>
-                      <input type="hidden" id="input-guest-random-display-name" value="true">
-                      <div class="guest-mode-segmented guest-random-name-segmented" role="group" aria-label="랜덤 주문표시명 허용 여부">
-                        <button class="guest-mode-option is-active" type="button" data-guest-random-name="true" aria-pressed="true">🟢 활성 (허용)</button>
-                        <button class="guest-mode-option" type="button" data-guest-random-name="false" aria-pressed="false">⚪ 비활성</button>
-                      </div>
-                    </div>
-                    <small>활성화 시 게스트 화면에 랜덤 닉네임 생성 버튼을 표시합니다.</small>
-                  </div>
-                  <div class="guest-ops-setting guest-ops-setting-wide guest-email-notification-setting">
-                    <div class="guest-random-display-name-heading">
-                      <span>배달왔삼 새 주문 이메일 알림</span>
-                      <input type="hidden" id="input-admin-order-email-notification" value="true">
-                      <div class="guest-mode-segmented guest-email-notification-segmented" role="group" aria-label="배달왔삼 새 주문 이메일 알림 사용 여부">
-                        <button class="guest-mode-option is-active" type="button" data-admin-order-email-notification="true" aria-pressed="true">🟢 ON</button>
-                        <button class="guest-mode-option" type="button" data-admin-order-email-notification="false" aria-pressed="false">⚪ OFF</button>
-                      </div>
-                    </div>
-                    <small>ON이면 배달왔삼 포장·배달 주문만 이메일로 알립니다. 일반 키오스크 주문은 발송하지 않습니다.</small>
-                  </div>
-                  <div class="guest-ops-setting guest-ops-setting-wide kiosk-order-policy-setting">
-                    <div class="guest-random-display-name-heading">
-                      <span>주간매점(키오스크) 주문 정책</span>
-                      <input type="hidden" id="input-kiosk-order-policy" value="once_daily">
-                      <div class="guest-mode-segmented kiosk-order-policy-segmented" role="group" aria-label="주간매점 키오스크 주문 제한 정책">
-                        <button class="guest-mode-option is-active" type="button" data-kiosk-order-policy="once_daily" aria-pressed="true">🔒 1일 1회 (기본)</button>
-                        <button class="guest-mode-option" type="button" data-kiosk-order-policy="cooldown" aria-pressed="false">⏰ 쿨다운 N분</button>
-                        <button class="guest-mode-option" type="button" data-kiosk-order-policy="unlimited" aria-pressed="false">♾️ 제한 없음</button>
-                      </div>
-                    </div>
-                    <small>일반 이용자(키오스크)의 반복 주문 제한 방식을 설정합니다.</small>
-                    <div id="kiosk-cooldown-container" style="display: none; align-items: center; gap: 8px; margin-top: 8px;">
-                      <span style="font-size: 14px; font-weight: 700;">쿨다운 시간:</span>
-                      <input type="number" id="input-kiosk-cooldown-minutes" class="admin-inline-input" value="60" min="1" max="1440" style="width: 80px;">
-                      <span style="font-size: 14px;">분 후 재주문 가능</span>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section class="guest-settings-section guest-menu-mode-settings">
-                <div class="guest-settings-section-header">
-                  <h3>운영 모드</h3>
-                </div>
-                <input type="hidden" id="select-guest-menu-mode" value="normal">
-                <div class="guest-mode-segmented" role="group" aria-label="게스트 운영 모드">
-                  <button class="guest-mode-option is-active" type="button" data-guest-menu-mode="normal" aria-pressed="true">🛵 배달왔삼</button>
-                  <button class="guest-mode-option" type="button" data-guest-menu-mode="event" aria-pressed="false">🎉 행사</button>
-                </div>
-                <div class="guest-event-settings">
-                <div id="event-name-container" style="display: none; flex-direction: column; gap: 4px;">
-                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <span style="font-size: 15px; font-weight: 800; white-space: nowrap;">행사명:</span>
-                    <div class="event-name-toolbar" style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                      <button type="button" class="btn-small-action" onclick="formatEventText('bold')" style="padding: 4px 8px; font-size: 13px; font-weight: 900; background: #334155;" title="굵게">B</button>
-                      <button type="button" class="btn-small-action" onclick="formatEventText('color', '#E11D48')" style="padding: 4px 8px; font-size: 12px; background: #E11D48; border: none; color: white;" title="장미 레드">레드</button>
-                      <button type="button" class="btn-small-action" onclick="formatEventText('color', '#2563EB')" style="padding: 4px 8px; font-size: 12px; background: #2563EB; border: none; color: white;" title="로얄 블루">블루</button>
-                      <button type="button" class="btn-small-action" onclick="formatEventText('color', '#7C3AED')" style="padding: 4px 8px; font-size: 12px; background: #7C3AED; border: none; color: white;" title="바이올렛">보라</button>
-                      <button type="button" class="btn-small-action" onclick="formatEventText('color', '#059669')" style="padding: 4px 8px; font-size: 12px; background: #059669; border: none; color: white;" title="에메랄드">초록</button>
-                      <button type="button" class="btn-small-action" onclick="formatEventText('color', '#D97706')" style="padding: 4px 8px; font-size: 12px; background: #D97706; border: none; color: white;" title="앰버">주황</button>
-                      <button type="button" class="btn-small-action" onclick="formatEventText('color', '#1E293B')" style="padding: 4px 8px; font-size: 12px; background: #1E293B; border: none; color: white;" title="다크 기본">기본</button>
-                      <button type="button" class="btn-small-action" onclick="formatEventText('reset')" style="padding: 4px 8px; font-size: 12px; background: #64748B;" title="서식 초기화">초기화</button>
-                    </div>
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 8px;">
-                    <div id="input-guest-event-name" contenteditable="true" oninput="enforceEventNameLimit()" style="min-width: 240px; max-width: 320px; min-height: 40px; padding: 8px 12px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); background-color: white; font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; display: flex; align-items: center;" placeholder="장애인식 개선 캠페인">장애인식 개선 캠페인</div>
-                    <span id="event-name-counter" style="font-size: 12px; font-weight: 700; color: var(--text-muted);">0/20자</span>
-                  </div>
-                </div>
-
-                <!-- 엠블럼 변경 UI (행사 모드용) -->
-                <div id="event-emblem-setting" class="guest-ops-setting" style="display: none; align-items: flex-start; margin-top: 4px;">
-                  <span style="min-width: 80px; padding-top: 4px;">엠블럼:</span>
-                  <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                      <div id="emblem-preview-container" style="width: 48px; height: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #F8FAFC;">
-                        <img id="emblem-preview-img" src="icons/guest-192.png" alt="엠블럼" style="width: 100%; height: 100%; object-fit: contain;">
-                      </div>
-                      <div style="display: flex; gap: 8px;">
-                        <button type="button" class="btn-small-action" onclick="document.getElementById('emblem-upload-input').click()" style="background-color: var(--primary-color); border: none; color: white;">사진 변경</button>
-                        <button type="button" class="btn-small-action" onclick="resetGuestEmblem()" style="background-color: #FCA5A5; border: none; color: white;" title="기본 아이콘으로 복구">초기화</button>
-                        <input type="file" id="emblem-upload-input" accept="image/*" style="display: none;" onchange="handleEmblemUpload(event)">
-                      </div>
-                    </div>
-                    <span style="font-size: 12px; color: var(--text-muted);">* 변경 시 자동 최적화되어 손님 앱 상단 아이콘으로 표시됩니다.</span>
-                  </div>
-                </div>
-
-                </div>
-              </section>
-            </div>
-
-            <section class="guest-settings-section guest-team-settings">
-              <div class="guest-team-header">
-                <h3>운영 담당</h3>
-              </div>
-              <div class="guest-team-meta">
-                <label>
-                  <input type="checkbox" id="input-team-enabled"> 담당자 안내 표시
-                </label>
-                <div class="guest-ops-setting guest-team-title-field">
-                  <span>안내 제목</span>
-                  <input type="text" id="input-team-title" class="admin-inline-input" placeholder="🐻‍❄️ 오늘의 달곰이 요원">
-                </div>
-              </div>
-              <div class="guest-team-role-fields">
-                <label>
-                  <span style="white-space: nowrap;">배달 담당:</span>
-                  <input type="text" id="input-team-delivery-members" class="admin-inline-input" placeholder="예: 이인, 안태근">
-                </label>
-                <label>
-                  <span style="white-space: nowrap;">상품 준비:</span>
-                  <input type="text" id="input-team-prep-members" class="admin-inline-input" placeholder="예: 박상민, 김동환">
-                </label>
-              </div>
-              <div class="guest-team-message">
-                <span>안내 문구</span>
-                <input type="text" id="input-team-message" class="admin-inline-input" placeholder="맛있게 준비해서 배달하겠습니다!">
-              </div>
-            </section>
-
-            <div class="guest-settings-save-row">
-              <button class="btn-small-action" id="btn-save-guest-settings" type="button" onclick="saveGuestSettings()" disabled>변경사항 저장</button>
-            </div>
-
-            <section class="guest-settings-section delivery-alias-settings">
-              <div class="guest-settings-section-header">
-                <h3>📍 배송지 별칭</h3>
-                <button class="btn-small-action" id="btn-add-delivery-alias" type="button">+ 별칭 추가</button>
-              </div>
-              <p class="settings-help-text">공백만 다른 배송지만 자동으로 정리합니다. 다른 장소는 별칭을 직접 등록해야 함께 묶입니다.</p>
-              <div id="delivery-alias-list" class="delivery-alias-list"></div>
-              <div class="guest-settings-save-row">
-                <button class="btn-small-action" id="btn-save-delivery-aliases" type="button" disabled>배송지 별칭 저장</button>
-              </div>
-            </section>
-          </div>
-        </div>
-      </section>
 
       <!-- 주문 탭: 대기 주문과 제공 완료 목록 -->
       <section id="tab-orders" class="kitchen-tab-panel is-active" role="tabpanel">
@@ -559,6 +292,60 @@
       <div class="admin-modal-footer">
         <button class="btn btn-gray" onclick="closeTodaySummaryModal()" style="flex: 1; min-height: 48px; font-size: 16px;">닫기</button>
         <button class="btn btn-secondary" id="btn-copy-summary" onclick="copyTodaySummaryText()" style="flex: 1; min-height: 48px; font-size: 16px; margin: 0; background-color: var(--secondary-color); border-color: var(--secondary-color);">📋 결과 복사하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 긴급 마감 / 운영 연장 모달 (조리실 긴급 대응) -->
+  <div class="admin-modal" id="modal-kitchen-emergency" role="dialog" aria-labelledby="kitchen-emergency-title" aria-modal="true">
+    <div class="admin-modal-content" style="max-width: 480px;">
+      <div class="admin-modal-header" style="background: #FFF1F2; border-bottom: 2px solid #FECDD3;">
+        <h2 class="admin-modal-title" id="kitchen-emergency-title" style="color: #BE123C; display: flex; align-items: center; gap: 8px;">
+          🚨 긴급 운영 제어
+        </h2>
+        <button class="admin-modal-close" onclick="closeKitchenEmergencyModal()">&times;</button>
+      </div>
+      <div class="admin-modal-body" style="display: flex; flex-direction: column; gap: 16px; padding: 20px;">
+        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; font-size: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: #64748B; font-weight: 700;">현재 운영 상태:</span>
+            <strong id="kitchen-emergency-current-status" style="font-size: 15px; color: #0F172A;">확인 중...</strong>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label for="input-kitchen-emergency-end" style="font-size: 14px; font-weight: 800; color: #1E293B;">
+            ⏰ 오늘 주문 마감 시각 변경 (지금부터 주문 열기 / 연장)
+          </label>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <input type="time" id="input-kitchen-emergency-end" class="admin-inline-input" step="300" style="flex: 1; min-width: 140px; padding: 10px; font-size: 16px; border-radius: 6px;">
+            <button class="btn btn-secondary" id="btn-kitchen-emergency-open" onclick="kitchenEmergencyOpenAction()" style="margin: 0; min-height: 44px; padding: 0 16px; font-size: 15px; font-weight: 800; background: #0F766E; border-color: #0F766E;">
+              지금부터 운영
+            </button>
+          </div>
+          <small style="color: #64748B;">지정한 시각까지 즉시 배달왔삼 주문 접수를 오픈합니다.</small>
+        </div>
+
+        <div style="border-top: 1px dashed #CBD5E1; padding-top: 14px;">
+          <label style="font-size: 14px; font-weight: 800; color: #BE123C;">
+            🛑 즉시 주문 마감 (재료 소진 / 주문 폭주)
+          </label>
+          <p style="font-size: 13px; color: #64748B; margin: 4px 0 10px 0;">
+            정기 일정이나 추가 일정과 관계없이 지금 즉시 오늘 주문 접수를 마감합니다.
+          </p>
+          <button class="btn btn-danger" id="btn-kitchen-emergency-close" onclick="kitchenEmergencyCloseAction()" style="width: 100%; min-height: 46px; font-size: 16px; font-weight: 800; background: #E11D48; border-color: #BE123C; color: white;">
+            🛑 오늘 접수 지금 즉시 마감
+          </button>
+        </div>
+
+        <div style="text-align: center; margin-top: 6px; padding-top: 10px; border-top: 1px solid #F1F5F9;">
+          <a href="settings.html" style="font-size: 13px; font-weight: 700; color: #0284C7; text-decoration: none;">
+            ⚙️ 정기 요일·정원·배달 지역 등 상세 운영 설정 가기 →
+          </a>
+        </div>
+      </div>
+      <div class="admin-modal-footer">
+        <button class="btn btn-gray" onclick="closeKitchenEmergencyModal()" style="width: 100%; min-height: 44px; font-size: 15px;">닫기</button>
       </div>
     </div>
   </div>

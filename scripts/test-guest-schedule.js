@@ -261,14 +261,22 @@ assert.equal(parsedSheetSettings.guestWeeklyScheduleSkipDate, '2026-09-09', '시
 
 const kitchenHtml = fs.readFileSync(path.resolve(__dirname, '../kitchen.html'), 'utf8');
 const kitchenJs = fs.readFileSync(path.resolve(__dirname, '../js/kitchen.js'), 'utf8');
+const settingsHtml = fs.readFileSync(path.resolve(__dirname, '../settings.html'), 'utf8');
+const settingsJs = fs.readFileSync(path.resolve(__dirname, '../js/settings.js'), 'utf8');
+
+// P120: 운영 설정 전용 화면(settings.html)에 분리된 일정 컨트롤 존재 검증
 ['input-guest-weekly-schedule-day', 'input-guest-additional-date', 'guest-additional-schedule-list', 'input-guest-manual-end', 'btn-guest-open-until'].forEach(id => {
-  assert.equal(kitchenHtml.includes(`id="${id}"`), true, `주방 새 일정 컨트롤 존재: ${id}`);
+  assert.equal(settingsHtml.includes(`id="${id}"`), true, `운영설정 화면 일정 컨트롤 존재: ${id}`);
 });
+// 주방 화면에는 긴급 마감/연장 모달 컨트롤 존재 검증
+assert.equal(kitchenHtml.includes('id="btn-kitchen-emergency"'), true, '주방 긴급 마감/연장 버튼 존재');
+assert.equal(kitchenHtml.includes('id="modal-kitchen-emergency"'), true, '주방 긴급 마감/연장 모달 존재');
+
 ['btn-guest-open20', 'btn-guest-open30', 'btn-guest-open60', 'btn-guest-open-custom', 'input-custom-minutes'].forEach(id => {
   assert.equal(kitchenHtml.includes(`id="${id}"`), false, `주방 분 단위 운영 컨트롤 제거: ${id}`);
 });
-assert.equal(kitchenJs.includes("settingsAction: 'upsertAdditionalSchedule'"), true, '추가 일정 저장 API 연결');
-assert.equal(kitchenJs.includes("settingsAction: 'deleteAdditionalSchedule'"), true, '추가 일정 취소 API 연결');
+assert.equal(settingsJs.includes("settingsAction: 'upsertAdditionalSchedule'"), true, '추가 일정 저장 API 연결');
+assert.equal(settingsJs.includes("settingsAction: 'deleteAdditionalSchedule'"), true, '추가 일정 취소 API 연결');
 
 // P115 당일 정기 회차가 중단/마감된 상태에서 updateGuestSettings openUntil 성공 검증
 const todayKey = context.getGuestScheduleDateKey(new Date());
