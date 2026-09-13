@@ -19,7 +19,7 @@ assert(styleCss.includes('.friendly-notice-menu-box'), 'css/style.css에 friendl
 assert(styleCss.includes('.friendly-notice-menu-label'), 'css/style.css에 friendly-notice-menu-label 스타일이 있어야 함');
 assert(styleCss.includes('.friendly-notice-menu-items'), 'css/style.css에 friendly-notice-menu-items 스타일이 있어야 함');
 
-assert(/kiosk-cache-v35[67]/.test(swJs), 'service-worker.js가 kiosk-cache-v356 이상이어야 함');
+assert(/kiosk-cache-v35[6-9]/.test(swJs), 'service-worker.js가 kiosk-cache-v356 이상이어야 함');
 
 // 2. updateKioskUserStatusesFromFeed 로직 동작 검증
 const scriptContext = {

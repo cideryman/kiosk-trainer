@@ -2,10 +2,10 @@
   const statusBadge = document.getElementById('live-status-badge');
   const statusText = document.getElementById('live-status-text');
   const scheduleText = document.getElementById('live-schedule-text');
-  const orderRemainingEl = document.getElementById('live-order-remaining');
-  const orderMaxEl = document.getElementById('live-order-max');
-  const deliveryRemainingEl = document.getElementById('live-delivery-remaining');
-  const deliveryMaxEl = document.getElementById('live-delivery-max');
+  const orderLabelEl = document.getElementById('live-order-label');
+  const deliveryLabelEl = document.getElementById('live-delivery-label');
+  const orderCapacityEl = document.getElementById('live-order-capacity');
+  const deliveryCapacityEl = document.getElementById('live-delivery-capacity');
   const deliveryAreaEl = document.getElementById('live-delivery-area');
   const orderCtaBtn = document.getElementById('btn-live-order-cta');
   const statusNoteEl = document.getElementById('live-status-note');
@@ -43,24 +43,49 @@
     // 1. 배달 가능 지역
     if (deliveryAreaEl) deliveryAreaEl.textContent = deliveryArea;
 
-    // 2. 주문 정원 및 배달 슬롯 수치
-    if (orderRemainingEl) orderRemainingEl.textContent = remainingOrders;
-    if (orderMaxEl) orderMaxEl.textContent = maxOrders;
-
-    if (deliveryRemainingEl) {
-      if (isDeliveryCapped || remainingDeliveries <= 0) {
-        deliveryRemainingEl.textContent = '0 (마감 · 픽업 가능)';
-        if (deliveryRemainingEl.parentElement) {
-          deliveryRemainingEl.parentElement.classList.add('warning');
-        }
-      } else {
-        deliveryRemainingEl.textContent = remainingDeliveries;
-        if (deliveryRemainingEl.parentElement) {
-          deliveryRemainingEl.parentElement.classList.remove('warning');
+    // 2. 주문 정원 및 배달 가능 건수 동적 렌더링
+    if (isOpen && !isOrderCapped) {
+      // [운영 중 & 주문 가능]
+      if (orderLabelEl) orderLabelEl.textContent = '오늘 주문 가능';
+      if (orderCapacityEl) {
+        orderCapacityEl.className = 'live-status-value accent';
+        orderCapacityEl.innerHTML = `<span id="live-order-remaining">${remainingOrders}</span>건 남음 <small>(총 <span id="live-order-max">${maxOrders}</span>건)</small>`;
+      }
+      if (deliveryLabelEl) deliveryLabelEl.textContent = '오늘 배달 가능';
+      if (deliveryCapacityEl) {
+        if (isDeliveryCapped || remainingDeliveries <= 0) {
+          deliveryCapacityEl.className = 'live-status-value warning';
+          deliveryCapacityEl.innerHTML = `<span id="live-delivery-remaining">마감 (포장만 가능)</span> <small>(최대 <span id="live-delivery-max">${maxDeliveries}</span>건)</small>`;
+        } else {
+          deliveryCapacityEl.className = 'live-status-value';
+          deliveryCapacityEl.innerHTML = `<span id="live-delivery-remaining">${remainingDeliveries}</span>건 남음 <small>(최대 <span id="live-delivery-max">${maxDeliveries}</span>건)</small>`;
         }
       }
+    } else if (isOpen && isOrderCapped) {
+      // [운영 시간 중이나 오늘 준비된 정원 소진]
+      if (orderLabelEl) orderLabelEl.textContent = '오늘 주문 현황';
+      if (orderCapacityEl) {
+        orderCapacityEl.className = 'live-status-value danger';
+        orderCapacityEl.innerHTML = `<span id="live-order-remaining">마감</span> <small>(정원 <span id="live-order-max">${maxOrders}</span>건 소진)</small>`;
+      }
+      if (deliveryLabelEl) deliveryLabelEl.textContent = '오늘 배달 현황';
+      if (deliveryCapacityEl) {
+        deliveryCapacityEl.className = 'live-status-value danger';
+        deliveryCapacityEl.innerHTML = `<span id="live-delivery-remaining">마감</span> <small>(최대 <span id="live-delivery-max">${maxDeliveries}</span>건)</small>`;
+      }
+    } else {
+      // [운영 시간 외 / 준비 중 / 휴무] - 지금 주문 가능한 것으로 오해하지 않도록 회차 기준 안내
+      if (orderLabelEl) orderLabelEl.textContent = '회차당 주문 정원';
+      if (orderCapacityEl) {
+        orderCapacityEl.className = 'live-status-value';
+        orderCapacityEl.innerHTML = `총 <span id="live-order-max">${maxOrders}</span>건 <small>(운영 시 오픈)</small>`;
+      }
+      if (deliveryLabelEl) deliveryLabelEl.textContent = '회차당 배달 가능 건수';
+      if (deliveryCapacityEl) {
+        deliveryCapacityEl.className = 'live-status-value';
+        deliveryCapacityEl.innerHTML = `최대 <span id="live-delivery-max">${maxDeliveries}</span>건 <small>(운영 시 오픈)</small>`;
+      }
     }
-    if (deliveryMaxEl) deliveryMaxEl.textContent = maxDeliveries;
 
     // 3. 상태 뱃지 및 운영 안내
     if (statusBadge && statusText) {
