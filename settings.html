@@ -137,6 +137,82 @@
       background: #FFF1F2;
       padding: 16px;
     }
+
+    /* 📅 운영 일정 폼 컨트롤 및 텍스트 짤림 방지 스타일 */
+    .guest-weekly-schedule-form,
+    .guest-additional-schedule-form,
+    .guest-emergency-open {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin: 10px 0;
+    }
+    .guest-weekly-schedule-form label,
+    .guest-additional-schedule-form label,
+    .guest-emergency-open label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #334155;
+    }
+    .page-settings select.admin-inline-input,
+    .page-settings input[type="time"].admin-inline-input,
+    .page-settings input[type="date"].admin-inline-input {
+      width: auto !important;
+      min-height: 40px;
+      padding: 6px 12px !important;
+      font-size: 15px !important;
+      font-weight: 700 !important;
+      border-radius: 8px !important;
+      border: 1.5px solid #CBD5E1 !important;
+      background: #FFFFFF !important;
+      color: #1E293B !important;
+      box-sizing: border-box;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .page-settings select.admin-inline-input:focus,
+    .page-settings input[type="time"].admin-inline-input:focus,
+    .page-settings input[type="date"].admin-inline-input:focus {
+      border-color: #0F766E !important;
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15) !important;
+      outline: none;
+    }
+    .page-settings select.admin-inline-input {
+      min-width: 105px !important;
+      cursor: pointer;
+    }
+    .page-settings input[type="time"].admin-inline-input {
+      min-width: 130px !important;
+      text-align: center;
+    }
+    .page-settings input[type="date"].admin-inline-input {
+      min-width: 145px !important;
+      text-align: center;
+    }
+    .guest-weekly-schedule-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 40px;
+      padding: 0 14px;
+      border: 1.5px solid #0D9488;
+      border-radius: 999px;
+      background: #FFFFFF;
+      color: #0F766E;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .guest-weekly-schedule-toggle input {
+      width: 18px;
+      height: 18px;
+      accent-color: #0D9488;
+      cursor: pointer;
+    }
     .settings-card-actions {
       display: flex;
       justify-content: flex-end;
