@@ -130,7 +130,9 @@
   // --- 4. 데이터 로드 ---
   async function loadAllSettings() {
     try {
-      const res = await window.CONFIG.apiGetGuestSettings();
+      const res = typeof fetchAPIReadWithRetry === 'function'
+        ? await fetchAPIReadWithRetry('getGuestSettings')
+        : await fetchAPI('getGuestSettings');
       if (!res) return;
       latestGuestOpsSettings = res;
 
@@ -237,7 +239,7 @@
 
     setButtonLoading(btn, true);
     try {
-      const res = await window.CONFIG.fetchAPI('updateGuestSettings', {
+      const res = await fetchAPI('updateGuestSettings', {
         method: 'POST',
         body: {
           settingsAction: 'updateValues',
@@ -277,7 +279,7 @@
 
     setButtonLoading(btn, true);
     try {
-      const res = await window.CONFIG.fetchAPI('updateGuestSettings', {
+      const res = await fetchAPI('updateGuestSettings', {
         method: 'POST',
         body: {
           settingsAction: 'updateWeeklySchedule',
@@ -313,7 +315,7 @@
 
     setButtonLoading(btn, true, isResume ? '⏳ 재개 중...' : '⏳ 중단 중...');
     try {
-      const res = await window.CONFIG.fetchAPI('updateGuestSettings', {
+      const res = await fetchAPI('updateGuestSettings', {
         method: 'POST',
         body: {
           settingsAction: action,
@@ -352,7 +354,7 @@
 
     setButtonLoading(btn, true, '⏳ 등록 중...');
     try {
-      const res = await window.CONFIG.fetchAPI('updateGuestSettings', {
+      const res = await fetchAPI('updateGuestSettings', {
         method: 'POST',
         body: {
           settingsAction: 'upsertAdditionalSchedule',
@@ -383,7 +385,7 @@
 
     setButtonLoading(button, true, '⏳ 취소 중...');
     try {
-      const res = await window.CONFIG.fetchAPI('updateGuestSettings', {
+      const res = await fetchAPI('updateGuestSettings', {
         method: 'POST',
         body: {
           settingsAction: 'deleteAdditionalSchedule',
@@ -421,7 +423,7 @@
 
     setButtonLoading(btn, true, '⏳ 시작 중...');
     try {
-      const res = await window.CONFIG.fetchAPI('updateGuestSettings', {
+      const res = await fetchAPI('updateGuestSettings', {
         method: 'POST',
         body: {
           settingsAction: 'emergencyOpen',
@@ -450,7 +452,7 @@
 
     setButtonLoading(btn, true, '⏳ 마감 중...');
     try {
-      const res = await window.CONFIG.fetchAPI('updateGuestSettings', {
+      const res = await fetchAPI('updateGuestSettings', {
         method: 'POST',
         body: {
           settingsAction: 'closeNow',
@@ -484,7 +486,7 @@
 
     setButtonLoading(btn, true);
     try {
-      const res = await window.CONFIG.fetchAPI('updateGuestSettings', {
+      const res = await fetchAPI('updateGuestSettings', {
         method: 'POST',
         body: {
           settingsAction: 'updateValues',
@@ -526,7 +528,7 @@
 
     setButtonLoading(btn, true);
     try {
-      const res = await window.CONFIG.fetchAPI('updateGuestSettings', {
+      const res = await fetchAPI('updateGuestSettings', {
         method: 'POST',
         body: {
           settingsAction: 'updateValues',

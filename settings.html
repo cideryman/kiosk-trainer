@@ -9,54 +9,62 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/admin.css">
+  <link rel="stylesheet" href="css/kitchen.css">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icons/icon-192.png">
   <style>
-    /* 운영 설정 전용 대시보드 카드 스타일 */
+    /* 기존 관리자/주방 톤앤매너와 완전히 일치하는 운영 설정 스타일 */
     .settings-dashboard-grid {
       display: flex;
       flex-direction: column;
-      gap: 24px;
+      gap: 20px;
       padding: 16px 0 40px 0;
     }
     .settings-card {
       background: #FFFFFF;
-      border: 2px solid var(--border-color);
-      border-radius: var(--radius-md);
-      padding: 24px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+      border: 1.5px solid #E2E8F0;
+      border-radius: 14px;
+      padding: 22px 24px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
       box-sizing: border-box;
-      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .settings-card:hover {
+      border-color: #CBD5E1;
     }
     .settings-card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
       margin-bottom: 18px;
       padding-bottom: 14px;
-      border-bottom: 2px solid #EDF2F7;
-      gap: 12px;
+      border-bottom: 1.5px solid #F1F5F9;
     }
     .settings-card-title {
-      font-size: 19px;
-      font-weight: 900;
-      color: var(--text-main);
+      font-size: 18px;
+      font-weight: 800;
+      color: #1E293B;
       display: flex;
       align-items: center;
       gap: 8px;
       margin: 0;
+      border-left: 4px solid var(--secondary-color, #2B6CB0);
+      padding-left: 10px;
       word-break: keep-all;
     }
+    .settings-card-title.policy-title { border-left-color: #2B6CB0; }
+    .settings-card-title.schedule-title { border-left-color: #0F766E; }
+    .settings-card-title.capacity-title { border-left-color: #ED8936; }
+    .settings-card-title.base-title { border-left-color: #6366F1; }
+
     .settings-card-subtitle {
       font-size: 13px;
-      color: var(--text-muted);
-      margin: 6px 0 0 0;
+      color: var(--text-muted, #64748B);
+      margin: 6px 0 0 14px;
       line-height: 1.45;
       word-break: keep-all;
     }
     .settings-form-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       gap: 16px;
     }
     .settings-form-row {
@@ -72,6 +80,22 @@
       font-weight: 800;
       color: #334155;
     }
+    .settings-input-rounded {
+      padding: 10px 14px;
+      font-size: 15px;
+      font-weight: 600;
+      border: 1.5px solid #CBD5E1;
+      border-radius: 8px;
+      background: #FFFFFF;
+      color: var(--text-main, #1A202C);
+      transition: border-color 0.2s, box-shadow 0.2s;
+      box-sizing: border-box;
+    }
+    .settings-input-rounded:focus {
+      border-color: #2B6CB0;
+      box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.12);
+      outline: none;
+    }
     .settings-card-actions {
       display: flex;
       justify-content: flex-end;
@@ -81,104 +105,57 @@
       border-top: 1px solid #F1F5F9;
     }
     .btn-save-settings {
-      min-height: 48px;
+      min-height: 44px;
       padding: 0 24px;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 800;
-      border-radius: var(--radius-sm);
+      border-radius: 8px;
       border: none;
-      background: linear-gradient(135deg, #0F766E, #14B8A6);
+      background-color: #2B6CB0;
       color: #FFFFFF;
       cursor: pointer;
-      box-shadow: 0 2px 8px rgba(15, 118, 110, 0.25);
-      transition: opacity 0.2s, transform 0.1s;
+      box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.1));
+      transition: background-color 0.15s ease, transform 0.1s ease;
       display: inline-flex;
       align-items: center;
       justify-content: center;
     }
     .btn-save-settings:hover:not(:disabled) {
-      opacity: 0.95;
+      background-color: #2C5282;
       transform: translateY(-1px);
     }
     .btn-save-settings:disabled {
-      background: #CBD5E1;
+      background-color: #CBD5E1 !important;
+      color: #64748B !important;
       box-shadow: none;
       cursor: not-allowed;
+      transform: none;
     }
 
-    /* 📱 모바일 환경 최적화 (태블릿 / 스마트폰) */
+    /* 📱 모바일 환경 최적화 */
     @media (max-width: 768px) {
       .settings-dashboard-grid {
-        gap: 16px;
-        padding: 10px 4px 40px 4px;
+        gap: 14px;
+        padding: 8px 4px 40px 4px;
       }
       .settings-card {
         padding: 16px 14px;
         border-radius: 12px;
       }
       .settings-card-title {
-        font-size: 17px;
+        font-size: 16.5px;
       }
       .settings-card-subtitle {
-        font-size: 12.5px;
+        font-size: 12px;
+        margin-left: 10px;
       }
       .settings-form-grid {
         grid-template-columns: 1fr;
         gap: 14px;
       }
-      .settings-card-actions {
-        margin-top: 16px;
-        padding-top: 12px;
-      }
       .btn-save-settings {
         width: 100%;
-        min-height: 48px;
-        font-size: 15px;
-      }
-      .guest-weekly-schedule-form,
-      .guest-additional-schedule-form {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
-      .guest-weekly-schedule-form label,
-      .guest-additional-schedule-form label {
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        gap: 4px;
-      }
-      .guest-weekly-schedule-form input,
-      .guest-weekly-schedule-form select,
-      .guest-additional-schedule-form input {
-        width: 100% !important;
-        box-sizing: border-box;
-      }
-      .guest-weekly-schedule-actions {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        width: 100%;
-      }
-      .guest-weekly-schedule-actions button {
-        width: 100%;
-        min-height: 44px;
-      }
-      .guest-emergency-open {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        padding: 14px;
-      }
-      .guest-emergency-open label {
-        width: 100%;
-      }
-      .guest-emergency-open input[type="time"] {
-        width: 100% !important;
-      }
-      .guest-emergency-open button {
-        width: 100%;
-        min-height: 44px;
+        min-height: 46px;
       }
       .team-members-container {
         flex-direction: column !important;
@@ -302,7 +279,7 @@
             <section class="settings-card" aria-labelledby="title-kiosk-policy">
               <div class="settings-card-header">
                 <div>
-                  <h2 class="settings-card-title" id="title-kiosk-policy">🛒 매점 키오스크 주문 제한</h2>
+                  <h2 class="settings-card-title policy-title" id="title-kiosk-policy">🛒 매점 키오스크 주문 제한</h2>
                   <p class="settings-card-subtitle">일반 이용자(회원)의 키오스크 주문 반복 횟수 및 쿨다운 정책을 설정합니다.</p>
                 </div>
               </div>
@@ -324,7 +301,7 @@
                 </div>
                 <div class="kiosk-cooldown-input-container" id="kiosk-cooldown-container" style="display: none; margin-top: 14px;">
                   <label for="input-kiosk-cooldown-minutes" style="font-size: 14px; font-weight: 800; color: #334155;">쿨다운 시간(분):</label>
-                  <input type="number" id="input-kiosk-cooldown-minutes" class="admin-inline-input" value="60" min="1" max="1440" step="5" style="width: 100px;">
+                  <input type="number" id="input-kiosk-cooldown-minutes" class="settings-input-rounded" value="60" min="1" max="1440" step="5" style="width: 100px; text-align: center;">
                   <span style="font-size: 13px; color: var(--text-muted);">분 (예: 60분 = 주문 후 1시간 동안 차단)</span>
                 </div>
               </div>
@@ -337,7 +314,7 @@
             <section class="settings-card" aria-labelledby="title-schedule-policy">
               <div class="settings-card-header">
                 <div>
-                  <h2 class="settings-card-title" id="title-schedule-policy">📅 배달왔삼 운영 일정 관리</h2>
+                  <h2 class="settings-card-title schedule-title" id="title-schedule-policy">📅 배달왔삼 운영 일정 관리</h2>
                   <p class="settings-card-subtitle">정기 자동 운영 요일 및 시각, 날짜 지정 추가 운영, 긴급 운영을 통합 관리합니다.</p>
                 </div>
               </div>
@@ -426,24 +403,24 @@
             <section class="settings-card" aria-labelledby="title-capacity-policy">
               <div class="settings-card-header">
                 <div>
-                  <h2 class="settings-card-title" id="title-capacity-policy">🎯 당일 정원 및 배달 관리</h2>
+                  <h2 class="settings-card-title capacity-title" id="title-capacity-policy">🎯 당일 정원 및 배달 관리</h2>
                   <p class="settings-card-subtitle">회차당 준비 가능한 총 주문 수량 및 최대 배달 건수, 배달 가능 지역을 설정합니다.</p>
                 </div>
               </div>
               <div class="settings-form-grid">
                 <div class="settings-form-row">
                   <label class="settings-form-label" for="input-guest-max-order-count">총 주문 정원 (건) 🎯</label>
-                  <input type="number" id="input-guest-max-order-count" class="admin-inline-input" value="5" min="1" max="100" style="padding: 10px; font-size: 16px;">
+                  <input type="number" id="input-guest-max-order-count" class="settings-input-rounded" value="5" min="1" max="100">
                   <small style="color: var(--text-muted);">정원에 도달하면 더 이상 주문을 받지 않습니다.</small>
                 </div>
                 <div class="settings-form-row">
                   <label class="settings-form-label" for="input-guest-max-delivery-count">최대 배달 가능 건수 (건) 🛵</label>
-                  <input type="number" id="input-guest-max-delivery-count" class="admin-inline-input" value="2" min="0" max="50" style="padding: 10px; font-size: 16px;">
+                  <input type="number" id="input-guest-max-delivery-count" class="settings-input-rounded" value="2" min="0" max="50">
                   <small style="color: var(--text-muted);">배달 건수가 소진되면 [매장 픽업]만 선택 가능합니다.</small>
                 </div>
                 <div class="settings-form-row full-width">
                   <label class="settings-form-label" for="input-guest-delivery-area">📍 배달 가능 지역 안내 문구</label>
-                  <input type="text" id="input-guest-delivery-area" class="admin-inline-input" value="영주시 동 지역 (가흥동, 영주동, 휴천동 등)" placeholder="배달 가능 지역 입력" style="padding: 10px; font-size: 15px; width: 100%;">
+                  <input type="text" id="input-guest-delivery-area" class="settings-input-rounded" value="영주시 동 지역 (가흥동, 영주동, 휴천동 등)" placeholder="배달 가능 지역 입력" style="width: 100%;">
                   <small style="color: var(--text-muted);">이용안내 상황판에 공개적으로 노출되는 배달 지역 설명입니다.</small>
                 </div>
               </div>
@@ -456,22 +433,22 @@
             <section class="settings-card" aria-labelledby="title-base-policy">
               <div class="settings-card-header">
                 <div>
-                  <h2 class="settings-card-title" id="title-base-policy">🛵 서비스 기본 및 담당자</h2>
+                  <h2 class="settings-card-title base-title" id="title-base-policy">🛵 서비스 기본 및 담당자</h2>
                   <p class="settings-card-subtitle">기본 온기 지급량, 배달비, 기본 배달지, 닉네임 설정 및 오늘 역할 담당자를 지정합니다.</p>
                 </div>
               </div>
               <div class="settings-form-grid">
                 <div class="settings-form-row">
                   <label class="settings-form-label" for="input-guest-credit">기본 온기 ❤️</label>
-                  <input type="number" id="input-guest-credit" class="admin-inline-input" value="10" min="0" style="padding: 10px; font-size: 16px;">
+                  <input type="number" id="input-guest-credit" class="settings-input-rounded" value="10" min="0">
                 </div>
                 <div class="settings-form-row">
                   <label class="settings-form-label" for="input-guest-fee">배달비 🛵</label>
-                  <input type="number" id="input-guest-fee" class="admin-inline-input" value="3" min="0" style="padding: 10px; font-size: 16px;">
+                  <input type="number" id="input-guest-fee" class="settings-input-rounded" value="3" min="0">
                 </div>
                 <div class="settings-form-row">
                   <label class="settings-form-label" for="input-guest-delivery-place">기본 배달 장소</label>
-                  <input type="text" id="input-guest-delivery-place" class="admin-inline-input" value="사무실 원탁" style="padding: 10px; font-size: 15px;">
+                  <input type="text" id="input-guest-delivery-place" class="settings-input-rounded" value="사무실 원탁">
                 </div>
                 <div class="settings-form-row">
                   <label class="settings-form-label">랜덤 주문표시명</label>
@@ -491,19 +468,19 @@
                   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;">
                     <div>
                       <label class="settings-form-label" for="input-team-title">배달팀 명칭</label>
-                      <input type="text" id="input-team-title" class="admin-inline-input" value="삼각지 배달팀" style="padding: 9px; font-size: 14px; width: 100%;">
+                      <input type="text" id="input-team-title" class="settings-input-rounded" value="삼각지 배달팀" style="width: 100%;">
                     </div>
                     <div>
                       <label class="settings-form-label" for="input-team-message">준비 담당 또는 안내 메시지</label>
-                      <input type="text" id="input-team-message" class="admin-inline-input" value="달곰이들이 정성껏 준비하고 배달합니다" style="padding: 9px; font-size: 14px; width: 100%;">
+                      <input type="text" id="input-team-message" class="settings-input-rounded" value="달곰이들이 정성껏 준비하고 배달합니다" style="width: 100%;">
                     </div>
                   </div>
                   <div style="margin-top: 12px;">
                     <label class="settings-form-label">배달 담당 대원 (최대 3명)</label>
                     <div class="team-members-container" style="display: flex; gap: 10px; margin-top: 6px;">
-                      <input type="text" id="input-team-member-1" class="admin-inline-input" placeholder="대원 1" style="padding: 8px; font-size: 14px; flex: 1;">
-                      <input type="text" id="input-team-member-2" class="admin-inline-input" placeholder="대원 2" style="padding: 8px; font-size: 14px; flex: 1;">
-                      <input type="text" id="input-team-member-3" class="admin-inline-input" placeholder="대원 3" style="padding: 8px; font-size: 14px; flex: 1;">
+                      <input type="text" id="input-team-member-1" class="settings-input-rounded" placeholder="대원 1" style="flex: 1;">
+                      <input type="text" id="input-team-member-2" class="settings-input-rounded" placeholder="대원 2" style="flex: 1;">
+                      <input type="text" id="input-team-member-3" class="settings-input-rounded" placeholder="대원 3" style="flex: 1;">
                     </div>
                   </div>
                 </div>
