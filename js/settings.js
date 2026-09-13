@@ -50,8 +50,7 @@
     }).format(date);
   }
 
-  function getGuestKstDateTimeParts() {
-    const now = new Date();
+  function getGuestKstDateTimeParts(dateObj = new Date()) {
     const formatter = new Intl.DateTimeFormat('ko-KR', {
       timeZone: 'Asia/Seoul',
       year: 'numeric',
@@ -61,12 +60,21 @@
       minute: '2-digit',
       hour12: false
     });
-    const parts = formatter.formatToParts(now);
+    const parts = formatter.formatToParts(dateObj);
     const getVal = type => parts.find(p => p.type === type)?.value || '';
     return {
       date: `${getVal('year')}-${getVal('month')}-${getVal('day')}`,
       time: `${getVal('hour')}:${getVal('minute')}`
     };
+  }
+
+  function getDefaultGuestManualEndTime() {
+    const future = new Date(Date.now() + 60 * 60 * 1000);
+    const parts = getGuestKstDateTimeParts(future);
+    if (parts.date !== getGuestKstDateTimeParts().date) return '23:59';
+    const [hour, minute] = parts.time.split(':').map(Number);
+    const roundedMinutes = Math.min(23 * 60 + 59, hour * 60 + Math.ceil(minute / 5) * 5);
+    return `${String(Math.floor(roundedMinutes / 60)).padStart(2, '0')}:${String(roundedMinutes % 60).padStart(2, '0')}`;
   }
 
   function setButtonLoading(button, isLoading, loadingText = '⏳ 저장 중...') {
@@ -156,7 +164,7 @@
       const res = typeof fetchAPIReadWithRetry === 'function'
         ? await fetchAPIReadWithRetry('getGuestSettings')
         : await fetchAPI('getGuestSettings');
-      if (!res) return;
+      if (!res || !res.success) return;
       latestGuestOpsSettings = res;
 
       // 1. 키오스크 주문 정책
@@ -215,6 +223,12 @@
         if (!additionalDateEl.value) additionalDateEl.value = todayKey;
       }
       renderAdditionalSchedules(res.guestAdditionalSchedules);
+
+      // 긴급 운영 종료 시각 기본값
+      const manualEndEl = document.getElementById('input-guest-manual-end');
+      if (manualEndEl && !manualEndEl.value) {
+        manualEndEl.value = getDefaultGuestManualEndTime();
+      }
 
       // 3. 당일 정원 및 배달 설정
       const maxOrderEl = document.getElementById('input-guest-max-order-count');
