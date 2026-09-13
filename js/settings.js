@@ -8,7 +8,30 @@
   let latestGuestOpsSettings = null;
 
   function getAdminToken() {
-    return window.AdminAuth ? window.AdminAuth.getToken() : (sessionStorage.getItem('adminToken') || '');
+    if (typeof AdminAuth !== 'undefined' && typeof AdminAuth.getToken === 'function') {
+      const token = AdminAuth.getToken();
+      if (token) return token;
+    }
+    return String(sessionStorage.getItem('kioskAdminToken') || sessionStorage.getItem('adminToken') || '').trim();
+  }
+
+  function requireAdminToken() {
+    const token = getAdminToken();
+    if (!token) {
+      if (typeof AdminAuth !== 'undefined' && typeof AdminAuth.focus === 'function') {
+        AdminAuth.focus('상단에서 관리자 잠금을 먼저 해제해 주세요.');
+      } else {
+        alert('상단에서 관리자 잠금을 먼저 해제해 주세요.');
+      }
+      throw new Error('관리자 잠금 해제가 필요합니다.');
+    }
+    return token;
+  }
+
+  function clearAdminTokenIfDenied(res) {
+    if (typeof AdminAuth !== 'undefined' && typeof AdminAuth.handleDenied === 'function') {
+      AdminAuth.handleDenied(res);
+    }
   }
 
   function getAdminMemo() {
@@ -227,7 +250,56 @@
     }
   }
 
-  // --- 5. 저장 액션들 ---
+  // --- 5. 전체 설정 페이로드 빌더 (부분 저장 시 기존 설정 누락 방지) ---
+  function buildFullUpdateValuesPayload(overrides = {}) {
+    const s = latestGuestOpsSettings || {};
+
+    const creditEl = document.getElementById('input-guest-credit');
+    const feeEl = document.getElementById('input-guest-fee');
+    const placeEl = document.getElementById('input-guest-delivery-place');
+    const maxOrderEl = document.getElementById('input-guest-max-order-count');
+    const maxDeliveryEl = document.getElementById('input-guest-max-delivery-count');
+    const deliveryAreaEl = document.getElementById('input-guest-delivery-area');
+    const randomEl = document.getElementById('input-guest-random-display-name');
+    const policyInput = document.getElementById('input-kiosk-order-policy');
+    const cooldownInput = document.getElementById('input-kiosk-cooldown-minutes');
+    const teamEnabledEl = document.getElementById('input-team-enabled');
+    const teamTitleEl = document.getElementById('input-team-title');
+    const teamMessageEl = document.getElementById('input-team-message');
+
+    const members = [1, 2, 3]
+      .map(i => document.getElementById(`input-team-member-${i}`)?.value?.trim())
+      .filter(Boolean)
+      .join(', ');
+
+    const payload = {
+      settingsAction: 'updateValues',
+      guestBaseCredit: creditEl ? (Number(creditEl.value) || 10) : (s.guestBaseCredit ?? 10),
+      guestDeliveryFee: feeEl ? (Number(feeEl.value) || 3) : (s.guestDeliveryFee ?? 3),
+      guestDefaultDeliveryPlace: placeEl ? (placeEl.value.trim() || '사무실 원탁') : (s.guestDefaultDeliveryPlace || '사무실 원탁'),
+      guestMaxOrderCount: maxOrderEl ? Math.max(1, Number(maxOrderEl.value) || 5) : (s.guestMaxOrderCount ?? 5),
+      guestMaxDeliveryCount: maxDeliveryEl ? Math.max(0, Number(maxDeliveryEl.value) || 0) : (s.guestMaxDeliveryCount ?? 2),
+      guestDeliveryArea: deliveryAreaEl ? (deliveryAreaEl.value.trim() || '영주시 동 지역 (가흥동, 영주동, 휴천동 등)') : (s.guestDeliveryArea || '영주시 동 지역 (가흥동, 영주동, 휴천동 등)'),
+      guestAllowRandomDisplayName: randomEl ? (randomEl.value === 'true') : (s.guestAllowRandomDisplayName !== false),
+      adminOrderEmailNotificationEnabled: s.adminOrderEmailNotificationEnabled !== false,
+      kioskOrderPolicy: policyInput ? policyInput.value : (s.kioskOrderPolicy || 'once_daily'),
+      kioskCooldownMinutes: cooldownInput ? Math.max(1, Number(cooldownInput.value) || 60) : (s.kioskCooldownMinutes || 60),
+      todayDeliveryTeamEnabled: teamEnabledEl ? teamEnabledEl.checked : (s.todayDeliveryTeamEnabled !== false),
+      todayDeliveryTeamTitle: teamTitleEl ? teamTitleEl.value.trim() : (s.todayDeliveryTeamTitle || '📦 오늘의 배달팀'),
+      todayDeliveryTeamMembers: members || (s.todayDeliveryTeamMembers || ''),
+      todayDeliveryTeamMessage: teamMessageEl ? teamMessageEl.value.trim() : (s.todayDeliveryTeamMessage || ''),
+      guestMenuMode: s.guestMenuMode || 'normal',
+      guestEventName: s.guestEventName || '장애인식 개선 캠페인',
+      guestEventEmblemBase64: s.guestEventEmblemBase64 || '',
+      adminToken: getAdminToken(),
+      adminMemo: getAdminMemo(),
+      ...overrides
+    };
+
+    return payload;
+  }
+
+  // --- 6. 저장 액션들 ---
 
   // 1) 키오스크 주문 제한 저장
   window.saveKioskPolicyAction = async () => {
@@ -237,25 +309,30 @@
     const policy = policyInput ? policyInput.value : 'once_daily';
     const cooldown = cooldownInput ? Math.max(1, Number(cooldownInput.value) || 60) : 60;
 
+    try {
+      requireAdminToken();
+    } catch (_) {
+      return;
+    }
+
     setButtonLoading(btn, true);
     try {
+      const payload = buildFullUpdateValuesPayload({
+        kioskOrderPolicy: policy,
+        kioskCooldownMinutes: cooldown
+      });
       const res = await fetchAPI('updateGuestSettings', {
         method: 'POST',
-        body: {
-          settingsAction: 'updateValues',
-          kioskOrderPolicy: policy,
-          kioskCooldownMinutes: cooldown,
-          adminToken: getAdminToken(),
-          adminMemo: getAdminMemo()
-        }
+        body: payload
       });
       if (res?.success) {
         alert('매점 키오스크 주문 정책이 저장되었습니다.');
       } else {
+        clearAdminTokenIfDenied(res);
         alert(res?.message || '저장에 실패했습니다.');
       }
     } catch (e) {
-      alert('오류가 발생했습니다.');
+      alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
     } finally {
       setButtonLoading(btn, false);
       await loadAllSettings();
@@ -277,6 +354,12 @@
       return;
     }
 
+    try {
+      requireAdminToken();
+    } catch (_) {
+      return;
+    }
+
     setButtonLoading(btn, true);
     try {
       const res = await fetchAPI('updateGuestSettings', {
@@ -294,10 +377,11 @@
       if (res?.success) {
         alert('정기 일정이 저장되었습니다.');
       } else {
+        clearAdminTokenIfDenied(res);
         alert(res?.message || '저장에 실패했습니다.');
       }
     } catch (e) {
-      alert('오류가 발생했습니다.');
+      alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
     } finally {
       setButtonLoading(btn, false);
       await loadAllSettings();
@@ -313,6 +397,12 @@
     const promptMsg = isResume ? '이번 회차 정기 운영을 다시 진행할까요?' : '이번 회차 정기 운영을 건너뛰고 쉴까요?';
     if (!confirm(promptMsg)) return;
 
+    try {
+      requireAdminToken();
+    } catch (_) {
+      return;
+    }
+
     setButtonLoading(btn, true, isResume ? '⏳ 재개 중...' : '⏳ 중단 중...');
     try {
       const res = await fetchAPI('updateGuestSettings', {
@@ -326,10 +416,11 @@
       if (res?.success) {
         alert(res.message || '반영되었습니다.');
       } else {
+        clearAdminTokenIfDenied(res);
         alert(res?.message || '실패했습니다.');
       }
     } catch (e) {
-      alert('오류가 발생했습니다.');
+      alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
     } finally {
       setButtonLoading(btn, false);
       await loadAllSettings();
@@ -352,6 +443,12 @@
       return;
     }
 
+    try {
+      requireAdminToken();
+    } catch (_) {
+      return;
+    }
+
     setButtonLoading(btn, true, '⏳ 등록 중...');
     try {
       const res = await fetchAPI('updateGuestSettings', {
@@ -368,10 +465,11 @@
       if (res?.success) {
         alert('추가 운영 일정이 등록되었습니다.');
       } else {
+        clearAdminTokenIfDenied(res);
         alert(res?.message || '등록 실패');
       }
     } catch (e) {
-      alert('오류가 발생했습니다.');
+      alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
     } finally {
       setButtonLoading(btn, false);
       await loadAllSettings();
@@ -382,6 +480,12 @@
   async function deleteGuestAdditionalScheduleAction(schedule, button) {
     if (!schedule?.scheduleId) return;
     if (!confirm(`${formatGuestScheduleDate(schedule.date)} ${schedule.startTime}~${schedule.endTime} 일정을 취소할까요?`)) return;
+
+    try {
+      requireAdminToken();
+    } catch (_) {
+      return;
+    }
 
     setButtonLoading(button, true, '⏳ 취소 중...');
     try {
@@ -397,10 +501,11 @@
       if (res?.success) {
         alert('추가 일정이 취소되었습니다.');
       } else {
+        clearAdminTokenIfDenied(res);
         alert(res?.message || '취소 실패');
       }
     } catch (e) {
-      alert('오류가 발생했습니다.');
+      alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
     } finally {
       setButtonLoading(button, false);
       await loadAllSettings();
@@ -408,47 +513,58 @@
   }
 
   // 2-5) 오늘 긴급 운영 (지금부터 운영)
-  window.guestOpenUntilAction = async () => {
-    const btn = document.getElementById('btn-guest-open-until');
-    const manualEndEl = document.getElementById('input-guest-manual-end');
-    const endTime = String(manualEndEl?.value || '').trim();
+  window.guestEmergencyOpenUntilAction = async () => {
+    const btn = document.getElementById('btn-guest-emergency-open-until');
+    const endEl = document.getElementById('input-guest-emergency-end');
+    const endTime = String(endEl?.value || '').trim();
+
     if (!endTime) {
-      alert('오늘 종료할 시각(HH:mm)을 입력해 주세요.');
+      alert('운영 종료 시각을 선택해 주세요.');
       return;
     }
-    const today = getGuestKstDateTimeParts().date;
-    const effectiveCloseTime = `${today}T${endTime}:00+09:00`;
+    if (!confirm(`지금부터 오늘 ${endTime}까지 배달왔삼 주문을 받을까요?`)) return;
 
-    if (!confirm(`오늘 ${endTime}까지 긴급 운영을 시작할까요?`)) return;
+    try {
+      requireAdminToken();
+    } catch (_) {
+      return;
+    }
 
-    setButtonLoading(btn, true, '⏳ 시작 중...');
+    setButtonLoading(btn, true, '⏳ 오픈 중...');
     try {
       const res = await fetchAPI('updateGuestSettings', {
         method: 'POST',
         body: {
-          settingsAction: 'emergencyOpen',
-          effectiveCloseTime,
+          settingsAction: 'openUntil',
+          guestManualEndTime: endTime,
           adminToken: getAdminToken(),
           adminMemo: getAdminMemo()
         }
       });
       if (res?.success) {
-        alert('긴급 운영이 시작되었습니다.');
+        alert('오늘 주문 접수를 오픈했습니다.');
       } else {
-        alert(res?.message || '실패했습니다.');
+        clearAdminTokenIfDenied(res);
+        alert(res?.message || '오픈 실패');
       }
     } catch (e) {
-      alert('오류가 발생했습니다.');
+      alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
     } finally {
       setButtonLoading(btn, false);
       await loadAllSettings();
     }
   };
 
-  // 2-6) 오늘 주문 지금 마감
-  window.guestCloseNowAction = async () => {
-    const btn = document.getElementById('btn-guest-close');
-    if (!confirm('오늘 진행 중인 배달왔삼 주문을 지금 마감할까요?')) return;
+  // 2-6) 오늘 주문 즉시 마감
+  window.guestEmergencyCloseAction = async () => {
+    const btn = document.getElementById('btn-guest-emergency-close');
+    if (!confirm('정기/추가 일정과 관계없이 지금 즉시 오늘 주문 접수를 마감할까요?')) return;
+
+    try {
+      requireAdminToken();
+    } catch (_) {
+      return;
+    }
 
     setButtonLoading(btn, true, '⏳ 마감 중...');
     try {
@@ -461,12 +577,13 @@
         }
       });
       if (res?.success) {
-        alert('주문이 마감되었습니다.');
+        alert('오늘 주문을 즉시 마감했습니다.');
       } else {
+        clearAdminTokenIfDenied(res);
         alert(res?.message || '마감 실패');
       }
     } catch (e) {
-      alert('오류가 발생했습니다.');
+      alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
     } finally {
       setButtonLoading(btn, false);
       await loadAllSettings();
@@ -474,7 +591,7 @@
   };
 
   // 3) 당일 정원 및 배달 설정 저장
-  window.saveCapacitySettingsAction = async () => {
+  window.saveCapacityAction = async () => {
     const btn = document.getElementById('btn-save-capacity');
     const maxOrderEl = document.getElementById('input-guest-max-order-count');
     const maxDeliveryEl = document.getElementById('input-guest-max-delivery-count');
@@ -484,26 +601,31 @@
     const guestMaxDeliveryCount = Math.max(0, Number(maxDeliveryEl?.value) || 0);
     const guestDeliveryArea = String(deliveryAreaEl?.value || '').trim() || '영주시 동 지역 (가흥동, 영주동, 휴천동 등)';
 
+    try {
+      requireAdminToken();
+    } catch (_) {
+      return;
+    }
+
     setButtonLoading(btn, true);
     try {
+      const payload = buildFullUpdateValuesPayload({
+        guestMaxOrderCount,
+        guestMaxDeliveryCount,
+        guestDeliveryArea
+      });
       const res = await fetchAPI('updateGuestSettings', {
         method: 'POST',
-        body: {
-          settingsAction: 'updateValues',
-          guestMaxOrderCount,
-          guestMaxDeliveryCount,
-          guestDeliveryArea,
-          adminToken: getAdminToken(),
-          adminMemo: getAdminMemo()
-        }
+        body: payload
       });
       if (res?.success) {
         alert('정원 및 배달 지역 설정이 저장되었습니다.');
       } else {
+        clearAdminTokenIfDenied(res);
         alert(res?.message || '저장 실패');
       }
     } catch (e) {
-      alert('오류가 발생했습니다.');
+      alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
     } finally {
       setButtonLoading(btn, false);
       await loadAllSettings();
@@ -526,31 +648,36 @@
       .filter(Boolean)
       .join(', ');
 
+    try {
+      requireAdminToken();
+    } catch (_) {
+      return;
+    }
+
     setButtonLoading(btn, true);
     try {
+      const payload = buildFullUpdateValuesPayload({
+        guestBaseCredit: Number(creditEl?.value) || 10,
+        guestDeliveryFee: Number(feeEl?.value) || 3,
+        guestDefaultDeliveryPlace: String(placeEl?.value || '사무실 원탁').trim(),
+        guestAllowRandomDisplayName: randomEl ? randomEl.value === 'true' : true,
+        todayDeliveryTeamEnabled: teamEnabledEl ? teamEnabledEl.checked : true,
+        todayDeliveryTeamTitle: String(teamTitleEl?.value || '').trim(),
+        todayDeliveryTeamMembers: members,
+        todayDeliveryTeamMessage: String(teamMessageEl?.value || '').trim()
+      });
       const res = await fetchAPI('updateGuestSettings', {
         method: 'POST',
-        body: {
-          settingsAction: 'updateValues',
-          guestBaseCredit: Number(creditEl?.value) || 10,
-          guestDeliveryFee: Number(feeEl?.value) || 3,
-          guestDefaultDeliveryPlace: String(placeEl?.value || '사무실 원탁').trim(),
-          guestAllowRandomDisplayName: randomEl ? randomEl.value === 'true' : true,
-          todayDeliveryTeamEnabled: teamEnabledEl ? teamEnabledEl.checked : true,
-          todayDeliveryTeamTitle: String(teamTitleEl?.value || '').trim(),
-          todayDeliveryTeamMembers: members,
-          todayDeliveryTeamMessage: String(teamMessageEl?.value || '').trim(),
-          adminToken: getAdminToken(),
-          adminMemo: getAdminMemo()
-        }
+        body: payload
       });
       if (res?.success) {
         alert('기본 및 담당자 설정이 저장되었습니다.');
       } else {
+        clearAdminTokenIfDenied(res);
         alert(res?.message || '저장 실패');
       }
     } catch (e) {
-      alert('오류가 발생했습니다.');
+      alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
     } finally {
       setButtonLoading(btn, false);
       await loadAllSettings();
@@ -570,8 +697,8 @@
     });
 
     // AdminAuth 초기화
-    if (window.AdminAuth) {
-      window.AdminAuth.init({
+    if (typeof AdminAuth !== 'undefined') {
+      AdminAuth.init({
         onUnlock: () => loadAllSettings()
       });
     }
@@ -580,4 +707,16 @@
   });
 
   window.loadAllSettings = loadAllSettings;
+  window.saveKioskPolicyAction = saveKioskPolicyAction;
+  window.saveGuestWeeklyScheduleAction = saveGuestWeeklyScheduleAction;
+  window.toggleGuestWeeklyScheduleSkipAction = toggleGuestWeeklyScheduleSkipAction;
+  window.addGuestAdditionalScheduleAction = addGuestAdditionalScheduleAction;
+  window.deleteGuestAdditionalScheduleAction = deleteGuestAdditionalScheduleAction;
+  window.guestEmergencyOpenUntilAction = guestEmergencyOpenUntilAction;
+  window.guestOpenUntilAction = guestEmergencyOpenUntilAction;
+  window.guestEmergencyCloseAction = guestEmergencyCloseAction;
+  window.guestCloseNowAction = guestEmergencyCloseAction;
+  window.saveCapacityAction = saveCapacityAction;
+  window.saveCapacitySettingsAction = saveCapacityAction;
+  window.saveBaseSettingsAction = saveBaseSettingsAction;
 })();

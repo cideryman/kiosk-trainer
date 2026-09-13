@@ -756,6 +756,7 @@ const AdminAuth = {
     if (unlocked) this.setError('');
   }
 };
+window.AdminAuth = AdminAuth;
 
 // 모바일 브라우저의 100vh 스크롤 이슈 방지용 --vh 커스텀 프로퍼티 정의
 function updateViewportHeight() {
