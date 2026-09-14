@@ -95,7 +95,7 @@
     }
   }
 
-  // --- 1. 키오스크 정책 세그먼트 ---
+  // --- 1. 키오스크 주문 정책 선택 ---
   function setKioskOrderPolicy(policy) {
     const normalized = ['once_daily', 'cooldown', 'unlimited'].includes(String(policy).toLowerCase())
       ? String(policy).toLowerCase()
@@ -106,10 +106,17 @@
     if (inputEl) inputEl.value = normalized;
     if (cooldownContainer) {
       cooldownContainer.style.display = normalized === 'cooldown' ? 'flex' : 'none';
+      if (normalized === 'cooldown') {
+        const minutesInput = document.getElementById('input-kiosk-cooldown-minutes');
+        if (minutesInput && document.activeElement !== minutesInput) {
+          setTimeout(() => minutesInput.focus(), 60);
+        }
+      }
     }
     document.querySelectorAll('[data-kiosk-order-policy]').forEach(btn => {
       const isActive = btn.dataset.kioskOrderPolicy === normalized;
       btn.classList.toggle('is-active', isActive);
+      btn.setAttribute('aria-checked', String(isActive));
       btn.setAttribute('aria-pressed', String(isActive));
     });
   }
@@ -700,9 +707,22 @@
 
   // --- 6. 초기화 ---
   document.addEventListener('DOMContentLoaded', () => {
-    // 키오스크 정책 버튼 바인딩
-    document.querySelectorAll('[data-kiosk-order-policy]').forEach(btn => {
-      btn.addEventListener('click', () => setKioskOrderPolicy(btn.dataset.kioskOrderPolicy));
+    // 키오스크 정책 카드 바인딩
+    document.querySelectorAll('[data-kiosk-order-policy]').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('#kiosk-cooldown-container') && card.dataset.kioskOrderPolicy === 'cooldown') {
+          return;
+        }
+        setKioskOrderPolicy(card.dataset.kioskOrderPolicy);
+      });
+
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          if (e.target.closest('#kiosk-cooldown-container')) return;
+          e.preventDefault();
+          setKioskOrderPolicy(card.dataset.kioskOrderPolicy);
+        }
+      });
     });
 
     // 랜덤 닉네임 버튼 바인딩

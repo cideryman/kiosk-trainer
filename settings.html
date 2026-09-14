@@ -101,21 +101,167 @@
       box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.12);
       outline: none;
     }
-    .kiosk-order-policy-segmented {
-      background: #F8FAFC;
-      border-radius: 12px;
-      padding: 6px;
-      border: 1.5px solid #E2E8F0;
+    /* 🛒 키오스크 주문 제한 3단 카드 UI */
+    .kiosk-policy-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-top: 12px;
     }
-    .kiosk-order-policy-option {
-      border-radius: 9px;
-      border: 1px solid transparent;
-      transition: all 0.2s ease;
-    }
-    .kiosk-order-policy-option.is-active {
+    .kiosk-policy-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      padding: 16px 16px 14px 16px;
       background: #FFFFFF;
-      border-color: #CBD5E1;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06);
+      border: 2px solid #E2E8F0;
+      border-radius: 12px;
+      cursor: pointer;
+      position: relative;
+      transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+      user-select: none;
+      box-sizing: border-box;
+      min-height: 154px;
+    }
+    .kiosk-policy-card:hover {
+      border-color: #93C5FD;
+      background: #F8FAFC;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    .kiosk-policy-card.is-active {
+      border-color: #2B6CB0;
+      background: #F0F7FF;
+      box-shadow: 0 4px 14px rgba(43, 108, 176, 0.12);
+    }
+    .kiosk-policy-card:focus-visible {
+      outline: 3px solid rgba(43, 108, 176, 0.35);
+      outline-offset: 2px;
+    }
+    .kiosk-policy-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .kiosk-policy-icon-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .kiosk-policy-icon {
+      font-size: 20px;
+      line-height: 1;
+    }
+    .kiosk-policy-title {
+      font-size: 15.5px;
+      font-weight: 800;
+      color: #1E293B;
+    }
+    .kiosk-policy-card.is-active .kiosk-policy-title {
+      color: #1E3A8A;
+    }
+    .kiosk-policy-radio-indicator {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid #CBD5E1;
+      background: #FFFFFF;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.2s ease, background-color 0.2s ease;
+      flex-shrink: 0;
+    }
+    .kiosk-policy-card.is-active .kiosk-policy-radio-indicator {
+      border-color: #2B6CB0;
+      background: #2B6CB0;
+    }
+    .kiosk-policy-card.is-active .kiosk-policy-radio-indicator::after {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #FFFFFF;
+    }
+    .kiosk-policy-desc {
+      font-size: 13px;
+      color: #64748B;
+      line-height: 1.45;
+      margin: 0;
+      word-break: keep-all;
+      flex-grow: 1;
+    }
+    .kiosk-policy-card.is-active .kiosk-policy-desc {
+      color: #334155;
+    }
+    .kiosk-policy-badge-box {
+      margin-top: 10px;
+      display: flex;
+    }
+    .kiosk-policy-badge {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #0F766E;
+      background: #E6FFFA;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid #B2F5EA;
+    }
+    .kiosk-policy-badge-unlimited {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #718096;
+      background: #EDF2F7;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+    
+    /* 쿨다운 인라인 컨테이너 */
+    .kiosk-cooldown-inline-container {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: #FFFFFF;
+      border: 1.5px solid #BFDBFE;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      cursor: default;
+    }
+    .kiosk-cooldown-input-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .kiosk-cooldown-label {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #1E3A8A;
+      cursor: pointer;
+    }
+    .kiosk-cooldown-field {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .kiosk-cooldown-input {
+      width: 72px !important;
+      padding: 6px 8px !important;
+      font-size: 14px !important;
+      text-align: center;
+      border-radius: 6px !important;
+    }
+    .kiosk-cooldown-unit {
+      font-size: 13px;
+      font-weight: 700;
+      color: #475569;
+    }
+    .kiosk-cooldown-hint {
+      font-size: 11px;
+      color: #64748B;
+      line-height: 1.3;
     }
     .guest-weekly-schedule {
       border: 1.5px solid #D1EAE6;
@@ -278,6 +424,25 @@
         flex-direction: column !important;
         gap: 8px !important;
       }
+      .kiosk-policy-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      .kiosk-policy-card {
+        min-height: auto;
+        padding: 14px 14px 12px 14px;
+      }
+      .kiosk-policy-title {
+        font-size: 15px;
+      }
+      .kiosk-policy-desc {
+        font-size: 12.5px;
+        margin-top: 4px;
+      }
+      .kiosk-cooldown-inline-container {
+        margin-top: 10px;
+        padding: 10px;
+      }
     }
 
     @media (max-width: 480px) {
@@ -290,15 +455,6 @@
       .btn-small-action.admin-toolbar-action {
         font-size: 13px;
         padding: 6px 10px;
-      }
-      .kiosk-order-policy-segmented {
-        flex-direction: column;
-        gap: 8px;
-      }
-      .kiosk-order-policy-option {
-        width: 100%;
-        text-align: left;
-        padding: 12px;
       }
     }
   </style>
@@ -402,24 +558,60 @@
               </div>
               <div class="kiosk-order-restriction-panel" style="padding: 0; background: transparent; border: none; box-shadow: none;">
                 <input type="hidden" id="input-kiosk-order-policy" value="once_daily">
-                <div class="kiosk-order-policy-segmented" role="group" aria-label="키오스크 주문 제한 방식">
-                  <button class="kiosk-order-policy-option is-active" type="button" data-kiosk-order-policy="once_daily" aria-pressed="true">
-                    <strong>1일 1회 주문</strong>
-                    <small>당일 1회 주문 후 추가 주문 차단</small>
-                  </button>
-                  <button class="kiosk-order-policy-option" type="button" data-kiosk-order-policy="cooldown" aria-pressed="false">
-                    <strong>쿨다운 시간 제한</strong>
-                    <small>주문 후 지정된 시간 동안 차단</small>
-                  </button>
-                  <button class="kiosk-order-policy-option" type="button" data-kiosk-order-policy="unlimited" aria-pressed="false">
-                    <strong>무제한 (제한 없음)</strong>
-                    <small>횟수나 시간 제한 없이 주문 가능</small>
-                  </button>
-                </div>
-                <div class="kiosk-cooldown-input-container" id="kiosk-cooldown-container" style="display: none; margin-top: 14px;">
-                  <label for="input-kiosk-cooldown-minutes" style="font-size: 14px; font-weight: 800; color: #334155;">쿨다운 시간(분):</label>
-                  <input type="number" id="input-kiosk-cooldown-minutes" class="settings-input-rounded" value="60" min="1" max="1440" step="5" style="width: 100px; text-align: center;">
-                  <span style="font-size: 13px; color: var(--text-muted);">분 (예: 60분 = 주문 후 1시간 동안 차단)</span>
+                
+                <div class="kiosk-policy-grid" role="radiogroup" aria-label="키오스크 주문 제한 방식">
+                  <!-- 옵션 1: 1일 1회 주문 -->
+                  <div class="kiosk-policy-card is-active" data-kiosk-order-policy="once_daily" role="radio" aria-checked="true" tabindex="0">
+                    <div class="kiosk-policy-card-top">
+                      <div class="kiosk-policy-icon-title">
+                        <span class="kiosk-policy-icon" aria-hidden="true">📅</span>
+                        <strong class="kiosk-policy-title">1일 1회 주문</strong>
+                      </div>
+                      <span class="kiosk-policy-radio-indicator" aria-hidden="true"></span>
+                    </div>
+                    <p class="kiosk-policy-desc">당일 1회 주문 완료 후 추가 주문을 자동으로 차단합니다.</p>
+                    <div class="kiosk-policy-badge-box">
+                      <span class="kiosk-policy-badge">기본 권장 정책</span>
+                    </div>
+                  </div>
+
+                  <!-- 옵션 2: 쿨다운 시간 제한 (인라인 시간 설정 내장) -->
+                  <div class="kiosk-policy-card" data-kiosk-order-policy="cooldown" role="radio" aria-checked="false" tabindex="0">
+                    <div class="kiosk-policy-card-top">
+                      <div class="kiosk-policy-icon-title">
+                        <span class="kiosk-policy-icon" aria-hidden="true">⏱️</span>
+                        <strong class="kiosk-policy-title">쿨다운 시간 제한</strong>
+                      </div>
+                      <span class="kiosk-policy-radio-indicator" aria-hidden="true"></span>
+                    </div>
+                    <p class="kiosk-policy-desc">주문 후 지정된 시간 동안 차단하며, 시간이 지나면 다시 주문할 수 있습니다.</p>
+                    
+                    <div class="kiosk-cooldown-inline-container" id="kiosk-cooldown-container" style="display: none;">
+                      <div class="kiosk-cooldown-input-wrap">
+                        <label for="input-kiosk-cooldown-minutes" class="kiosk-cooldown-label">대기 시간 설정</label>
+                        <div class="kiosk-cooldown-field">
+                          <input type="number" id="input-kiosk-cooldown-minutes" class="settings-input-rounded kiosk-cooldown-input" value="60" min="1" max="1440" step="5" aria-label="쿨다운 대기 시간(분)">
+                          <span class="kiosk-cooldown-unit">분</span>
+                        </div>
+                      </div>
+                      <small class="kiosk-cooldown-hint">💡 60분 = 주문 후 1시간 동안 차단</small>
+                    </div>
+                  </div>
+
+                  <!-- 옵션 3: 무제한 (제한 없음) -->
+                  <div class="kiosk-policy-card" data-kiosk-order-policy="unlimited" role="radio" aria-checked="false" tabindex="0">
+                    <div class="kiosk-policy-card-top">
+                      <div class="kiosk-policy-icon-title">
+                        <span class="kiosk-policy-icon" aria-hidden="true">🔓</span>
+                        <strong class="kiosk-policy-title">무제한 (제한 없음)</strong>
+                      </div>
+                      <span class="kiosk-policy-radio-indicator" aria-hidden="true"></span>
+                    </div>
+                    <p class="kiosk-policy-desc">횟수나 시간 제한 없이 언제든지 자유롭게 주문할 수 있습니다.</p>
+                    <div class="kiosk-policy-badge-box">
+                      <span class="kiosk-policy-badge-unlimited">자유 이용 / 테스트</span>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="settings-card-actions">
