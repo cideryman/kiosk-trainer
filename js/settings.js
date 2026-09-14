@@ -567,8 +567,8 @@
 
   // 2-5) 오늘 긴급 운영 (지금부터 운영)
   window.guestEmergencyOpenUntilAction = async () => {
-    const btn = document.getElementById('btn-guest-emergency-open-until');
-    const endEl = document.getElementById('input-guest-emergency-end');
+    const btn = document.getElementById('btn-guest-open-until') || document.getElementById('btn-guest-emergency-open-until');
+    const endEl = document.getElementById('input-guest-manual-end') || document.getElementById('input-guest-emergency-end');
     const endTime = String(endEl?.value || '').trim();
 
     if (!endTime) {
@@ -610,7 +610,7 @@
 
   // 2-6) 오늘 주문 즉시 마감
   window.guestEmergencyCloseAction = async () => {
-    const btn = document.getElementById('btn-guest-emergency-close');
+    const btn = document.getElementById('btn-guest-close') || document.getElementById('btn-guest-emergency-close');
     if (!confirm('정기/추가 일정과 관계없이 지금 즉시 오늘 주문 접수를 마감할까요?')) return;
 
     try {
