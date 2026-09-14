@@ -266,6 +266,29 @@
         const input = document.getElementById(`input-team-member-${i}`);
         if (input) input.value = members[i - 1] || '';
       }
+
+      // 5) 행사 모드 및 이메일 알림 바인딩
+      const eventModeEl = document.getElementById('input-guest-menu-mode-event');
+      const eventDetailsContainer = document.getElementById('event-mode-details-container');
+      const eventNameEl = document.getElementById('input-guest-event-name');
+      const eventEmblemBase64Input = document.getElementById('input-guest-event-emblem-base64');
+      const emblemPreviewImg = document.getElementById('preview-guest-event-emblem');
+      const emailNotiEl = document.getElementById('input-admin-order-email-notification');
+
+      const isEvent = res.guestMenuMode === 'event';
+      if (eventModeEl) eventModeEl.checked = isEvent;
+      if (eventDetailsContainer) eventDetailsContainer.style.display = isEvent ? 'flex' : 'none';
+      if (eventNameEl) eventNameEl.value = res.guestEventName || '장애인식 개선 캠페인';
+      
+      const emblemData = res.guestEventEmblemBase64 || '';
+      if (eventEmblemBase64Input) eventEmblemBase64Input.value = emblemData;
+      if (emblemPreviewImg) {
+        emblemPreviewImg.src = emblemData || 'icons/배달왔삼.png';
+      }
+
+      if (emailNotiEl) {
+        emailNotiEl.checked = res.adminOrderEmailNotificationEnabled !== false && String(res.adminOrderEmailNotificationEnabled).toLowerCase() !== 'false';
+      }
     } catch (e) {
       console.error('Failed to load settings:', e);
     }
@@ -287,11 +310,20 @@
     const teamEnabledEl = document.getElementById('input-team-enabled');
     const teamTitleEl = document.getElementById('input-team-title');
     const teamMessageEl = document.getElementById('input-team-message');
+    const eventModeEl = document.getElementById('input-guest-menu-mode-event');
+    const eventNameEl = document.getElementById('input-guest-event-name');
+    const eventEmblemInput = document.getElementById('input-guest-event-emblem-base64');
+    const emailNotiEl = document.getElementById('input-admin-order-email-notification');
 
     const members = [1, 2, 3]
       .map(i => document.getElementById(`input-team-member-${i}`)?.value?.trim())
       .filter(Boolean)
       .join(', ');
+
+    const guestMenuMode = eventModeEl ? (eventModeEl.checked ? 'event' : 'normal') : (s.guestMenuMode || 'normal');
+    const guestEventName = eventNameEl ? (eventNameEl.value.trim() || '장애인식 개선 캠페인') : (s.guestEventName || '장애인식 개선 캠페인');
+    const guestEventEmblemBase64 = eventEmblemInput ? eventEmblemInput.value : (s.guestEventEmblemBase64 || '');
+    const adminOrderEmailNotificationEnabled = emailNotiEl ? emailNotiEl.checked : (s.adminOrderEmailNotificationEnabled !== false);
 
     const payload = {
       settingsAction: 'updateValues',
@@ -302,16 +334,16 @@
       guestMaxDeliveryCount: maxDeliveryEl ? Math.max(0, Number(maxDeliveryEl.value) || 0) : (s.guestMaxDeliveryCount ?? 2),
       guestDeliveryArea: deliveryAreaEl ? (deliveryAreaEl.value.trim() || '영주시 동 지역 (가흥동, 영주동, 휴천동 등)') : (s.guestDeliveryArea || '영주시 동 지역 (가흥동, 영주동, 휴천동 등)'),
       guestAllowRandomDisplayName: randomEl ? (randomEl.value === 'true') : (s.guestAllowRandomDisplayName !== false),
-      adminOrderEmailNotificationEnabled: s.adminOrderEmailNotificationEnabled !== false,
+      adminOrderEmailNotificationEnabled,
       kioskOrderPolicy: policyInput ? policyInput.value : (s.kioskOrderPolicy || 'once_daily'),
       kioskCooldownMinutes: cooldownInput ? Math.max(1, Number(cooldownInput.value) || 60) : (s.kioskCooldownMinutes || 60),
       todayDeliveryTeamEnabled: teamEnabledEl ? teamEnabledEl.checked : (s.todayDeliveryTeamEnabled !== false),
       todayDeliveryTeamTitle: teamTitleEl ? teamTitleEl.value.trim() : (s.todayDeliveryTeamTitle || '📦 오늘의 배달팀'),
       todayDeliveryTeamMembers: members || (s.todayDeliveryTeamMembers || ''),
       todayDeliveryTeamMessage: teamMessageEl ? teamMessageEl.value.trim() : (s.todayDeliveryTeamMessage || ''),
-      guestMenuMode: s.guestMenuMode || 'normal',
-      guestEventName: s.guestEventName || '장애인식 개선 캠페인',
-      guestEventEmblemBase64: s.guestEventEmblemBase64 || '',
+      guestMenuMode,
+      guestEventName,
+      guestEventEmblemBase64,
       adminToken: getAdminToken(),
       adminMemo: getAdminMemo(),
       ...overrides
@@ -705,6 +737,104 @@
     }
   };
 
+  // 5) 특별 행사 및 알림 설정 저장
+  window.saveEventSettingsAction = async () => {
+    const btn = document.getElementById('btn-save-event-settings');
+    const eventModeEl = document.getElementById('input-guest-menu-mode-event');
+    const eventNameEl = document.getElementById('input-guest-event-name');
+    const eventEmblemInput = document.getElementById('input-guest-event-emblem-base64');
+    const emailNotiEl = document.getElementById('input-admin-order-email-notification');
+
+    const guestMenuMode = eventModeEl?.checked ? 'event' : 'normal';
+    const guestEventName = String(eventNameEl?.value || '').trim() || '장애인식 개선 캠페인';
+    const guestEventEmblemBase64 = eventEmblemInput ? eventEmblemInput.value : '';
+    const adminOrderEmailNotificationEnabled = emailNotiEl ? emailNotiEl.checked : true;
+
+    try {
+      requireAdminToken();
+    } catch (_) {
+      return;
+    }
+
+    setButtonLoading(btn, true);
+    try {
+      const payload = buildFullUpdateValuesPayload({
+        guestMenuMode,
+        guestEventName,
+        guestEventEmblemBase64,
+        adminOrderEmailNotificationEnabled
+      });
+
+      const res = await fetchAPI('updateGuestSettings', {
+        method: 'POST',
+        body: payload
+      });
+
+      if (res?.success) {
+        alert('특별 행사 및 알림 설정이 성공적으로 저장되었습니다.');
+      } else {
+        clearAdminTokenIfDenied(res);
+        alert(res?.message || '저장 실패');
+      }
+    } catch (e) {
+      alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
+    } finally {
+      setButtonLoading(btn, false);
+      await loadAllSettings();
+    }
+  };
+
+  // 엠블럼 이미지 업로드 처리 (P43 경량 WebP 자동 압축 아키텍처)
+  function handleEventEmblemUpload(e) {
+    const file = e.target?.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function (evt) {
+      const img = new Image();
+      img.onload = function () {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxSize = 150;
+
+        if (width > height) {
+          if (width > maxSize) {
+            height = Math.round(height * (maxSize / width));
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = Math.round(width * (maxSize / height));
+            height = maxSize;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const webpBase64 = canvas.toDataURL('image/webp', 0.85);
+        const input = document.getElementById('input-guest-event-emblem-base64');
+        const preview = document.getElementById('preview-guest-event-emblem');
+        if (input) input.value = webpBase64;
+        if (preview) preview.src = webpBase64;
+      };
+      img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // 엠블럼 이미지 기본 복원/삭제
+  window.removeEventEmblem = function () {
+    const input = document.getElementById('input-guest-event-emblem-base64');
+    const fileInput = document.getElementById('file-guest-event-emblem');
+    const preview = document.getElementById('preview-guest-event-emblem');
+    if (input) input.value = '';
+    if (fileInput) fileInput.value = '';
+    if (preview) preview.src = 'icons/배달왔삼.png';
+  };
+
   // --- 6. 초기화 ---
   document.addEventListener('DOMContentLoaded', () => {
     // 키오스크 정책 카드 바인딩
@@ -730,6 +860,23 @@
       btn.addEventListener('click', () => setGuestRandomDisplayName(btn.dataset.guestRandomName === 'true'));
     });
 
+    // 행사 모드 토글 스위치 아코디언 바인딩
+    const eventModeToggle = document.getElementById('input-guest-menu-mode-event');
+    if (eventModeToggle) {
+      eventModeToggle.addEventListener('change', () => {
+        const container = document.getElementById('event-mode-details-container');
+        if (container) {
+          container.style.display = eventModeToggle.checked ? 'flex' : 'none';
+        }
+      });
+    }
+
+    // 엠블럼 파일 업로드 바인딩
+    const emblemFileInput = document.getElementById('file-guest-event-emblem');
+    if (emblemFileInput) {
+      emblemFileInput.addEventListener('change', handleEventEmblemUpload);
+    }
+
     // AdminAuth 초기화
     if (typeof AdminAuth !== 'undefined') {
       AdminAuth.init({
@@ -753,4 +900,5 @@
   window.saveCapacityAction = saveCapacityAction;
   window.saveCapacitySettingsAction = saveCapacityAction;
   window.saveBaseSettingsAction = saveBaseSettingsAction;
+  window.saveEventSettingsAction = saveEventSettingsAction;
 })();
