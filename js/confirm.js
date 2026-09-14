@@ -763,13 +763,8 @@ async function submitOrder() {
   if (btnSubmit) btnSubmit.disabled = true;
   if (btnPrev) btnPrev.disabled   = true;
 
-  if (isGuest) {
-    try {
-      await refreshGuestCreditStatus();
-    } catch (error) {
-      console.warn('게스트 크레딧 갱신 실패:', error);
-    }
-  }
+  // 게스트 크레딧은 confirm 페이지 진입 시 이미 조회되었고,
+  // 백엔드 placeOrder에서도 원자적으로 검증 및 차감하므로 불필요한 직렬 네트워크 대기를 생략합니다.
 
   const fee = getGuestFee();
   const deliveryFee = (isGuest && deliveryType === 'delivery') ? fee : 0;

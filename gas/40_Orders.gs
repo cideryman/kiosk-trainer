@@ -185,7 +185,9 @@ function placeOrder(data) {
     let guestSettings = null;
 
     if (isGuest) {
-      guestSettings = measureOrderPerformanceStep_(performanceState, 'userOrGuestRead', () => getGuestSettings());
+      guestSettings = measureOrderPerformanceStep_(performanceState, 'userOrGuestRead', () => (
+        typeof getGuestSettings === 'function' ? getGuestSettings([]) : {}
+      ));
       if (!canCompleteStartedGuestOrder(guestSettings, data.orderStartedAt)) {
         return respond({
           success: false,

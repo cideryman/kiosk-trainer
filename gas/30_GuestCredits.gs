@@ -101,7 +101,11 @@ function getKakaoGuestBonusCredit(settings) {
 
 function resolveGuestCreditWallet(data, options) {
   const opts = options || {};
-  const settings = opts.settings || getGuestSettings();
+  const settings = opts.settings || (
+    typeof getRawGuestSettings_ === 'function'
+      ? getRawGuestSettings_()
+      : (typeof getGuestSettings === 'function' ? getGuestSettings([]) : {})
+  );
   const periodKey = opts.periodKey || getGuestCreditPeriodKey();
   const guestDeviceId = String(data.guestDeviceId || '').trim();
   const requestedGuestKey = String(data.guestKey || '').trim();

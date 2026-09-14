@@ -70,34 +70,39 @@ window.addEventListener('DOMContentLoaded', () => {
         });
       };
 
-      if (tokens.length > 0) {
-        const tokenRes = await fetchAPIReadWithRetry('getGuestOrderByToken', {
-          method: 'POST',
-          body: { tokens: tokens, includeArchived: includeArchived },
-          timeoutMs: 30000
-        });
-        if (tokenRes && tokenRes.success) {
-          appendRows(tokenRes.orders);
-        } else {
-          console.warn('토큰 주문 조회 실패:', tokenRes);
-        }
+      // 토큰 주문 조회와 카카오 주문 조회를 병렬 실행하여 로딩 시간 단축
+      const tokenPromise = tokens.length > 0
+        ? fetchAPIReadWithRetry('getGuestOrderByToken', {
+            method: 'POST',
+            body: { tokens: tokens, includeArchived: includeArchived },
+            timeoutMs: 30000
+          })
+        : Promise.resolve(null);
+
+      const authPromise = guestAuth
+        ? fetchAPIReadWithRetry('getGuestOrdersByGuestKey', {
+            method: 'POST',
+            body: {
+              authProvider: guestAuth.provider,
+              guestKey: guestAuth.guestKey,
+              includeArchived: includeArchived
+            },
+            timeoutMs: 30000
+          })
+        : Promise.resolve(null);
+
+      const [tokenRes, authRes] = await Promise.all([tokenPromise, authPromise]);
+
+      if (tokenRes && tokenRes.success) {
+        appendRows(tokenRes.orders);
+      } else if (tokens.length > 0) {
+        console.warn('토큰 주문 조회 실패:', tokenRes);
       }
 
-      if (guestAuth) {
-        const authRes = await fetchAPIReadWithRetry('getGuestOrdersByGuestKey', {
-          method: 'POST',
-          body: {
-            authProvider: guestAuth.provider,
-            guestKey: guestAuth.guestKey,
-            includeArchived: includeArchived
-          },
-          timeoutMs: 30000
-        });
-        if (authRes && authRes.success) {
-          appendRows(authRes.orders);
-        } else {
-          console.warn('카카오 주문 조회 실패:', authRes);
-        }
+      if (authRes && authRes.success) {
+        appendRows(authRes.orders);
+      } else if (guestAuth) {
+        console.warn('카카오 주문 조회 실패:', authRes);
       }
 
       // 후기 및 장애인 직원 AAC 답글 실시간 동기화 (Join)

@@ -77,6 +77,10 @@ function initView() {
 }
 
 async function refreshCompleteGuestSettings() {
+  // 이미 세션에 설정값이 저장되어 있다면 불필요한 네트워크 호출을 생략합니다.
+  if (sessionStorage.getItem('guestDefaultDeliveryPlace') && sessionStorage.getItem('guestAllowRandomDisplayName') !== null) {
+    return;
+  }
   try {
     const settingsRes = await fetchAPIReadWithRetry('getGuestSettings', { timeoutMs: 30000 });
     if (!settingsRes || !settingsRes.success) return;
