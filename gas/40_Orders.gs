@@ -251,7 +251,9 @@ function placeOrder(data) {
 
       // 일반 키오스크 주문 제한 정책 검증 (직원 긴급 우회 data.staffBypass가 아닌 경우)
       if (!guestSettings) {
-        guestSettings = measureOrderPerformanceStep_(performanceState, 'userOrGuestRead', () => getGuestSettings());
+        guestSettings = measureOrderPerformanceStep_(performanceState, 'userOrGuestRead', () => (
+          typeof getRawGuestSettings_ === 'function' ? getRawGuestSettings_() : getGuestSettings()
+        ));
       }
 
       if (data.staffBypass !== true) {
@@ -858,7 +860,9 @@ function getPublicOrderFeed() {
   const result = getOrdersToday();
   if (!result || result.success === false) return result;
 
-  const guestSettings = getGuestSettings();
+  const guestSettings = typeof getRawGuestSettings_ === 'function'
+    ? getRawGuestSettings_()
+    : getGuestSettings(result.orders);
 
   return {
     success: true,

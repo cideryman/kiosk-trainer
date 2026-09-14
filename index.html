@@ -577,7 +577,7 @@
     }
 
 
-    const CANCELLATION_POLL_MS = 10000;
+    const CANCELLATION_POLL_MS = 15000;
     let cancellationInterval = null;
     let cancellationPollingActive = false;
     let cancellationPollInFlight = false;
@@ -594,6 +594,9 @@
           const dismissed = JSON.parse(localStorage.getItem('dismissedCancellations') || '[]');
           const newDismissed = Array.from(new Set([...dismissed, ...existingCancelled]));
           localStorage.setItem('dismissedCancellations', JSON.stringify(newDismissed));
+
+          // 내 주문 상태 점검 호출
+          checkMyOrderStatus(response.orders);
 
           // P112: 첫 화면 진입 시에도 즉시 키오스크 카드 주문 상태 시각화 적용
           if (typeof updateKioskUserStatusesFromFeed === 'function') {
@@ -869,9 +872,10 @@
         });
       }
 
-      // 취소 알림 설정 초기화 및 폴링 시작
+      // 취소 알림 설정 초기화 및 첫 폴링 스케줄링 (즉시 중복 호출 방지)
       initCancellationAlerts().then(() => {
-        startCancellationPolling();
+        cancellationPollingActive = true;
+        scheduleCancellationPolling();
       });
 
       // TTS 토글 연동 및 초기설정

@@ -223,7 +223,7 @@ function parseSettingBoolean(val, defaultValue = true) {
   return defaultValue;
 }
 
-function buildGuestSettingsResponse(settings) {
+function buildGuestSettingsResponse(settings, existingOrders) {
   const now = new Date();
   const operatingState = resolveGuestOperatingState(settings, now);
   const eventNameResult = sanitizeGuestEventNameHtml_(settings.guestEventName || '장애인식 개선 캠페인');
@@ -250,25 +250,33 @@ function buildGuestSettingsResponse(settings) {
   let todayOrderCount = 0;
   let todayDeliveryCount = 0;
   try {
-    if (typeof getOrdersToday === 'function') {
+    let ordersList = null;
+    if (Array.isArray(existingOrders)) {
+      ordersList = existingOrders;
+    } else if (existingOrders && Array.isArray(existingOrders.orders)) {
+      ordersList = existingOrders.orders;
+    } else if (typeof getOrdersToday === 'function') {
       const todayResult = getOrdersToday();
       if (todayResult && Array.isArray(todayResult.orders)) {
-        const orderMap = {};
-        todayResult.orders.forEach(function(o) {
-          if (!o.cancelTimestamp && o.orderNo) {
-            if (!orderMap[o.orderNo]) {
-              orderMap[o.orderNo] = (o.deliveryType === 'delivery');
-            } else if (o.deliveryType === 'delivery') {
-              orderMap[o.orderNo] = true;
-            }
-          }
-        });
-        const orderKeys = Object.keys(orderMap);
-        todayOrderCount = orderKeys.length;
-        orderKeys.forEach(function(k) {
-          if (orderMap[k]) todayDeliveryCount++;
-        });
+        ordersList = todayResult.orders;
       }
+    }
+    if (Array.isArray(ordersList)) {
+      const orderMap = {};
+      ordersList.forEach(function(o) {
+        if (!o.cancelTimestamp && o.orderNo) {
+          if (!orderMap[o.orderNo]) {
+            orderMap[o.orderNo] = (o.deliveryType === 'delivery');
+          } else if (o.deliveryType === 'delivery') {
+            orderMap[o.orderNo] = true;
+          }
+        }
+      });
+      const orderKeys = Object.keys(orderMap);
+      todayOrderCount = orderKeys.length;
+      orderKeys.forEach(function(k) {
+        if (orderMap[k]) todayDeliveryCount++;
+      });
     }
   } catch (_) {}
 
@@ -369,6 +377,10 @@ function readGuestSettingsFromSheet(sheet) {
         val = normalizeGuestScheduleTime(val, key === 'guestWeeklyScheduleStartTime' ? '13:00' : '15:00');
       } else if (key === 'guestWeeklyScheduleSkipDate') {
         val = normalizeGuestScheduleDateKey(val);
+      } else if (key === 'kioskOrderPolicy') {
+        val = String(val || 'once_daily').trim().toLowerCase();
+      } else if (key === 'kioskCooldownMinutes') {
+        val = Math.max(1, Number(val || 60));
       } else if (val instanceof Date) {
         val = val.toISOString();
       }
@@ -378,10 +390,10 @@ function readGuestSettingsFromSheet(sheet) {
   return settings;
 }
 
-function getGuestSettings() {
+function getRawGuestSettings_() {
   const cachedSettings = getGuestSettingsCache();
   if (cachedSettings) {
-    return buildGuestSettingsResponse(cachedSettings);
+    return cachedSettings;
   }
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -389,7 +401,12 @@ function getGuestSettings() {
   const settings = readGuestSettingsFromSheet(sheet);
 
   setGuestSettingsCache(settings);
-  return buildGuestSettingsResponse(settings);
+  return settings;
+}
+
+function getGuestSettings(existingOrders) {
+  const settings = getRawGuestSettings_();
+  return buildGuestSettingsResponse(settings, existingOrders);
 }
 
 function getGuestAdditionalSchedulesForMutation(settings) {
