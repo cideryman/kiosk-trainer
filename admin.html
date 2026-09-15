@@ -68,6 +68,10 @@
           </div>
           <div class="kiosk-header-top">
             <div class="admin-header-actions">
+              <button class="btn-small-action admin-toolbar-action" data-app-update-button type="button" title="화면 코드의 최신 버전을 확인합니다.">
+                <span aria-hidden="true">↻</span>
+                <span data-app-update-label>앱 업데이트</span>
+              </button>
               <button class="btn-small-action admin-toolbar-action" onclick="openDiagnoseModal()">🛠️ 운영 점검</button>
               <button class="btn-small-action admin-toolbar-action" id="btn-manual-refresh">
                 🔄 새로고침
@@ -75,6 +79,7 @@
             </div>
           </div>
         </header>
+        <div class="admin-header-update-banner" data-app-update-status role="status" aria-live="polite" hidden></div>
 
     <section class="admin-auth-bar" data-admin-auth aria-label="관리자 잠금 해제">
       <div class="admin-auth-gate-visual">

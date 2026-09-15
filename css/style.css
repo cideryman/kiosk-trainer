@@ -3222,6 +3222,29 @@ body.admin-shell-page {
   outline-offset: 2px;
 }
 
+/* 상단 헤더 업데이트 결과 안내 배너 (P128 개선) */
+.admin-header-update-banner {
+  background: #F0FDFA;
+  border-bottom: 1.5px solid #CCFBF1;
+  color: #0D9488;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  width: 100%;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.admin-header-update-banner[hidden] {
+  display: none !important;
+}
+
+.admin-header-update-banner.is-error {
+  background: #FEF2F2;
+  border-bottom-color: #FECACA;
+  color: #DC2626;
+}
+
 /* ==========================================================================
    본문 하단 관리자 유틸리티 푸터 바 (P128)
    ========================================================================== */

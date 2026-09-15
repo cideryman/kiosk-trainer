@@ -11,7 +11,7 @@ function read(rel) {
   return fs.readFileSync(path.join(root, rel), 'utf8');
 }
 
-console.log('--- [Test 1] settings.html, admin.html, reviews.html 본문 하단 유틸리티 바 검증 ---');
+console.log('--- [Test 1] settings.html, admin.html, reviews.html 본문 하단 푸터 바 및 상단 헤더 버튼 검증 ---');
 
 const targets = ['settings.html', 'admin.html', 'reviews.html'];
 
@@ -36,7 +36,10 @@ for (const target of targets) {
   const mainCloseIndex = content.indexOf('</main>');
   assert(footerIndex !== -1 && mainCloseIndex !== -1 && footerIndex < mainCloseIndex, `${target}: 푸터 바가 </main> 이전에 위치해야 합니다.`);
   
-  console.log(`✓ ${target}: 본문 하단 유틸리티 바(업데이트 확인, 나가기, 상태) 및 위치 검증 통과`);
+  // 6. 상단 헤더 업데이트 버튼 및 상단 알림 배너 존재 검증 (P128 상단 빠른 접근 개선)
+  assert(content.includes('admin-header-update-banner'), `${target}: admin-header-update-banner 요소가 누락되었습니다.`);
+  
+  console.log(`✓ ${target}: 상단 헤더 빠른 버튼 & 하단 유틸리티 푸터 바 검증 통과`);
 }
 
 console.log('--- [Test 2] css/style.css 스타일 검증 ---');
@@ -46,13 +49,14 @@ assert(css.includes('.btn-footer-utility'), 'css/style.css: .btn-footer-utility 
 assert(css.includes('.btn-footer-update'), 'css/style.css: .btn-footer-update 스타일 누락');
 assert(css.includes('.btn-footer-logout'), 'css/style.css: .btn-footer-logout 스타일 누락');
 assert(css.includes('.admin-footer-status'), 'css/style.css: .admin-footer-status 스타일 누락');
-console.log('✓ css/style.css: 푸터 바 및 버튼 스타일 정의 검증 통과');
+assert(css.includes('.admin-header-update-banner'), 'css/style.css: .admin-header-update-banner 스타일 누락');
+console.log('✓ css/style.css: 상단 배너, 푸터 바 및 버튼 스타일 정의 검증 통과');
 
-console.log('--- [Test 3] 캐시 버전 일치 검증 (kiosk-cache-v375) ---');
+console.log('--- [Test 3] 캐시 버전 일치 검증 (kiosk-cache-v376) ---');
 const sw = read('service-worker.js');
 const handoff = read('handoff.md');
-assert(sw.includes('kiosk-cache-v375'), 'service-worker.js: kiosk-cache-v375 누락');
-assert(handoff.includes('kiosk-cache-v375'), 'handoff.md: kiosk-cache-v375 누락');
-console.log('✓ service-worker.js & handoff.md: kiosk-cache-v375 캐시 일치 검증 통과');
+assert(sw.includes('kiosk-cache-v376'), 'service-worker.js: kiosk-cache-v376 누락');
+assert(handoff.includes('kiosk-cache-v376'), 'handoff.md: kiosk-cache-v376 누락');
+console.log('✓ service-worker.js & handoff.md: kiosk-cache-v376 캐시 일치 검증 통과');
 
-console.log('\n✅ 모든 P128 본문 하단 유틸리티 바 단위 테스트 성공!');
+console.log('\n✅ 모든 P128 상단/하단 업데이트 및 나가기 버튼 단위 테스트 성공!');
