@@ -3222,6 +3222,142 @@ body.admin-shell-page {
   outline-offset: 2px;
 }
 
+/* ==========================================================================
+   본문 하단 관리자 유틸리티 푸터 바 (P128)
+   ========================================================================== */
+.admin-content-footer {
+  margin-top: 36px;
+  padding: 24px 16px 40px;
+  border-top: 1.5px dashed #E2E8F0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.admin-content-footer-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 600px;
+  width: 100%;
+}
+
+.admin-footer-status {
+  min-height: 20px;
+  padding: 6px 16px;
+  border-radius: 20px;
+  background: #F0FDFA;
+  border: 1px solid #CCFBF1;
+  color: #0D9488;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.admin-footer-status[hidden] {
+  display: none !important;
+}
+
+.admin-footer-status.is-error {
+  background: #FEF2F2;
+  border-color: #FECACA;
+  color: #DC2626;
+}
+
+.admin-footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.btn-footer-utility {
+  min-height: 44px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  user-select: none;
+}
+
+.btn-footer-update {
+  background: #FFFFFF;
+  border: 1.5px solid #CBD5E1;
+  color: #334155;
+}
+
+.btn-footer-update:hover {
+  background: #F8FAFC;
+  border-color: #94A3B8;
+  color: #0F172A;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
+}
+
+.btn-footer-update:hover .update-icon {
+  transform: rotate(90deg);
+}
+
+.btn-footer-update .update-icon {
+  display: inline-block;
+  font-size: 16px;
+  transition: transform 0.3s ease;
+}
+
+.btn-footer-update:disabled {
+  opacity: 0.65;
+  cursor: wait;
+  transform: none;
+}
+
+.btn-footer-logout {
+  background: #FFF1F2;
+  border: 1.5px solid #FECDD3;
+  color: #E11D48;
+}
+
+.btn-footer-logout:hover {
+  background: #FFE4E6;
+  border-color: #FDA4AF;
+  color: #BE123C;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(225, 29, 72, 0.12);
+}
+
+.btn-footer-logout[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 480px) {
+  .admin-content-footer {
+    margin-top: 24px;
+    padding: 20px 12px 32px;
+  }
+  .admin-footer-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .btn-footer-utility {
+    width: 100%;
+    min-height: 46px;
+    font-size: 15px;
+  }
+}
+
+
 @media (max-width: 767px) {
   .admin-header {
     min-height: 0;

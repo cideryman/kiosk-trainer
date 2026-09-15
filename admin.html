@@ -369,11 +369,23 @@
           </details>
         </div>
       </div>
-
+      <!-- 본문 하단 공통 유틸리티 바 (P128) -->
+      <footer class="admin-content-footer" aria-label="관리자 부가 기능">
+        <div class="admin-content-footer-inner">
+          <div class="admin-footer-status" data-app-update-status role="status" aria-live="polite" hidden></div>
+          <div class="admin-footer-actions">
+            <button class="btn-footer-utility btn-footer-update" data-app-update-button type="button" title="화면 코드의 최신 버전을 확인합니다.">
+              <span aria-hidden="true" class="update-icon">↻</span>
+              <span data-app-update-label>앱 업데이트 확인</span>
+            </button>
+            <button class="btn-footer-utility btn-footer-logout" data-admin-toolbar-lock type="button" hidden title="관리자 나가기" aria-label="관리자 나가기">
+              <span aria-hidden="true">🚪</span>
+              <span>관리자 나가기</span>
+            </button>
+          </div>
+        </div>
+      </footer>
     </main>
-
-
-  </div>
 
   <!-- 이용 신청 상세 모달 -->
   <div class="admin-modal" id="modal-guest-application">
