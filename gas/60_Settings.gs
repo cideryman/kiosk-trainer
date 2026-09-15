@@ -264,7 +264,8 @@ function buildGuestSettingsResponse(settings, existingOrders) {
     if (Array.isArray(ordersList)) {
       const orderMap = {};
       ordersList.forEach(function(o) {
-        if (!o.cancelTimestamp && o.orderNo) {
+        // P125: 배달왔삼 정원 집계 시 일반 키오스크 이용자 제외, 게스트 주문(userId === 'guest')만 집계
+        if (!o.cancelTimestamp && o.orderNo && o.userId === 'guest') {
           if (!orderMap[o.orderNo]) {
             orderMap[o.orderNo] = (o.deliveryType === 'delivery');
           } else if (o.deliveryType === 'delivery') {

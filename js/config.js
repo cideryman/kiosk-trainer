@@ -1302,7 +1302,7 @@ function getMockFallback(action, options) {
       const todayOrderMap = {};
       const todayKstKey = formatMockGuestScheduleDateKey(nowParts.year, nowParts.month, nowParts.day);
       allOrdersForCap.forEach(o => {
-        if (!o.cancelTimestamp && o.orderNo) {
+        if (!o.cancelTimestamp && o.orderNo && o.userId === 'guest') {
           const oDate = String(o.timestamp || '').slice(0, 10);
           if (oDate === todayKstKey || !o.timestamp) {
             if (!todayOrderMap[o.orderNo]) {
@@ -1780,7 +1780,7 @@ function getMockFallback(action, options) {
       const todayOrderMapCheck = {};
       const todayKstStr = formatMockGuestScheduleDateKey(now.getFullYear(), now.getMonth() + 1, now.getDate());
       allOrdersForOrderCap.forEach(o => {
-        if (!o.cancelTimestamp && o.orderNo) {
+        if (!o.cancelTimestamp && o.orderNo && o.userId === 'guest') {
           const oDate = String(o.timestamp || '').slice(0, 10);
           if (oDate === todayKstStr || !o.timestamp) {
             if (!todayOrderMapCheck[o.orderNo]) {

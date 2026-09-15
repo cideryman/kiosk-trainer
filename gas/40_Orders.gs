@@ -416,12 +416,17 @@ function placeOrder(data) {
       const todayOrderMap = {};
       const todayKst = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyMMdd');
       const cancelTimestampIdx = headers.indexOf('cancelTimestamp');
+      const userIdIdx = headers.indexOf('userId') !== -1 ? headers.indexOf('userId') : 2;
       for (let i = 0; i < orderRowsSnapshot.length; i++) {
         const r = orderRowsSnapshot[i];
         if (!r[0] || !isCommittedOrderRow(r, headers)) continue;
         try {
           const rDate = Utilities.formatDate(new Date(r[0]), Session.getScriptTimeZone(), 'yyMMdd');
           if (rDate === todayKst) {
+            // P125: 배달왔삼 정원 집계 시 일반 키오스크 이용자 제외, 게스트 주문(userId === 'guest')만 집계
+            const rowUserId = String(r[userIdIdx] !== undefined ? r[userIdIdx] : (r[2] || '')).trim();
+            if (rowUserId !== 'guest') continue;
+
             const oNo = String(r[1] || '');
             const isCancelled = cancelTimestampIdx !== -1 && String(r[cancelTimestampIdx] || '').trim() !== '';
             if (oNo && !isCancelled) {
