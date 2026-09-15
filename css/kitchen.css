@@ -535,6 +535,33 @@
       background-color: var(--secondary-hover);
     }
 
+    .btn-complete-action.is-loading {
+      background-color: #94A3B8 !important;
+      cursor: not-allowed !important;
+      opacity: 0.85 !important;
+      box-shadow: none !important;
+      transform: none !important;
+    }
+
+    .btn-bulk-step-action {
+      font-weight: 800 !important;
+      transition: background-color 0.2s ease, opacity 0.2s ease;
+    }
+
+    .btn-bulk-step-action:disabled {
+      opacity: 0.45 !important;
+      cursor: not-allowed !important;
+    }
+
+    .btn-bulk-immediate-action {
+      background-color: #64748B !important;
+      color: white !important;
+    }
+
+    .btn-bulk-immediate-action:hover:not(:disabled) {
+      background-color: #475569 !important;
+    }
+
     .btn-cancel-action {
       background-color: var(--danger-color);
       color: white;

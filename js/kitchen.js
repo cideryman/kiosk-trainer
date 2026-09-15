@@ -770,9 +770,154 @@ async function loadAdminData(isAutoRefresh = false) {
   }
 }
 
+// P127: 주문 상태 변경 순차 처리 큐 (GAS ScriptLock 동시성 충돌 및 타임아웃 방지)
+const orderMutationQueue = [];
+let isProcessingOrderQueue = false;
+let currentInFlightOrderNo = null;
+let lastColumnGroups = { kiosk: [], pickup: [], delivery: [] };
+
+function enqueueOrderMutation(mutation) {
+  return new Promise((resolve, reject) => {
+    orderMutationQueue.push({ ...mutation, resolve, reject });
+    processOrderMutationQueue();
+  });
+}
+
+async function processOrderMutationQueue() {
+  if (isProcessingOrderQueue) return;
+  isProcessingOrderQueue = true;
+
+  try {
+    while (orderMutationQueue.length > 0) {
+      const task = orderMutationQueue[0];
+      currentInFlightOrderNo = task.orderNo;
+      // UI 즉시 업데이트 ("대기 중..." -> "처리 중...")
+      renderData(currentOrders);
+
+      try {
+        const res = await fetchAPI('updateOrderServed', {
+          method: 'POST',
+          body: withAdminToken({ orderId: task.orderNo, servedYn: task.nextStatus }),
+          timeoutMs: ADMIN_WRITE_TIMEOUT_MS
+        });
+
+        if (res && res.success) {
+          pendingUpdates.delete(task.orderNo);
+          task.resolve(res);
+        } else {
+          pendingUpdates.delete(task.orderNo);
+          rollbackLocalOrders(task.orderNo, task.originalStates);
+          clearAdminTokenIfDenied(res);
+          const errMsg = res?.message || "서버 응답 오류";
+          task.reject(new Error(errMsg));
+        }
+      } catch (err) {
+        pendingUpdates.delete(task.orderNo);
+        rollbackLocalOrders(task.orderNo, task.originalStates);
+        task.reject(err);
+      } finally {
+        orderMutationQueue.shift();
+        currentInFlightOrderNo = null;
+      }
+    }
+  } finally {
+    isProcessingOrderQueue = false;
+    currentInFlightOrderNo = null;
+    // 모든 큐 처리가 완료된 후 조용한 최신 데이터 새로고침
+    await silentRefreshAdminData();
+    renderData(currentOrders);
+  }
+}
+
+// 컬럼별 다음 단계 계산
+function getColumnStepInfo(columnId, groups) {
+  const list = Array.isArray(groups) ? groups : [];
+  const activeGroups = list.filter(g => g.servedYn !== 'Y' && g.servedYn !== 'C');
+
+  if (activeGroups.length === 0) {
+    return {
+      targetStatus: null,
+      count: 0,
+      label: '진행할 주문 없음',
+      bgColor: '#94A3B8',
+      targetOrderNos: []
+    };
+  }
+
+  // 1단계: 접수중('N' 또는 빈값)인 주문이 있는 경우 -> 준비 시작('P')으로 진행
+  const nGroups = activeGroups.filter(g => !g.servedYn || g.servedYn === 'N');
+  if (nGroups.length > 0) {
+    return {
+      targetStatus: 'P',
+      count: nGroups.length,
+      label: '☕ 모두 준비시작',
+      bgColor: '#3A86C8',
+      targetOrderNos: nGroups.map(g => g.orderNo)
+    };
+  }
+
+  // 2단계: 준비중('P')인 주문이 있는 경우 -> 준비 완료('R') 또는 배달 출발('R')로 진행
+  const pGroups = activeGroups.filter(g => g.servedYn === 'P');
+  if (pGroups.length > 0) {
+    const isDelivery = columnId === 'delivery';
+    return {
+      targetStatus: 'R',
+      count: pGroups.length,
+      label: isDelivery ? '🛵 모두 배달출발' : '🔔 모두 준비완료',
+      bgColor: isDelivery ? 'var(--danger-color)' : 'var(--primary-color)',
+      targetOrderNos: pGroups.map(g => g.orderNo)
+    };
+  }
+
+  // 3단계: 준비완료/배달중('R')인 주문이 있는 경우 -> 수령 완료('Y') 또는 배달 완료('Y')로 진행
+  const rGroups = activeGroups.filter(g => g.servedYn === 'R');
+  if (rGroups.length > 0) {
+    const isDelivery = columnId === 'delivery';
+    return {
+      targetStatus: 'Y',
+      count: rGroups.length,
+      label: isDelivery ? '📦 모두 배달완료' : '📦 모두 수령완료',
+      bgColor: 'var(--secondary-color)',
+      targetOrderNos: rGroups.map(g => g.orderNo)
+    };
+  }
+
+  return {
+    targetStatus: null,
+    count: 0,
+    label: '진행할 주문 없음',
+    bgColor: '#94A3B8',
+    targetOrderNos: []
+  };
+}
+
 // 일괄 처리 UI 갱신
-function updateBulkActionBar(hasPending) {
+function updateBulkActionBar(hasPending, columnGroups) {
+  if (columnGroups) {
+    lastColumnGroups = columnGroups;
+  }
   updateBulkSelectionUI();
+  updateBulkStepUI(columnGroups);
+}
+
+// 컬럼별 단계 버튼 상태 갱신
+function updateBulkStepUI(columnGroups) {
+  const groups = columnGroups || lastColumnGroups || { kiosk: [], pickup: [], delivery: [] };
+  ['kiosk', 'pickup', 'delivery'].forEach(colId => {
+    const btnStep = document.getElementById(`btn-bulk-step-${colId}`);
+    if (!btnStep) return;
+    const colList = groups[colId] || [];
+    const info = getColumnStepInfo(colId, colList);
+    if (info.count > 0 && info.targetStatus) {
+      btnStep.disabled = false;
+      btnStep.textContent = `${info.label} (${info.count})`;
+      btnStep.style.backgroundColor = info.bgColor;
+    } else {
+      btnStep.disabled = true;
+      btnStep.textContent = '진행할 주문 없음';
+      btnStep.style.backgroundColor = '#94A3B8';
+    }
+  });
 }
 
 // 선택 체크박스 상태에 따라 버튼/카운트 갱신 (컬럼별)
@@ -808,8 +953,58 @@ function updateBulkSelectionUI() {
   if (btnAllDelivery) btnAllDelivery.disabled = deliveryCbs.length === 0;
 }
 
+// 컬럼별 단계별 일괄 진행 (☕ 준비시작 -> 🔔 준비완료 -> 📦 수령완료)
+async function advanceColumnStep(columnId) {
+  const groups = (lastColumnGroups && lastColumnGroups[columnId]) || [];
+  const info = getColumnStepInfo(columnId, groups);
+  if (!info.targetStatus || info.targetOrderNos.length === 0) return;
+
+  const colNameMap = { kiosk: '키오스크', pickup: '배달왔삼 포장', delivery: '배달왔삼 배달' };
+  const colName = colNameMap[columnId] || columnId;
+
+  const ok = confirm(`[${colName}] ${info.targetOrderNos.length}건: '${info.label}'을 일괄 진행할까요?`);
+  if (!ok) return;
+
+  resetRefreshTimer(); // P126: 사용자 조작 시 즉시 30초 타이머 리셋
+  AppState.vibrate(60);
+  AppState.playClickSound();
+
+  const nextStatus = info.targetStatus;
+  const promises = [];
+
+  info.targetOrderNos.forEach(orderNo => {
+    const originalStates = currentOrders
+      .filter(o => (o.orderNo || `${o.timestamp}_${o.nickname}`) === orderNo)
+      .map(o => ({ id: o.orderId || o.orderNo, servedYn: o.servedYn }));
+
+    currentOrders.forEach(o => {
+      const itemNo = o.orderNo || `${o.timestamp}_${o.nickname}`;
+      if (itemNo === orderNo) {
+        o.servedYn = nextStatus;
+      }
+    });
+
+    pendingUpdates.set(orderNo, nextStatus);
+    recentStatusUpdates.set(orderNo, { status: nextStatus, timestamp: Date.now() });
+
+    promises.push(
+      enqueueOrderMutation({
+        type: 'updateStatus',
+        orderNo,
+        nextStatus,
+        originalStates
+      }).catch(err => {
+        console.warn(`[BulkStep] 주문 ${orderNo} 처리 실패:`, err);
+      })
+    );
+  });
+
+  renderData(currentOrders);
+  await Promise.all(promises);
+}
+
 // 선택된 주문만 일괄 제공 완료 (컬럼별)
-async function completeSelectedOrders(columnId) {
+async function completeSelectedOrders(columnId, skipConfirm = false) {
   let queryStr = '.pending-order-checkbox:checked';
   if (columnId === 'kiosk') queryStr = '#pending-kiosk-group .pending-order-checkbox:checked';
   else if (columnId === 'pickup') queryStr = '#pending-pickup-group .pending-order-checkbox:checked';
@@ -818,52 +1013,58 @@ async function completeSelectedOrders(columnId) {
   const checked = document.querySelectorAll(queryStr);
   if (checked.length === 0) return;
 
-  const orderNos = Array.from(checked).map(cb => cb.getAttribute('data-order-no'));
-  const ok = confirm(`선택한 ${orderNos.length}건의 주문을 모두 제공 완료 처리할까요?`);
-  if (!ok) return;
+  const orderNos = Array.from(checked).map(cb => cb.getAttribute('data-order-no')).filter(Boolean);
+  if (orderNos.length === 0) return;
+
+  if (!skipConfirm) {
+    const ok = confirm(`선택한 ${orderNos.length}건의 주문을 모두 제공 완료 처리할까요?`);
+    if (!ok) return;
+  }
 
   resetRefreshTimer(); // P126: 사용자 조작 시 즉시 30초 타이머 리셋
-  orderNos.forEach(oNo => recentStatusUpdates.set(oNo, { status: 'Y', timestamp: Date.now() }));
+  AppState.vibrate(80);
+  AppState.playClickSound();
 
   const btnSel = document.getElementById(`btn-bulk-selected-${columnId}`);
   const btnAll = document.getElementById(`btn-bulk-all-${columnId}`);
+  const btnStep = document.getElementById(`btn-bulk-step-${columnId}`);
   if (btnSel) btnSel.disabled = true;
   if (btnAll) btnAll.disabled = true;
+  if (btnStep) btnStep.disabled = true;
 
-  try {
-    let successCount = 0;
-    let failCount = 0;
+  const promises = [];
+  orderNos.forEach(orderNo => {
+    const originalStates = currentOrders
+      .filter(o => (o.orderNo || `${o.timestamp}_${o.nickname}`) === orderNo)
+      .map(o => ({ id: o.orderId || o.orderNo, servedYn: o.servedYn }));
 
-    for (const orderNo of orderNos) {
-      try {
-        const res = await fetchAPI('updateOrderServed', {
-          method: 'POST',
-          body: withAdminToken({ orderId: orderNo, servedYn: 'Y' }),
-          timeoutMs: ADMIN_WRITE_TIMEOUT_MS
-        });
-        if (res && res.success) {
-          successCount++;
-        } else {
-          clearAdminTokenIfDenied(res);
-          failCount++;
-        }
-      } catch (e) {
-        failCount++;
+    currentOrders.forEach(o => {
+      const itemNo = o.orderNo || `${o.timestamp}_${o.nickname}`;
+      if (itemNo === orderNo) {
+        o.servedYn = 'Y';
       }
-    }
+    });
 
-    AppState.vibrate(80);
-    AppState.playClickSound();
-    if (failCount > 0) {
-      alert(`완료: ${successCount}건 / 실패: ${failCount}건`);
-    }
-    await loadAdminData();
-  } finally {
-    updateBulkSelectionUI();
-  }
+    pendingUpdates.set(orderNo, 'Y');
+    recentStatusUpdates.set(orderNo, { status: 'Y', timestamp: Date.now() });
+
+    promises.push(
+      enqueueOrderMutation({
+        type: 'updateStatus',
+        orderNo,
+        nextStatus: 'Y',
+        originalStates
+      }).catch(err => {
+        console.warn(`[BulkSelected] 주문 ${orderNo} 완료 실패:`, err);
+      })
+    );
+  });
+
+  renderData(currentOrders);
+  await Promise.all(promises);
 }
 
-// 모든 대기 주문 일괄 제공 완료 (컬럼별)
+// 모든 대기 주문 즉시 전체 완료 (컬럼별 - 모든 단계 건너뛰기)
 async function completeAllOrders(columnId) {
   let queryStr = '.pending-order-checkbox';
   if (columnId === 'kiosk') queryStr = '#pending-kiosk-group .pending-order-checkbox';
@@ -873,12 +1074,15 @@ async function completeAllOrders(columnId) {
   const checkboxes = document.querySelectorAll(queryStr);
   if (checkboxes.length === 0) return;
 
-  const ok = confirm(`대기 중인 ${checkboxes.length}건의 주문을 모두 제공 완료 처리할까요?`);
+  const colNameMap = { kiosk: '키오스크', pickup: '배달왔삼 포장', delivery: '배달왔삼 배달' };
+  const colName = colNameMap[columnId] || columnId;
+
+  const ok = confirm(`[${colName}] 대기 중인 ${checkboxes.length}건의 주문을 모든 단계 건너뛰고 즉시 전체 완료 처리할까요?`);
   if (!ok) return;
 
-  // 전체 선택 후 일괄 처리
-  checkboxes.forEach(cb => { cb.checked = true; cb.dispatchEvent(new Event('change')); });
-  await completeSelectedOrders(columnId);
+  // 전체 선택 후 일괄 처리 (확인창 중복 방지)
+  checkboxes.forEach(cb => { cb.checked = true; });
+  await completeSelectedOrders(columnId, true);
 }
 
 
@@ -1202,6 +1406,7 @@ async function silentRefreshAdminData() {
 
 // 로컬 카드 상태 롤백 처리
 function rollbackLocalOrders(orderNo, originalStates) {
+  recentStatusUpdates.delete(orderNo);
   currentOrders.forEach(o => {
     const itemNo = o.orderNo || `${o.timestamp}_${o.nickname}`;
     if (itemNo === orderNo) {
@@ -1217,6 +1422,8 @@ function rollbackLocalOrders(orderNo, originalStates) {
 // 제공 완료 취소 (되돌리기) 처리 (DB 상태 업데이트)
 async function undoCompleteOrder(orderNo) {
   resetRefreshTimer(); // P126: 사용자 조작 시 즉시 30초 타이머 리셋
+  if (pendingUpdates.has(orderNo) || orderMutationQueue.some(t => t.orderNo === orderNo)) return;
+
   const originalStates = currentOrders
     .filter(o => (o.orderNo || `${o.timestamp}_${o.nickname}`) === orderNo)
     .map(o => ({ id: o.orderId || o.orderNo, servedYn: o.servedYn }));
@@ -1236,33 +1443,24 @@ async function undoCompleteOrder(orderNo) {
   renderData(currentOrders);
 
   try {
-    const res = await fetchAPI('updateOrderServed', {
-      method: 'POST',
-      body: withAdminToken({ orderId: orderNo, servedYn: 'R' }),
-      timeoutMs: ADMIN_WRITE_TIMEOUT_MS
+    await enqueueOrderMutation({
+      type: 'undo',
+      orderNo,
+      nextStatus: 'R',
+      originalStates
     });
-
-    if (res && res.success) {
-      pendingUpdates.delete(orderNo);
-      silentRefreshAdminData();
-    } else {
-      pendingUpdates.delete(orderNo);
-      rollbackLocalOrders(orderNo, originalStates);
-      clearAdminTokenIfDenied(res);
-      alert("되돌리기에 실패했습니다: " + (res?.message || "알 수 없는 오류"));
-    }
   } catch (error) {
-    pendingUpdates.delete(orderNo);
-    rollbackLocalOrders(orderNo, originalStates);
     console.error("되돌리기 중 오류:", error);
-    alert("되돌리기 중 오류가 발생했습니다. 이전 상태로 되돌립니다.");
+    alert("되돌리기 중 오류가 발생했습니다: " + (error?.message || "네트워크 오류"));
+    renderData(currentOrders);
   }
 }
 
 // 단계별 상태 업그레이드 처리
 async function updateStatusAction(orderNo, nextStatus) {
   resetRefreshTimer(); // P126: 사용자 조작 시 즉시 30초 타이머 리셋
-  if (pendingUpdates.has(orderNo)) return;
+  if (pendingUpdates.has(orderNo) || orderMutationQueue.some(t => t.orderNo === orderNo)) return;
+
   const originalStates = currentOrders
     .filter(o => (o.orderNo || `${o.timestamp}_${o.nickname}`) === orderNo)
     .map(o => ({ id: o.orderId || o.orderNo, servedYn: o.servedYn }));
@@ -1282,26 +1480,16 @@ async function updateStatusAction(orderNo, nextStatus) {
   renderData(currentOrders);
 
   try {
-    const res = await fetchAPI('updateOrderServed', {
-      method: 'POST',
-      body: withAdminToken({ orderId: orderNo, servedYn: nextStatus }),
-      timeoutMs: ADMIN_WRITE_TIMEOUT_MS
+    await enqueueOrderMutation({
+      type: 'updateStatus',
+      orderNo,
+      nextStatus,
+      originalStates
     });
-
-    if (res && res.success) {
-      pendingUpdates.delete(orderNo);
-      silentRefreshAdminData();
-    } else {
-      pendingUpdates.delete(orderNo);
-      rollbackLocalOrders(orderNo, originalStates);
-      clearAdminTokenIfDenied(res);
-      alert("상태 변경에 실패했습니다: " + (res?.message || "오류"));
-    }
   } catch (error) {
-    pendingUpdates.delete(orderNo);
-    rollbackLocalOrders(orderNo, originalStates);
     console.error("상태 변경 중 오류:", error);
-    alert("상태 변경 중 통신 오류가 발생했습니다. 이전 상태로 되돌립니다.");
+    alert("상태 변경 중 오류가 발생했습니다: " + (error?.message || "네트워크 오류"));
+    renderData(currentOrders);
   }
 }
 
@@ -1450,10 +1638,11 @@ function renderData(rawOrders) {
             <span id="kiosk-pending-count" class="status-badge" style="background-color: var(--primary-color); border-color: var(--primary-color); color: white; min-width: 30px; padding: 2px 6px;">0건</span>
           </div>
           <!-- 키오스크 전용 일괄 처리 바 -->
-          <div class="column-bulk-bar" id="bulk-bar-kiosk" style="display: flex; gap: 8px; align-items: center; background: #F8F9FA; padding: 8px 12px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); margin-bottom: 12px;">
-            <span style="font-size: 13px; font-weight: 800; color: var(--text-muted); flex: 1;" id="bulk-count-kiosk">선택: 0건</span>
+          <div class="column-bulk-bar" id="bulk-bar-kiosk" style="display: flex; gap: 6px; align-items: center; background: #F8F9FA; padding: 6px 10px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); margin-bottom: 12px; flex-wrap: wrap;">
+            <span style="font-size: 13px; font-weight: 800; color: var(--text-muted); min-width: 55px;" id="bulk-count-kiosk">선택: 0건</span>
             <button class="btn-small-action" style="padding: 4px 8px; font-size: 13px; background-color: var(--secondary-color); color: white; border: none; min-height: auto;" id="btn-bulk-selected-kiosk" onclick="completeSelectedOrders('kiosk')" disabled>선택 제공</button>
-            <button class="btn-small-action" style="padding: 4px 8px; font-size: 13px; background-color: #3A86C8; color: white; border: none; min-height: auto;" id="btn-bulk-all-kiosk" onclick="completeAllOrders('kiosk')">모두 제공</button>
+            <button class="btn-small-action btn-bulk-step-action" style="padding: 4px 8px; font-size: 13px; color: white; border: none; min-height: auto;" id="btn-bulk-step-kiosk" onclick="advanceColumnStep('kiosk')">진행할 주문 없음</button>
+            <button class="btn-small-action btn-bulk-immediate-action" style="padding: 4px 8px; font-size: 13px; border: none; min-height: auto;" id="btn-bulk-all-kiosk" onclick="completeAllOrders('kiosk')" title="모든 단계를 건너뛰고 즉시 완료 처리">⚡ 즉시 완료</button>
           </div>
           <div id="pending-kiosk-group" style="display: flex; flex-direction: column; gap: 16px;"></div>
         </div>
@@ -1465,10 +1654,11 @@ function renderData(rawOrders) {
             <span id="pickup-pending-count" class="status-badge" style="background-color: var(--secondary-color); border-color: var(--secondary-color); color: white; min-width: 30px; padding: 2px 6px;">0건</span>
           </div>
           <!-- 배달왔삼 포장 전용 일괄 처리 바 -->
-          <div class="column-bulk-bar" id="bulk-bar-pickup" style="display: flex; gap: 8px; align-items: center; background: #F8F9FA; padding: 8px 12px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); margin-bottom: 12px;">
-            <span style="font-size: 13px; font-weight: 800; color: var(--text-muted); flex: 1;" id="bulk-count-pickup">선택: 0건</span>
+          <div class="column-bulk-bar" id="bulk-bar-pickup" style="display: flex; gap: 6px; align-items: center; background: #F8F9FA; padding: 6px 10px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); margin-bottom: 12px; flex-wrap: wrap;">
+            <span style="font-size: 13px; font-weight: 800; color: var(--text-muted); min-width: 55px;" id="bulk-count-pickup">선택: 0건</span>
             <button class="btn-small-action" style="padding: 4px 8px; font-size: 13px; background-color: var(--secondary-color); color: white; border: none; min-height: auto;" id="btn-bulk-selected-pickup" onclick="completeSelectedOrders('pickup')" disabled>선택 제공</button>
-            <button class="btn-small-action" style="padding: 4px 8px; font-size: 13px; background-color: #3A86C8; color: white; border: none; min-height: auto;" id="btn-bulk-all-pickup" onclick="completeAllOrders('pickup')">모두 제공</button>
+            <button class="btn-small-action btn-bulk-step-action" style="padding: 4px 8px; font-size: 13px; color: white; border: none; min-height: auto;" id="btn-bulk-step-pickup" onclick="advanceColumnStep('pickup')">진행할 주문 없음</button>
+            <button class="btn-small-action btn-bulk-immediate-action" style="padding: 4px 8px; font-size: 13px; border: none; min-height: auto;" id="btn-bulk-all-pickup" onclick="completeAllOrders('pickup')" title="모든 단계를 건너뛰고 즉시 완료 처리">⚡ 즉시 완료</button>
           </div>
           <div id="pending-pickup-group" style="display: flex; flex-direction: column; gap: 16px;"></div>
         </div>
@@ -1480,10 +1670,11 @@ function renderData(rawOrders) {
             <span id="delivery-pending-count" class="status-badge" style="background-color: var(--danger-color); border-color: var(--danger-color); color: white; min-width: 30px; padding: 2px 6px;">0건</span>
           </div>
           <!-- 배달왔삼 배달 전용 일괄 처리 바 -->
-          <div class="column-bulk-bar" id="bulk-bar-delivery" style="display: flex; gap: 8px; align-items: center; background: #F8F9FA; padding: 8px 12px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); margin-bottom: 12px;">
-            <span style="font-size: 13px; font-weight: 800; color: var(--text-muted); flex: 1;" id="bulk-count-delivery">선택: 0건</span>
+          <div class="column-bulk-bar" id="bulk-bar-delivery" style="display: flex; gap: 6px; align-items: center; background: #F8F9FA; padding: 6px 10px; border-radius: var(--radius-sm); border: 2.5px solid var(--border-color); margin-bottom: 12px; flex-wrap: wrap;">
+            <span style="font-size: 13px; font-weight: 800; color: var(--text-muted); min-width: 55px;" id="bulk-count-delivery">선택: 0건</span>
             <button class="btn-small-action" style="padding: 4px 8px; font-size: 13px; background-color: var(--secondary-color); color: white; border: none; min-height: auto;" id="btn-bulk-selected-delivery" onclick="completeSelectedOrders('delivery')" disabled>선택 제공</button>
-            <button class="btn-small-action" style="padding: 4px 8px; font-size: 13px; background-color: #3A86C8; color: white; border: none; min-height: auto;" id="btn-bulk-all-delivery" onclick="completeAllOrders('delivery')">모두 제공</button>
+            <button class="btn-small-action btn-bulk-step-action" style="padding: 4px 8px; font-size: 13px; color: white; border: none; min-height: auto;" id="btn-bulk-step-delivery" onclick="advanceColumnStep('delivery')">진행할 주문 없음</button>
+            <button class="btn-small-action btn-bulk-immediate-action" style="padding: 4px 8px; font-size: 13px; border: none; min-height: auto;" id="btn-bulk-all-delivery" onclick="completeAllOrders('delivery')" title="모든 단계를 건너뛰고 즉시 완료 처리">⚡ 즉시 완료</button>
           </div>
           <div id="pending-delivery-group" style="display: flex; flex-direction: column; gap: 16px;"></div>
         </div>
@@ -1504,6 +1695,7 @@ function renderData(rawOrders) {
     if (kioskBadge) kioskBadge.textContent = '0건';
     if (pickupBadge) pickupBadge.textContent = '0건';
     if (deliveryBadge) deliveryBadge.textContent = '0건';
+    updateBulkActionBar(false, { kiosk: [], pickup: [], delivery: [] });
   } else {
     const ordersByNo = {};
     pendingOrders.forEach(order => {
@@ -1594,7 +1786,13 @@ function renderData(rawOrders) {
       let statusColor = '#3A86C8'; // blue
       let actionBtnHtml = '';
 
-      if (status === 'P') {
+      const isPending = pendingUpdates.has(group.orderNo) || orderMutationQueue.some(t => t.orderNo === group.orderNo);
+      const isCurrentlyInFlight = (currentInFlightOrderNo === group.orderNo);
+
+      if (isPending) {
+        const loadingText = isCurrentlyInFlight ? '⏳ 처리 중...' : '⏳ 대기 중...';
+        actionBtnHtml = `<button class="btn-complete-action is-loading" disabled style="flex: 1; margin-top: 0; background-color: #94A3B8; cursor: not-allowed; opacity: 0.85;">${loadingText}</button>`;
+      } else if (status === 'P') {
         statusLabel = '준비중';
         statusColor = 'var(--primary-color)'; // orange
         actionBtnHtml = `<button class="btn-complete-action" style="flex: 1; margin-top: 0; background-color: var(--primary-color); box-shadow: var(--shadow-btn);" onclick="${callAttr(`updateStatusAction(${orderNoArg}, 'R')`)}">${isDelivery ? '🛵 배달 출발' : '🔔 준비 완료'}</button>`;
@@ -1649,7 +1847,7 @@ function renderData(rawOrders) {
               <label class="card-checkbox-label" for="${attr(checkboxId)}">이 주문 선택</label>
             </div>
             <div style="display: flex; gap: 8px; margin-top: 8px; width: 100%;">
-              <button class="btn-cancel-action" style="flex: 1;" onclick="${callAttr(`cancelOrderAction(${orderNoArg}, ${jsString(rawNickname)})`)}">주문 취소</button>
+              <button class="btn-cancel-action" style="flex: 1;" ${isPending ? 'disabled style="flex: 1; opacity: 0.5; cursor: not-allowed;"' : ''} onclick="${callAttr(`cancelOrderAction(${orderNoArg}, ${jsString(rawNickname)})`)}">주문 취소</button>
               ${actionBtnHtml}
             </div>
           `;
@@ -1678,10 +1876,14 @@ function renderData(rawOrders) {
         if (pendingPickupContainer) pendingPickupContainer.appendChild(card);
       }
     });
-  }
 
-  // 일괄 처리 바 표시 여부 갱신
-  updateBulkActionBar(pendingOrders.length > 0);
+    // 일괄 처리 바 표시 여부 및 단계 버튼 갱신
+    updateBulkActionBar(pendingOrders.length > 0, {
+      kiosk: kioskGroups,
+      pickup: pickupGroups,
+      delivery: deliveryGroups
+    });
+  }
 
   // 4. 완료 및 취소된 주문 내역 테이블 렌더링
   const tbody = document.getElementById('order-table-body');
@@ -1735,8 +1937,9 @@ function renderData(rawOrders) {
         statusHtml = `<div style="color: var(--danger-color); font-weight: 800; font-size: 13px; margin-top: 4px;">[상태: 취소]<br>사유: ${esc(order.cancelReason || '사유 없음')}${reasonDetail}</div>`;
       }
 
+      const isPendingUndo = pendingUpdates.has(order.orderNo) || orderMutationQueue.some(t => t.orderNo === order.orderNo);
       const actionHtml = !isCanceled
-        ? `<button class="btn-undo-action" onclick="${callAttr(`undoCompleteOrder(${orderNoArg})`)}">되돌리기</button>`
+        ? `<button class="btn-undo-action" ${isPendingUndo ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''} onclick="${callAttr(`undoCompleteOrder(${orderNoArg})`)}">${isPendingUndo ? '⏳ 처리중' : '되돌리기'}</button>`
         : `<span style="color: var(--danger-color); font-weight: 800;">취소됨</span>`;
 
       tr.style = rowStyle;
@@ -3202,4 +3405,20 @@ window.openKitchenEmergencyModal = openKitchenEmergencyModal;
 window.closeKitchenEmergencyModal = closeKitchenEmergencyModal;
 window.kitchenEmergencyOpenAction = kitchenEmergencyOpenAction;
 window.kitchenEmergencyCloseAction = kitchenEmergencyCloseAction;
+window.advanceColumnStep = advanceColumnStep;
+window.completeSelectedOrders = completeSelectedOrders;
+window.completeAllOrders = completeAllOrders;
+window.getColumnStepInfo = getColumnStepInfo;
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    getColumnStepInfo,
+    orderMutationQueue,
+    enqueueOrderMutation,
+    processOrderMutationQueue,
+    advanceColumnStep,
+    completeSelectedOrders,
+    completeAllOrders
+  };
+}
 
