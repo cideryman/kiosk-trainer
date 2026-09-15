@@ -247,6 +247,8 @@ let isModalOpen = false;
 const ADMIN_TOKEN_STORAGE_KEY = AdminAuth.storageKey;
 const ADMIN_WRITE_TIMEOUT_MS = 40000;
 const pendingUpdates = new Map(); // 서버 통신 중인 주문 상태 추적
+const recentStatusUpdates = new Map(); // P126: 최근 5초 이내 변경된 주문 상태 보호 (구글 시트 Stale Read 방지)
+const RECENT_UPDATE_PROTECT_MS = 5000;
 
 function esc(value) {
   return AppState.escapeHtml(value);
@@ -666,17 +668,22 @@ async function loadSnackStock() {
 // 주문 데이터 및 집계 로드
 async function loadAdminData(isAutoRefresh = false) {
   const diagnosticFlow = API_DIAGNOSTICS.startFlow('kitchen:main');
-  const pendingContainer = document.getElementById('pending-orders-group');
-  if (pendingContainer) {
-    pendingContainer.innerHTML = '<div style="padding: 20px; text-align: center; font-weight: 700;">대기 목록 불러오는 중...</div>';
-  }
+  // P126: 자동 새로고침(isAutoRefresh = true) 시에는 DOM을 파괴하지 않고 백그라운드에서 조용히 갱신합니다.
+  if (!isAutoRefresh) {
+    const pendingContainer = document.getElementById('pending-orders-group');
+    if (pendingContainer) {
+      pendingContainer.innerHTML = '<div style="padding: 20px; text-align: center; font-weight: 700;">대기 목록 불러오는 중...</div>';
+    }
 
-  const tbody = document.getElementById('order-table-body');
-  tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px; font-weight: 700;">데이터를 불러오는 중...</td></tr>';
+    const tbody = document.getElementById('order-table-body');
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px; font-weight: 700;">데이터를 불러오는 중...</td></tr>';
+    }
 
-  const stockListEl = document.getElementById('snack-stock-list');
-  if (stockListEl) {
-    stockListEl.innerHTML = '<div class="snack-stock-message">불러오는 중...</div>';
+    const stockListEl = document.getElementById('snack-stock-list');
+    if (stockListEl) {
+      stockListEl.innerHTML = '<div class="snack-stock-message">불러오는 중...</div>';
+    }
   }
 
   try {
@@ -741,15 +748,18 @@ async function loadAdminData(isAutoRefresh = false) {
 
   } catch (error) {
     console.error('관리자 데이터 조회 실패:', error);
-    const errorTbody = document.getElementById('order-table-body');
-    if (errorTbody) {
-      errorTbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--danger-color); padding: 30px; font-weight: 700;">
-            데이터를 불러오지 못했습니다.<br>(${error.message || '인터넷 연결 끊김'})
-          </td></tr>`;
-    }
-    const pendingGroup = document.getElementById('pending-orders-group');
-    if (pendingGroup) {
-      pendingGroup.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--danger-color); font-weight: 700;">대기 목록 데이터를 불러오지 못했습니다.</div>`;
+    // P126: 백그라운드 자동 새로고침 시 일시적 오류가 나도 기존 카드를 파괴하지 않음
+    if (!isAutoRefresh) {
+      const errorTbody = document.getElementById('order-table-body');
+      if (errorTbody) {
+        errorTbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--danger-color); padding: 30px; font-weight: 700;">
+              데이터를 불러오지 못했습니다.<br>(${error.message || '인터넷 연결 끊김'})
+            </td></tr>`;
+      }
+      const pendingGroup = document.getElementById('pending-orders-group');
+      if (pendingGroup) {
+        pendingGroup.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--danger-color); font-weight: 700;">대기 목록 데이터를 불러오지 못했습니다.</div>`;
+      }
     }
   } finally {
     API_DIAGNOSTICS.finishFlow(diagnosticFlow);
@@ -811,6 +821,9 @@ async function completeSelectedOrders(columnId) {
   const orderNos = Array.from(checked).map(cb => cb.getAttribute('data-order-no'));
   const ok = confirm(`선택한 ${orderNos.length}건의 주문을 모두 제공 완료 처리할까요?`);
   if (!ok) return;
+
+  resetRefreshTimer(); // P126: 사용자 조작 시 즉시 30초 타이머 리셋
+  orderNos.forEach(oNo => recentStatusUpdates.set(oNo, { status: 'Y', timestamp: Date.now() }));
 
   const btnSel = document.getElementById(`btn-bulk-selected-${columnId}`);
   const btnAll = document.getElementById(`btn-bulk-all-${columnId}`);
@@ -1203,6 +1216,7 @@ function rollbackLocalOrders(orderNo, originalStates) {
 
 // 제공 완료 취소 (되돌리기) 처리 (DB 상태 업데이트)
 async function undoCompleteOrder(orderNo) {
+  resetRefreshTimer(); // P126: 사용자 조작 시 즉시 30초 타이머 리셋
   const originalStates = currentOrders
     .filter(o => (o.orderNo || `${o.timestamp}_${o.nickname}`) === orderNo)
     .map(o => ({ id: o.orderId || o.orderNo, servedYn: o.servedYn }));
@@ -1215,6 +1229,7 @@ async function undoCompleteOrder(orderNo) {
   });
 
   pendingUpdates.set(orderNo, 'R');
+  recentStatusUpdates.set(orderNo, { status: 'R', timestamp: Date.now() }); // P126: Stale Read 방지
 
   AppState.vibrate(50);
   AppState.playClickSound();
@@ -1246,6 +1261,7 @@ async function undoCompleteOrder(orderNo) {
 
 // 단계별 상태 업그레이드 처리
 async function updateStatusAction(orderNo, nextStatus) {
+  resetRefreshTimer(); // P126: 사용자 조작 시 즉시 30초 타이머 리셋
   if (pendingUpdates.has(orderNo)) return;
   const originalStates = currentOrders
     .filter(o => (o.orderNo || `${o.timestamp}_${o.nickname}`) === orderNo)
@@ -1259,6 +1275,7 @@ async function updateStatusAction(orderNo, nextStatus) {
   });
 
   pendingUpdates.set(orderNo, nextStatus);
+  recentStatusUpdates.set(orderNo, { status: nextStatus, timestamp: Date.now() }); // P126: Stale Read 방지
 
   AppState.vibrate(50);
   AppState.playClickSound();
@@ -1292,12 +1309,24 @@ async function updateStatusAction(orderNo, nextStatus) {
 
 // 데이터 렌더링 및 집계 계산
 function renderData(rawOrders) {
+  const now = Date.now();
   // 각 주문마다 고유 식별자가 없을 경우 생성 (timestamp와 nickname을 조합하여 같은 주문건으로 묶이게 함)
   const orders = rawOrders.map((o, idx) => {
     const orderNo = o.orderNo || `${o.timestamp || idx}_${o.nickname || 'unknown'}`;
     let servedYn = o.servedYn;
     if (pendingUpdates.has(orderNo)) {
       servedYn = pendingUpdates.get(orderNo);
+    } else if (recentStatusUpdates.has(orderNo)) {
+      const recent = recentStatusUpdates.get(orderNo);
+      if (now - recent.timestamp < RECENT_UPDATE_PROTECT_MS) {
+        if (servedYn !== recent.status) {
+          servedYn = recent.status;
+        } else {
+          recentStatusUpdates.delete(orderNo);
+        }
+      } else {
+        recentStatusUpdates.delete(orderNo);
+      }
     }
     return {
       ...o,
@@ -1896,6 +1925,14 @@ function startRefreshTimer() {
     timerBar.style.width = `${percentage}%`;
 
     if (refreshSeconds <= 0) {
+      // P126: 서버로 상태 변경 요청이 전송 중인 경우 자동 새로고침을 5초 연기하여 경합 방지
+      if (pendingUpdates.size > 0) {
+        refreshSeconds = 5;
+        if (refreshText) {
+          refreshText.textContent = `주문 처리 중 (새로고침 ${refreshSeconds}초 연기)`;
+        }
+        return;
+      }
       loadAdminData(true);
     }
   }, 1000);
