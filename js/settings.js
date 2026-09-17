@@ -110,6 +110,25 @@
   }
   window.setButtonSuccess = setButtonSuccess;
 
+  // P129 보완: 백그라운드 동기화 실패 시 안내 배너
+  function backgroundReload(reloadFn) {
+    reloadFn().catch(err => {
+      console.error('Background reload error:', err);
+      showSyncFailBanner();
+    });
+  }
+
+  function showSyncFailBanner() {
+    if (document.getElementById('sync-fail-banner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'sync-fail-banner';
+    banner.className = 'sync-fail-banner';
+    banner.innerHTML = '⚠ 최신 상태를 확인하지 못했습니다. <button onclick="this.parentElement.remove(); loadAllSettings();">새로고침</button>';
+    const main = document.querySelector('.settings-main, main, .content-wrapper');
+    if (main) main.prepend(banner);
+    else document.body.prepend(banner);
+  }
+
   // --- 1. 키오스크 주문 정책 선택 ---
   function setKioskOrderPolicy(policy) {
     const normalized = ['once_daily', 'cooldown', 'unlimited'].includes(String(policy).toLowerCase())
@@ -450,7 +469,7 @@
       });
       if (res?.success) {
         isSuccess = true;
-        loadAllSettings().catch(err => console.error('Background reload settings error:', err));
+        backgroundReload(loadAllSettings);
       } else {
         clearAdminTokenIfDenied(res);
         alert(res?.message || '저장에 실패했습니다.');
@@ -493,7 +512,7 @@
       });
       if (res?.success) {
         isSuccess = true;
-        loadAllSettings().catch(err => console.error('Background reload settings error:', err));
+        backgroundReload(loadAllSettings);
       } else {
         clearAdminTokenIfDenied(res);
         alert(res?.message || '실패했습니다.');
@@ -546,7 +565,7 @@
       });
       if (res?.success) {
         isSuccess = true;
-        loadAllSettings().catch(err => console.error('Background reload settings error:', err));
+        backgroundReload(loadAllSettings);
       } else {
         clearAdminTokenIfDenied(res);
         alert(res?.message || '등록 실패');
@@ -586,7 +605,7 @@
       });
       if (res?.success) {
         isSuccess = true;
-        loadAllSettings().catch(err => console.error('Background reload settings error:', err));
+        backgroundReload(loadAllSettings);
       } else {
         clearAdminTokenIfDenied(res);
         alert(res?.message || '취소 실패');
@@ -633,7 +652,7 @@
       });
       if (res?.success) {
         isSuccess = true;
-        loadAllSettings().catch(err => console.error('Background reload settings error:', err));
+        backgroundReload(loadAllSettings);
       } else {
         clearAdminTokenIfDenied(res);
         alert(res?.message || '오픈 실패');
@@ -672,7 +691,7 @@
       });
       if (res?.success) {
         isSuccess = true;
-        loadAllSettings().catch(err => console.error('Background reload settings error:', err));
+        backgroundReload(loadAllSettings);
       } else {
         clearAdminTokenIfDenied(res);
         alert(res?.message || '마감 실패');

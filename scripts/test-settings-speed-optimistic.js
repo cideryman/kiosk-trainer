@@ -104,66 +104,87 @@ for (const sh of scheduleHandlers) {
   const handlerBlock = settingsCode.slice(shIndex, shIndex + 2500);
   
   assert(!handlerBlock.includes('await loadAllSettings()'), `${sh}: await loadAllSettings() 동기 블로킹이 제거되어야 합니다.`);
-  assert(handlerBlock.includes('loadAllSettings().catch('), `${sh}: 백그라운드 loadAllSettings() 호출이 있어야 합니다.`);
+  assert(handlerBlock.includes('backgroundReload(loadAllSettings)'), `${sh}: backgroundReload(loadAllSettings) 호출이 있어야 합니다.`);
   assert(handlerBlock.includes('setButtonSuccess('), `${sh}: setButtonSuccess 피드백이 있어야 합니다.`);
   console.log(`✓ settings.js: ${sh} 백그라운드 무소음 동기화 및 인라인 피드백 확인`);
 }
 
-console.log('=== [Test 3] js/admin.js 핸들러 즉시 갱신 및 블로킹 alert 제거 검증 ===');
+// 4. settings.js 백그라운드 실패 배너 헬퍼 검증
+assert(settingsCode.includes('function backgroundReload('), 'settings.js: backgroundReload 헬퍼 함수 누락');
+assert(settingsCode.includes('function showSyncFailBanner('), 'settings.js: showSyncFailBanner 헬퍼 함수 누락');
+console.log('✓ settings.js: backgroundReload 및 showSyncFailBanner 헬퍼 확인');
+
+console.log('=== [Test 3] js/admin.js 핸들러 즉시 갱신 및 시각적 피드백 검증 ===');
 const adminCode = read('js/admin.js');
 
-// 1. updateUserCreditAction: currentUsers 직접 갱신 및 await loadAdminData 제거
+// 0. admin.js 시각 피드백 유틸리티 함수 확인
+assert(adminCode.includes('function flashRowSuccess('), 'admin.js: flashRowSuccess 유틸리티 함수 누락');
+assert(adminCode.includes('function showModalSuccessAndClose('), 'admin.js: showModalSuccessAndClose 유틸리티 함수 누락');
+assert(adminCode.includes('function showAdminSyncFailBanner('), 'admin.js: showAdminSyncFailBanner 유틸리티 함수 누락');
+console.log('✓ admin.js: flashRowSuccess, showModalSuccessAndClose, showAdminSyncFailBanner 함수 확인');
+
+// 1. updateUserCreditAction: currentUsers 직접 갱신, await loadAdminData 제거 및 flashRowSuccess 호출
 assert(adminCode.includes('async function updateUserCreditAction('), 'admin.js: updateUserCreditAction 누락');
-const ucaBlock = adminCode.slice(adminCode.indexOf('async function updateUserCreditAction('), adminCode.indexOf('async function updateUserCreditAction(') + 800);
+const ucaBlock = adminCode.slice(adminCode.indexOf('async function updateUserCreditAction('), adminCode.indexOf('async function updateUserCreditAction(') + 900);
 assert(!ucaBlock.includes('await loadAdminData()'), 'updateUserCreditAction: await loadAdminData()가 제거되어야 함');
 assert(ucaBlock.includes('renderUsersManagement(currentUsers)'), 'updateUserCreditAction: renderUsersManagement 렌더 호출 확인');
-console.log('✓ admin.js: updateUserCreditAction 로컬 캐시 즉시 갱신 확인');
+assert(ucaBlock.includes("flashRowSuccess('user', userId)"), 'updateUserCreditAction: flashRowSuccess 행 하이라이트 호출 확인');
+console.log('✓ admin.js: updateUserCreditAction 로컬 캐시 즉시 갱신 및 행 하이라이트 확인');
 
-// 2. updateSnackStockAction: currentSnacks 직접 갱신 및 await loadAdminData 제거
+// 2. updateSnackStockAction: currentSnacks 직접 갱신, await loadAdminData 제거 및 flashRowSuccess 호출
 assert(adminCode.includes('async function updateSnackStockAction('), 'admin.js: updateSnackStockAction 누락');
-const ssaBlock = adminCode.slice(adminCode.indexOf('async function updateSnackStockAction('), adminCode.indexOf('async function updateSnackStockAction(') + 900);
+const ssaBlock = adminCode.slice(adminCode.indexOf('async function updateSnackStockAction('), adminCode.indexOf('async function updateSnackStockAction(') + 1000);
 assert(!ssaBlock.includes('await loadAdminData()'), 'updateSnackStockAction: await loadAdminData()가 제거되어야 함');
 assert(ssaBlock.includes('renderSnacksStock(currentSnacks)'), 'updateSnackStockAction: renderSnacksStock 렌더 호출 확인');
 assert(ssaBlock.includes('renderSnacksManagement(currentSnacks)'), 'updateSnackStockAction: renderSnacksManagement 렌더 호출 확인');
-console.log('✓ admin.js: updateSnackStockAction 로컬 캐시 즉시 갱신 확인');
+assert(ssaBlock.includes("flashRowSuccess('snack', snackId)"), 'updateSnackStockAction: flashRowSuccess 행 하이라이트 호출 확인');
+console.log('✓ admin.js: updateSnackStockAction 로컬 캐시 즉시 갱신 및 행 하이라이트 확인');
 
-// 3. updateSnackSaleAction: currentSnacks 직접 갱신 및 await loadAdminData 제거
+// 3. updateSnackSaleAction: currentSnacks 직접 갱신, await loadAdminData 제거 및 flashRowSuccess 호출
 assert(adminCode.includes('async function updateSnackSaleAction('), 'admin.js: updateSnackSaleAction 누락');
-const saleBlock = adminCode.slice(adminCode.indexOf('async function updateSnackSaleAction('), adminCode.indexOf('async function updateSnackSaleAction(') + 1000);
+const saleBlock = adminCode.slice(adminCode.indexOf('async function updateSnackSaleAction('), adminCode.indexOf('async function updateSnackSaleAction(') + 1100);
 assert(!saleBlock.includes('await loadAdminData()'), 'updateSnackSaleAction: await loadAdminData()가 제거되어야 함');
 assert(saleBlock.includes('renderSnacksStock(currentSnacks)'), 'updateSnackSaleAction: renderSnacksStock 렌더 호출 확인');
-console.log('✓ admin.js: updateSnackSaleAction 로컬 캐시 즉시 갱신 확인');
+assert(saleBlock.includes("flashRowSuccess('snack', snackId)"), 'updateSnackSaleAction: flashRowSuccess 행 하이라이트 호출 확인');
+console.log('✓ admin.js: updateSnackSaleAction 로컬 캐시 즉시 갱신 및 행 하이라이트 확인');
 
-// 4. updateUserAction / updateSnackAction: 성공 alert 제거 및 모달 닫기 + 즉시 갱신
+// 4. updateUserAction / updateSnackAction: 성공 alert 제거 및 모달 성공 오버레이 후 닫기 + 즉시 갱신
 const uuaBlock = adminCode.slice(adminCode.indexOf('async function updateUserAction('), adminCode.indexOf('async function updateUserAction(') + 2000);
 assert(!uuaBlock.includes('alert("이용자 정보를 수정했습니다.")'), 'updateUserAction: 성공 alert 제거 확인');
-assert(uuaBlock.includes('closeEditUserModal()'), 'updateUserAction: 모달 즉시 닫기 확인');
+assert(uuaBlock.includes("showModalSuccessAndClose('modal-edit-user', closeEditUserModal)"), 'updateUserAction: showModalSuccessAndClose 모달 성공 피드백 후 닫기 확인');
 assert(uuaBlock.includes('renderUsersManagement(currentUsers)'), 'updateUserAction: 로컬 반영 확인');
 
-const usaBlock = adminCode.slice(adminCode.indexOf('async function updateSnackAction('), adminCode.indexOf('async function updateSnackAction(') + 2000);
+const usaBlock = adminCode.slice(adminCode.indexOf('async function updateSnackAction('), adminCode.indexOf('async function updateSnackAction(') + 2500);
 assert(!usaBlock.includes('alert("간식 정보를 수정했습니다.")'), 'updateSnackAction: 성공 alert 제거 확인');
-assert(usaBlock.includes('closeEditSnackModal()'), 'updateSnackAction: 모달 즉시 닫기 확인');
+assert(usaBlock.includes("showModalSuccessAndClose('modal-edit-snack', closeEditSnackModal)"), 'updateSnackAction: showModalSuccessAndClose 모달 성공 피드백 후 닫기 확인');
 assert(usaBlock.includes('renderSnacksStock(currentSnacks)'), 'updateSnackAction: 로컬 반영 확인');
-console.log('✓ admin.js: updateUserAction / updateSnackAction 모달 즉시 닫기 및 로컬 갱신 확인');
+console.log('✓ admin.js: updateUserAction / updateSnackAction 모달 성공 피드백 후 닫기 및 로컬 갱신 확인');
 
-// 5. addNewUserAction / addNewSnackAction: 백그라운드 loadAdminData 호출
+// 5. addNewUserAction / addNewSnackAction: 모달 성공 피드백 + 백그라운드 loadAdminData 호출 및 실패 배너
 const nuaBlock = adminCode.slice(adminCode.indexOf('async function addNewUserAction('), adminCode.indexOf('async function addNewUserAction(') + 3500);
+assert(nuaBlock.includes("showModalSuccessAndClose('modal-add-user', closeAddUserModal)"), 'addNewUserAction: 모달 성공 피드백 확인');
 assert(nuaBlock.includes('loadAdminData().catch('), 'addNewUserAction: 백그라운드 loadAdminData 확인');
+assert(nuaBlock.includes('showAdminSyncFailBanner()'), 'addNewUserAction: 백그라운드 실패 시 배너 호출 확인');
 
 const nsaBlock = adminCode.slice(adminCode.indexOf('async function addNewSnackAction('), adminCode.indexOf('async function addNewSnackAction(') + 3500);
+assert(nsaBlock.includes("showModalSuccessAndClose('modal-add-snack', closeAddSnackModal)"), 'addNewSnackAction: 모달 성공 피드백 확인');
 assert(nsaBlock.includes('loadAdminData().catch('), 'addNewSnackAction: 백그라운드 loadAdminData 확인');
-console.log('✓ admin.js: addNewUserAction / addNewSnackAction 백그라운드 동기화 확인');
+assert(nsaBlock.includes('showAdminSyncFailBanner()'), 'addNewSnackAction: 백그라운드 실패 시 배너 호출 확인');
+console.log('✓ admin.js: addNewUserAction / addNewSnackAction 모달 피드백 및 백그라운드 동기화/배너 확인');
 
 console.log('=== [Test 4] css/style.css 및 service-worker.js 검증 ===');
 const css = read('css/style.css');
 assert(css.includes('.btn.is-success'), 'css/style.css: .btn.is-success 누락');
 assert(css.includes('button.is-success'), 'css/style.css: button.is-success 누락');
 assert(css.includes('#38A169'), 'css/style.css: #38A169 색상 누락');
-console.log('✓ css/style.css: is-success 스타일 정의 확인');
+assert(css.includes('.row-save-success'), 'css/style.css: .row-save-success 누락');
+assert(css.includes('.modal-success-overlay'), 'css/style.css: .modal-success-overlay 누락');
+assert(css.includes('.sync-fail-banner'), 'css/style.css: .sync-fail-banner 누락');
+console.log('✓ css/style.css: is-success, row-save-success, modal-success-overlay, sync-fail-banner 스타일 정의 확인');
 
 const sw = read('service-worker.js');
-assert(sw.includes('kiosk-cache-v377'), 'service-worker.js: kiosk-cache-v377 캐시 버전 누락');
-console.log('✓ service-worker.js: kiosk-cache-v377 확인');
+assert(sw.includes('kiosk-cache-v378'), 'service-worker.js: kiosk-cache-v378 캐시 버전 누락');
+console.log('✓ service-worker.js: kiosk-cache-v378 확인');
 
 setTimeout(() => {
   console.log('\n✅ 모든 P129 저장/조회 체감 속도 최적화 단위 테스트 통과!\n');

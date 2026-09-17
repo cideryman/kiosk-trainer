@@ -1,6 +1,6 @@
 # 배달왔삼 키오스크 프로젝트 핸드오프
 
-> 마지막 갱신: 2026-09-15
+> 마지막 갱신: 2026-09-17
 
 ## 현재 상태
 
@@ -11,7 +11,7 @@
 - **이용신청 계약**: `guestApplicationCapacity`는 1~100명 범위에서 조절하는 주당 운영 안내 인원일 뿐 신청·승인·주간 배정 제한이 아닙니다. 신규 신청은 정원과 관계없이 `PENDING`으로 접수하고, `WAITLIST`는 관리자가 직접 보류할 때만 사용합니다.
 - **GAS 구조**: `gas/*.gs` 기능별 분리를 완료했으며 같은 Apps Script 프로젝트 안에서 함께 배포합니다.
 - **GAS 반영 책임**: 회사·가정 환경의 Google 계정과 프로젝트가 섞이지 않도록 로컬 자동 인증·설정·배포를 사용하지 않습니다. `clasp` 설정 파일을 만들거나 로그인·푸시·배포를 실행하지 않으며, GAS 소스 반영·새 버전 배포·일회성 함수 실행은 사용자가 Apps Script 편집기에서 직접 수행합니다.
-- **API·정적 캐시**: P129 통합 운영설정 및 관리자 화면 저장/조회 체감 속도 최적화(동기식 재로드 방지, 성공 시 블로킹 alert 제거 및 녹색 '✓ 저장 완료' 인라인 피드백, 로컬 메모리 즉시 갱신 + 백그라운드 무소음 동기화), P128 운영설정·관리자·후기 본문 상단 헤더 툴바 및 본문 하단 공통 유틸리티 바(앱 업데이트 확인, 관리자 나가기) 2중 연동, P127 주방 컬럼별 단계적 일괄 진행(준비시작→준비완료→수령완료) 및 즉시 완료 분리·순차 요청 큐 및 즉각적 로딩 피드백, P126 주방 주문 상태 변경 시 자동 새로고침 충돌 방지 및 무소음 갱신 UX 개선, P125 배달왔삼 정원 집계 시 키오스크 이용자 제외 및 게스트 전용 정원 분리, P124 배달왔삼 체감 속도 최적화, P123 키오스크 주문/폴링 체감 속도 최적화를 구현 완료했습니다. 서비스워커는 `kiosk-cache-v377`로 갱신됩니다. P120 주방 화면의 과도한 운영 설정을 전용 `settings.html`로 완전 분리하고 주방 상단에 `[🚨 긴급 마감/연장]` 모달을 남겼으며, P121 운영 설정의 일정 폼 짤림 해결·키오스크 제한 3단 카드형 개편·특별 행사 및 이메일 알림 카드 복구, P122 키오스크(파랑) vs 배달왔삼(틸) 테마 색상 분리 및 4대 관리 화면(`settings.html`, `admin.html`, `kitchen.html`, `reviews.html`) 사이드바 메뉴 순서 개편(1.운영설정 2.관리자 3.주방 4.후기)까지 사용자가 실제 화면에서 확인 완료했습니다. P119 관리자·주방·후기 사이드바 대분류에서 미사용 '신청 관리' 메뉴를 안전하게 제거(URL 직행 조회는 유지)했습니다. P118 관리자·주방·후기 사이드바 바로가기 링크 6종 일원화 및 명칭 현행화(배달왔삼 소개, 주문 방법 안내)를 완료했습니다. P117 배달왔삼 신청 절차 폐지 및 실시간 운영 상황판 전환을 완료했습니다.
+- **API·정적 캐시**: P129 통합 운영설정 및 관리자 화면 저장/조회 체감 속도 최적화(동기식 재로드 방지, 성공 시 블로킹 alert 제거 및 녹색 '✓ 저장 완료' 인라인 피드백, 로컬 메모리 즉시 갱신 + 백그라운드 무소음 동기화, 관리자 화면 게이지 수정 행 하이라이트·모달 저장 완료 오버레이·백그라운드 동기화 실패 시 안내 배너 보완), P128 운영설정·관리자·후기 본문 상단 헤더 툴바 및 본문 하단 공통 유틸리티 바(앱 업데이트 확인, 관리자 나가기) 2중 연동, P127 주방 컬럼별 단계적 일괄 진행(준비시작→준비완료→수령완료) 및 즉시 완료 분리·순차 요청 큐 및 즉각적 로딩 피드백, P126 주방 주문 상태 변경 시 자동 새로고침 충돌 방지 및 무소음 갱신 UX 개선, P125 배달왔삼 정원 집계 시 키오스크 이용자 제외 및 게스트 전용 정원 분리, P124 배달왔삼 체감 속도 최적화, P123 키오스크 주문/폴링 체감 속도 최적화를 구현 완료했습니다. 서비스워커는 `kiosk-cache-v378`로 갱신됩니다. P120 주방 화면의 과도한 운영 설정을 전용 `settings.html`로 완전 분리하고 주방 상단에 `[🚨 긴급 마감/연장]` 모달을 남겼으며, P121 운영 설정의 일정 폼 짤림 해결·키오스크 제한 3단 카드형 개편·특별 행사 및 이메일 알림 카드 복구, P122 키오스크(파랑) vs 배달왔삼(틸) 테마 색상 분리 및 4대 관리 화면(`settings.html`, `admin.html`, `kitchen.html`, `reviews.html`) 사이드바 메뉴 순서 개편(1.운영설정 2.관리자 3.주방 4.후기)까지 사용자가 실제 화면에서 확인 완료했습니다. P119 관리자·주방·후기 사이드바 대분류에서 미사용 '신청 관리' 메뉴를 안전하게 제거(URL 직행 조회는 유지)했습니다. P118 관리자·주방·후기 사이드바 바로가기 링크 6종 일원화 및 명칭 현행화(배달왔삼 소개, 주문 방법 안내)를 완료했습니다. P117 배달왔삼 신청 절차 폐지 및 실시간 운영 상황판 전환을 완료했습니다.
 - **이용 안내**: 문자 안내에서 연결하는 `order-guide.html`과 `review-guide.html`에 실제 화면을 활용한 주문방법·후기 작성방법을 추가하고, 관리자 사이드바에서 이용신청 페이지와 안내 화면을 각각 열 수 있게 했습니다(P81).
 - **안내 화면 구분 개선**: 주문·후기 안내의 설명을 페이지별 강조색 패널로 묶고, 스크린샷을 `실제 화면` 배지가 있는 중립 프레임으로 분리했습니다(P82).
 - **안내 화면 이용 흐름 보완**: 안내 탭 sticky 동작, 직접 접속 PWA 등록, 상단 주문 바로가기와 후기 작성 직행, 가이드 이미지 정적 검사를 추가했습니다(P83).
@@ -37,7 +37,7 @@
 
 | 순서 | ID | 작업 | 상태 | 다음 행동 | 검증 절차 |
 |---:|---|---|---|---|---|
-| 1 | P129 | 통합 운영설정 및 관리자 화면 저장/조회 체감 속도 최적화 (동기식 재로드 방지, 즉시 로컬 반영 및 로딩 상태 고도화) | 구현 완료·배포 대기 | GitHub Pages 반영(`kiosk-cache-v377`) 뒤 운영설정(`settings.html`) 및 관리자(`admin.html`) 화면에서 설정/데이터 저장 시 멈칫거림 없이 즉시 인라인 피드백 및 로컬 반영되는지 수동 검증 | 운영설정 요일/정원/행사 설정 저장 시 3초 멈춤 없이 즉시 '✓ 저장 완료' 녹색 버튼 피드백 확인, 관리자 간식/이용자 수정 시 모달 즉시 닫힘 및 목록 즉각 반영 확인 |
+| 1 | P129 | 통합 운영설정 및 관리자 화면 저장/조회 체감 속도 최적화 (동기식 재로드 방지, 즉시 로컬 반영 및 로딩 상태 고도화, 관리자 시각적 성공 피드백 및 동기화 실패 안내 보완) | 구현 완료·배포 대기 | GitHub Pages 반영(`kiosk-cache-v378`) 뒤 운영설정(`settings.html`) 및 관리자(`admin.html`) 화면에서 설정/데이터 저장 시 멈칫거림 없이 즉시 인라인 피드백 및 로컬 반영되는지 수동 검증 | 운영설정 요일/정원/행사 설정 저장 시 3초 멈춤 없이 즉시 '✓ 저장 완료' 녹색 버튼 피드백 확인, 관리자 간식/이용자 게이지 수정 시 행 하이라이트 확인, 모달 저장 시 '✓ 저장 완료' 오버레이 후 닫힘 확인 |
 
 ### P99 구현 범위
 
@@ -346,21 +346,28 @@
 
 - **문제 배경**:
   - `settings.html`(운영설정) 및 `admin.html`(관리자) 화면에서 설정이나 데이터를 수정한 뒤 저장할 때 브라우저 `alert()` 모달 팝업으로 인해 UI 스레드가 블로킹되고, 직후 전체 재조회(`await loadAllSettings()`, `await loadAdminData()`)가 동기식으로 실행되어 3~5초간 멈칫거림/조작 불가 현상이 있었습니다.
+  - 1차 최적화 후 코드 검토 결과, admin.js에서 블로킹 `alert()`가 제거되었으나 시각적 피드백이 없어 게이지 수정·모달 저장 시 성공 여부 식별이 어려웠고, 백그라운드 동기화 실패 시 사용자에게 알림이 없는 점이 확인되어 2차 보완을 진행했습니다.
 - **개선 내용**:
   - `css/style.css`:
     - `.btn.is-success`, `button.is-success`: 저장 완료 시 1.5초간 노출되는 에메랄드 녹색 인라인 피드백 스타일 정의 (`#38A169`, `pointer-events: none`).
+    - `tr.row-save-success`: 관리자 화면 게이지 수정 성공 시 1.2초간 부드럽게 녹색으로 점등되는 행 하이라이트 애니메이션 정의.
+    - `.modal-success-overlay`: 관리자 화면 모달 저장 시 0.6초간 노출되는 `✓ 저장 완료` 오버레이 애니메이션 정의.
+    - `.sync-fail-banner`: 백그라운드 동기화 실패 시 화면 상단에 노출되는 재시도 안내 배너 및 버튼 스타일 정의.
   - `js/settings.js`:
     - `setButtonSuccess(button, text, durationMs)`: 저장 성공 시 버튼 텍스트를 `✓ 저장 완료`로 전환하고 1.5초 후 자동 복원하는 공통 피드백 헬퍼 추가.
     - 값 설정 계열 4개 핸들러(`saveKioskPolicyAction`, `saveCapacityAction`, `saveBaseSettingsAction`, `saveEventSettingsAction`): 블로킹 `alert()` 및 `await loadAllSettings()`를 완전히 제거하고 로컬 `latestGuestOpsSettings` 객체에 즉시 반영(`Object.assign`) 및 인라인 버튼 성공 피드백 적용.
-    - 일정/운영 계열 6개 핸들러(`saveGuestWeeklyScheduleAction`, `toggleGuestWeeklyScheduleSkipAction`, `addGuestAdditionalScheduleAction`, `deleteGuestAdditionalScheduleAction`, `guestEmergencyOpenUntilAction`, `guestEmergencyCloseAction`): UI 즉시 성공 피드백 후 백그라운드 무소음 `loadAllSettings().catch(...)` 비동기 호출.
+    - 일정/운영 계열 6개 핸들러(`saveGuestWeeklyScheduleAction`, `toggleGuestWeeklyScheduleSkipAction`, `addGuestAdditionalScheduleAction`, `deleteGuestAdditionalScheduleAction`, `guestEmergencyOpenUntilAction`, `guestEmergencyCloseAction`): UI 즉시 성공 피드백 후 `backgroundReload(loadAllSettings)`를 통해 백그라운드 무소음 비동기 동기화 및 실패 시 상단 재시도 배너(`showSyncFailBanner`) 노출.
     - 실패/에러 발생 시에는 기존대로 명확한 `alert()` 오류 안내 유지.
   - `js/admin.js`:
-    - `updateUserCreditAction`: `await loadAdminData()` 제거, `currentUsers` 로컬 캐시 즉시 갱신 및 `renderUsersManagement()` 렌더 디스패치.
-    - `updateSnackStockAction` / `updateSnackSaleAction`: `await loadAdminData()` 제거, `currentSnacks` 로컬 캐시 즉시 갱신 및 `renderSnacksStock()`, `renderSnacksManagement()` 렌더 디스패치.
-    - `updateUserAction` / `updateSnackAction`: 성공 `alert()` 제거, 모달 즉시 닫힘(`closeEditUserModal`, `closeEditSnackModal`) 및 로컬 캐시 즉시 반영.
-    - `addNewUserAction` / `addNewSnackAction`: 성공 `alert()` 제거, 입력 필드 초기화 및 모달 즉시 닫힘 후 백그라운드 무소음 `loadAdminData().catch(...)` 동기화.
-  - `service-worker.js`: PWA 캐시 버전을 `kiosk-cache-v377`로 상향.
-  - `scripts/test-settings-speed-optimistic.js`: 단위 테스트 추가 완료.
+    - `flashRowSuccess(type, id)`: 게이지 수정 성공 시 해당 행을 1.2초간 녹색으로 하이라이트하는 시각 피드백 헬퍼 추가.
+    - `showModalSuccessAndClose(modalId, closeFn)`: 모달 저장 성공 시 0.6초간 `✓ 저장 완료` 오버레이를 표시하고 모달을 닫는 UX 헬퍼 추가.
+    - `showAdminSyncFailBanner()`: 백그라운드 데이터 갱신 실패 시 상단 재시도 배너 노출 헬퍼 추가.
+    - `updateUserCreditAction`: `await loadAdminData()` 제거, `currentUsers` 로컬 캐시 즉시 갱신, `renderUsersManagement()` 렌더 디스패치 및 `flashRowSuccess('user', userId)` 시각 피드백 연동.
+    - `updateSnackStockAction` / `updateSnackSaleAction`: `await loadAdminData()` 제거, `currentSnacks` 로컬 캐시 즉시 갱신, `renderSnacksStock()`, `renderSnacksManagement()` 렌더 디스패치 및 `flashRowSuccess('snack', snackId)` 시각 피드백 연동.
+    - `updateUserAction` / `updateSnackAction`: 성공 `alert()` 제거, `showModalSuccessAndClose`를 통한 성공 오버레이 노출 후 모달 닫기 및 로컬 캐시 즉시 반영.
+    - `addNewUserAction` / `addNewSnackAction`: 성공 `alert()` 제거, `showModalSuccessAndClose` 적용, 입력 필드 초기화 및 모달 닫힘 후 백그라운드 `loadAdminData().catch(...)` 실패 시 `showAdminSyncFailBanner()` 연동.
+  - `service-worker.js`: PWA 캐시 버전을 `kiosk-cache-v378`로 상향.
+  - `scripts/test-settings-speed-optimistic.js`: P129 1·2차 보완 전체 항목(인라인 피드백, 행 하이라이트, 모달 오버레이, 백그라운드 동기화 실패 배너, 캐시 v378) 단위 테스트 완료.
 
 ### 보류 과제
 

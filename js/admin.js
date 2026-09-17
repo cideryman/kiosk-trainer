@@ -474,6 +474,45 @@ async function confirmGaugeEdit(type, id) {
   }
 }
 
+// P129 보완: 행 하이라이트 성공 피드백
+function flashRowSuccess(type, id) {
+  const attr = type === 'user' ? 'data-user-row' : 'data-snack-row';
+  const tr = document.querySelector(`tr[${attr}="${id}"]`);
+  if (!tr) return;
+  tr.classList.add('row-save-success');
+  setTimeout(() => tr.classList.remove('row-save-success'), 1200);
+}
+
+// P129 보완: 모달 저장 완료 피드백 후 닫기
+function showModalSuccessAndClose(modalId, closeFn) {
+  const modal = document.getElementById(modalId);
+  if (!modal) { closeFn(); return; }
+  const container = modal.querySelector('.modal-content') || modal.querySelector('div');
+  if (!container) { closeFn(); return; }
+  // position: relative 가 없으면 오버레이가 올바로 겹치지 않으므로 보장
+  if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-success-overlay';
+  overlay.textContent = '✓ 저장 완료';
+  container.appendChild(overlay);
+  setTimeout(() => {
+    overlay.remove();
+    closeFn();
+  }, 600);
+}
+
+// P129 보완: 백그라운드 동기화 실패 배너
+function showAdminSyncFailBanner() {
+  if (document.getElementById('admin-sync-fail-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'admin-sync-fail-banner';
+  banner.className = 'sync-fail-banner';
+  banner.innerHTML = '⚠ 최신 목록을 불러오지 못했습니다. <button onclick="this.parentElement.remove(); loadAdminData();">새로고침</button>';
+  const main = document.querySelector('.admin-main, main, .content-wrapper');
+  if (main) main.prepend(banner);
+  else document.body.prepend(banner);
+}
+
 function closeGaugeEditFromOutside(event) {
   if (!activeGaugeEdit || event.target.closest('[data-gauge-edit-row]') || event.target.closest('.admin-table')) return;
   const input = document.getElementById(gaugeRangeId(activeGaugeEdit.type, activeGaugeEdit.id));
@@ -1615,6 +1654,7 @@ async function updateUserCreditAction(userId, credit) {
         user.credit = credit;
       }
       renderUsersManagement(currentUsers);
+      flashRowSuccess('user', userId);
       return true;
     } else {
       clearAdminTokenIfDenied(res);
@@ -1669,10 +1709,10 @@ async function addNewUserAction() {
       nicknameInput.value = '';
       creditInput.value = '10';
       imageInput.value = '';
-      closeAddUserModal();
       AppState.vibrate(80);
       AppState.playClickSound();
-      loadAdminData().catch(err => console.error("신규 이용자 등록 후 백그라운드 갱신 에러:", err));
+      showModalSuccessAndClose('modal-add-user', closeAddUserModal);
+      loadAdminData().catch(err => { console.error("신규 이용자 등록 후 백그라운드 갱신 에러:", err); showAdminSyncFailBanner(); });
     } else {
       clearAdminTokenIfDenied(res);
       alert("이용자 등록에 실패했습니다: " + (res?.message || "오류"));
@@ -2035,6 +2075,7 @@ async function updateSnackStockAction(snackId, stock) {
       }
       renderSnacksStock(currentSnacks);
       renderSnacksManagement(currentSnacks);
+      flashRowSuccess('snack', snackId);
       return true;
     } else {
       clearAdminTokenIfDenied(res);
@@ -2074,6 +2115,7 @@ async function updateSnackSaleAction(snackId, saleYn, snackName) {
       }
       renderSnacksStock(currentSnacks);
       renderSnacksManagement(currentSnacks);
+      flashRowSuccess('snack', snackId);
     } else {
       clearAdminTokenIfDenied(res);
       alert("간식 상태 변경에 실패했습니다: " + (res?.message || "오류"));
@@ -2142,10 +2184,10 @@ async function addNewSnackAction() {
       document.querySelectorAll('.new-snack-target-cb').forEach(cb => {
         cb.checked = (cb.value === 'user' || cb.value === 'guest');
       });
-      closeAddSnackModal();
       AppState.vibrate(80);
       AppState.playClickSound();
-      loadAdminData().catch(err => console.error("신규 간식 등록 후 백그라운드 갱신 에러:", err));
+      showModalSuccessAndClose('modal-add-snack', closeAddSnackModal);
+      loadAdminData().catch(err => { console.error("신규 간식 등록 후 백그라운드 갱신 에러:", err); showAdminSyncFailBanner(); });
     } else {
       clearAdminTokenIfDenied(res);
       alert("간식 등록에 실패했습니다: " + (res?.message || "오류"));
@@ -2252,7 +2294,6 @@ async function updateUserAction() {
     });
 
     if (res && res.success) {
-      closeEditUserModal();
       AppState.vibrate(50);
       AppState.playClickSound();
       const user = currentUsers.find(u => String(u.userId) === String(userId));
@@ -2264,6 +2305,7 @@ async function updateUserAction() {
         user.active = useYn === 'Y';
       }
       renderUsersManagement(currentUsers);
+      showModalSuccessAndClose('modal-edit-user', closeEditUserModal);
     } else {
       clearAdminTokenIfDenied(res);
       alert("수정에 실패했습니다: " + (res?.message || "오류"));
@@ -2355,7 +2397,6 @@ async function updateSnackAction() {
     });
 
     if (res && res.success) {
-      closeEditSnackModal();
       AppState.vibrate(50);
       AppState.playClickSound();
       const snack = currentSnacks.find(s => String(s.snackId) === String(snackId));
@@ -2371,6 +2412,7 @@ async function updateSnackAction() {
       }
       renderSnacksStock(currentSnacks);
       renderSnacksManagement(currentSnacks);
+      showModalSuccessAndClose('modal-edit-snack', closeEditSnackModal);
     } else {
       clearAdminTokenIfDenied(res);
       alert("수정에 실패했습니다: " + (res?.message || "오류"));

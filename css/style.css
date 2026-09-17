@@ -4329,3 +4329,59 @@ button.is-success {
   transition: background-color 0.2s ease;
 }
 
+/* P129 보완: 행 저장 성공 하이라이트 */
+tr.row-save-success {
+  animation: row-flash-success 1.2s ease-out;
+}
+@keyframes row-flash-success {
+  0% { background-color: rgba(56, 161, 105, 0.25); }
+  100% { background-color: transparent; }
+}
+
+/* P129 보완: 모달 저장 완료 오버레이 */
+.modal-success-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(56, 161, 105, 0.9);
+  color: #fff;
+  font-size: 1.3rem;
+  font-weight: 700;
+  border-radius: inherit;
+  z-index: 10;
+  animation: modal-success-fade 0.6s ease-out;
+}
+@keyframes modal-success-fade {
+  0% { opacity: 0; transform: scale(0.9); }
+  30% { opacity: 1; transform: scale(1); }
+  100% { opacity: 1; }
+}
+
+/* P129 보완: 백그라운드 동기화 실패 배너 */
+.sync-fail-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  margin: 0 0 12px 0;
+  background: #FFF3CD;
+  border: 1px solid #FFEEBA;
+  border-radius: 8px;
+  color: #856404;
+  font-size: 0.9rem;
+}
+.sync-fail-banner button {
+  margin-left: auto;
+  padding: 4px 12px;
+  background: #856404;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.sync-fail-banner button:hover {
+  background: #6c5103;
+}
