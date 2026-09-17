@@ -52,11 +52,13 @@ assert(css.includes('.admin-footer-status'), 'css/style.css: .admin-footer-statu
 assert(css.includes('.admin-header-update-banner'), 'css/style.css: .admin-header-update-banner 스타일 누락');
 console.log('✓ css/style.css: 상단 배너, 푸터 바 및 버튼 스타일 정의 검증 통과');
 
-console.log('--- [Test 3] 캐시 버전 일치 검증 (kiosk-cache-v376) ---');
+console.log('--- [Test 3] 캐시 버전 일치 검증 (>= kiosk-cache-v376) ---');
 const sw = read('service-worker.js');
 const handoff = read('handoff.md');
-assert(sw.includes('kiosk-cache-v376'), 'service-worker.js: kiosk-cache-v376 누락');
-assert(handoff.includes('kiosk-cache-v376'), 'handoff.md: kiosk-cache-v376 누락');
-console.log('✓ service-worker.js & handoff.md: kiosk-cache-v376 캐시 일치 검증 통과');
+const swCache = sw.match(/kiosk-cache-v\d+/)?.[0];
+const handoffCache = handoff.match(/kiosk-cache-v\d+/)?.[0];
+assert(swCache && handoffCache && swCache === handoffCache, `캐시 버전 불일치: sw=${swCache}, handoff=${handoffCache}`);
+assert(parseInt(swCache.replace('kiosk-cache-v', ''), 10) >= 376, '캐시 버전이 v376 이상이어야 합니다.');
+console.log(`✓ service-worker.js & handoff.md: ${swCache} 캐시 일치 검증 통과`);
 
 console.log('\n✅ 모든 P128 상단/하단 업데이트 및 나가기 버튼 단위 테스트 성공!');

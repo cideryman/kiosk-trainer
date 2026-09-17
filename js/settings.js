@@ -95,6 +95,21 @@
     }
   }
 
+  function setButtonSuccess(button, text = '✓ 저장 완료', durationMs = 1500) {
+    if (!button) return;
+    button.disabled = true;
+    button.classList.add('is-success');
+    button.textContent = text;
+    setTimeout(() => {
+      button.disabled = false;
+      button.classList.remove('is-success');
+      if (button.dataset.originalText) {
+        button.textContent = button.dataset.originalText;
+      }
+    }, durationMs);
+  }
+  window.setButtonSuccess = setButtonSuccess;
+
   // --- 1. 키오스크 주문 정책 선택 ---
   function setKioskOrderPolicy(policy) {
     const normalized = ['once_daily', 'cooldown', 'unlimited'].includes(String(policy).toLowerCase())
@@ -369,6 +384,7 @@
     }
 
     setButtonLoading(btn, true);
+    let isSuccess = false;
     try {
       const payload = buildFullUpdateValuesPayload({
         kioskOrderPolicy: policy,
@@ -379,7 +395,9 @@
         body: payload
       });
       if (res?.success) {
-        alert('매점 키오스크 주문 정책이 저장되었습니다.');
+        isSuccess = true;
+        if (!latestGuestOpsSettings) latestGuestOpsSettings = {};
+        Object.assign(latestGuestOpsSettings, payload);
       } else {
         clearAdminTokenIfDenied(res);
         alert(res?.message || '저장에 실패했습니다.');
@@ -388,7 +406,9 @@
       alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
     } finally {
       setButtonLoading(btn, false);
-      await loadAllSettings();
+      if (isSuccess) {
+        setButtonSuccess(btn, '✓ 저장 완료');
+      }
     }
   };
 
@@ -414,6 +434,7 @@
     }
 
     setButtonLoading(btn, true);
+    let isSuccess = false;
     try {
       const res = await fetchAPI('updateGuestSettings', {
         method: 'POST',
@@ -428,7 +449,8 @@
         }
       });
       if (res?.success) {
-        alert('정기 일정이 저장되었습니다.');
+        isSuccess = true;
+        loadAllSettings().catch(err => console.error('Background reload settings error:', err));
       } else {
         clearAdminTokenIfDenied(res);
         alert(res?.message || '저장에 실패했습니다.');
@@ -437,7 +459,9 @@
       alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
     } finally {
       setButtonLoading(btn, false);
-      await loadAllSettings();
+      if (isSuccess) {
+        setButtonSuccess(btn, '✓ 저장 완료');
+      }
     }
   };
 
@@ -457,6 +481,7 @@
     }
 
     setButtonLoading(btn, true, isResume ? '⏳ 재개 중...' : '⏳ 중단 중...');
+    let isSuccess = false;
     try {
       const res = await fetchAPI('updateGuestSettings', {
         method: 'POST',
@@ -467,7 +492,8 @@
         }
       });
       if (res?.success) {
-        alert(res.message || '반영되었습니다.');
+        isSuccess = true;
+        loadAllSettings().catch(err => console.error('Background reload settings error:', err));
       } else {
         clearAdminTokenIfDenied(res);
         alert(res?.message || '실패했습니다.');
@@ -476,7 +502,9 @@
       alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
     } finally {
       setButtonLoading(btn, false);
-      await loadAllSettings();
+      if (isSuccess) {
+        setButtonSuccess(btn, isResume ? '✓ 재개 완료' : '✓ 중단 완료');
+      }
     }
   };
 
@@ -503,6 +531,7 @@
     }
 
     setButtonLoading(btn, true, '⏳ 등록 중...');
+    let isSuccess = false;
     try {
       const res = await fetchAPI('updateGuestSettings', {
         method: 'POST',
@@ -516,7 +545,8 @@
         }
       });
       if (res?.success) {
-        alert('추가 운영 일정이 등록되었습니다.');
+        isSuccess = true;
+        loadAllSettings().catch(err => console.error('Background reload settings error:', err));
       } else {
         clearAdminTokenIfDenied(res);
         alert(res?.message || '등록 실패');
@@ -525,7 +555,9 @@
       alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
     } finally {
       setButtonLoading(btn, false);
-      await loadAllSettings();
+      if (isSuccess) {
+        setButtonSuccess(btn, '✓ 등록 완료');
+      }
     }
   };
 
@@ -541,6 +573,7 @@
     }
 
     setButtonLoading(button, true, '⏳ 취소 중...');
+    let isSuccess = false;
     try {
       const res = await fetchAPI('updateGuestSettings', {
         method: 'POST',
@@ -552,7 +585,8 @@
         }
       });
       if (res?.success) {
-        alert('추가 일정이 취소되었습니다.');
+        isSuccess = true;
+        loadAllSettings().catch(err => console.error('Background reload settings error:', err));
       } else {
         clearAdminTokenIfDenied(res);
         alert(res?.message || '취소 실패');
@@ -561,7 +595,9 @@
       alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
     } finally {
       setButtonLoading(button, false);
-      await loadAllSettings();
+      if (isSuccess) {
+        setButtonSuccess(button, '✓ 취소 완료');
+      }
     }
   }
 
@@ -584,6 +620,7 @@
     }
 
     setButtonLoading(btn, true, '⏳ 오픈 중...');
+    let isSuccess = false;
     try {
       const res = await fetchAPI('updateGuestSettings', {
         method: 'POST',
@@ -595,7 +632,8 @@
         }
       });
       if (res?.success) {
-        alert('오늘 주문 접수를 오픈했습니다.');
+        isSuccess = true;
+        loadAllSettings().catch(err => console.error('Background reload settings error:', err));
       } else {
         clearAdminTokenIfDenied(res);
         alert(res?.message || '오픈 실패');
@@ -604,7 +642,9 @@
       alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
     } finally {
       setButtonLoading(btn, false);
-      await loadAllSettings();
+      if (isSuccess) {
+        setButtonSuccess(btn, '✓ 오픈 완료');
+      }
     }
   };
 
@@ -620,6 +660,7 @@
     }
 
     setButtonLoading(btn, true, '⏳ 마감 중...');
+    let isSuccess = false;
     try {
       const res = await fetchAPI('updateGuestSettings', {
         method: 'POST',
@@ -630,7 +671,8 @@
         }
       });
       if (res?.success) {
-        alert('오늘 주문을 즉시 마감했습니다.');
+        isSuccess = true;
+        loadAllSettings().catch(err => console.error('Background reload settings error:', err));
       } else {
         clearAdminTokenIfDenied(res);
         alert(res?.message || '마감 실패');
@@ -639,7 +681,9 @@
       alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
     } finally {
       setButtonLoading(btn, false);
-      await loadAllSettings();
+      if (isSuccess) {
+        setButtonSuccess(btn, '✓ 마감 완료');
+      }
     }
   };
 
@@ -661,6 +705,7 @@
     }
 
     setButtonLoading(btn, true);
+    let isSuccess = false;
     try {
       const payload = buildFullUpdateValuesPayload({
         guestMaxOrderCount,
@@ -672,7 +717,9 @@
         body: payload
       });
       if (res?.success) {
-        alert('정원 및 배달 지역 설정이 저장되었습니다.');
+        isSuccess = true;
+        if (!latestGuestOpsSettings) latestGuestOpsSettings = {};
+        Object.assign(latestGuestOpsSettings, payload);
       } else {
         clearAdminTokenIfDenied(res);
         alert(res?.message || '저장 실패');
@@ -681,7 +728,9 @@
       alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
     } finally {
       setButtonLoading(btn, false);
-      await loadAllSettings();
+      if (isSuccess) {
+        setButtonSuccess(btn, '✓ 저장 완료');
+      }
     }
   };
 
@@ -708,6 +757,7 @@
     }
 
     setButtonLoading(btn, true);
+    let isSuccess = false;
     try {
       const payload = buildFullUpdateValuesPayload({
         guestBaseCredit: Number(creditEl?.value) || 10,
@@ -724,7 +774,9 @@
         body: payload
       });
       if (res?.success) {
-        alert('기본 및 담당자 설정이 저장되었습니다.');
+        isSuccess = true;
+        if (!latestGuestOpsSettings) latestGuestOpsSettings = {};
+        Object.assign(latestGuestOpsSettings, payload);
       } else {
         clearAdminTokenIfDenied(res);
         alert(res?.message || '저장 실패');
@@ -733,7 +785,9 @@
       alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
     } finally {
       setButtonLoading(btn, false);
-      await loadAllSettings();
+      if (isSuccess) {
+        setButtonSuccess(btn, '✓ 저장 완료');
+      }
     }
   };
 
@@ -757,6 +811,7 @@
     }
 
     setButtonLoading(btn, true);
+    let isSuccess = false;
     try {
       const payload = buildFullUpdateValuesPayload({
         guestMenuMode,
@@ -771,7 +826,9 @@
       });
 
       if (res?.success) {
-        alert('특별 행사 및 알림 설정이 성공적으로 저장되었습니다.');
+        isSuccess = true;
+        if (!latestGuestOpsSettings) latestGuestOpsSettings = {};
+        Object.assign(latestGuestOpsSettings, payload);
       } else {
         clearAdminTokenIfDenied(res);
         alert(res?.message || '저장 실패');
@@ -780,7 +837,9 @@
       alert('오류가 발생했습니다: ' + (e.message || '네트워크 오류'));
     } finally {
       setButtonLoading(btn, false);
-      await loadAllSettings();
+      if (isSuccess) {
+        setButtonSuccess(btn, '✓ 저장 완료');
+      }
     }
   };
 

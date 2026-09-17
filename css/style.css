@@ -4317,3 +4317,15 @@ body.admin-shell-page {
   line-height: 1.4;
   word-break: keep-all;
 }
+
+/* P129: 저장 완료 인라인 피드백 */
+.btn.is-success,
+button.is-success {
+  background-color: #38A169 !important;
+  border-color: #2F855A !important;
+  color: #FFFFFF !important;
+  cursor: default;
+  pointer-events: none;
+  transition: background-color 0.2s ease;
+}
+

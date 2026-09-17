@@ -1610,7 +1610,11 @@ async function updateUserCreditAction(userId, credit) {
     if (res && res.success) {
       AppState.vibrate(50);
       AppState.playClickSound();
-      await loadAdminData();
+      const user = currentUsers.find(u => String(u.userId) === String(userId));
+      if (user) {
+        user.credit = credit;
+      }
+      renderUsersManagement(currentUsers);
       return true;
     } else {
       clearAdminTokenIfDenied(res);
@@ -1662,14 +1666,13 @@ async function addNewUserAction() {
     });
 
     if (res && res.success) {
-      alert(`[${nickname}] 이용자를 등록했습니다.`);
       nicknameInput.value = '';
       creditInput.value = '10';
       imageInput.value = '';
       closeAddUserModal();
       AppState.vibrate(80);
       AppState.playClickSound();
-      await loadAdminData();
+      loadAdminData().catch(err => console.error("신규 이용자 등록 후 백그라운드 갱신 에러:", err));
     } else {
       clearAdminTokenIfDenied(res);
       alert("이용자 등록에 실패했습니다: " + (res?.message || "오류"));
@@ -2026,7 +2029,12 @@ async function updateSnackStockAction(snackId, stock) {
     if (res && res.success) {
       AppState.vibrate(50);
       AppState.playClickSound();
-      await loadAdminData();
+      const snack = currentSnacks.find(s => String(s.snackId) === String(snackId));
+      if (snack) {
+        snack.stock = stock;
+      }
+      renderSnacksStock(currentSnacks);
+      renderSnacksManagement(currentSnacks);
       return true;
     } else {
       clearAdminTokenIfDenied(res);
@@ -2059,7 +2067,13 @@ async function updateSnackSaleAction(snackId, saleYn, snackName) {
     if (res && res.success) {
       AppState.vibrate(50);
       AppState.playClickSound();
-      await loadAdminData();
+      const snack = currentSnacks.find(s => String(s.snackId) === String(snackId));
+      if (snack) {
+        snack.saleYn = saleYn;
+        snack.active = nextActive;
+      }
+      renderSnacksStock(currentSnacks);
+      renderSnacksManagement(currentSnacks);
     } else {
       clearAdminTokenIfDenied(res);
       alert("간식 상태 변경에 실패했습니다: " + (res?.message || "오류"));
@@ -2119,7 +2133,6 @@ async function addNewSnackAction() {
     });
     
     if (res && res.success) {
-      alert(`[${name}] 간식이 성공적으로 등록되었습니다.`);
       nameInput.value = '';
       pointInput.value = '1';
       imageInput.value = '';
@@ -2132,7 +2145,7 @@ async function addNewSnackAction() {
       closeAddSnackModal();
       AppState.vibrate(80);
       AppState.playClickSound();
-      await loadAdminData();
+      loadAdminData().catch(err => console.error("신규 간식 등록 후 백그라운드 갱신 에러:", err));
     } else {
       clearAdminTokenIfDenied(res);
       alert("간식 등록에 실패했습니다: " + (res?.message || "오류"));
@@ -2239,9 +2252,18 @@ async function updateUserAction() {
     });
 
     if (res && res.success) {
-      alert("이용자 정보를 수정했습니다.");
       closeEditUserModal();
-      await loadAdminData();
+      AppState.vibrate(50);
+      AppState.playClickSound();
+      const user = currentUsers.find(u => String(u.userId) === String(userId));
+      if (user) {
+        user.nickname = nickname;
+        user.credit = credit;
+        user.imageUrl = imageUrl;
+        user.useYn = useYn;
+        user.active = useYn === 'Y';
+      }
+      renderUsersManagement(currentUsers);
     } else {
       clearAdminTokenIfDenied(res);
       alert("수정에 실패했습니다: " + (res?.message || "오류"));
@@ -2333,9 +2355,22 @@ async function updateSnackAction() {
     });
 
     if (res && res.success) {
-      alert("간식 정보를 수정했습니다.");
       closeEditSnackModal();
-      await loadAdminData();
+      AppState.vibrate(50);
+      AppState.playClickSound();
+      const snack = currentSnacks.find(s => String(s.snackId) === String(snackId));
+      if (snack) {
+        snack.name = name;
+        snack.point = point;
+        snack.imageUrl = imageUrl;
+        snack.stock = stock;
+        snack.saleYn = saleYn;
+        snack.active = String(saleYn).toUpperCase() === 'Y';
+        snack.target = target;
+        snack.maxPerPerson = maxPerPerson;
+      }
+      renderSnacksStock(currentSnacks);
+      renderSnacksManagement(currentSnacks);
     } else {
       clearAdminTokenIfDenied(res);
       alert("수정에 실패했습니다: " + (res?.message || "오류"));
