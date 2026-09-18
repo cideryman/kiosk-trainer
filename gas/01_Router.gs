@@ -101,6 +101,8 @@ function doPost(e) {
       return jsonResponse(updateUserCredit(data));
     } else if (action === 'addUser') {
       return jsonResponse(addUser(data));
+    } else if (action === 'registerKioskUser') {
+      return jsonResponse(registerKioskUser(data));
     } else if (action === 'updateUserActive') {
       return jsonResponse(updateUserActive(data));
     } else if (action === 'updateSnackStock') {

@@ -91,6 +91,9 @@ function updateUserCredit(data) {
   }
 
   for (var i = 1; i < rows.length; i++) {
+  }
+
+  for (var i = 1; i < rows.length; i++) {
     if (String(rows[i][0]) === String(userId)) {
       var beforeCredit = Number(rows[i][2] || 0);
       sheet.getRange(i + 1, 3).setValue(newCredit);
@@ -144,6 +147,69 @@ function addUser(data) {
     success: true,
     message: '신규 이용자를 등록했습니다.',
     userId: newUserId
+  };
+}
+
+/**
+ * 11-1. 키오스크 현장 신규 이용자 셀프 등록 API
+ * 관리자 로그인 없이 키오스크에서 직접 등록하며, 1회 주문 한도는 10으로 고정됩니다.
+ * 기존 이용자 닉네임 중복을 방지합니다.
+ */
+function registerKioskUser(data) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.USERS);
+  var rows = sheet.getDataRange().getValues();
+  var nickname = String(data.nickname || '').trim();
+
+  if (!nickname) {
+    return { success: false, message: '이용자 별명(이름)을 입력해 주세요.' };
+  }
+  if (nickname.length > 15) {
+    return { success: false, message: '별명은 15자 이내로 입력해 주세요.' };
+  }
+
+  // 중복 닉네임 검사 (대소문자 및 공백 무시)
+  for (var i = 1; i < rows.length; i++) {
+    var existingNickname = String(rows[i][1] || '').trim();
+    if (existingNickname.toLowerCase() === nickname.toLowerCase()) {
+      return { success: false, message: '이미 등록된 별명입니다. 목록에서 내 카드를 찾아보세요.' };
+    }
+  }
+
+  var initialCredit = DEFAULT_USER_ORDER_LIMIT; // 고정 한도 10
+  var maxNumber = 0;
+  for (var i = 1; i < rows.length; i++) {
+    var rawId = String(rows[i][0] || '');
+    var match = rawId.match(/(\d+)$/);
+    if (match) {
+      var idNumber = Number(match[1]);
+      if (idNumber > maxNumber) maxNumber = idNumber;
+    }
+  }
+
+  var newUserId = 'user' + String(maxNumber + 1).padStart(3, '0');
+  var imageUrl = String(data.imageUrl || '').trim();
+
+  sheet.appendRow([
+    newUserId,
+    nickname,
+    initialCredit,
+    'Y',
+    imageUrl
+  ]);
+  clearUserReadCache();
+  safeAppendAdminLog('registerKioskUser', 'user', newUserId, nickname, '', JSON.stringify({ credit: initialCredit, useYn: 'Y', selfRegister: true }), '키오스크 현장 등록');
+
+  return {
+    success: true,
+    message: '새 카드가 만들어졌습니다!',
+    userId: newUserId,
+    user: {
+      userId: newUserId,
+      nickname: nickname,
+      credit: initialCredit,
+      useYn: 'Y',
+      imageUrl: imageUrl
+    }
   };
 }
 

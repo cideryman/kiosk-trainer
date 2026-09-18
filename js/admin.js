@@ -1600,9 +1600,15 @@ function appendUserGroupRows(tbody, title, users) {
     const safeImgUrl = attr(imgUrl);
     const safeAvatarBgColor = attr(avatarBgColor);
     const userIdArg = jsString(userId);
-    const avatarHtml = imgUrl 
-      ? `<img src="${safeImgUrl}" class="admin-avatar" style="width: 36px; height: 36px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="admin-avatar-initial" style="background-color: ${safeAvatarBgColor}; display: none; width: 36px; height: 36px; font-size: 16px;">${safeInitial}</div>`
-      : `<div class="admin-avatar-initial" style="background-color: ${safeAvatarBgColor}; width: 36px; height: 36px; font-size: 16px;">${safeInitial}</div>`;
+    let avatarHtml = '';
+    if (AppState.isEmojiAvatar(rawImgUrl)) {
+      const emoji = esc(AppState.extractEmoji(rawImgUrl));
+      avatarHtml = `<div class="admin-avatar-initial" style="background-color: ${safeAvatarBgColor}; width: 36px; height: 36px; font-size: 20px; line-height: 1; display: flex; align-items: center; justify-content: center;">${emoji}</div>`;
+    } else if (imgUrl) {
+      avatarHtml = `<img src="${safeImgUrl}" class="admin-avatar" style="width: 36px; height: 36px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="admin-avatar-initial" style="background-color: ${safeAvatarBgColor}; display: none; width: 36px; height: 36px; font-size: 16px;">${safeInitial}</div>`;
+    } else {
+      avatarHtml = `<div class="admin-avatar-initial" style="background-color: ${safeAvatarBgColor}; width: 36px; height: 36px; font-size: 16px;">${safeInitial}</div>`;
+    }
 
     tr.innerHTML = `
       <td onclick="${callAttr(`openEditUserModal(${userIdArg})`)}" class="admin-clickable-cell user-identity-cell">

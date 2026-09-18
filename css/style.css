@@ -4377,6 +4377,201 @@ tr.row-save-success {
   padding: 4px 12px;
   background: #856404;
   color: #fff;
+  gap: 6px;
+}
+
+.user-card.is-preparing .user-card-status-badge {
+  background-color: #FF9F1C;
+  color: white;
+  animation: pulseGlowBadge 2s infinite ease-in-out;
+}
+
+.user-card.is-ready .user-card-status-badge {
+  background-color: #0D9488;
+  color: white;
+  animation: pulseGlowBadge 1.8s infinite ease-in-out;
+}
+
+.user-card.is-served .user-card-status-badge {
+  background-color: #475569;
+  color: white;
+}
+
+.user-card.is-bypassed .user-card-status-badge {
+  background-color: #2EC4B6;
+  color: white;
+}
+
+/* 3초 롱프레스 홀드 게이지 바 */
+.user-card-hold-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 8px;
+  width: 0%;
+  background: linear-gradient(90deg, #FF9F1C, #2EC4B6);
+  transition: width 3s linear;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.user-card.is-holding .user-card-hold-progress {
+  width: 100%;
+}
+
+.user-card.is-holding {
+  transform: scale(0.96);
+  border-color: #2EC4B6 !important;
+}
+
+@keyframes pulseGlowBadge {
+  0% { transform: translateX(-50%) scale(1); box-shadow: 0 0 0 rgba(255, 159, 28, 0); }
+  50% { transform: translateX(-50%) scale(1.04); box-shadow: 0 0 12px rgba(255, 159, 28, 0.5); }
+  100% { transform: translateX(-50%) scale(1); box-shadow: 0 0 0 rgba(255, 159, 28, 0); }
+}
+
+/* 주간매점 안내/직원 확인 모달 */
+.kiosk-modal-box {
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: 32px 24px;
+  text-align: center;
+  max-width: 440px;
+  width: 90%;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  animation: modalPopIn 0.25s ease-out;
+}
+
+.kiosk-modal-icon {
+  font-size: 56px;
+  line-height: 1;
+}
+
+.kiosk-modal-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.kiosk-modal-msg {
+  font-size: 18px;
+  font-weight: 600;
+  color: #475569;
+  line-height: 1.5;
+  margin: 0;
+  word-break: keep-all;
+}
+
+.kiosk-modal-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.kiosk-modal-actions .btn {
+  flex: 1;
+  min-height: 52px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* 안내 모달 내 주문 메뉴 상세 박스 */
+.friendly-notice-menu-box {
+  background: #FFF7ED;
+  border: 2px solid #FDBA74;
+  border-radius: 14px;
+  padding: 14px 18px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.friendly-notice-menu-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #C2410C;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.friendly-notice-menu-items {
+  font-size: 20px;
+  font-weight: 800;
+  color: #7C2D12;
+  line-height: 1.4;
+  word-break: keep-all;
+}
+
+/* P129: 저장 완료 인라인 피드백 */
+.btn.is-success,
+button.is-success {
+  background-color: #38A169 !important;
+  border-color: #2F855A !important;
+  color: #FFFFFF !important;
+  cursor: default;
+  pointer-events: none;
+  transition: background-color 0.2s ease;
+}
+
+/* P129 보완: 행 저장 성공 하이라이트 */
+tr.row-save-success {
+  animation: row-flash-success 1.2s ease-out;
+}
+@keyframes row-flash-success {
+  0% { background-color: rgba(56, 161, 105, 0.25); }
+  100% { background-color: transparent; }
+}
+
+/* P129 보완: 모달 저장 완료 오버레이 */
+.modal-success-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(56, 161, 105, 0.9);
+  color: #fff;
+  font-size: 1.3rem;
+  font-weight: 700;
+  border-radius: inherit;
+  z-index: 10;
+  animation: modal-success-fade 0.6s ease-out;
+}
+@keyframes modal-success-fade {
+  0% { opacity: 0; transform: scale(0.9); }
+  30% { opacity: 1; transform: scale(1); }
+  100% { opacity: 1; }
+}
+
+/* P129 보완: 백그라운드 동기화 실패 배너 */
+.sync-fail-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  margin: 0 0 12px 0;
+  background: #FFF3CD;
+  border: 1px solid #FFEEBA;
+  border-radius: 8px;
+  color: #856404;
+  font-size: 0.9rem;
+}
+.sync-fail-banner button {
+  margin-left: auto;
+  padding: 4px 12px;
+  background: #856404;
+  color: #fff;
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -4384,4 +4579,347 @@ tr.row-save-success {
 }
 .sync-fail-banner button:hover {
   background: #6c5103;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   P130: 키오스크 신규 이용자 현장 등록 및 이모지 아바타 스타일
+   ───────────────────────────────────────────────────────────── */
+
+/* 이모지 아바타 래퍼 */
+.user-avatar-emoji-wrap {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 42px;
+  line-height: 1;
+  user-select: none;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+.user-avatar-emoji-char {
+  display: inline-block;
+  transform: translateY(1px);
+}
+
+/* 신규 등록 진입 카드 (점선 스타일) */
+.user-card.user-card-add {
+  border: 3px dashed #A0AEC0;
+  background-color: #F8FAFC;
+  box-shadow: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 12px;
+}
+.user-card.user-card-add:hover {
+  border-color: #3182CE;
+  background-color: #EBF8FF;
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(49, 130, 206, 0.15);
+}
+.user-card.user-card-add:active {
+  transform: translateY(-1px) scale(0.98);
+}
+.user-card-add-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #E2E8F0, #EDF2F7);
+  color: #4A5568;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  margin-bottom: 8px;
+  transition: all 0.2s ease;
+  border: 2px dashed #CBD5E0;
+}
+.user-card.user-card-add:hover .user-card-add-icon {
+  background: linear-gradient(135deg, #3182CE, #2B6CB0);
+  color: #FFFFFF;
+  border-style: solid;
+  border-color: #3182CE;
+  transform: rotate(90deg) scale(1.05);
+}
+.user-card-add-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #2D3748;
+  margin-bottom: 4px;
+}
+.user-card-add-desc {
+  font-size: 13px;
+  font-weight: 600;
+  color: #718096;
+}
+
+/* 신규 이용자 등록 모달 */
+.kiosk-register-modal {
+  max-width: 500px;
+  width: 92%;
+  background: #FFFFFF;
+  border-radius: 24px;
+  padding: 24px 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 90vh;
+  overflow-y: auto;
+  text-align: left;
+}
+.kiosk-register-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid #EDF2F7;
+  padding-bottom: 12px;
+}
+.kiosk-register-title {
+  font-size: 22px;
+  font-weight: 900;
+  color: #1A202C;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.kiosk-register-close {
+  background: #EDF2F7;
+  border: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  font-size: 20px;
+  font-weight: 700;
+  color: #4A5568;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.kiosk-register-close:hover {
+  background: #E2E8F0;
+  color: #1A202C;
+}
+
+/* 실시간 라이브 미리보기 */
+.kiosk-register-preview-box {
+  background: #F7FAFC;
+  border: 2px solid #E2E8F0;
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.kiosk-register-preview-avatar {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38px;
+  border: 3px solid #CBD5E0;
+  background: #FF9F1C;
+  color: #FFFFFF;
+}
+.kiosk-register-preview-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.kiosk-register-preview-info {
+  flex: 1;
+}
+.kiosk-register-preview-tag {
+  font-size: 11px;
+  font-weight: 800;
+  color: #3182CE;
+  background: #EBF8FF;
+  padding: 2px 8px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+.kiosk-register-preview-name {
+  font-size: 19px;
+  font-weight: 900;
+  color: #2D3748;
+}
+
+/* 입력 필드 */
+.kiosk-register-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.kiosk-register-label {
+  font-size: 15px;
+  font-weight: 800;
+  color: #2D3748;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.kiosk-register-input {
+  width: 100%;
+  min-height: 52px;
+  font-size: 18px;
+  font-weight: 700;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 2px solid #CBD5E0;
+  background-color: #FFFFFF;
+  box-sizing: border-box;
+}
+.kiosk-register-input:focus {
+  border-color: #3182CE;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.2);
+}
+.kiosk-register-hint {
+  font-size: 12px;
+  color: #718096;
+}
+.kiosk-register-hint.warn {
+  color: #E53E3E;
+  font-weight: 700;
+}
+
+/* 프로필 꾸미기 탭/선택 */
+.avatar-type-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.avatar-tab-btn {
+  flex: 1;
+  min-height: 42px;
+  border-radius: 10px;
+  border: 2px solid #CBD5E0;
+  background: #FFFFFF;
+  font-size: 14px;
+  font-weight: 800;
+  color: #4A5568;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.avatar-tab-btn.active {
+  border-color: #3182CE;
+  background: #EBF8FF;
+  color: #2B6CB0;
+}
+
+/* 이모지 선택 그리드 */
+.emoji-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+.emoji-picker-item {
+  aspect-ratio: 1;
+  border-radius: 12px;
+  border: 2px solid #E2E8F0;
+  background: #F7FAFC;
+  font-size: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.emoji-picker-item:hover {
+  transform: scale(1.1);
+  border-color: #3182CE;
+  background: #EDF2F7;
+}
+.emoji-picker-item.selected {
+  border-color: #3182CE;
+  background: #EBF8FF;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.3);
+  transform: scale(1.08);
+}
+
+/* 앨범 사진 선택 박스 */
+.album-photo-box {
+  background: #F8FAFC;
+  border: 2px dashed #CBD5E0;
+  border-radius: 14px;
+  padding: 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.album-photo-btn {
+  background: #3182CE;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 10px rgba(49, 130, 206, 0.25);
+}
+.album-photo-btn:hover {
+  background: #2B6CB0;
+}
+
+/* 액션 버튼 */
+.kiosk-register-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+.btn-register-submit {
+  flex: 2;
+  min-height: 52px;
+  font-size: 18px;
+  font-weight: 900;
+  background: linear-gradient(135deg, #3182CE, #2B6CB0);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(49, 130, 206, 0.3);
+  transition: all 0.15s ease;
+}
+.btn-register-submit:hover {
+  background: linear-gradient(135deg, #2B6CB0, #2C5282);
+  transform: translateY(-2px);
+}
+.btn-register-submit:active {
+  transform: translateY(0);
+}
+.btn-register-cancel {
+  flex: 1;
+  min-height: 52px;
+  font-size: 16px;
+  font-weight: 700;
+  background: #EDF2F7;
+  color: #4A5568;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+}
+.btn-register-cancel:hover {
+  background: #E2E8F0;
 }

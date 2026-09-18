@@ -25,7 +25,7 @@ function uploadImage(data) {
   try {
     const base64Data = data.base64Data; // 'data:image/jpeg;base64,...'
     const fileName = data.fileName;
-    const type = data.type; // 'user' 또는 'snack' 또는 'review'
+    const type = data.type; // 'user' 또는 'snack' 또는 'review' 또는 'kioskUser'
 
     if (!base64Data || !fileName || !type) {
       return {
@@ -58,6 +58,8 @@ function uploadImage(data) {
       if (!auth.success) {
         return auth;
       }
+    } else if (type === 'kioskUser') {
+      // 키오스크 현장 이용자 셀프 등록용: 관리자 토큰 없이 허용 (크기 및 MIME 검증 완료)
     } else if (type === 'review') {
       const isReviewEdit = data.reviewEdit === true || data.reviewEdit === 'true';
       const ownership = verifyOrderOwnership_(data, {
@@ -76,23 +78,25 @@ function uploadImage(data) {
       }
       if (isReviewEdit) {
         const reviewResult = getGuestReview(data);
-        if (!reviewResult.success) return reviewResult;
+        if (!reviewResult.success || !reviewResult.review) {
+          return { success: false, message: '작성된 후기를 찾을 수 없습니다.' };
+        }
         if (!reviewResult.review.editable) {
           return { success: false, message: '후기 작성 후 7일이 지나 사진을 변경할 수 없습니다.' };
         }
       } else {
-      const reviewedIdx = ownership.headers.indexOf('reviewed');
-      if (reviewedIdx === -1) throw new Error('주문내역 reviewed 헤더가 없습니다.');
-      const isAlreadyReviewed = ownership.matched.some(item => {
-        const reviewedValue = item.row[reviewedIdx];
-        return reviewedValue === true || String(reviewedValue).toUpperCase() === 'TRUE' || String(reviewedValue).toUpperCase() === 'Y';
-      });
-      if (isAlreadyReviewed) {
-        return {
-          success: false,
-          message: '이미 응원 메시지를 남긴 주문입니다.'
-        };
-      }
+        const reviewedIdx = ownership.headers.indexOf('reviewed');
+        if (reviewedIdx === -1) throw new Error('주문내역 reviewed 헤더가 없습니다.');
+        const isAlreadyReviewed = ownership.matched.some(item => {
+          const reviewedValue = item.row[reviewedIdx];
+          return reviewedValue === true || String(reviewedValue).toUpperCase() === 'TRUE' || String(reviewedValue).toUpperCase() === 'Y';
+        });
+        if (isAlreadyReviewed) {
+          return {
+            success: false,
+            message: '이미 응원 메시지를 남긴 주문입니다.'
+          };
+        }
       }
     } else {
       return { success: false, message: '올바르지 않은 이미지 타입입니다.' };
@@ -110,7 +114,7 @@ function uploadImage(data) {
 
     // 대상 폴더 지정
     let folderId = '';
-    if (type === 'user') {
+    if (type === 'user' || type === 'kioskUser') {
       folderId = USER_IMAGE_FOLDER_ID;
     } else if (type === 'snack') {
       folderId = SNACK_IMAGE_FOLDER_ID;

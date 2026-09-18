@@ -260,6 +260,96 @@ const AppState = {
     return text;
   },
 
+  // 이모지 아바타인지 확인 (emoji:🐻 형태이거나 1~4문자 이모지)
+  isEmojiAvatar(imageUrl) {
+    if (!imageUrl) return false;
+    const text = String(imageUrl).trim();
+    if (text.startsWith('emoji:')) return true;
+    return text.length <= 4 && !text.startsWith('http') && !text.includes('/') && !text.includes('.');
+  },
+
+  // 이모지 문자열 추출 (emoji: 접두사 제거)
+  extractEmoji(imageUrl) {
+    if (!imageUrl) return '😊';
+    const text = String(imageUrl).trim();
+    if (text.startsWith('emoji:')) {
+      return text.substring(6).trim();
+    }
+    return text;
+  },
+
+  // 이용자 아바타 HTML 렌더러 (이모지, 실물 사진, 이니셜 폴백 일원화)
+  renderUserAvatarHtml(user, fallbackBgColor) {
+    const safeNickname = this.escapeHtml(user?.nickname || '이용자');
+    const safeInitial = this.escapeHtml(String(user?.nickname || '?').charAt(0));
+    const safeFallbackBgColor = this.escapeAttr(fallbackBgColor || '#FF9F1C');
+    const rawImageUrl = String(user?.imageUrl || '').trim();
+
+    if (this.isEmojiAvatar(rawImageUrl)) {
+      const emoji = this.escapeHtml(this.extractEmoji(rawImageUrl));
+      return `
+        <div class="user-avatar-container">
+          <div class="user-avatar-emoji-wrap" style="background-color: ${safeFallbackBgColor};">
+            <span class="user-avatar-emoji-char">${emoji}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    const imgUrl = this.convertDriveImageUrl(rawImageUrl);
+    const safeImgUrl = this.escapeAttr(imgUrl);
+
+    if (imgUrl && imgUrl.trim() !== '') {
+      return `
+        <div class="user-avatar-container">
+          <img src="${safeImgUrl}" alt="${safeNickname} 사진" class="user-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" loading="lazy">
+          <div class="user-avatar-fallback" style="background-color: ${safeFallbackBgColor}; display: none;">${safeInitial}</div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="user-avatar-container">
+        <div class="user-avatar-fallback" style="background-color: ${safeFallbackBgColor};">${safeInitial}</div>
+      </div>
+    `;
+  },
+
+  // 이미지 파일 리사이징 및 DataURL 변환
+  async prepareImageFileForUpload(file, maxDimension = 800, quality = 0.82) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('파일을 읽지 못했습니다.'));
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('이미지를 불러오지 못했습니다.'));
+        img.onload = () => {
+          const width = img.naturalWidth || img.width;
+          const height = img.naturalHeight || img.height;
+          const scale = Math.min(1, maxDimension / Math.max(width, height));
+          const targetW = Math.max(1, Math.round(width * scale));
+          const targetH = Math.max(1, Math.round(height * scale));
+
+          const canvas = document.createElement('canvas');
+          canvas.width = targetW;
+          canvas.height = targetH;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, targetW, targetH);
+
+          let dataUrl = canvas.toDataURL('image/webp', quality);
+          let ext = 'webp';
+          if (!dataUrl.startsWith('data:image/webp')) {
+            dataUrl = canvas.toDataURL('image/jpeg', quality);
+            ext = 'jpg';
+          }
+          resolve({ dataUrl, extension: ext, width: targetW, height: targetH });
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  },
+
   // 이름에 따른 기본 이모지 매핑 함수 (발달장애인을 위한 시각 보완)
   getSnackEmoji(name) {
     const lowerName = String(name || '').toLowerCase();

@@ -2034,6 +2034,50 @@ function getMockFallback(action, options) {
       userId: newUserId
     };
     }
+  } else if (action === 'registerKioskUser') {
+    const nickname = String(options.body?.nickname || "").trim();
+    if (!nickname) {
+      res = { success: false, message: "이용자 별명(이름)을 입력해 주세요." };
+    } else if (nickname.length > 15) {
+      res = { success: false, message: "별명은 15자 이내로 입력해 주세요." };
+    } else {
+      const users = MOCK_DATA.getUsers.users;
+      const isDuplicate = users.some(u => String(u.nickname || '').trim().toLowerCase() === nickname.toLowerCase());
+      if (isDuplicate) {
+        res = { success: false, message: "이미 등록된 별명입니다. 목록에서 내 카드를 찾아보세요." };
+      } else {
+        const credit = DEFAULT_USER_ORDER_LIMIT;
+        const imageUrl = String(options.body?.imageUrl || "").trim();
+        const maxId = users.reduce((max, u) => {
+          const match = String(u.userId || '').match(/(\d+)$/);
+          const idNumber = match ? Number(match[1]) : 0;
+          return idNumber > max ? idNumber : max;
+        }, 0);
+        const newUserId = `user${String(maxId + 1).padStart(3, '0')}`;
+        const newUserObj = {
+          userId: newUserId,
+          nickname,
+          credit,
+          useYn: 'Y',
+          active: 'Y',
+          imageUrl
+        };
+        users.push(newUserObj);
+        appendMockAdminLog('registerKioskUser', 'user', newUserId, nickname, '', JSON.stringify({ credit, useYn: 'Y', selfRegister: true }), '키오스크 현장 등록');
+        res = {
+          success: true,
+          message: "새 카드가 만들어졌습니다!",
+          userId: newUserId,
+          user: newUserObj
+        };
+      }
+    }
+  } else if (action === 'uploadImage') {
+    const base64Data = options.body?.base64Data;
+    res = {
+      success: true,
+      imageUrl: base64Data || 'https://drive.google.com/thumbnail?id=mock_image_id&sz=w500'
+    };
   } else if (action === 'updateUserActive') {
     const userId = options.body?.userId;
     const useYn = String(options.body?.useYn || 'N').toUpperCase() === 'Y' ? 'Y' : 'N';

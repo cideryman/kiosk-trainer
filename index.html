@@ -125,6 +125,80 @@
       </div>
     </div>
 
+    <!-- 키오스크 신규 이용자 셀프 등록 모달 -->
+    <div class="overlay" id="kiosk-register-overlay" style="display: none; z-index: 1100;">
+      <div class="kiosk-register-modal">
+        <div class="kiosk-register-header">
+          <div class="kiosk-register-title">
+            <span>✨</span> 새 카드 만들기
+          </div>
+          <button type="button" class="kiosk-register-close" onclick="closeKioskRegisterModal()" aria-label="닫기">&times;</button>
+        </div>
+
+        <!-- 실시간 라이브 미리보기 카드 -->
+        <div class="kiosk-register-preview-box">
+          <div class="kiosk-register-preview-avatar" id="register-preview-avatar">
+            <span id="register-preview-emoji">🐻</span>
+          </div>
+          <div class="kiosk-register-preview-info">
+            <span class="kiosk-register-preview-tag">신규 카드 미리보기</span>
+            <div class="kiosk-register-preview-name" id="register-preview-name">내 이름(별명)</div>
+          </div>
+        </div>
+
+        <!-- 별명(이름) 입력 -->
+        <div class="kiosk-register-field">
+          <label class="kiosk-register-label" for="kiosk-register-nickname">
+            <span>이름 또는 별명</span>
+            <span class="kiosk-register-hint">최대 15자</span>
+          </label>
+          <input type="text" id="kiosk-register-nickname" class="kiosk-register-input" placeholder="예: 민수, 꼬부기" maxlength="15" autocomplete="off" oninput="handleRegisterNicknameInput()">
+          <div class="kiosk-register-hint" id="kiosk-register-nickname-msg">한글 또는 영문으로 2글자 이상 적어주세요.</div>
+        </div>
+
+        <!-- 프로필 꾸미기 (캐릭터 vs 기기 앨범 사진) -->
+        <div class="kiosk-register-field">
+          <label class="kiosk-register-label">
+            <span>프로필 꾸미기</span>
+          </label>
+          <div class="avatar-type-tabs">
+            <button type="button" class="avatar-tab-btn active" id="tab-avatar-emoji" onclick="setAvatarMode('emoji')">
+              <span>😊</span> 캐릭터 고르기
+            </button>
+            <button type="button" class="avatar-tab-btn" id="tab-avatar-photo" onclick="setAvatarMode('photo')">
+              <span>🖼️</span> 앨범 사진 선택
+            </button>
+          </div>
+
+          <!-- 이모티콘 선택 그리드 (12종 귀여운 동물/캐릭터) -->
+          <div id="avatar-emoji-section">
+            <div class="emoji-picker-grid" id="emoji-picker-grid">
+              <!-- JS로 렌더링 -->
+            </div>
+          </div>
+
+          <!-- 기기 앨범 사진 선택 영역 -->
+          <div id="avatar-photo-section" style="display: none;">
+            <div class="album-photo-box">
+              <input type="file" id="kiosk-photo-input" accept="image/*" style="display: none;" onchange="handleKioskPhotoSelected(this)">
+              <button type="button" class="album-photo-btn" onclick="document.getElementById('kiosk-photo-input').click()">
+                <span>📷</span> 기기에서 사진 찾기
+              </button>
+              <div class="kiosk-register-hint" id="kiosk-photo-hint">스마트폰이나 태블릿 앨범에서 사진을 골라주세요.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 등록 액션 버튼 -->
+        <div class="kiosk-register-actions">
+          <button type="button" class="btn-register-cancel" onclick="closeKioskRegisterModal()">취소</button>
+          <button type="button" class="btn-register-submit" id="btn-kiosk-register-submit" onclick="submitKioskRegister()">
+            ✨ 내 카드 만들기
+          </button>
+        </div>
+      </div>
+    </div>
+
   <!-- 스크립트 참조 -->
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>
@@ -436,9 +510,11 @@
     function renderUsers(users) {
       cachedUsersList = users;
       const userGrid = document.getElementById('user-grid');
+      userGrid.innerHTML = '';
       
       if (users.length === 0) {
-        userGrid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">등록된 이용자가 없습니다.</div>';
+        userGrid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">등록된 이용자가 없습니다. 아래 버튼으로 첫 카드를 만들어보세요!</div>';
+        appendAddUserCard(userGrid);
         return;
       }
 
@@ -454,26 +530,8 @@
         const colorIndex = Math.abs(String(user.userId || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % colors.length;
         const fallbackBgColor = colors[colorIndex];
 
-        const imgUrl = AppState.convertDriveImageUrl(user.imageUrl);
+        const avatarHTML = AppState.renderUserAvatarHtml(user, fallbackBgColor);
         const safeNickname = AppState.escapeHtml(user.nickname);
-        const safeInitial = AppState.escapeHtml(String(user.nickname || '?').charAt(0));
-        const safeImgUrl = AppState.escapeAttr(imgUrl);
-        const safeFallbackBgColor = AppState.escapeAttr(fallbackBgColor);
-        let avatarHTML = '';
-        if (imgUrl && imgUrl.trim() !== '') {
-          avatarHTML = `
-            <div class="user-avatar-container">
-              <img src="${safeImgUrl}" alt="${safeNickname} 사진" class="user-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" loading="lazy">
-              <div class="user-avatar-fallback" style="background-color: ${safeFallbackBgColor}; display: none;">${safeInitial}</div>
-            </div>
-          `;
-        } else {
-          avatarHTML = `
-            <div class="user-avatar-container">
-              <div class="user-avatar-fallback" style="background-color: ${safeFallbackBgColor};">${safeInitial}</div>
-            </div>
-          `;
-        }
 
         // 일반 키오스크에서는 이용자별 1회 주문 한도를 표시한다.
         const safeCreditNum = AppState.escapeHtml(String(user.credit ?? 0));
@@ -573,7 +631,308 @@
         userGrid.appendChild(card);
       });
 
+      // 신규 이용자 셀프 등록 카드 맨 끝에 추가
+      appendAddUserCard(userGrid);
+
       applyUserCardStatuses();
+    }
+
+    // 신규 이용자 셀프 등록 카드 렌더링
+    function appendAddUserCard(container) {
+      if (!container) return;
+      const addCard = document.createElement('div');
+      addCard.className = 'user-card user-card-add';
+      addCard.setAttribute('role', 'button');
+      addCard.setAttribute('aria-label', '새 카드 만들기');
+      addCard.innerHTML = `
+        <div class="user-card-add-icon">➕</div>
+        <div class="user-card-add-title">새 카드 만들기</div>
+        <div class="user-card-add-desc">새로 오셨나요? 등록하기</div>
+      `;
+      AppState.bindCardTap(addCard, () => {
+        AppState.vibrate(40);
+        openKioskRegisterModal();
+      });
+      container.appendChild(addCard);
+    }
+
+    // 신규 등록용 이모지 목록 12종
+    const KIOSK_REGISTER_EMOJIS = ['🐻', '🐰', '🐶', '🐱', '🐼', '🦁', '🐯', '🐨', '🦊', '🐥', '🐸', '🦄'];
+    let registerAvatarMode = 'emoji'; // 'emoji' | 'photo'
+    let selectedRegisterEmoji = '🐻';
+    let selectedRegisterPhotoDataUrl = '';
+    let isKioskRegisterSubmitting = false;
+
+    function openKioskRegisterModal() {
+      const modal = document.getElementById('kiosk-register-overlay');
+      const nicknameInput = document.getElementById('kiosk-register-nickname');
+      const nicknameMsg = document.getElementById('kiosk-register-nickname-msg');
+      const photoInput = document.getElementById('kiosk-photo-input');
+      const photoHint = document.getElementById('kiosk-photo-hint');
+
+      if (nicknameInput) nicknameInput.value = '';
+      if (photoInput) photoInput.value = '';
+      if (nicknameMsg) {
+        nicknameMsg.textContent = '한글 또는 영문으로 2글자 이상 적어주세요.';
+        nicknameMsg.className = 'kiosk-register-hint';
+      }
+      if (photoHint) photoHint.textContent = '스마트폰이나 태블릿 앨범에서 사진을 골라주세요.';
+
+      selectedRegisterEmoji = '🐻';
+      selectedRegisterPhotoDataUrl = '';
+      setAvatarMode('emoji');
+      renderKioskEmojiGrid();
+      updateRegisterLivePreview();
+
+      if (modal) {
+        modal.style.display = 'flex';
+        setTimeout(() => {
+          if (nicknameInput) nicknameInput.focus();
+        }, 150);
+      }
+
+      AppState.speak('새 카드를 만듭니다. 이름과 캐릭터를 골라주세요.');
+    }
+
+    function closeKioskRegisterModal() {
+      const modal = document.getElementById('kiosk-register-overlay');
+      if (modal) modal.style.display = 'none';
+      isKioskRegisterSubmitting = false;
+    }
+
+    function renderKioskEmojiGrid() {
+      const grid = document.getElementById('emoji-picker-grid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      KIOSK_REGISTER_EMOJIS.forEach(emoji => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'emoji-picker-item' + (emoji === selectedRegisterEmoji ? ' selected' : '');
+        item.textContent = emoji;
+        item.setAttribute('aria-label', `${emoji} 캐릭터 선택`);
+        item.addEventListener('click', () => {
+          selectRegisterEmoji(emoji, item);
+        });
+        grid.appendChild(item);
+      });
+    }
+
+    function selectRegisterEmoji(emoji, targetEl) {
+      selectedRegisterEmoji = emoji;
+      const items = document.querySelectorAll('.emoji-picker-item');
+      items.forEach(el => el.classList.remove('selected'));
+      if (targetEl) targetEl.classList.add('selected');
+      AppState.vibrate(25);
+      updateRegisterLivePreview();
+    }
+
+    function setAvatarMode(mode) {
+      registerAvatarMode = mode;
+      const tabEmoji = document.getElementById('tab-avatar-emoji');
+      const tabPhoto = document.getElementById('tab-avatar-photo');
+      const secEmoji = document.getElementById('avatar-emoji-section');
+      const secPhoto = document.getElementById('avatar-photo-section');
+
+      if (mode === 'emoji') {
+        if (tabEmoji) tabEmoji.classList.add('active');
+        if (tabPhoto) tabPhoto.classList.remove('active');
+        if (secEmoji) secEmoji.style.display = 'block';
+        if (secPhoto) secPhoto.style.display = 'none';
+      } else {
+        if (tabEmoji) tabEmoji.classList.remove('active');
+        if (tabPhoto) tabPhoto.classList.add('active');
+        if (secEmoji) secEmoji.style.display = 'none';
+        if (secPhoto) secPhoto.style.display = 'block';
+      }
+      AppState.vibrate(30);
+      updateRegisterLivePreview();
+    }
+
+    async function handleKioskPhotoSelected(input) {
+      const file = input?.files?.[0];
+      if (!file) return;
+
+      const photoHint = document.getElementById('kiosk-photo-hint');
+      if (photoHint) photoHint.textContent = '사진을 준비하는 중입니다...';
+
+      try {
+        const res = await AppState.prepareImageFileForUpload(file, 600, 0.82);
+        selectedRegisterPhotoDataUrl = res.dataUrl;
+        if (photoHint) photoHint.textContent = '✓ 사진이 선택되었습니다! 아래 미리보기를 확인하세요.';
+        AppState.vibrate(40);
+        updateRegisterLivePreview();
+      } catch (err) {
+        console.error('사진 변환 에러:', err);
+        alert('사진을 불러오지 못했습니다. 다른 사진을 선택해 주세요.');
+        if (photoHint) photoHint.textContent = '사진 선택에 실패했습니다. 다시 시도해 주세요.';
+      }
+    }
+
+    function handleRegisterNicknameInput() {
+      const nicknameInput = document.getElementById('kiosk-register-nickname');
+      const nicknameMsg = document.getElementById('kiosk-register-nickname-msg');
+      const val = (nicknameInput?.value || '').trim();
+
+      updateRegisterLivePreview();
+
+      if (!val) {
+        if (nicknameMsg) {
+          nicknameMsg.textContent = '한글 또는 영문으로 2글자 이상 적어주세요.';
+          nicknameMsg.className = 'kiosk-register-hint';
+        }
+        return;
+      }
+
+      // 중복 체크
+      const isDuplicate = cachedUsersList.some(u => String(u.nickname || '').trim().toLowerCase() === val.toLowerCase());
+      if (isDuplicate) {
+        if (nicknameMsg) {
+          nicknameMsg.textContent = '⚠️ 이미 사용 중인 별명입니다. 목록에서 내 카드를 찾아보세요.';
+          nicknameMsg.className = 'kiosk-register-hint warn';
+        }
+      } else if (val.length < 2) {
+        if (nicknameMsg) {
+          nicknameMsg.textContent = '별명은 최소 2글자 이상 입력해 주세요.';
+          nicknameMsg.className = 'kiosk-register-hint';
+        }
+      } else {
+        if (nicknameMsg) {
+          nicknameMsg.textContent = '✓ 멋진 별명이에요! 사용 가능합니다.';
+          nicknameMsg.className = 'kiosk-register-hint';
+        }
+      }
+    }
+
+    function updateRegisterLivePreview() {
+      const nicknameInput = document.getElementById('kiosk-register-nickname');
+      const previewName = document.getElementById('register-preview-name');
+      const previewAvatar = document.getElementById('register-preview-avatar');
+
+      const nameVal = (nicknameInput?.value || '').trim();
+      if (previewName) previewName.textContent = nameVal || '내 이름(별명)';
+
+      if (!previewAvatar) return;
+
+      if (registerAvatarMode === 'photo' && selectedRegisterPhotoDataUrl) {
+        previewAvatar.innerHTML = `<img src="${selectedRegisterPhotoDataUrl}" alt="내 사진 미리보기">`;
+        previewAvatar.style.backgroundColor = '#CBD5E0';
+      } else {
+        previewAvatar.innerHTML = `<span id="register-preview-emoji">${selectedRegisterEmoji}</span>`;
+        previewAvatar.style.backgroundColor = '#FF9F1C';
+      }
+    }
+
+    async function submitKioskRegister() {
+      if (isKioskRegisterSubmitting) return;
+
+      const nicknameInput = document.getElementById('kiosk-register-nickname');
+      const nickname = (nicknameInput?.value || '').trim();
+      const submitBtn = document.getElementById('btn-kiosk-register-submit');
+
+      if (!nickname) {
+        alert('이름 또는 별명을 입력해 주세요.');
+        nicknameInput?.focus();
+        return;
+      }
+      if (nickname.length < 2) {
+        alert('별명은 2글자 이상 입력해 주세요.');
+        nicknameInput?.focus();
+        return;
+      }
+      if (nickname.length > 15) {
+        alert('별명은 15자 이내로 입력해 주세요.');
+        nicknameInput?.focus();
+        return;
+      }
+
+      // 중복 체크 재확인
+      const isDuplicate = cachedUsersList.some(u => String(u.nickname || '').trim().toLowerCase() === nickname.toLowerCase());
+      if (isDuplicate) {
+        alert(`'${nickname}'(은)는 이미 등록되어 있습니다. 목록에서 내 카드를 찾아보세요!`);
+        return;
+      }
+
+      isKioskRegisterSubmitting = true;
+      const originalBtnText = submitBtn ? submitBtn.textContent : '✨ 내 카드 만들기';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = '⏳ 카드 만드는 중...';
+      }
+
+      try {
+        let finalImageUrl = '';
+
+        // 앨범 사진 선택 모드인 경우 먼저 이미지 업로드 수행
+        if (registerAvatarMode === 'photo' && selectedRegisterPhotoDataUrl) {
+          if (submitBtn) submitBtn.textContent = '📷 사진 저장 중...';
+          const uploadRes = await fetchAPI('uploadImage', {
+            method: 'POST',
+            body: {
+              base64Data: selectedRegisterPhotoDataUrl,
+              fileName: `kiosk_user_${encodeURIComponent(nickname)}_${Date.now()}.webp`,
+              type: 'kioskUser'
+            }
+          });
+          if (uploadRes && uploadRes.success && uploadRes.imageUrl) {
+            finalImageUrl = uploadRes.imageUrl;
+          } else {
+            console.warn('사진 업로드 실패, 기본 이모지로 대체:', uploadRes?.message);
+            finalImageUrl = 'emoji:' + selectedRegisterEmoji;
+          }
+        } else {
+          // 이모티콘 모드
+          finalImageUrl = 'emoji:' + selectedRegisterEmoji;
+        }
+
+        if (submitBtn) submitBtn.textContent = '✨ 이용자 등록 중...';
+        const res = await fetchAPI('registerKioskUser', {
+          method: 'POST',
+          body: {
+            nickname: nickname,
+            imageUrl: finalImageUrl
+          }
+        });
+
+        if (res && res.success) {
+          AppState.vibrate([100, 60, 100]);
+          closeKioskRegisterModal();
+          AppState.speak(`환영합니다, ${nickname} 님! 새 카드가 만들어졌어요.`);
+
+          // 목록 갱신 및 신규 등록된 카드 하이라이트
+          await loadUsers();
+
+          // 새로 만들어진 카드 찾아서 시각 효과 부여
+          setTimeout(() => {
+            const newCards = document.querySelectorAll('.user-card[data-user-id]');
+            for (const card of newCards) {
+              const nameEl = card.querySelector('.user-card-name');
+              if (nameEl && nameEl.textContent.trim() === nickname) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                card.style.transition = 'all 0.5s ease';
+                card.style.borderColor = '#3182CE';
+                card.style.boxShadow = '0 0 24px rgba(49, 130, 206, 0.6)';
+                card.style.transform = 'scale(1.06)';
+                setTimeout(() => {
+                  card.style.transform = '';
+                  card.style.boxShadow = '';
+                }, 2000);
+                break;
+              }
+            }
+          }, 300);
+        } else {
+          alert('카드 만들기에 실패했습니다: ' + (res?.message || '알 수 없는 오류'));
+        }
+      } catch (error) {
+        console.error('키오스크 이용자 등록 오류:', error);
+        alert('카드 등록 중 통신 오류가 발생했습니다.');
+      } finally {
+        isKioskRegisterSubmitting = false;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalBtnText;
+        }
+      }
     }
 
 
@@ -933,6 +1292,15 @@
         staffBypassOverlay.addEventListener('click', (e) => {
           if (e.target === staffBypassOverlay) {
             closeStaffBypassModal();
+          }
+        });
+      }
+
+      const kioskRegisterOverlay = document.getElementById('kiosk-register-overlay');
+      if (kioskRegisterOverlay) {
+        kioskRegisterOverlay.addEventListener('click', (e) => {
+          if (e.target === kioskRegisterOverlay) {
+            closeKioskRegisterModal();
           }
         });
       }
